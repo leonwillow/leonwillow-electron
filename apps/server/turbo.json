@@ -1,0 +1,6 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "dev": { "env": ["HOST", "PORT", "CORS_ORIGINS"] }
+  }
+}

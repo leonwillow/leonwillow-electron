@@ -1,0 +1,15 @@
+node_modules/
+.turbo/
+.nuxt/
+.output/
+dist
+release/
+coverage/
+*.tsbuildinfo
+*.log
+.env
+.env.*
+!.env.example
+.DS_Store
+.idea/
+infra/docker/data/

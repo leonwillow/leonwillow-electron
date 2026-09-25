@@ -1,0 +1,11 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "dev": { "env": ["NUXT_PUBLIC_API_BASE_URL"] },
+    "build": {
+      "inputs": ["$TURBO_DEFAULT$", ".env", ".env.*"],
+      "env": ["NUXT_PUBLIC_API_BASE_URL"],
+      "outputs": [".output/**"]
+    }
+  }
+}

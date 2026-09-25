@@ -1,0 +1,20 @@
+{
+  "name": "@platform/desktop",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/main/index.js",
+  "scripts": {
+    "dev": "bun run build:main && electron . --dev",
+    "build:main": "bun build src/main/index.ts --target=node --external electron --outdir=dist/main",
+    "build": "bun run build:main && bun scripts/copy-web.ts",
+    "start": "electron .",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@platform/config": "workspace:*",
+    "@types/node": "26.6.2",
+    "electron": "44.4.5",
+    "typescript": "6.0.3"
+  }
+}

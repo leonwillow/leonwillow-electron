@@ -1,0 +1,25 @@
+{
+  "name": "@platform/api-client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@elysia/eden": "1.4.10"
+  },
+  "peerDependencies": {
+    "alova": "3.5.5"
+  },
+  "devDependencies": {
+    "@platform/config": "workspace:*",
+    "@platform/server": "workspace:*",
+    "alova": "3.5.5",
+    "elysia": "1.4.30",
+    "typescript": "6.0.3"
+  }
+}
