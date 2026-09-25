@@ -163,6 +163,7 @@ bun run build
 
 ## 继续阅读
 
+- [Codex 开发约定](AGENTS.md)
 - [前端目录说明](apps/web/README.md)
 - [桌面端目录说明](apps/desktop/README.md)
 - [后端目录说明](apps/server/README.md)
