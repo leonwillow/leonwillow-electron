@@ -1,6 +1,6 @@
 # Web 前端
 
-包名：`@platform/web`。采用 Nuxt 4 SPA，承载浏览器与 Electron 共用的界面。当前只有 `app/pages/index.vue` 测试页，通过 Alova → Eden 请求 `GET /test`；已接入 Nuxt UI、Tailwind CSS 和前端权限显隐能力，业务页面及登录接口仍占位。
+包名：`@platform/web`。采用 Nuxt 4 SPA，承载浏览器与 Electron 共用的界面。首页进入 `app/pages/auth/login.vue` 登录页，提供用户名和密码登录；已接入 Nuxt UI、Tailwind CSS 和前端权限显隐能力。当前登录使用本地模拟实现，真实认证接口尚未接入。
 
 ## 自动导入与显式导入
 
@@ -26,7 +26,7 @@
 - **脚本中的组件引用**：`h()`、`overlay.create()`、动态组件映射等需要组件对象时，可从 `#components` 显式导入，或在适用场景使用 `resolveComponent('组件名')`。模板中的自动导入不等于脚本里存在同名变量；仅用于模板的组件省略 import。
 - **自动导入范围以外或名称冲突**：未扫描的局部文件、需要别名区分的同名导出、脱离 Nuxt 编译运行的测试或脚本，按实际环境显式导入。`packages/*`、Elysia 后端和 Electron 主进程不沿用本应用的自动导入假设。
 
-现有 [测试页面](app/pages/index.vue) 和 [API 插件](app/plugins/api.client.ts) 可作为参考：Nuxt API 与模板组件直接使用，Alova 和共享请求包保持显式导入。
+现有 [登录页面](app/pages/auth/login.vue) 和 [API 插件](app/plugins/api.client.ts) 可作为参考：Nuxt API 与模板组件直接使用，Nuxt UI 类型、Alova 和共享请求包保持显式导入。
 
 ### 核实与收尾
 
@@ -51,13 +51,9 @@
 | `public/` | 不经构建处理的静态资源 | Nuxt 约定 |
 | `app/types/` | 页面状态、组件属性等仅前端使用的类型 | 项目自定义，普通类型显式导入 |
 
-`apps/web` 是 Nuxt 项目根目录，`nuxt.config.ts` 放在这里；`app/` 是默认源码目录，`~` / `@` 指向 `app/`，`~~` / `@@` 指向 `apps/web/`。[官方目录约定](https://nuxt.com/docs/4.x/directory-structure)
+[框架约定](../../docs/framework-conventions.md)
 
-已设置 `ssr: false`，接入 `@nuxt/ui`、`app/assets/css/main.css` 和 `<UApp>`。当前没有布局需求，`app.vue` 直接使用 `<NuxtPage>`。类型配置采用 Nuxt 4 生成的项目引用，使用 `nuxt prepare` 和 `nuxt typecheck`。[框架约定](../../docs/framework-conventions.md)
-
-在本应用目录执行 `bun run dev` 启动开发服务，`bun run typecheck` 检查 Vue / TypeScript，`bun run build` 生成 `.output/public`。安装依赖后，仓库根 `postinstall` 会执行本应用的 `prepare` 任务。
-
-页面使用文件路由，后端菜单引用既有页面。普通组件放 `components/`，不放入 `pages/` 使其成为路由。Vue 组件有脚本逻辑时使用 `<script setup lang="ts">`；可复用的有状态逻辑放 `composables/`。[Nuxt composables](https://nuxt.com/docs/4.x/directory-structure/app/composables)、[Vue script setup](https://vuejs.org/api/sfc-script-setup.html)
+可复用的有状态逻辑放 `composables/`。[Nuxt composables](https://nuxt.com/docs/4.x/directory-structure/app/composables)、[Vue script setup](https://vuejs.org/api/sfc-script-setup.html)
 
 这里不创建 `server/`、服务端 API handler 或数据库访问代码。Nuxt 生成工具类型上下文不等于启用 Nuxt 业务后端。
 
@@ -74,47 +70,24 @@ API 地址来自 `runtimeConfig.public.apiBaseUrl`，由 `app/plugins/api.client
 参考 [RuoYi Vue Plus 配套前端的权限指令](https://github.com/CrazyLionCat/plus-ui/blob/6.X-Vue/src/directive/permission/index.ts)及其[函数式判断](https://github.com/CrazyLionCat/plus-ui/blob/6.X-Vue/src/utils/permission.ts)：权限和角色来自当前用户，多个值默认表示“任一命中”。本项目增加 `.all`，并在授权刷新、撤权及绑定值变化时重新判断，使用可恢复的隐藏方式。
 
 ```vue
-<script setup lang="ts">
-const { hasPermission, hasRole } = useAccess();
-</script>
-
 <template>
-  <!-- 元素指令：字符串或数组均可，默认任一命中。 -->
-  <button v-has-permi="['system:user:add']">新增用户</button>
-  <button v-has-permi="['system:user:add', 'system:user:edit']">维护用户</button>
-  <button v-has-roles="['editor', 'reviewer']">角色专属操作</button>
-  <button v-has-permi.all="['system:user:query', 'system:user:export']">查询并导出</button>
-
-  <!-- 组件优先使用 v-if，避免依赖组件内部的根节点结构。 -->
-  <UButton v-if="hasPermission('system:user:add')">新增用户</UButton>
-  <section v-if="hasRole(['editor', 'reviewer'], 'all')">同时具有两种角色的内容</section>
+  <UButton v-has-permi="['system:user:add']">新增用户</UButton>
+  <UButton v-has-permi="['system:user:add', 'system:user:edit']">维护用户</UButton>
+  <UButton v-has-roles="['editor', 'reviewer']">角色专属操作</UButton>
+  <UButton v-has-permi.all="['system:user:query', 'system:user:export']">查询并导出</UButton>
 </template>
 ```
 
-`v-has-permi` / `v-has-roles` 也支持 Vue 的驼峰写法 `v-hasPermi` / `v-hasRoles`。同一元素同时使用两种指令时，两者都通过才显示；`.all` 只影响所属指令。它们与 `v-show`、原有布局样式共同生效，权限重新获得后不会覆盖组件自身的隐藏状态。
+同一元素同时使用两种指令时，两者都通过才显示；`.all` 只影响所属指令。它们与 `v-show`、原有布局样式共同生效，权限重新获得后不会覆盖组件自身的隐藏状态。
 
-对菜单、标签页和下拉菜单的 `items`，在 `computed` 中使用 `hasPermission()` / `hasRole()` 过滤后再传给组件。对整块业务组件使用 `v-if`，避免无权限时仍挂载并请求数据。指令只隐藏绑定元素，不能阻止组件初始化、隐藏传送到其他 DOM 位置的弹层或保护已下载的数据。[Vue 对组件指令的说明](https://vuejs.org/guide/reusability/custom-directives.html#usage-on-components)
+需要在脚本中判断权限时，再从 `useAccess()` 取得 `hasPermission()` / `hasRole()`：例如在 `computed` 中过滤菜单、标签页和下拉菜单的 `items`。
 
 ### 接入授权状态
 
 后续登录模块在取得当前用户的权威授权信息后调用以下入口；`roles`、`permissions` 应直接映射后端响应，不从菜单可见性推导，也不由页面自行授予。
 
-```ts
-const { setAccess, clearAccess } = useAccess();
+## 登录页预览
 
-// 取得后端当前用户信息后：
-setAccess({ roles: currentUser.roles, permissions: currentUser.permissions });
+访问 `/` 会替换跳转至 `/auth/login`。页面使用 `UAuthForm`，仅提供用户名和密码，均至少 5 位；用户名去除首尾空格后校验，密码保留原始输入。支持密码显隐、回车提交、提交中禁用和错误提示。
 
-// 退出、开始切换账号或确认授权失效时：
-clearAccess();
-```
-
-- 默认快照为 `null`，`ready` 为 `false`，受控内容全部隐藏；设置空数组表示授权已加载但没有对应能力。
-- `setAccess()` 整体替换并复制两个数组；`snapshot` 对调用方只读。不要持久化此状态。异步登录模块应防止旧账号的迟到响应覆盖新账号状态。
-- 权限采用具体的三段式精确匹配，页面 `query` 不隐含按钮的 `add` / `edit` 等权限。只有后端下发的 `ALL_PERMISSION`（`*:*:*`）放行所有具体权限；条件本身不允许通配符。
-- 角色检查只匹配实际角色标识，不把 `admin` 或 `superadmin` 名称当作最高授权，也不让全权限用户冒充其他业务角色。最高资源授权用权限判断表达。
-- 空条件、空数组、无效权限格式均拒绝显示，包括 `.all` 场景。
-
-当前没有登录、当前用户或授权刷新接口，因而尚无业务调用方自动设置该快照；公开的 `GET /test` 按钮保持可用。后续认证模块负责请求、过期响应隔离、401/403 和焦点恢复时的重新校验。页面准入仍按设计通过 `definePageMeta` 与路由中间件实现；本节能力负责界面可见性，后端接口必须独立授权。
-
-验证命令：仓库根执行 `bun test apps/web/tests` 检查权限边界，`bun run --cwd apps/web typecheck` 检查 Nuxt、Vue 和指令类型。
+`app/utils/auth/mockLogin.ts` 模拟 450 毫秒延迟，仅接受 `admin / admin`。登录成功后在当前页面显示反馈，不创建真实会话、不写入权限状态，也不跳转工作台；后续接入公共请求客户端时替换此模拟函数。
