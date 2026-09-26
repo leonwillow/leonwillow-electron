@@ -1,6 +1,6 @@
 # Web 前端
 
-包名：`@platform/web`。采用 Nuxt 4 SPA，承载浏览器与 Electron 共用的界面。当前只有 `app/pages/index.vue` 测试页，通过 Alova → Eden 请求 `GET /test`；已接入 Nuxt UI 与 Tailwind CSS，业务页面仍占位。
+包名：`@platform/web`。采用 Nuxt 4 SPA，承载浏览器与 Electron 共用的界面。当前只有 `app/pages/index.vue` 测试页，通过 Alova → Eden 请求 `GET /test`；已接入 Nuxt UI、Tailwind CSS 和前端权限显隐能力，业务页面及登录接口仍占位。
 
 ## 自动导入与显式导入
 
@@ -44,6 +44,7 @@
 | `app/layouts/` | 登录及平台公共布局 | Nuxt 约定 |
 | `app/components/` | 公共展示组件和各模块的局部组件 | Nuxt 约定 |
 | `app/composables/` | 可复用的界面状态与操作逻辑 | Nuxt 约定 |
+| `app/directives/` | 元素级角色与权限显隐，由插件注册 | 项目自定义 |
 | `app/middleware/` | 登录状态与页面准入检查 | Nuxt 约定 |
 | `app/plugins/` | 初始化请求客户端、注入桌面能力等 | Nuxt 约定 |
 | `app/assets/css/` | Tailwind CSS 和 Nuxt UI 样式入口 | Nuxt 的 assets 约定，css 是项目分类 |
@@ -65,3 +66,55 @@
 页面中间件与按钮显隐服务于交互体验，最终授权由独立后端执行。桌面专有操作经受控桥接调用；页面不直接导入 Electron 或 Node.js API。
 
 API 地址来自 `runtimeConfig.public.apiBaseUrl`，由 `app/plugins/api.client.ts` 传入客户端；默认 `http://127.0.0.1:3001`。可通过 `.env` 中的 `NUXT_PUBLIC_API_BASE_URL` 覆盖。静态部署与 Electron 的地址在构建时写入，需要改地址时重新构建。
+
+## 前端资源与按钮显隐
+
+`useAccess()` 维护内存中的角色、权限快照。调用链为：登录/授权刷新 → `setAccess()` → 统一判断函数 → 指令、`v-if` 或资源入口过滤。`access.client.ts` 在界面挂载前全局注册指令，无需在各页面重复导入。
+
+参考 [RuoYi Vue Plus 配套前端的权限指令](https://github.com/CrazyLionCat/plus-ui/blob/6.X-Vue/src/directive/permission/index.ts)及其[函数式判断](https://github.com/CrazyLionCat/plus-ui/blob/6.X-Vue/src/utils/permission.ts)：权限和角色来自当前用户，多个值默认表示“任一命中”。本项目增加 `.all`，并在授权刷新、撤权及绑定值变化时重新判断，使用可恢复的隐藏方式。
+
+```vue
+<script setup lang="ts">
+const { hasPermission, hasRole } = useAccess();
+</script>
+
+<template>
+  <!-- 元素指令：字符串或数组均可，默认任一命中。 -->
+  <button v-has-permi="['system:user:add']">新增用户</button>
+  <button v-has-permi="['system:user:add', 'system:user:edit']">维护用户</button>
+  <button v-has-roles="['editor', 'reviewer']">角色专属操作</button>
+  <button v-has-permi.all="['system:user:query', 'system:user:export']">查询并导出</button>
+
+  <!-- 组件优先使用 v-if，避免依赖组件内部的根节点结构。 -->
+  <UButton v-if="hasPermission('system:user:add')">新增用户</UButton>
+  <section v-if="hasRole(['editor', 'reviewer'], 'all')">同时具有两种角色的内容</section>
+</template>
+```
+
+`v-has-permi` / `v-has-roles` 也支持 Vue 的驼峰写法 `v-hasPermi` / `v-hasRoles`。同一元素同时使用两种指令时，两者都通过才显示；`.all` 只影响所属指令。它们与 `v-show`、原有布局样式共同生效，权限重新获得后不会覆盖组件自身的隐藏状态。
+
+对菜单、标签页和下拉菜单的 `items`，在 `computed` 中使用 `hasPermission()` / `hasRole()` 过滤后再传给组件。对整块业务组件使用 `v-if`，避免无权限时仍挂载并请求数据。指令只隐藏绑定元素，不能阻止组件初始化、隐藏传送到其他 DOM 位置的弹层或保护已下载的数据。[Vue 对组件指令的说明](https://vuejs.org/guide/reusability/custom-directives.html#usage-on-components)
+
+### 接入授权状态
+
+后续登录模块在取得当前用户的权威授权信息后调用以下入口；`roles`、`permissions` 应直接映射后端响应，不从菜单可见性推导，也不由页面自行授予。
+
+```ts
+const { setAccess, clearAccess } = useAccess();
+
+// 取得后端当前用户信息后：
+setAccess({ roles: currentUser.roles, permissions: currentUser.permissions });
+
+// 退出、开始切换账号或确认授权失效时：
+clearAccess();
+```
+
+- 默认快照为 `null`，`ready` 为 `false`，受控内容全部隐藏；设置空数组表示授权已加载但没有对应能力。
+- `setAccess()` 整体替换并复制两个数组；`snapshot` 对调用方只读。不要持久化此状态。异步登录模块应防止旧账号的迟到响应覆盖新账号状态。
+- 权限采用具体的三段式精确匹配，页面 `query` 不隐含按钮的 `add` / `edit` 等权限。只有后端下发的 `ALL_PERMISSION`（`*:*:*`）放行所有具体权限；条件本身不允许通配符。
+- 角色检查只匹配实际角色标识，不把 `admin` 或 `superadmin` 名称当作最高授权，也不让全权限用户冒充其他业务角色。最高资源授权用权限判断表达。
+- 空条件、空数组、无效权限格式均拒绝显示，包括 `.all` 场景。
+
+当前没有登录、当前用户或授权刷新接口，因而尚无业务调用方自动设置该快照；公开的 `GET /test` 按钮保持可用。后续认证模块负责请求、过期响应隔离、401/403 和焦点恢复时的重新校验。页面准入仍按设计通过 `definePageMeta` 与路由中间件实现；本节能力负责界面可见性，后端接口必须独立授权。
+
+验证命令：仓库根执行 `bun test apps/web/tests` 检查权限边界，`bun run --cwd apps/web typecheck` 检查 Nuxt、Vue 和指令类型。

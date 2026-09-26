@@ -1,2 +1,9 @@
+/* Web 与 Electron 共用的样式入口，由 nuxt.config.ts 加载 UI 基础样式和权限显隐规则。 */
 @import "tailwindcss";
 @import "@nuxt/ui";
+
+/* 两种指令可叠加；独立于 v-show 和组件的 display 样式，任一条件不满足都隐藏。 */
+[data-permission-denied],
+[data-role-denied] {
+  display: none !important;
+}
