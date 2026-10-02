@@ -1,0 +1,3 @@
+{
+  "extends": "@leonwillow-electron/config/tsconfig.base.json"
+}

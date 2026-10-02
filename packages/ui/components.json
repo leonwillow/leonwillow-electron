@@ -1,0 +1,24 @@
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "base-lyra",
+  "rsc": false,
+  "tsx": true,
+  "tailwind": {
+    "config": "",
+    "css": "src/styles/globals.css",
+    "baseColor": "neutral",
+    "cssVariables": true,
+    "prefix": ""
+  },
+  "iconLibrary": "lucide",
+  "aliases": {
+    "components": "@leonwillow-electron/ui/components",
+    "utils": "@leonwillow-electron/ui/lib/utils",
+    "hooks": "@leonwillow-electron/ui/hooks",
+    "lib": "@leonwillow-electron/ui/lib",
+    "ui": "@leonwillow-electron/ui/components"
+  },
+  "menuColor": "default",
+  "menuAccent": "subtle",
+  "registries": {}
+}
