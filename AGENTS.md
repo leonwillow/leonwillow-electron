@@ -47,3 +47,5 @@
 - 不手动修改生成的 `routeTree.gen.ts` / `env.ts`；需要时运行 Vite / `bun run env:generate`。
 
 迁移来源及框架适配说明见 `docs/layout-migration.md`，认证页面的来源、改动与性能修复见 `docs/auth-migration.md`。
+
+自定义主题的官方源码来源、必要适配与状态边界见 `docs/custom-theme-migration.md`。后续调色功能优先复用 `components/theme-editor` 和 `utils/theme`；主题库与当前选择必须作为一个快照保存，草稿预览不得持久化，不能通过 CSS 导入绕开现有缩放/排版约束。

@@ -45,6 +45,9 @@ export type ThemeStyleProps = {
 	"shadow-offset-y"?: string;
 	"letter-spacing"?: string;
 	spacing?: string;
+	"font-sans"?: string;
+	"font-serif"?: string;
+	"font-mono"?: string;
 };
 
 export type ThemeStyles = {
@@ -64,8 +67,27 @@ export type Scale = "sm" | "md" | "lg" | "xl";
 
 export type Settings = {
 	mode: Mode;
-	themePreset: ThemePresetKey;
+	themePreset: ThemePresetKey | CustomThemeId;
 	radius: Radius;
 	scale: Scale;
 	font: FontKey;
 };
+
+export type CustomThemeId = `custom:${string}`;
+
+export type ThemeDraft = {
+	label: string;
+	styles: ThemeStyles;
+	font: FontKey;
+	radius: Radius;
+};
+
+export type CustomTheme = ThemeDraft & { id: CustomThemeId };
+
+// 主题库与选择项作为一个快照保存，避免跨窗口或刷新时出现悬空选择。
+export type ThemePreferences = {
+	settings: Settings;
+	customThemes: CustomTheme[];
+};
+
+export type ThemePreview = { draft: ThemeDraft; mode: "light" | "dark" };

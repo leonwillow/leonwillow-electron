@@ -3,84 +3,36 @@
 // Third-party Imports
 import { useTheme } from "next-themes";
 import type { ReactNode } from "react";
-import {
-	createContext,
-	useEffect,
-	useEffectEvent,
-	useMemo,
-	useRef,
-} from "react";
-import { FONT_CONFIG } from "@/configs/fonts";
-import { themePresets } from "@/configs/theme-presets";
-import { initialSettings, RADIUS_VALUES } from "@/configs/theme-settings";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 
 // Config Imports
 import themeConfig from "@/configs/themeConfig";
+import { SettingsContext } from "@/contexts/settings-state";
 // Hook Imports
 import { useObjectStorage } from "@/hooks/use-object-storage";
+import { deleteCustomTheme, saveCustomTheme } from "@/lib/custom-themes";
 import {
-	decodeStoredSettings,
-	encodeStoredSettings,
+	decodeThemePreferences,
+	encodeThemePreferences,
 } from "@/lib/theme-settings";
 // Type Imports
-import type { Settings } from "@/types/theme";
-
-const PRESET_CSS_VARS = [
-	"background",
-	"foreground",
-	"card",
-	"card-foreground",
-	"popover",
-	"popover-foreground",
-	"primary",
-	"primary-foreground",
-	"secondary",
-	"secondary-foreground",
-	"muted",
-	"muted-foreground",
-	"accent",
-	"accent-foreground",
-	"destructive",
-	"destructive-foreground",
-	"letter-spacing",
-	"spacing",
-	"border",
-	"input",
-	"ring",
-	"chart-1",
-	"chart-2",
-	"chart-3",
-	"chart-4",
-	"chart-5",
-	"sidebar",
-	"sidebar-foreground",
-	"sidebar-primary",
-	"sidebar-primary-foreground",
-	"sidebar-accent",
-	"sidebar-accent-foreground",
-	"sidebar-border",
-	"sidebar-ring",
-	"shadow-color",
-	"shadow-opacity",
-	"shadow-blur",
-	"shadow-spread",
-	"shadow-offset-x",
-	"shadow-offset-y",
-] as const;
+import type {
+	CustomThemeId,
+	Settings,
+	ThemeDraft,
+	ThemePreferences,
+	ThemePreview,
+} from "@/types/theme";
+import { applyTheme } from "@/utils/theme-script";
 
 type BroadcastMessage = {
 	type: "SETTINGS_UPDATED";
-	payload: ReturnType<typeof encodeStoredSettings>;
-};
-
-type SettingsContextProps = {
-	settings: Settings;
-	updateSettings: (settings: Partial<Settings>) => void;
+	payload: ReturnType<typeof encodeThemePreferences>;
 };
 
 type Props = {
 	children: ReactNode;
-	savedSettings?: Settings;
+	savedPreferences: ThemePreferences;
 };
 
 // Ignore the mode hotkey while the user is typing in a field
@@ -97,8 +49,6 @@ const isTypingTarget = (target: EventTarget | null) => {
 	);
 };
 
-export const SettingsContext = createContext<SettingsContextProps | null>(null);
-
 export const SettingsProvider = (props: Props) => {
 	const { children } = props;
 
@@ -106,20 +56,15 @@ export const SettingsProvider = (props: Props) => {
 
 	const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
 
-	const [storedSettings, updateStoredSettings] = useObjectStorage<Settings>(
-		themeConfig.settingsStorageKey,
-		{
-			...initialSettings,
-			...props.savedSettings,
-		},
-		decodeStoredSettings,
-		encodeStoredSettings,
-	);
-
-	const settings: Settings = useMemo(
-		() => ({ ...initialSettings, ...storedSettings }),
-		[storedSettings],
-	);
+	const [preferences, updateStoredSettings] =
+		useObjectStorage<ThemePreferences>(
+			themeConfig.settingsStorageKey,
+			props.savedPreferences,
+			decodeThemePreferences,
+			encodeThemePreferences,
+		);
+	const settings = preferences.settings;
+	const [preview, setThemePreview] = useState<ThemePreview | null>(null);
 
 	useEffect(() => {
 		if (typeof window !== "undefined" && "BroadcastChannel" in window) {
@@ -131,10 +76,11 @@ export const SettingsProvider = (props: Props) => {
 				}
 
 				const handleMessage = (event: MessageEvent<BroadcastMessage>) => {
+					if (event.data?.type !== "SETTINGS_UPDATED") return;
 					const { type, payload } = event.data;
 
 					if (type === "SETTINGS_UPDATED") {
-						updateStoredSettings(decodeStoredSettings(payload));
+						updateStoredSettings(decodeThemePreferences(payload));
 					}
 				};
 
@@ -160,7 +106,7 @@ export const SettingsProvider = (props: Props) => {
 		}
 	}, [updateStoredSettings]);
 
-	const broadcastSettingsUpdate = (updatedSettings: Settings) => {
+	const broadcastSettingsUpdate = (updatedSettings: ThemePreferences) => {
 		if (typeof window === "undefined" || !("BroadcastChannel" in window)) {
 			return;
 		}
@@ -180,7 +126,7 @@ export const SettingsProvider = (props: Props) => {
 		try {
 			broadcastChannelRef.current.postMessage({
 				type: "SETTINGS_UPDATED",
-				payload: encodeStoredSettings(updatedSettings),
+				payload: encodeThemePreferences(updatedSettings),
 			});
 		} catch (error) {
 			console.error("Failed to broadcast settings update", error);
@@ -195,23 +141,49 @@ export const SettingsProvider = (props: Props) => {
 		}
 	};
 
-	const updateSettings = (newSettings: Partial<Settings>) => {
-		const updatedSettings = { ...settings, ...newSettings };
-
-		updateStoredSettings(updatedSettings);
-
-		if (newSettings.mode) {
-			setTheme(newSettings.mode);
+	const persistPreferences = (
+		next: ThemePreferences,
+		requirePersistence = false,
+	) => {
+		if (!updateStoredSettings(next, requirePersistence) && requirePersistence) {
+			throw new Error(
+				"本地存储不可用或空间不足，主题尚未保存。请导出 CSS 备份。",
+			);
 		}
+		broadcastSettingsUpdate(next);
+	};
 
-		broadcastSettingsUpdate(updatedSettings);
+	const updateSettings = (newSettings: Partial<Settings>) => {
+		const selected = preferences.customThemes.find(
+			(theme) => theme.id === newSettings.themePreset,
+		);
+		const updatedSettings = {
+			...settings,
+			...(selected ? { font: selected.font, radius: selected.radius } : {}),
+			...newSettings,
+		};
+		persistPreferences({ ...preferences, settings: updatedSettings });
+	};
+
+	const saveTheme = (
+		draft: ThemeDraft,
+		id: CustomThemeId = `custom:${crypto.randomUUID()}`,
+	) => {
+		persistPreferences(saveCustomTheme(preferences, draft, id), true);
+		setThemePreview(null);
+	};
+
+	const deleteTheme = (id: CustomThemeId) => {
+		persistPreferences(deleteCustomTheme(preferences, id), true);
 	};
 
 	useEffect(() => {
-		setTheme(settings.mode);
-	}, [settings.mode, setTheme]);
+		setTheme(preview?.mode ?? settings.mode);
+	}, [preview?.mode, settings.mode, setTheme]);
 
 	const toggleMode = useEffectEvent(() => {
+		// 编辑时用面板模式控件预览，快捷键不改动草稿背后的持久化偏好。
+		if (preview) return;
 		updateSettings({ mode: resolvedTheme === "dark" ? "light" : "dark" });
 	});
 
@@ -241,52 +213,24 @@ export const SettingsProvider = (props: Props) => {
 	}, []);
 
 	useEffect(() => {
-		const root = document.documentElement;
-
-		PRESET_CSS_VARS.forEach((key) => {
-			root.style.removeProperty(`--${key}`);
-		});
-
-		if (settings.themePreset === "default") {
-			root.style.setProperty("--radius", RADIUS_VALUES[settings.radius]);
-			return;
-		}
-
-		const preset = themePresets[settings.themePreset];
-
-		if (!preset) return;
-
-		const mode = resolvedTheme === "dark" ? "dark" : "light";
-
-		Object.entries(preset.styles[mode]).forEach(([key, value]) => {
-			if (value !== undefined && key !== "radius" && key !== "spacing")
-				root.style.setProperty(`--${key}`, value as string);
-		});
-		root.style.setProperty("--radius", RADIUS_VALUES[settings.radius]);
-	}, [settings.themePreset, resolvedTheme, settings.radius]);
-
-	useEffect(() => {
-		document.documentElement.style.setProperty(
-			"--radius",
-			RADIUS_VALUES[settings.radius],
+		applyTheme(
+			preferences,
+			preview?.mode ?? (resolvedTheme === "dark" ? "dark" : "light"),
+			preview?.draft,
 		);
-	}, [settings.radius]);
-
-	useEffect(() => {
-		document.documentElement.setAttribute("data-theme-scale", settings.scale);
-	}, [settings.scale]);
-
-	useEffect(() => {
-		const root = document.documentElement;
-		const fontVar =
-			FONT_CONFIG[settings.font]?.variable ?? "--font-public-sans";
-
-		root.style.setProperty("--font-sans", `var(${fontVar})`);
-		root.style.setProperty("font-family", `var(${fontVar})`);
-	}, [settings.font]);
+	}, [preferences, resolvedTheme, preview]);
 
 	return (
-		<SettingsContext.Provider value={{ settings, updateSettings }}>
+		<SettingsContext.Provider
+			value={{
+				settings,
+				customThemes: preferences.customThemes,
+				updateSettings,
+				setThemePreview,
+				saveTheme,
+				deleteTheme,
+			}}
+		>
 			{children}
 		</SettingsContext.Provider>
 	);

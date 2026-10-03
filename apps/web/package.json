@@ -36,6 +36,7 @@
 		"@tailwindcss/vite": "^4.3.3",
 		"@tanstack/react-router": "^1.170.32",
 		"@varlock/vite-integration": "1.5.1",
+		"chroma-js": "^3.2.0",
 		"lucide-react": "catalog:",
 		"next-themes": "catalog:",
 		"react": "catalog:",
@@ -48,14 +49,15 @@
 	"devDependencies": {
 		"@leonwillow-electron/config": "workspace:*",
 		"@tanstack/router-plugin": "^1.168.35",
+		"@types/chroma-js": "^3.1.2",
 		"@types/node": "^26.4.1",
 		"@types/react": "catalog:",
 		"@types/react-dom": "catalog:",
 		"@vitejs/plugin-react": "^6.1.1",
 		"postcss": "^8.5.28",
+		"server": "workspace:*",
 		"tailwindcss": "catalog:",
 		"typescript": "catalog:",
-		"vite": "^8.2.2",
-		"server": "workspace:*"
+		"vite": "^8.2.2"
 	}
 }

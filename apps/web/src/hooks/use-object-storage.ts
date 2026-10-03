@@ -6,16 +6,20 @@ export function useObjectStorage<T>(
 	fallback: T,
 	decode: (value: unknown) => T,
 	encode?: (value: T) => unknown,
-): [T, (value: T) => void] {
+): [T, (value: T, requirePersistence?: boolean) => boolean] {
 	const [value, setValue] = useState<T>(fallback);
 	const updateValue = useCallback(
-		(next: T) => {
-			setValue(next);
+		(next: T, requirePersistence = false) => {
+			let persisted = true;
 			try {
 				localStorage.setItem(key, JSON.stringify(encode ? encode(next) : next));
 			} catch {
+				persisted = false;
+				if (requirePersistence) return false;
 				/* 禁用存储时当前窗口仍可设置主题。 */
 			}
+			setValue(next);
+			return persisted;
 		},
 		[key, encode],
 	);

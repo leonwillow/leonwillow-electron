@@ -5,13 +5,13 @@ import {
 } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { savedSettings } from "@/lib/theme-settings";
+import { savedPreferences } from "@/lib/theme-settings";
 import { routeTree } from "@/routeTree.gen";
 import { initializeTheme } from "@/utils/theme-script";
 import "@leonwillow-electron/ui/globals.css";
 import "@/styles/fonts.css";
 
-initializeTheme(savedSettings);
+initializeTheme(savedPreferences);
 
 const router = createRouter({
 	routeTree,
