@@ -1,0 +1,199 @@
+/* 保留原 next/font 的 latin 子集；中文使用系统字体回退。 */
+@font-face {
+	font-family: "Geist Variable";
+	font-style: normal;
+	font-display: swap;
+	font-weight: 100 900;
+	src: url("@fontsource-variable/geist/files/geist-latin-wght-normal.woff2")
+		format("woff2");
+}
+
+@font-face {
+	font-family: "Geist Mono Variable";
+	font-style: normal;
+	font-display: swap;
+	font-weight: 100 900;
+	src: url("@fontsource-variable/geist-mono/files/geist-mono-latin-wght-normal.woff2")
+		format("woff2");
+}
+
+@font-face {
+	font-family: "DM Sans Variable";
+	font-style: normal;
+	font-display: swap;
+	font-weight: 100 1000;
+	src: url("@fontsource-variable/dm-sans/files/dm-sans-latin-wght-normal.woff2")
+		format("woff2");
+}
+
+@font-face {
+	font-family: "Figtree Variable";
+	font-style: normal;
+	font-display: swap;
+	font-weight: 300 900;
+	src: url("@fontsource-variable/figtree/files/figtree-latin-wght-normal.woff2")
+		format("woff2");
+}
+
+@font-face {
+	font-family: "Inter Variable";
+	font-style: normal;
+	font-display: swap;
+	font-weight: 100 900;
+	src: url("@fontsource-variable/inter/files/inter-latin-wght-normal.woff2")
+		format("woff2");
+}
+
+@font-face {
+	font-family: "JetBrains Mono Variable";
+	font-style: normal;
+	font-display: swap;
+	font-weight: 100 800;
+	src: url("@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2")
+		format("woff2");
+}
+
+@font-face {
+	font-family: "Lora Variable";
+	font-style: normal;
+	font-display: swap;
+	font-weight: 400 700;
+	src: url("@fontsource-variable/lora/files/lora-latin-wght-normal.woff2")
+		format("woff2");
+}
+
+@font-face {
+	font-family: "Merriweather Variable";
+	font-style: normal;
+	font-display: swap;
+	font-weight: 300 900;
+	src: url("@fontsource-variable/merriweather/files/merriweather-latin-wght-normal.woff2")
+		format("woff2");
+}
+
+@font-face {
+	font-family: "Noto Sans Variable";
+	font-style: normal;
+	font-display: swap;
+	font-weight: 100 900;
+	src: url("@fontsource-variable/noto-sans/files/noto-sans-latin-wght-normal.woff2")
+		format("woff2");
+}
+
+@font-face {
+	font-family: "Noto Serif Variable";
+	font-style: normal;
+	font-display: swap;
+	font-weight: 100 900;
+	src: url("@fontsource-variable/noto-serif/files/noto-serif-latin-wght-normal.woff2")
+		format("woff2");
+}
+
+@font-face {
+	font-family: "Nunito Sans Variable";
+	font-style: normal;
+	font-display: swap;
+	font-weight: 200 1000;
+	src: url("@fontsource-variable/nunito-sans/files/nunito-sans-latin-wght-normal.woff2")
+		format("woff2");
+}
+
+@font-face {
+	font-family: "Outfit Variable";
+	font-style: normal;
+	font-display: swap;
+	font-weight: 100 900;
+	src: url("@fontsource-variable/outfit/files/outfit-latin-wght-normal.woff2")
+		format("woff2");
+}
+
+@font-face {
+	font-family: "Playfair Display Variable";
+	font-style: normal;
+	font-display: swap;
+	font-weight: 400 900;
+	src: url("@fontsource-variable/playfair-display/files/playfair-display-latin-wght-normal.woff2")
+		format("woff2");
+}
+
+@font-face {
+	font-family: "Public Sans Variable";
+	font-style: normal;
+	font-display: swap;
+	font-weight: 100 900;
+	src: url("@fontsource-variable/public-sans/files/public-sans-latin-wght-normal.woff2")
+		format("woff2");
+}
+
+@font-face {
+	font-family: "Raleway Variable";
+	font-style: normal;
+	font-display: swap;
+	font-weight: 100 900;
+	src: url("@fontsource-variable/raleway/files/raleway-latin-wght-normal.woff2")
+		format("woff2");
+}
+
+@font-face {
+	font-family: "Roboto Variable";
+	font-style: normal;
+	font-display: swap;
+	font-weight: 100 900;
+	src: url("@fontsource-variable/roboto/files/roboto-latin-wght-normal.woff2")
+		format("woff2");
+}
+
+@font-face {
+	font-family: "Roboto Slab Variable";
+	font-style: normal;
+	font-display: swap;
+	font-weight: 100 900;
+	src: url("@fontsource-variable/roboto-slab/files/roboto-slab-latin-wght-normal.woff2")
+		format("woff2");
+}
+
+@font-face {
+	font-family: "Geist Pixel";
+	font-style: normal;
+	font-weight: 500;
+	font-display: swap;
+	src: url("../assets/fonts/GeistPixel-Square.woff2") format("woff2");
+}
+
+:root {
+	--font-geist-sans:
+		"Geist Variable", "PingFang SC", "Microsoft YaHei", sans-serif;
+	--font-geist-mono: "Geist Mono Variable", ui-monospace, monospace;
+	--font-dm-sans:
+		"DM Sans Variable", "PingFang SC", "Microsoft YaHei", sans-serif;
+	--font-figtree:
+		"Figtree Variable", "PingFang SC", "Microsoft YaHei", sans-serif;
+	--font-inter: "Inter Variable", "PingFang SC", "Microsoft YaHei", sans-serif;
+	--font-jetbrains-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+	--font-lora: "Lora Variable", "Songti SC", serif;
+	--font-merriweather: "Merriweather Variable", "Songti SC", serif;
+	--font-noto-sans:
+		"Noto Sans Variable", "PingFang SC", "Microsoft YaHei", sans-serif;
+	--font-noto-serif: "Noto Serif Variable", "Songti SC", serif;
+	--font-nunito-sans:
+		"Nunito Sans Variable", "PingFang SC", "Microsoft YaHei", sans-serif;
+	--font-outfit:
+		"Outfit Variable", "PingFang SC", "Microsoft YaHei", sans-serif;
+	--font-playfair-display: "Playfair Display Variable", "Songti SC", serif;
+	--font-public-sans:
+		"Public Sans Variable", "PingFang SC", "Microsoft YaHei", sans-serif;
+	--font-raleway:
+		"Raleway Variable", "PingFang SC", "Microsoft YaHei", sans-serif;
+	--font-roboto:
+		"Roboto Variable", "PingFang SC", "Microsoft YaHei", sans-serif;
+	--font-roboto-slab: "Roboto Slab Variable", "Songti SC", serif;
+	--font-geist-pixel-square: "Geist Pixel", ui-monospace, monospace;
+	--font-sans: var(--font-public-sans);
+}
+
+html,
+body,
+#app {
+	width: 100%;
+	min-height: 100%;
+}

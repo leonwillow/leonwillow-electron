@@ -1,30 +1,29 @@
 {
-  "name": "server",
-  "type": "module",
-  "main": "src/index.ts",
-  "scripts": {
-    "build": "tsdown",
-    "check-types": "tsc --noEmit",
-    "compile": "bun build --compile --no-compile-autoload-dotenv --minify --sourcemap --bytecode ./src/index.ts --outfile server",
-    "dev": "bun run --hot src/index.ts",
-    "start": "bun run dist/index.mjs",
-    "env:generate": "varlock codegen",
-    "auth:generate": "varlock run -- bun x auth@latest generate --config src/services.ts --output ../../packages/db/src/schema/auth.ts --yes"
-  },
-  "dependencies": {
-    "@elysiajs/cors": "^1.4.2",
-    "@leonwillow-electron/auth": "workspace:*",
-    "@leonwillow-electron/db": "workspace:*",
-    "@sinclair/typebox": "^0.34.52",
-    "better-auth": "catalog:",
-    "elysia": "^1.4.30",
-    "varlock": "catalog:",
-    "zod": "catalog:"
-  },
-  "devDependencies": {
-    "@leonwillow-electron/config": "workspace:*",
-    "@types/bun": "catalog:",
-    "tsdown": "^0.23.0",
-    "typescript": "catalog:"
-  }
+	"name": "server",
+	"type": "module",
+	"main": "src/index.ts",
+	"scripts": {
+		"build": "bun --bun tsdown",
+		"check-types": "tsc --noEmit",
+		"compile": "bun build --compile --no-compile-autoload-dotenv --minify --sourcemap --bytecode ./src/index.ts --outfile server",
+		"dev": "bun run --hot src/index.ts",
+		"start": "bun run dist/index.mjs",
+		"env:generate": "varlock codegen",
+		"test": "bun test"
+	},
+	"dependencies": {
+		"@elysiajs/cors": "^1.4.2",
+		"elysia": "^1.4.30",
+		"varlock": "catalog:"
+	},
+	"devDependencies": {
+		"@elysiajs/eden": "^1.4.9",
+		"@leonwillow-electron/config": "workspace:*",
+		"@types/bun": "catalog:",
+		"tsdown": "^0.23.0",
+		"typescript": "catalog:"
+	},
+	"exports": {
+		"./app": "./src/app.ts"
+	}
 }

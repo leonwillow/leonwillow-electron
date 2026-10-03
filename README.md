@@ -1,117 +1,81 @@
 # leonwillow-electron
 
-This project was created with [Better-T-Stack](https://github.com/AmanVarshney01/create-better-t-stack), a modern TypeScript stack that combines React, TanStack Router, Elysia, and more.
+采用纯 SPA / CSR、前后端分离：Vite + React 负责前端，Bun + Elysia 提供独立 API，Eden 连接两端。不使用 SSR、SSG 或 React Server Components。
 
-## Features
+逐步迁移 AIDesk Next.js 模板的工作台。当前已迁移根布局、左侧固定图标导航、菜单交互、完整主题设置、中文，以及账号密码登录/注册页面；右侧业务页面尚未迁移。
 
-- **TypeScript** - For type safety and improved developer experience
-- **TanStack Router** - File-based routing with full type safety
-- **TailwindCSS** - Utility-first CSS for rapid UI development
-- **Shared UI package** - shadcn/ui primitives live in `packages/ui`
-- **Elysia** - Type-safe, high-performance framework
-- **Bun** - Runtime environment
-- **Drizzle** - TypeScript-first ORM
-- **PostgreSQL** - Database engine
-- **Authentication** - Better-Auth
-- **Turborepo** - Optimized monorepo build system
-- **Biome** - Linting and formatting
-
-## Getting Started
-
-First, install the dependencies:
+## 开发
 
 ```bash
 bun install
-```
-
-## Database Setup
-
-This project uses PostgreSQL with Drizzle ORM.
-
-1. Make sure you have a PostgreSQL database set up.
-2. Update your `apps/server/.env` file with your PostgreSQL connection details.
-
-3. Apply the schema to your database:
-
-```bash
-bun run db:push
-```
-
-Then, run the development server:
-
-```bash
 bun run dev
 ```
 
-Open [http://localhost:3001](http://localhost:3001) in your browser to see the web application.
-The API is running at [http://localhost:3000](http://localhost:3000).
-
-## UI Customization
-
-React web apps in this stack share shadcn/ui primitives through `packages/ui`.
-
-- Change design tokens and global styles in `packages/ui/src/styles/globals.css`
-- Update shared primitives in `packages/ui/src/components/*`
-- Adjust shadcn aliases or style config in `packages/ui/components.json` and `apps/web/components.json`
-
-### Add more shared components
-
-Run this from the project root to add more primitives to the shared UI package:
+前端默认 <http://localhost:3001>，进入根路径后跳转 `/inbox`。端口占用时 Vite 会显示实际可用端口。服务端默认 <http://localhost:3000>，健康检查为 `/api/health`。当前无需启动数据库或配置认证，布局不发出 API 请求。
 
 ```bash
-npx shadcn@latest add accordion dialog popover sheet table -c packages/ui
+bun run dev:web       # 仅前端
+bun run dev:server    # 仅 Elysia
+bun run check         # Biome 自动整理
+bun run lint          # Biome 和 UI 规范检查
+bun run check-types   # 工作区 TypeScript 检查
+bun run build         # 前后端生产构建
+bun run test:api      # Eden 健康检查与 CORS 测试
+bun run test:ui       # UI 规范、主题存储、样式合并和账号表单校验
+bun run env:generate  # 生成环境类型
 ```
 
-Import shared components like this:
+环境默认值在各应用 `.env.schema`，本地 `.env` 可覆盖默认值，请勿提交秘密。修改服务端端口时同步调整 `VITE_SERVER_URL`，修改前端来源时同步调整 `CORS_ORIGIN`。
 
-```tsx
-import { Button } from "@leonwillow-electron/ui/components/button";
+## 目录职责
+
+```text
+apps/
+  web/                         # Web / 未来 Electron 共用的 React renderer
+    src/
+      main.tsx                 # 启动、主题首屏初始化及路由实例
+      routes/                  # TanStack 文件路由，仅组织布局和视图
+        __root.tsx             # 根布局：主题和全局提示
+        _workspace/            # 工作台无路径布局及模块路由
+      components/layout/       # 直接迁移的布局和所有图标栏菜单
+      components/auth/         # 原认证页面壳、展示面板、表头和密码字段
+      views/login/             # 原登录视图、表单、账号校验
+      views/register/          # 原注册视图、表单、账号校验
+      configs/                 # 默认值、11 套主题预设、18 个字体选项、用户种子
+      contexts/                # 主题和当前用户上下文
+      hooks/                   # 本地持久化和跨窗口同步
+      assets/                  # 原导航与搜索数据、Logo、头像、本地字体
+      styles/fonts.css         # next/font 的 Vite 本地字体适配及中文回退
+      lib/                     # 应用配置、主题读取、Eden 客户端
+      types/                   # 布局及主题类型
+      utils/                   # 首屏主题初始化、在线状态映射
+  server/
+    src/app.ts                 # 可测试 Elysia 工厂及 App 类型
+    src/index.ts               # Varlock 环境加载、监听启动
+    test/                      # Bun + Eden 轻量 API 测试
+packages/
+  ui/src/components/           # 原模板 Base UI 基础组件
+  ui/src/styles/globals.css    # 全局语义样式与明暗设计令牌
+  ui/src/lib/utils.ts          # 原模板 cn（clsx + tailwind-merge）
+  auth/                        # 认证预留，尚未接入
+  db/                          # 数据库预留，尚未接入
+  config/                      # 共享 TypeScript 配置
 ```
 
-### Add app-specific blocks
+后续业务页面放入 `apps/web/src/views/<feature>`，路由只挂载视图。以后 Electron 主进程只加载这份 renderer，并调用同一个 Elysia 后端；本次尚未添加或验证 Electron 主进程及打包。
 
-If you want to add app-specific blocks instead of shared primitives, run the shadcn CLI from `apps/web`.
+## 主题与交互
 
-## Environment Configuration
+- 图标栏保留原模块入口，以及底部认证入口、搜索、在线消息设置、通用设置、主题面板、明暗切换和个人菜单。
+- 主题面板保留默认主题及原 11 套预设、18 个字体选项、浅色/深色/跟随系统、圆角、缩放和重置。缩放四档为小/中/大/特大（90%/95%/100%/105%），控件高度与字号统一，所有文字和间距随根 rem 缩放。
+- 设置保存在 `localStorage["aidesk-theme-settings"]`，刷新后恢复，支持同源窗口同步。`D` 切换明暗，`⌘/Ctrl+K` 或 `/` 打开搜索；输入框中不抢占这些快捷键。
+- 导航、搜索和个人菜单使用真实路由；业务页当前均为空白。认证菜单和退出入口保留原模板的导航行为，尚无真实登录/退出会话。
+- 原字体的拉丁子集本地打包，中文使用系统中文字体回退，无 Google Fonts 运行时请求。
+- `/login` 与 `/register` 直接复用原认证页面，去掉第三方登录并使用账号密码。当前仅前端表单，不模拟登录/注册成功、不保存密码；未接入认证服务时提交给出明确提示。原丝绸背景已限制绘制成本并支持隐藏暂停与减少动态效果。
+- 后续 shadcn CLI 使用 `bunx --bun shadcn@latest ... -c packages/ui`，先检查原模板和已迁移组件，禁止覆盖源迁移代码。
 
-Each app owns its environment schema in `.env.schema`. Varlock generates `src/env.ts` during installation; run `bun run env:generate` after changing a schema. Commit schemas, and keep secrets in ignored env files or your deployment platform.
+项目迁移约定在 [AGENTS.md](./AGENTS.md)，详细来源见 [迁移记录](./docs/layout-migration.md)。
 
-Import the generated `ENV` accessor in application code. Shared database and auth packages receive configuration or initialized clients from the application. See [Varlock's monorepo guide](https://varlock.dev/guides/monorepos/).
+登录/注册的源码来源、改动边界和性能修复见 [认证页面迁移](./docs/auth-migration.md)。
 
-Bun's automatic env loading is disabled in `bunfig.toml`; the framework integration or server bootstrap loads Varlock. Node deployments must include Varlock and its dependencies alongside the app schema.
-
-Run standalone Node/Bun tools that use Varlock from the owning app directory so they load that app's schema and env files. `env:generate` only generates TypeScript files; it does not initialize environment values in a subsequent command.
-
-## Git Hooks and Formatting
-
-- Run checks: `bun run check`
-
-## Project Structure
-
-```
-leonwillow-electron/
-├── apps/
-│   ├── web/         # Frontend application (React + TanStack Router)
-│   └── server/      # Backend API (Elysia)
-├── packages/
-│   ├── ui/          # Shared shadcn/ui components and styles
-│   ├── auth/        # Authentication configuration & logic
-│   └── db/          # Database schema & queries
-```
-
-## Available Scripts
-
-- `bun run dev`: Start all applications in development mode
-- `bun run build`: Build all applications
-- `bun run dev:web`: Start only the web application
-- `bun run dev:server`: Start only the server
-- `bun run check-types`: Check TypeScript types across all apps
-- `bun run db:push`: Push schema changes to database
-- `bun run db:generate`: Generate database client/types
-- `bun run db:migrate`: Run database migrations
-- `bun run db:studio`: Open database studio UI
-- `bun run check`: Run Biome formatting and linting
-
-## Better Auth Schema Generation
-
-After changing auth plugins or schema options, run `bun run auth:generate` from the project root. The script runs the Better Auth CLI through `varlock run` from the owning app directory, loading the auth instance from `src/services.ts`. Review the schema changes, then use your ORM's migration workflow to apply them.
+后续排版、控件尺寸和主题存储规范见 [UI 规范](./docs/ui-conventions.md)。`bun run lint` 同时检查这些约束；旧版“大”设置自动迁移为“特大”。
