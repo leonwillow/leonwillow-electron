@@ -1,19 +1,20 @@
 {
 	"name": "@leonwillow-electron/auth",
+	"private": true,
 	"type": "module",
 	"exports": {
 		".": "./src/index.ts",
-		"./*": "./src/*.ts"
+		"./bootstrap": "./src/bootstrap.ts"
 	},
 	"scripts": {
-		"check-types": "tsc --noEmit"
+		"check-types": "tsc --noEmit",
+		"schema:generate": "bunx --bun auth@1.7.5 generate --config ./src/cli.ts --adapter drizzle --dialect postgresql --output ../db/src/schema/auth.ts --yes"
 	},
 	"dependencies": {
 		"@better-auth/drizzle-adapter": "1.7.5",
 		"@leonwillow-electron/db": "workspace:*",
 		"better-auth": "catalog:",
-		"drizzle-orm": "catalog:",
-		"zod": "catalog:"
+		"drizzle-orm": "catalog:"
 	},
 	"devDependencies": {
 		"@leonwillow-electron/config": "workspace:*",

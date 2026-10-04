@@ -1,18 +1,18 @@
-// 迁移自 shadcnstudio/shadcn-studio，来源与适配见 docs/custom-theme-migration.md。
-// Type Imports
-
-// Config Imports
+/**
+ * @file 主题草稿的 CSS 导出。
+ * 创建时间：2026-10-03（Git 首次收录）
+ * 修改时间：2026-10-04
+ * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
+ * 被调用：apps/web/test/custom-themes.test.ts、components/theme-editor/theme-control-panel.tsx。
+ * 调用：lib/custom-themes、types/theme、./color-converter、./shadows。
+ * 功能：输出浅深色变量、字体、圆角及需要的阴影令牌。
+ * 预期结果：复制的文本可供本项目导入，界面缩放规则保持独立。
+ */
 import { hasCustomShadow } from "@/lib/custom-themes";
-import type { ThemeStyleProps, ThemeStyles } from "@/types/theme";
+import type { ThemeStyles } from "@/types/theme";
 import type { ColorFormat } from "./color-converter";
-// Component Imports
 import { colorFormatter } from "./color-converter";
 import { getShadowMap } from "./shadows";
-
-type ThemeType = {
-	light: ThemeStyleProps;
-	dark: ThemeStyleProps;
-};
 
 const generateShadowVariables = (shadowMap: Record<string, string>): string => {
 	return `
@@ -26,6 +26,12 @@ const generateShadowVariables = (shadowMap: Record<string, string>): string => {
   --shadow-2xl: ${shadowMap["shadow-2xl"]};`;
 };
 
+/**
+ * 将草稿编码为 :root/.dark 变量块，供复制和再次导入。
+ * @param styles 已补齐且校验的浅深色样式；light 提供全局字体和圆角。
+ * @param colorFormat 导出颜色格式；不改变字号与界面缩放。
+ * @returns CSS 文本；不插入文档、不写入存储。
+ */
 export const generateThemeCode = (
 	styles: ThemeStyles,
 	colorFormat: ColorFormat = "oklch",
@@ -37,92 +43,90 @@ export const generateThemeCode = (
 	const formatColor = (color: string | undefined) =>
 		color ? colorFormatter(color, colorFormat) : "";
 
-	const themeStyles = styles as ThemeType;
-
 	return `:root {
-  --background: ${formatColor(themeStyles.light.background)};
-  --foreground: ${formatColor(themeStyles.light.foreground)};
-  --card: ${formatColor(themeStyles.light.card)};
-  --card-foreground: ${formatColor(themeStyles.light["card-foreground"])};
-  --popover: ${formatColor(themeStyles.light.popover)};
-  --popover-foreground: ${formatColor(themeStyles.light["popover-foreground"])};
-  --primary: ${formatColor(themeStyles.light.primary)};
-  --primary-foreground: ${formatColor(themeStyles.light["primary-foreground"])};
-  --secondary: ${formatColor(themeStyles.light.secondary)};
-  --secondary-foreground: ${formatColor(themeStyles.light["secondary-foreground"])};
-  --muted: ${formatColor(themeStyles.light.muted)};
-  --muted-foreground: ${formatColor(themeStyles.light["muted-foreground"])};
-  --accent: ${formatColor(themeStyles.light.accent)};
-  --accent-foreground: ${formatColor(themeStyles.light["accent-foreground"])};
-  --destructive: ${formatColor(themeStyles.light.destructive)};
-  --destructive-foreground: ${formatColor(themeStyles.light["destructive-foreground"])};
-  --border: ${formatColor(themeStyles.light.border)};
-  --input: ${formatColor(themeStyles.light.input)};
-  --ring: ${formatColor(themeStyles.light.ring)};
-  --chart-1: ${formatColor(themeStyles.light["chart-1"])};
-  --chart-2: ${formatColor(themeStyles.light["chart-2"])};
-  --chart-3: ${formatColor(themeStyles.light["chart-3"])};
-  --chart-4: ${formatColor(themeStyles.light["chart-4"])};
-  --chart-5: ${formatColor(themeStyles.light["chart-5"])};
-  --sidebar: ${formatColor(themeStyles.light.sidebar)};
-  --sidebar-foreground: ${formatColor(themeStyles.light["sidebar-foreground"])};
-  --sidebar-primary: ${formatColor(themeStyles.light["sidebar-primary"])};
-  --sidebar-primary-foreground: ${formatColor(themeStyles.light["sidebar-primary-foreground"])};
-  --sidebar-accent: ${formatColor(themeStyles.light["sidebar-accent"])};
-  --sidebar-accent-foreground: ${formatColor(themeStyles.light["sidebar-accent-foreground"])};
-  --sidebar-border: ${formatColor(themeStyles.light["sidebar-border"])};
-  --sidebar-ring: ${formatColor(themeStyles.light["sidebar-ring"])};
+  --background: ${formatColor(styles.light.background)};
+  --foreground: ${formatColor(styles.light.foreground)};
+  --card: ${formatColor(styles.light.card)};
+  --card-foreground: ${formatColor(styles.light["card-foreground"])};
+  --popover: ${formatColor(styles.light.popover)};
+  --popover-foreground: ${formatColor(styles.light["popover-foreground"])};
+  --primary: ${formatColor(styles.light.primary)};
+  --primary-foreground: ${formatColor(styles.light["primary-foreground"])};
+  --secondary: ${formatColor(styles.light.secondary)};
+  --secondary-foreground: ${formatColor(styles.light["secondary-foreground"])};
+  --muted: ${formatColor(styles.light.muted)};
+  --muted-foreground: ${formatColor(styles.light["muted-foreground"])};
+  --accent: ${formatColor(styles.light.accent)};
+  --accent-foreground: ${formatColor(styles.light["accent-foreground"])};
+  --destructive: ${formatColor(styles.light.destructive)};
+  --destructive-foreground: ${formatColor(styles.light["destructive-foreground"])};
+  --border: ${formatColor(styles.light.border)};
+  --input: ${formatColor(styles.light.input)};
+  --ring: ${formatColor(styles.light.ring)};
+  --chart-1: ${formatColor(styles.light["chart-1"])};
+  --chart-2: ${formatColor(styles.light["chart-2"])};
+  --chart-3: ${formatColor(styles.light["chart-3"])};
+  --chart-4: ${formatColor(styles.light["chart-4"])};
+  --chart-5: ${formatColor(styles.light["chart-5"])};
+  --sidebar: ${formatColor(styles.light.sidebar)};
+  --sidebar-foreground: ${formatColor(styles.light["sidebar-foreground"])};
+  --sidebar-primary: ${formatColor(styles.light["sidebar-primary"])};
+  --sidebar-primary-foreground: ${formatColor(styles.light["sidebar-primary-foreground"])};
+  --sidebar-accent: ${formatColor(styles.light["sidebar-accent"])};
+  --sidebar-accent-foreground: ${formatColor(styles.light["sidebar-accent-foreground"])};
+  --sidebar-border: ${formatColor(styles.light["sidebar-border"])};
+  --sidebar-ring: ${formatColor(styles.light["sidebar-ring"])};
 
-  --font-sans: ${themeStyles.light["font-sans"]};
+  --font-sans: ${styles.light["font-sans"]};
 
-  --radius: ${themeStyles.light.radius};
-  ${hasCustomShadow(themeStyles.light) ? generateShadowVariables(getShadowMap(themeStyles.light, colorFormat)) : ""}
-  ${Object.entries(themeStyles.light)
+  --radius: ${styles.light.radius};
+  ${hasCustomShadow(styles.light) ? generateShadowVariables(getShadowMap(styles.light, colorFormat)) : ""}
+  ${Object.entries(styles.light)
 		.filter(([key]) => key.startsWith("shadow-"))
 		.map(
 			([key, value]) =>
 				`--${key}: ${key === "shadow-color" ? formatColor(value) : value};`,
 		)
 		.join("\n  ")}
-  ${themeStyles.light["letter-spacing"] ? `--letter-spacing: ${themeStyles.light["letter-spacing"]};` : ""}
+  ${styles.light["letter-spacing"] ? `--letter-spacing: ${styles.light["letter-spacing"]};` : ""}
 }
 
 .dark {
-  --background: ${formatColor(themeStyles.dark.background)};
-  --foreground: ${formatColor(themeStyles.dark.foreground)};
-  --card: ${formatColor(themeStyles.dark.card)};
-  --card-foreground: ${formatColor(themeStyles.dark["card-foreground"])};
-  --popover: ${formatColor(themeStyles.dark.popover)};
-  --popover-foreground: ${formatColor(themeStyles.dark["popover-foreground"])};
-  --primary: ${formatColor(themeStyles.dark.primary)};
-  --primary-foreground: ${formatColor(themeStyles.dark["primary-foreground"])};
-  --secondary: ${formatColor(themeStyles.dark.secondary)};
-  --secondary-foreground: ${formatColor(themeStyles.dark["secondary-foreground"])};
-  --muted: ${formatColor(themeStyles.dark.muted)};
-  --muted-foreground: ${formatColor(themeStyles.dark["muted-foreground"])};
-  --accent: ${formatColor(themeStyles.dark.accent)};
-  --accent-foreground: ${formatColor(themeStyles.dark["accent-foreground"])};
-  --destructive: ${formatColor(themeStyles.dark.destructive)};
-  --destructive-foreground: ${formatColor(themeStyles.dark["destructive-foreground"])};
-  --border: ${formatColor(themeStyles.dark.border)};
-  --input: ${formatColor(themeStyles.dark.input)};
-  --ring: ${formatColor(themeStyles.dark.ring)};
-  --chart-1: ${formatColor(themeStyles.dark["chart-1"])};
-  --chart-2: ${formatColor(themeStyles.dark["chart-2"])};
-  --chart-3: ${formatColor(themeStyles.dark["chart-3"])};
-  --chart-4: ${formatColor(themeStyles.dark["chart-4"])};
-  --chart-5: ${formatColor(themeStyles.dark["chart-5"])};
-  --sidebar: ${formatColor(themeStyles.dark.sidebar)};
-  --sidebar-foreground: ${formatColor(themeStyles.dark["sidebar-foreground"])};
-  --sidebar-primary: ${formatColor(themeStyles.dark["sidebar-primary"])};
-  --sidebar-primary-foreground: ${formatColor(themeStyles.dark["sidebar-primary-foreground"])};
-  --sidebar-accent: ${formatColor(themeStyles.dark["sidebar-accent"])};
-  --sidebar-accent-foreground: ${formatColor(themeStyles.dark["sidebar-accent-foreground"])};
-  --sidebar-border: ${formatColor(themeStyles.dark["sidebar-border"])};
-  --sidebar-ring: ${formatColor(themeStyles.dark["sidebar-ring"])};
-  ${themeStyles.dark["letter-spacing"] ? `--letter-spacing: ${themeStyles.dark["letter-spacing"]};` : ""}
-  ${hasCustomShadow(themeStyles.dark) ? generateShadowVariables(getShadowMap(themeStyles.dark, colorFormat)) : ""}
-  ${Object.entries(themeStyles.dark)
+  --background: ${formatColor(styles.dark.background)};
+  --foreground: ${formatColor(styles.dark.foreground)};
+  --card: ${formatColor(styles.dark.card)};
+  --card-foreground: ${formatColor(styles.dark["card-foreground"])};
+  --popover: ${formatColor(styles.dark.popover)};
+  --popover-foreground: ${formatColor(styles.dark["popover-foreground"])};
+  --primary: ${formatColor(styles.dark.primary)};
+  --primary-foreground: ${formatColor(styles.dark["primary-foreground"])};
+  --secondary: ${formatColor(styles.dark.secondary)};
+  --secondary-foreground: ${formatColor(styles.dark["secondary-foreground"])};
+  --muted: ${formatColor(styles.dark.muted)};
+  --muted-foreground: ${formatColor(styles.dark["muted-foreground"])};
+  --accent: ${formatColor(styles.dark.accent)};
+  --accent-foreground: ${formatColor(styles.dark["accent-foreground"])};
+  --destructive: ${formatColor(styles.dark.destructive)};
+  --destructive-foreground: ${formatColor(styles.dark["destructive-foreground"])};
+  --border: ${formatColor(styles.dark.border)};
+  --input: ${formatColor(styles.dark.input)};
+  --ring: ${formatColor(styles.dark.ring)};
+  --chart-1: ${formatColor(styles.dark["chart-1"])};
+  --chart-2: ${formatColor(styles.dark["chart-2"])};
+  --chart-3: ${formatColor(styles.dark["chart-3"])};
+  --chart-4: ${formatColor(styles.dark["chart-4"])};
+  --chart-5: ${formatColor(styles.dark["chart-5"])};
+  --sidebar: ${formatColor(styles.dark.sidebar)};
+  --sidebar-foreground: ${formatColor(styles.dark["sidebar-foreground"])};
+  --sidebar-primary: ${formatColor(styles.dark["sidebar-primary"])};
+  --sidebar-primary-foreground: ${formatColor(styles.dark["sidebar-primary-foreground"])};
+  --sidebar-accent: ${formatColor(styles.dark["sidebar-accent"])};
+  --sidebar-accent-foreground: ${formatColor(styles.dark["sidebar-accent-foreground"])};
+  --sidebar-border: ${formatColor(styles.dark["sidebar-border"])};
+  --sidebar-ring: ${formatColor(styles.dark["sidebar-ring"])};
+  ${styles.dark["letter-spacing"] ? `--letter-spacing: ${styles.dark["letter-spacing"]};` : ""}
+  ${hasCustomShadow(styles.dark) ? generateShadowVariables(getShadowMap(styles.dark, colorFormat)) : ""}
+  ${Object.entries(styles.dark)
 		.filter(([key]) => key.startsWith("shadow-"))
 		.map(
 			([key, value]) =>
@@ -130,5 +134,5 @@ export const generateThemeCode = (
 		)
 		.join("\n  ")}
 }
-${themeStyles.light["letter-spacing"] && themeStyles.light["letter-spacing"] !== "0em" ? "\n\nbody {\n  letter-spacing: var(--letter-spacing);\n}" : ""}`;
+${styles.light["letter-spacing"] && styles.light["letter-spacing"] !== "0em" ? "\n\nbody {\n  letter-spacing: var(--letter-spacing);\n}" : ""}`;
 };

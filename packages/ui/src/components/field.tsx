@@ -1,3 +1,13 @@
+/**
+ * @file 表单字段、标签、说明与错误区域的基础组件。
+ * 创建时间：2026-10-03（Git 首次收录）
+ * 修改时间：2026-10-04
+ * 版本作用：共享 UI 基础层，随工作区维护。
+ * 被调用：components/auth、components/theme-editor、views/register、views/login。
+ * 调用：ui 基础组件/样式、ui/lib/utils、class-variance-authority、react。
+ * 功能：组合底层控件和语义样式，透传对应属性并提供稳定 data-slot。
+ * 预期结果：业务调用方负责内容与事件，基础层不依赖应用路由或账号接口。
+ */
 import { Label } from "@leonwillow-electron/ui/components/label";
 import { Separator } from "@leonwillow-electron/ui/components/separator";
 
@@ -73,7 +83,7 @@ function Field({
 	...props
 }: React.ComponentProps<"div"> & VariantProps<typeof fieldVariants>) {
 	return (
-		// biome-ignore lint/a11y/useSemanticElements: 原模板 Field 保留用于组合标签、控件和错误说明的轻量容器。
+		// biome-ignore lint/a11y/useSemanticElements: Field 组合标签、控件和错误说明；fieldset 用于 FieldSet。
 		<div
 			role="group"
 			data-slot="field"

@@ -1,9 +1,17 @@
-// Component Imports
+/**
+ * @file 注册页面的视图入口。
+ * 创建时间：2026-10-03（Git 首次收录）
+ * 修改时间：2026-10-04
+ * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
+ * 被调用：routes/register.tsx。
+ * 调用：components/auth/auth-alt-link、components/auth/auth-header、components/auth/auth-shell、configs/app、./register-form。
+ * 功能：组合认证页面壳、标题、专用表单与切换链接。
+ * 预期结果：路由文件无需承载页面布局。
+ */
 import AuthAltLink from "@/components/auth/auth-alt-link";
 import AuthHeader from "@/components/auth/auth-header";
 import AuthShell from "@/components/auth/auth-shell";
-// Config Imports
-import { appConfig } from "@/lib/app-config";
+import { appConfig } from "@/configs/app";
 import RegisterForm from "./register-form";
 
 const RegisterView = () => (

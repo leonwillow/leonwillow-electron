@@ -1,11 +1,24 @@
+/**
+ * @file 主题持久化快照的编解码边界。
+ * 创建时间：2026-10-03（Git 首次收录）
+ * 修改时间：2026-10-04
+ * 版本作用：持久化快照 v2，兼容旧三档缩放。
+ * 被调用：apps/web/test/theme-settings.test.ts、apps/web/test/custom-themes.test.ts、stores/theme-store.ts。
+ * 调用：configs/fonts、configs/theme-presets、configs/theme-settings、lib/custom-themes、types/theme。
+ * 功能：逐项校验偏好，兼容旧缩放版本并修复悬空主题引用。
+ * 预期结果：首屏和跨窗口同步获得相同规则处理后的偏好。
+ */
 import { FONT_CONFIG } from "@/configs/fonts";
 import { themePresets } from "@/configs/theme-presets";
-import { initialSettings } from "@/configs/theme-settings";
-import themeConfig from "@/configs/themeConfig";
+import { initialSettings, THEME_STORAGE_KEY } from "@/configs/theme-settings";
 import { decodeCustomThemes, isCustomThemeId } from "@/lib/custom-themes";
 import type { Settings, ThemePreferences } from "@/types/theme";
 
-// 读取持久化设置时逐项校验，旧版本或损坏的数据回退到原模板默认值。
+/**
+ * 逐项恢复有效偏好，丢弃不认识的字段。
+ * @param value 未校验对象；此步骤不处理存储版本或自定义主题引用。
+ * @returns 字段完整的 Settings，无效字段各自回退默认值。
+ */
 export function normalizeSettings(value: unknown): Settings {
 	if (!value || typeof value !== "object") return { ...initialSettings };
 	const input = value as Record<string, unknown>;
@@ -42,7 +55,11 @@ export function normalizeSettings(value: unknown): Settings {
 	};
 }
 
-// 旧三档设置中的“大”迁移为“特大”；新版本的“大”仍为 lg。
+/**
+ * 读取存储设置并兼容旧三档缩放。
+ * @param value 存储对象；version=2 的 lg 是当前大档，旧版 lg 对应 xl。
+ * @returns 不含持久化版本字段的界面设置。
+ */
 export function decodeStoredSettings(value: unknown): Settings {
 	if (value && typeof value === "object") {
 		const stored = value as Record<string, unknown>;
@@ -57,6 +74,11 @@ export function encodeStoredSettings(settings: Settings) {
 	return { ...settings, version: 2 } as const;
 }
 
+/**
+ * 原子恢复主题库和当前选择，防止选择项指向被过滤的主题。
+ * @param value localStorage 或跨窗口消息的未校验快照。
+ * @returns 校验后的偏好；悬空自定义 ID 回退 default。
+ */
 export function decodeThemePreferences(value: unknown): ThemePreferences {
 	const settings = decodeStoredSettings(value);
 	const customThemes = decodeCustomThemes(
@@ -79,17 +101,16 @@ export function encodeThemePreferences(preferences: ThemePreferences) {
 	};
 }
 
+/**
+ * 读取并解码本地主题；存储被禁用或 JSON 损坏时使用默认设置。
+ * @returns 可用于首屏渲染的完整偏好，不向存储写入回退值。
+ */
 export function readThemePreferences(): ThemePreferences {
 	try {
 		return decodeThemePreferences(
-			JSON.parse(
-				localStorage.getItem(themeConfig.settingsStorageKey) ?? "null",
-			),
+			JSON.parse(localStorage.getItem(THEME_STORAGE_KEY) ?? "null"),
 		);
 	} catch {
 		return { settings: { ...initialSettings }, customThemes: [] };
 	}
 }
-
-export const savedPreferences = readThemePreferences();
-export const savedSettings = savedPreferences.settings;

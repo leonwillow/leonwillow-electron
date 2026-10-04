@@ -1,3 +1,13 @@
+/**
+ * @file 普通及分段外观的单选组的基础组件。
+ * 创建时间：2026-10-03（Git 首次收录）
+ * 修改时间：2026-10-04
+ * 版本作用：共享 UI 基础层，随工作区维护。
+ * 被调用：components/layout/theme-customizer.tsx、components/theme-editor/theme-control-panel.tsx。
+ * 调用：@base-ui/react、ui/lib/utils。
+ * 功能：组合底层控件和语义样式，透传对应属性并提供稳定 data-slot。
+ * 预期结果：业务调用方负责内容与事件，基础层不依赖应用路由或账号接口。
+ */
 import { Radio as RadioPrimitive } from "@base-ui/react/radio";
 import { RadioGroup as RadioGroupPrimitive } from "@base-ui/react/radio-group";
 
@@ -19,7 +29,7 @@ function RadioGroup({
 			data-size={size}
 			className={cn(
 				"grid w-full gap-3",
-				// Preserve the source Label > RadioGroupItem composition; only centralize size and focus.
+				// 分段项由外层 Label 提供边框和选中背景，此处只管理尺寸与焦点。
 				variant === "segmented" &&
 					"gap-0 rounded-md data-[size=default]:h-control-md data-[size=lg]:h-control-lg data-[size=sm]:h-control-sm [&>label]:font-normal [&>label]:text-control/relaxed [&>label]:has-focus-visible:border-ring [&>label]:has-focus-visible:ring-3 [&>label]:has-focus-visible:ring-ring/50 [&>label_svg]:size-3.5 [&>label_svg]:shrink-0",
 				className,

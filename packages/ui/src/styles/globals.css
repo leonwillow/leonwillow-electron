@@ -1,3 +1,13 @@
+/**
+ * @file 全局语义色、排版与控件尺寸的唯一来源。
+ * 创建时间：2026-10-03（Git 首次收录）
+ * 修改时间：2026-10-04
+ * 版本作用：共享 UI 基础层，随工作区维护。
+ * 被调用：main.tsx、utils/theme/theme-draft.ts。
+ * 调用：tailwindcss、tw-animate-css、shadcn。
+ * 功能：声明明暗主题、字体映射、rem 缩放及基础交互样式。
+ * 预期结果：页面和控件随同一套令牌缩放，主题不建立第二套尺寸体系。
+ */
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
@@ -84,17 +94,11 @@
 	--border: oklch(0.92 0.004 286.32);
 	--input: oklch(0.92 0.004 286.32);
 	--ring: oklch(0.705 0.015 286.067);
-	/* CVD-validated categorical palette, anchored on the brand teal (chart-1). */
 	--chart-1: oklch(66.906% 0.14082 162.14);
-	/* teal (brand) */
 	--chart-2: oklch(76.441% 0.16112 75.113);
-	/* amber */
 	--chart-3: oklch(57.528% 0.16264 255.549);
-	/* blue */
 	--chart-4: oklch(62.254% 0.19091 24.895);
-	/* rose */
 	--chart-5: oklch(43.315% 0.16721 283.63);
-	/* violet */
 	--radius: 0.625rem;
 	--sidebar: oklch(0.985 0 0);
 	--sidebar-foreground: oklch(0.141 0.005 285.823);
@@ -127,17 +131,11 @@
 	--border: oklch(1 0 0 / 10%);
 	--input: oklch(1 0 0 / 15%);
 	--ring: oklch(0.552 0.016 285.938);
-	/* Same hues stepped for the dark surface (validated as a set, not a flip). */
 	--chart-1: oklch(62.123% 0.1283 163.144);
-	/* teal (brand) */
 	--chart-2: oklch(66.992% 0.14248 73.223);
-	/* amber */
 	--chart-3: oklch(62.207% 0.16129 255.071);
-	/* blue */
 	--chart-4: oklch(66.927% 0.15856 22.282);
-	/* rose */
 	--chart-5: oklch(66.963% 0.14527 286.826);
-	/* violet */
 	--sidebar: oklch(0.21 0.006 285.885);
 	--sidebar-foreground: oklch(0.985 0 0);
 	--sidebar-primary: oklch(0.715 0.143 215.221);
@@ -161,28 +159,11 @@
 	--ui-scale: 1;
 }
 
-/* 原“大”的间距为默认的 1.048888 倍，这里归并为 1.05。 */
+/* 兼容旧版大档的约 105% 比例；存储迁移将旧 lg 映射到 xl。 */
 [data-theme-scale="xl"] {
 	--ui-scale: 1.05;
 }
 
-.input-default {
-	@apply h-7;
-}
-
-.input-lg {
-	@apply h-8;
-}
-
-.input-sm {
-	@apply h-6;
-}
-
-.input-size-lg {
-	@apply size-8;
-}
-
-/* For native button elements and elements with role="button", e.g., button, checkbox, radio, switch etc. */
 button:not(:disabled),
 [role="checkbox"]:not(:disabled),
 [role="radio"]:not(:disabled),
@@ -191,7 +172,6 @@ button:not(:disabled),
 	cursor: pointer;
 }
 
-/* For labels associated with form controls */
 label[for],
 label:has([role="checkbox"]):not(:disabled),
 label:has([role="radio"]):not(:disabled),
@@ -199,29 +179,25 @@ label:has([role="switch"]):not(:disabled) {
 	cursor: pointer;
 }
 
-/* For slider component */
 [role="slider"]:not([data-disabled]),
 [data-slot="slider-track"]:not([data-disabled]),
 [data-slot="slider-thumb"]:not([data-disabled]) {
 	cursor: pointer;
 }
 
-/* For components with menuitems, e.g., dropdown, context menu, etc. */
 [role="menuitem"]:not(:disabled),
 [role="menuitemcheckbox"]:not(:disabled),
 [role="menuitemradio"]:not(:disabled) {
-	/* biome-ignore lint/complexity/noImportantStyles: 保留原模板菜单指针覆盖。 */
+	/* biome-ignore lint/complexity/noImportantStyles: 覆盖菜单与选项的默认 cursor，保持可点击指针。 */
 	cursor: pointer !important;
 }
 
-/* For components with options, e.g., combobox, command, select etc. */
 [role="option"]:not(:disabled),
 select[data-slot="native-select"]:not(:disabled) {
-	/* biome-ignore lint/complexity/noImportantStyles: 保留原模板菜单指针覆盖。 */
+	/* biome-ignore lint/complexity/noImportantStyles: 覆盖菜单与选项的默认 cursor，保持可点击指针。 */
 	cursor: pointer !important;
 }
 
-/* For number input spin buttons */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
 	cursor: pointer;

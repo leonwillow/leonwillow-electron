@@ -1,3 +1,13 @@
+/**
+ * @file 自定义主题库的校验与变更规则。
+ * 创建时间：2026-10-03（Git 首次收录）
+ * 修改时间：2026-10-04
+ * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
+ * 被调用：apps/web/test、contexts、utils、utils/theme、components/theme-editor、lib。
+ * 调用：chroma-js、configs/fonts、configs/theme-presets、configs/theme-settings、configs/theme-variables、types/theme。
+ * 功能：校验样式、名称和 ID，生成保存或删除后的完整快照。
+ * 预期结果：库内容与当前选择保持一致；此层不访问 DOM 或存储。
+ */
 import chroma from "chroma-js";
 import { FONT_CONFIG } from "@/configs/fonts";
 import { themePresets } from "@/configs/theme-presets";
@@ -16,7 +26,11 @@ export function isCustomThemeId(value: unknown): value is CustomThemeId {
 	return typeof value === "string" && /^custom:[a-zA-Z0-9-]{1,64}$/.test(value);
 }
 
-// 调色、导入与持久化共用校验；只接受可解析的颜色值，禁止任意 CSS / 外部资源。
+/**
+ * 验证可独立解析的颜色，排除变量引用、拼接声明和外部资源。
+ * @param value 用户输入或存储中的 CSS 色值。
+ * @returns 语法白名单与 chroma 解析均通过时为 true。
+ */
 export function isColorValue(value: string) {
 	return (
 		value.length <= 120 &&
@@ -27,6 +41,12 @@ export function isColorValue(value: string) {
 	);
 }
 
+/**
+ * 按变量语义检查颜色、单位和取值范围。
+ * @param key 主题变量名，不含 -- 前缀；未知键不接受。
+ * @param value 未受信任的导入或存储值。
+ * @returns 是否可写入主题草稿和持久化快照。
+ */
 export function isStyleValue(key: string, value: unknown): value is string {
 	if (typeof value !== "string") return false;
 	if ((COLOR_KEYS as readonly string[]).includes(key) || key === "shadow-color")
@@ -50,7 +70,12 @@ export function isStyleValue(key: string, value: unknown): value is string {
 	return false;
 }
 
-export function sanitizeStyles(value: unknown): ThemeStyles | null {
+/**
+ * 仅复制允许编辑的变量，浅深色必须各自具备完整语义色。
+ * @param value 未校验的样式对象；不会原地修改。
+ * @returns 清理后的样式；缺少模式、颜色或存在无效值时返回 null。
+ */
+function sanitizeStyles(value: unknown): ThemeStyles | null {
 	if (!value || typeof value !== "object") return null;
 	const styles = value as Record<string, unknown>;
 	const result: ThemeStyles = { light: {}, dark: {} };
@@ -68,6 +93,11 @@ export function sanitizeStyles(value: unknown): ThemeStyles | null {
 	return result;
 }
 
+/**
+ * 从存储读取主题库，跳过损坏条目、重复 ID 和重复名称。
+ * @param value 未校验的 JSON 值；最多检查前 100 个条目。
+ * @returns 可用主题列表；字体与圆角不合法时回退到默认值。
+ */
 export function decodeCustomThemes(value: unknown): CustomTheme[] {
 	if (!Array.isArray(value)) return [];
 	const result: CustomTheme[] = [];
@@ -106,7 +136,14 @@ export function decodeCustomThemes(value: unknown): CustomTheme[] {
 	return result;
 }
 
-// 迁移官方 HoldToSaveTheme 的名称校验与追加逻辑，ID 独立于可编辑名称。
+/**
+ * 校验名称与样式后生成新快照；使用稳定 ID 区分覆盖和另存。
+ * @param preferences 当前主题库和选择项，不会原地修改。
+ * @param draft 待保存的浅深色样式、字体、圆角和名称。
+ * @param id 已有 ID 表示覆盖，新 ID 表示追加；重命名不改变 ID。
+ * @returns 同时更新主题库和当前选择的快照；尚未写入 localStorage。
+ * @throws 名称冲突、样式无效或新增主题超过容量限制。
+ */
 export function saveCustomTheme(
 	preferences: ThemePreferences,
 	draft: ThemeDraft,
@@ -149,6 +186,12 @@ export function saveCustomTheme(
 	};
 }
 
+/**
+ * 移除指定主题，并在删除当前主题时回退到默认配色。
+ * @param preferences 当前快照；保留字号缩放等其他偏好。
+ * @param id 要移除的稳定 ID。
+ * @returns 新快照；目标不存在时主题内容保持不变。
+ */
 export function deleteCustomTheme(
 	preferences: ThemePreferences,
 	id: CustomThemeId,
@@ -162,6 +205,11 @@ export function deleteCustomTheme(
 	};
 }
 
+/**
+ * 解析当前选择的内置或自定义主题。
+ * @param preferences 含设置与主题库的完整快照。
+ * @returns 对应主题；默认主题或悬空 ID 返回 undefined，由共享 CSS 提供默认色。
+ */
 export function getPreset(preferences: ThemePreferences) {
 	const key = preferences.settings.themePreset;
 	if (isCustomThemeId(key))

@@ -70,6 +70,63 @@
 			"quoteStyle": "double"
 		}
 	},
+	"overrides": [
+		{
+			"includes": ["apps/web/src/**", "packages/ui/src/**"],
+			"linter": {
+				"rules": {
+					"style": {
+						"noRestrictedImports": {
+							"level": "error",
+							"options": {
+								"paths": {
+									"server": "前端只能通过 Eden 调用 API。",
+									"server/app": {
+										"allowImportNames": ["App"],
+										"message": "仅允许 import type { App }；服务端实例不能进入浏览器。"
+									}
+								},
+								"patterns": [
+									{
+										"group": ["server/*", "!server/app"],
+										"message": "服务端仅开放 server/app 的类型契约。"
+									},
+									{
+										"group": [
+											"@leonwillow-electron/auth",
+											"@leonwillow-electron/auth/**",
+											"@leonwillow-electron/db",
+											"@leonwillow-electron/db/**",
+											"**/server/**",
+											"**/packages/auth/**",
+											"**/packages/db/**",
+											"elysia",
+											"@elysiajs/cors",
+											"better-auth",
+											"better-auth/**",
+											"drizzle-orm",
+											"drizzle-orm/**",
+											"pg",
+											"node:*",
+											"node:*/**",
+											"bun",
+											"bun:*",
+											"electron",
+											"electron/**",
+											"next",
+											"next/**",
+											"!server/app"
+										],
+										"message": "浏览器组件不得依赖服务端、数据库、桌面主进程或 Next.js 运行时。"
+									}
+								]
+							}
+						}
+					}
+				}
+			}
+		}
+	],
 	"css": {
 		"parser": {
 			"tailwindDirectives": true

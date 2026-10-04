@@ -8,20 +8,25 @@
 
 ```bash
 bun install
+bun run db:start
+bun run db:migrate
 bun run dev
 ```
 
-前端默认 <http://localhost:3001>，进入根路径后跳转 `/inbox`。端口占用时 Vite 会显示实际可用端口。服务端默认 <http://localhost:3000>，健康检查为 `/api/health`。当前无需启动数据库或配置认证，布局不发出 API 请求。
+前端默认 <http://localhost:3001>，根路径进入 `/inbox`；未登录时转到 `/login`。端口占用时 Vite 会显示实际可用端口。服务端默认 <http://localhost:3000>，健康检查为 `/api/health`。
+
+当前已接入账号密码认证，正常启动需要 PostgreSQL 和认证环境配置。首次启动自动初始化管理员 `admin / admin`，之后不会重置已有密码。环境配置、旧数据库迁移说明及测试要求见 [后端认证](./docs/auth-backend.md)。健康检查测试仍可独立运行，不要求数据库。
 
 ```bash
 bun run dev:web       # 仅前端
 bun run dev:server    # 仅 Elysia
 bun run check         # Biome 自动整理
-bun run lint          # Biome 和 UI 规范检查
+bun run lint          # Biome、前后端导入边界和 UI 规范检查
 bun run check-types   # 工作区 TypeScript 检查
 bun run build         # 前后端生产构建
-bun run test:api      # Eden 健康检查与 CORS 测试
+bun run test:api      # 健康检查、CORS 与真实数据库认证测试
 bun run test:ui       # UI 规范、主题存储、样式合并和账号表单校验
+bun run test:architecture # 浏览器导入边界和内部包出口回归
 bun run env:generate  # 生成环境类型
 ```
 
@@ -39,31 +44,34 @@ apps/
         _workspace/            # 工作台无路径布局及模块路由
       components/layout/       # 直接迁移的布局和所有图标栏菜单
       components/auth/         # 原认证页面壳、展示面板、表头和密码字段
-      components/theme-editor/ # 官方 Studio 调色部件与自定义主题菜单
+      components/theme-editor/ # 主题调色部件与自定义主题菜单
       views/login/             # 原登录视图、表单、账号校验
       views/register/          # 原注册视图、表单、账号校验
-      configs/                 # 默认值、11 套主题预设、18 个字体选项、用户种子
+      configs/                 # 品牌、默认值、11 套主题预设、18 个字体选项
       contexts/                # 主题和当前用户上下文
-      hooks/                   # 本地持久化和跨窗口同步
+      hooks/                   # 本地持久化、上下文访问和主题颜色解析
       assets/                  # 原导航与搜索数据、Logo、头像、本地字体
       styles/fonts.css         # next/font 的 Vite 本地字体适配及中文回退
-      lib/                     # 应用配置、主题读取、Eden 客户端
+      lib/                     # Eden/认证客户端、主题存储与编解码
       types/                   # 布局及主题类型
-      utils/                   # 首屏主题初始化、在线状态映射
+      utils/                   # 主题/CSS/颜色/阴影算法、在线状态映射
   server/
     src/app.ts                 # 可测试 Elysia 工厂及 App 类型
     src/index.ts               # Varlock 环境加载、监听启动
-    test/                      # Bun + Eden 轻量 API 测试
+    src/modules/auth/          # 认证路由、接口契约与 Better Auth 适配
+    test/                      # Bun + Eden 健康检查和认证测试
 packages/
   ui/src/components/           # 原模板 Base UI 基础组件
   ui/src/styles/globals.css    # 全局语义样式与明暗设计令牌
   ui/src/lib/utils.ts          # 原模板 cn（clsx + tailwind-merge）
-  auth/                        # 认证预留，尚未接入
-  db/                          # 数据库预留，尚未接入
+  auth/                        # Better Auth 工厂、配置、管理员初始化和生成工具
+  db/                          # PostgreSQL 连接、Drizzle schema 和迁移
   config/                      # 共享 TypeScript 配置
 ```
 
 后续业务页面放入 `apps/web/src/views/<feature>`，路由只挂载视图。以后 Electron 主进程只加载这份 renderer，并调用同一个 Elysia 后端；本次尚未添加或验证 Electron 主进程及打包。
+
+目录选择、命名和拆分依据见 [项目结构](./docs/project-structure.md)，注释格式见 [注释规范](./docs/code-comments.md)。
 
 ## 主题与交互
 
@@ -71,9 +79,9 @@ packages/
 - 主题面板保留默认主题及原 11 套预设、18 个字体选项、浅色/深色/跟随系统、圆角、缩放和重置。缩放四档为小/中/大/特大（90%/95%/100%/105%），控件高度与字号统一，所有文字和间距随根 rem 缩放。
 - 主题面板的“设置”入口支持自定义浅深色、字体、圆角和阴影，实时预览、命名保存/修改/删除、CSS 导入导出；复用 shadcn Studio 官方公开的调色和主题算法。来源、必要适配及保存边界见 [自定义主题迁移](./docs/custom-theme-migration.md)。
 - 设置保存在 `localStorage["aidesk-theme-settings"]`，刷新后恢复，支持同源窗口同步。`D` 切换明暗，`⌘/Ctrl+K` 或 `/` 打开搜索；输入框中不抢占这些快捷键。
-- 导航、搜索和个人菜单使用真实路由；业务页当前均为空白。认证菜单和退出入口保留原模板的导航行为，尚无真实登录/退出会话。
+- 导航、搜索和个人菜单使用真实路由；业务页当前均为空白。工作台统一检查真实会话，个人菜单显示登录用户，退出会删除会话并返回登录页。
 - 原字体的拉丁子集本地打包，中文使用系统中文字体回退，无 Google Fonts 运行时请求。
-- `/login` 与 `/register` 直接复用原认证页面，去掉第三方登录并使用账号密码。当前仅前端表单，不模拟登录/注册成功、不保存密码；未接入认证服务时提交给出明确提示。原丝绸背景已限制绘制成本并支持隐藏暂停与减少动态效果。
+- `/login` 与 `/register` 直接复用原认证页面，去掉第三方登录并通过 Eden 使用账号密码认证；内部邮箱由服务端生成，不向用户展示，浏览器不保存密码。原丝绸背景已限制绘制成本并支持隐藏暂停与减少动态效果。
 - 后续 shadcn CLI 使用 `bunx --bun shadcn@latest ... -c packages/ui`，先检查原模板和已迁移组件，禁止覆盖源迁移代码。
 
 项目迁移约定在 [AGENTS.md](./AGENTS.md)，详细来源见 [迁移记录](./docs/layout-migration.md)。

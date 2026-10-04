@@ -42,11 +42,9 @@
 		"postinstall": "varlock codegen --path ./apps/web/ && varlock codegen --path ./apps/server/ && varlock codegen --path ./packages/db/",
 		"check": "biome check --write .",
 		"test:api": "bun run --cwd apps/server test",
+		"test:architecture": "bun test scripts/architecture.test.ts",
 		"lint": "biome check . && bun scripts/check-ui-styles.ts",
 		"test:ui": "bun test scripts/check-ui-styles.test.ts packages/ui/test && bun run --cwd apps/web test"
-	},
-	"dependencies": {
-		"zod": "catalog:"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.5.12",

@@ -1,4 +1,13 @@
-// React Imports
+/**
+ * @file 用于导航与认证标题的小尺寸品牌标志。
+ * 创建时间：2026-10-03（Git 首次收录）
+ * 修改时间：2026-10-04
+ * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
+ * 被调用：components/layout/app-logo.tsx。
+ * 调用：react。
+ * 功能：将 SVG 路径封装为可传入标准 SVG 属性的组件。
+ * 预期结果：标志继承调用方颜色和尺寸。
+ */
 import type { SVGAttributes } from "react";
 
 const Logo = (props: SVGAttributes<SVGElement>) => {

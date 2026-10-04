@@ -1,5 +1,14 @@
+/**
+ * @file 命令面板的搜索目录。
+ * 创建时间：2026-10-03（Git 首次收录）
+ * 修改时间：2026-10-04
+ * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
+ * 被调用：components/layout/command-menu.tsx。
+ * 调用：@tanstack/react-router、lucide-react。
+ * 功能：为入口配置中文标题、图标与检索关键词。
+ * 预期结果：命令面板按匹配程度展示并执行页面跳转。
+ */
 import type { LinkProps } from "@tanstack/react-router";
-// Third-party Imports
 import {
 	BarChart3Icon,
 	BellIcon,
@@ -7,7 +16,7 @@ import {
 	ClockIcon,
 	CreditCardIcon,
 	InboxIcon,
-	type LucideProps,
+	type LucideIcon,
 	MessageCircleMoreIcon,
 	MessageSquareIcon,
 	SettingsIcon,
@@ -19,24 +28,18 @@ import {
 	UserIcon,
 	UsersIcon,
 } from "lucide-react";
-// React Imports
-import type { ForwardRefExoticComponent, RefAttributes } from "react";
 
-export type SearchData = {
+type SearchGroup = {
 	title: string;
 	data: {
-		icon: ForwardRefExoticComponent<
-			Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>
-		>;
+		icon: LucideIcon;
 		name: string;
 		href: NonNullable<LinkProps["to"]>;
-		shortcut?: string;
-		openInNewTab?: boolean;
 		tags?: string[];
 	}[];
 };
 
-export const searchData: SearchData[] = [
+export const searchData: SearchGroup[] = [
 	{
 		title: "工作区",
 		data: [

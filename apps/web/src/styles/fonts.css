@@ -1,4 +1,13 @@
-/* 保留原 next/font 的 latin 子集；中文使用系统字体回退。 */
+/**
+ * @file 本地字体资源和字体变量。
+ * 创建时间：2026-10-03（Git 首次收录）
+ * 修改时间：2026-10-04
+ * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
+ * 被调用：main.tsx。
+ * 调用：无模块依赖。
+ * 功能：加载字体子集，配置中文系统字体回退。
+ * 预期结果：界面切换字体无需访问外部字体服务。
+ */
 @font-face {
 	font-family: "Geist Variable";
 	font-style: normal;

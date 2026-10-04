@@ -1,4 +1,13 @@
-// Component Imports
+/**
+ * @file 认证页面宽屏展示区域。
+ * 创建时间：2026-10-03（Git 首次收录）
+ * 修改时间：2026-10-04
+ * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
+ * 被调用：components/auth/auth-shell.tsx。
+ * 调用：ui 基础组件/样式、assets/images/avatar-1.webp、assets/images/avatar-5.webp、assets/images/avatar-6.webp、assets/svg/logo-vector、hooks/use-theme-color。
+ * 功能：组合品牌文案、示例头像和随主题变色的丝绸背景。
+ * 预期结果：背景与当前主题一致，窄屏隐藏装饰区域。
+ */
 import {
 	Avatar,
 	AvatarFallback,
@@ -14,9 +23,7 @@ import {
 import avatar1 from "@/assets/images/avatar-1.webp";
 import avatar5 from "@/assets/images/avatar-5.webp";
 import avatar6 from "@/assets/images/avatar-6.webp";
-// SVG Imports
 import LogoVector from "@/assets/svg/logo-vector";
-// Hook Imports
 import { useThemeColorHex } from "@/hooks/use-theme-color";
 
 export type AuthShowcaseContent = {
@@ -32,7 +39,6 @@ const avatars = [
 	{ src: avatar6, fallback: "HR", name: "Hallie Richards" },
 ];
 
-// The Silk backdrop derives its colour from the theme `--primary`.
 const AuthShowcase = ({
 	title,
 	description,

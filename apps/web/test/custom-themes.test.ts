@@ -1,3 +1,13 @@
+/**
+ * @file 主题库与 CSS 往返的回归测试。
+ * 创建时间：2026-10-03（Git 首次收录）
+ * 修改时间：2026-10-04
+ * 版本作用：当前行为的回归约束，不进入产品构建。
+ * 被调用：Bun 测试命令。
+ * 调用：bun:test、chroma-js、../src/configs/theme-settings、../src/lib/custom-themes、../src/lib/theme-settings、../src/types/theme、../src/utils/theme/color-converter、../src/utils/theme/css-import、../src/utils/theme/parse-css-input、../src/utils/theme/shadows、../src/utils/theme/theme-style-generator。
+ * 功能：检查保存/删除、损坏数据、颜色透明度及导入导出。
+ * 预期结果：主题选择与库保持一致，合法样式在转换后保留含义。
+ */
 import { expect, test } from "bun:test";
 import chroma from "chroma-js";
 import { initialSettings } from "../src/configs/theme-settings";
@@ -14,7 +24,10 @@ import {
 import type { ThemeDraft } from "../src/types/theme";
 import { colorFormatter } from "../src/utils/theme/color-converter";
 import { importThemeCss } from "../src/utils/theme/css-import";
-import { parseCssInput } from "../src/utils/theme/parse-css-input";
+import {
+	parseCssInput,
+	parseShadowVariables,
+} from "../src/utils/theme/parse-css-input";
 import { getShadowMap } from "../src/utils/theme/shadows";
 import { generateThemeCode } from "../src/utils/theme/theme-style-generator";
 
@@ -101,6 +114,7 @@ test("一个快照同时恢复主题库和当前选择，四档缩放遵循已�
 
 test("损坏主题和任意 CSS 值不能进入已保存的主题库", () => {
 	const saved = saveCustomTheme(empty, draft, "custom:valid").customThemes[0];
+	if (!saved) throw new Error("测试主题未保存。");
 	expect(
 		decodeCustomThemes([
 			saved,
@@ -125,7 +139,7 @@ test("损坏主题和任意 CSS 值不能进入已保存的主题库", () => {
 	).toThrow("名称");
 });
 
-test("官方转换器保留现代色值和透明度，低饱和度 HSL 不会误转成高饱和度", () => {
+test("颜色转换保留现代色值和透明度，低饱和度 HSL 不会误转成高饱和度", () => {
 	const hex = colorFormatter("hsl(230 1% 90%)", "hex");
 	expect(chroma(hex).hsl()[1]).toBeLessThan(0.02);
 	for (const format of ["hex", "rgb", "hsl", "oklch"] as const) {
@@ -139,6 +153,21 @@ test("官方转换器保留现代色值和透明度，低饱和度 HSL 不会误
 	expect(
 		chroma(colorFormatter("rgb(10 20 30 / 0.125)", "oklch")).alpha(),
 	).toBeCloseTo(0.125, 5);
+});
+
+test("阴影简写中的不透明度按百分号区分比例与百分比", () => {
+	for (const [input, expected] of [
+		["1", "1"],
+		["0", "0"],
+		["0.5", "0.5"],
+		["50%", "0.5"],
+		["12.5%", "0.125"],
+	]) {
+		const { lightShadows } = parseShadowVariables(
+			`:root { --shadow-xs: 0px 1px 2px 0px hsl(0 0% 0% / ${input}); }`,
+		);
+		expect(lightShadows["shadow-opacity"]).toBe(expected);
+	}
 });
 
 test("CSS 按模式合并，拒绝无效值，不能导入第二套间距/缩放/字号", () => {

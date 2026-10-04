@@ -1,9 +1,19 @@
+/**
+ * @file 不依赖 WebGL 的动态丝绸背景。
+ * 创建时间：2026-10-03（Git 首次收录）
+ * 修改时间：2026-10-04
+ * 版本作用：共享 UI 基础层，随工作区维护。
+ * 被调用：components/auth/auth-showcase.tsx。
+ * 调用：ui/lib/utils、react。
+ * 功能：在有限分辨率下绘制纹理，限制刷新频率并监听可见性和动态偏好。
+ * 预期结果：装饰背景随主题变化，隐藏时暂停，减少动态模式只绘制静态帧。
+ */
 import { cn } from "@leonwillow-electron/ui/lib/utils";
 import { useCallback, useEffect, useRef } from "react";
 
 // 丝绸是低频背景纹理，不需要按显示器 DPR 逐像素重算。
 const MAX_RENDER_EDGE = 320;
-const FRAME_INTERVAL = 1000 / 30;
+const FRAME_INTERVAL_MS = 1000 / 30;
 
 interface SilkBackgroundProps {
 	speed?: number;
@@ -24,7 +34,7 @@ function hexToRgb(hex: string): [number, number, number] {
 	];
 }
 
-// Cheap pseudo-random noise mimicking the GLSL approach
+// 用坐标生成可重复噪声，不依赖每帧随机数，避免背景颗粒闪烁。
 function noise(x: number, y: number): number {
 	const G = Math.E;
 	const rx = G * Math.sin(G * x);
@@ -75,14 +85,14 @@ export default function SilkBackground({
 			if (
 				!reducedMotionRef.current &&
 				lastPaintRef.current !== null &&
-				timestamp - lastPaintRef.current < FRAME_INTERVAL
+				timestamp - lastPaintRef.current < FRAME_INTERVAL_MS
 			) {
 				animRef.current = requestAnimationFrame(drawRef.current);
 				return;
 			}
 			lastPaintRef.current = timestamp;
 
-			// Delta time in seconds (capped to avoid jumps on tab focus)
+			// 限制恢复绘制时的时间步长，避免切回页面时纹理突然跳动。
 			const delta = lastTimestampRef.current
 				? Math.min((timestamp - lastTimestampRef.current) / 1000, 0.05)
 				: 0.016;
@@ -105,19 +115,17 @@ export default function SilkBackground({
 
 			for (let py = 0; py < h; py++) {
 				for (let px = 0; px < w; px++) {
-					// Normalized UV [0,1]
+					// 像素坐标归一化后再旋转，使纹理方向不依赖绘制分辨率。
 					const u = px / w;
 					const v = py / h;
 
-					// Rotate + scale UVs
 					const [ru, rv] = rotateUV(u * scale, v * scale, rotation);
 					const texX = ru * scale;
 					let texY = rv * scale;
 
-					// Sine warp on Y (matches GLSL: tex.y += 0.03 * sin(8*tex.x - tOffset))
+					// Y 方向缓慢扰动叠加两层正弦波，形成连续的丝绸褶皱。
 					texY += 0.03 * Math.sin(8.0 * texX - tOffset);
 
-					// Silk pattern (matches GLSL fragment shader pattern)
 					const inner =
 						5.0 *
 						(texX + texY + Math.cos(3.0 * texX + 5.0 * texY) + 0.02 * tOffset);
@@ -126,10 +134,8 @@ export default function SilkBackground({
 
 					const pattern = 0.6 + 0.4 * Math.sin(inner + Math.sin(outer));
 
-					// Per-pixel noise (screen-space, matches gl_FragCoord)
 					const rnd = noiseIntensity === 0 ? 0 : noise(px, py);
 
-					// Final colour: base colour * pattern - noise * noiseIntensity/15
 					const adjust = (rnd / 15.0) * noiseIntensity;
 					const r = Math.min(
 						255,
@@ -187,7 +193,7 @@ export default function SilkBackground({
 		return () => observer.disconnect();
 	}, []);
 
-	// Start / restart animation when props change
+	// 属性、可见性和动态偏好变化共用重启流程，避免重复注册动画循环。
 	useEffect(() => {
 		drawRef.current = draw;
 		const media = window.matchMedia("(prefers-reduced-motion: reduce)");

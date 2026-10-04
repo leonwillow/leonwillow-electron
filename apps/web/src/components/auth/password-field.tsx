@@ -1,4 +1,13 @@
-// Component Imports
+/**
+ * @file 认证表单共用的密码输入。
+ * 创建时间：2026-10-03（Git 首次收录）
+ * 修改时间：2026-10-04
+ * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
+ * 被调用：views/register/register-form.tsx、views/login/login-form.tsx。
+ * 调用：ui 基础组件/样式、lucide-react、react、react-hook-form。
+ * 功能：组合注册字段、显隐切换、标签与错误提示。
+ * 预期结果：密码值仍由表单管理；切换显隐不会提交表单。
+ */
 import { Button } from "@leonwillow-electron/ui/components/button";
 import {
 	Field,
@@ -11,9 +20,7 @@ import {
 	InputGroupInput,
 } from "@leonwillow-electron/ui/components/input-group";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
-// React Imports
 import { useState } from "react";
-// Third-party Imports
 import type { UseFormRegisterReturn } from "react-hook-form";
 
 const PasswordField = ({

@@ -1,3 +1,12 @@
+# 文件意义：本地开发 PostgreSQL 服务配置。
+# 创建时间：2026-10-03（Git 首次收录）
+# 修改时间：2026-10-04
+# 版本作用：当前工作区的工具/启动配置。
+# 被调用：db:start/watch/stop/down 命令。
+# 调用：Docker Compose、PostgreSQL 镜像。
+# 功能：配置回环端口、持久化卷和健康检查。
+# 预期结果：开发数据库可独立启动，数据保留在命名卷。
+
 name: leonwillow-electron
 
 services:
@@ -9,7 +18,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - leonwillow-electron_postgres_data:/var/lib/postgresql
     healthcheck:

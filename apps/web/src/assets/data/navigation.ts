@@ -1,29 +1,30 @@
-// Third-party Imports
+/**
+ * @file 图标栏实际使用的主导航目录。
+ * 创建时间：2026-10-03（Git 首次收录）
+ * 修改时间：2026-10-04
+ * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
+ * 被调用：components/layout/profile-menu.tsx、components/layout/app-sidebar.tsx。
+ * 调用：@tanstack/react-router、lucide-react。
+ * 功能：提供已挂载的入口与默认设置地址。
+ * 预期结果：侧栏和个人菜单跳转到类型可检查的路由。
+ */
+import type { LinkProps } from "@tanstack/react-router";
 import {
 	BarChart3Icon,
-	BellIcon,
 	BookOpenIcon,
-	ClockIcon,
-	CreditCardIcon,
-	FileTextIcon,
-	FolderIcon,
 	InboxIcon,
-	MessageCircleMoreIcon,
-	MessageSquareTextIcon,
-	SettingsIcon,
-	ShieldIcon,
+	type LucideIcon,
 	SparklesIcon,
-	TagIcon,
 	TicketIcon,
-	UserCheckIcon,
-	UserIcon,
 	UsersIcon,
 } from "lucide-react";
 
-// Type Imports
-import type { NavGroup, NavItem } from "@/types/navigation";
+type NavItem = {
+	title: string;
+	href: NonNullable<LinkProps["to"]>;
+	icon: LucideIcon;
+};
 
-// Primary modules — shown in the left icon rail
 export const primaryNav: NavItem[] = [
 	{ title: "收件箱", href: "/inbox", icon: InboxIcon },
 	{ title: "工单", href: "/tickets", icon: TicketIcon },
@@ -33,61 +34,4 @@ export const primaryNav: NavItem[] = [
 	{ title: "报表", href: "/reports", icon: BarChart3Icon },
 ];
 
-// Knowledge Base sub-navigation — shown inside the /knowledge-base layout
-export const knowledgeBaseNav: NavItem[] = [
-	{ title: "文章", href: "/knowledge-base", icon: FileTextIcon },
-	{ title: "合集", href: "/knowledge-base/collections", icon: FolderIcon },
-];
-
-// Settings sub-navigation — grouped sections shown inside the /settings layout.
-// The first item's href is the settings landing route (see AppSidebar / ProfileMenu).
-export const settingsNav: NavGroup[] = [
-	{
-		title: "工作区",
-		items: [
-			{ title: "通用设置", href: "/settings/general", icon: SettingsIcon },
-			{ title: "团队成员", href: "/settings/teammates", icon: UsersIcon },
-			{ title: "工作时间", href: "/settings/office-hours", icon: ClockIcon },
-			{ title: "安全", href: "/settings/security", icon: ShieldIcon },
-		],
-	},
-	{
-		title: "收件箱",
-		items: [
-			{ title: "分配规则", href: "/settings/assignments", icon: UserCheckIcon },
-			{
-				title: "快捷回复",
-				href: "/settings/saved-replies",
-				icon: MessageSquareTextIcon,
-			},
-		],
-	},
-	{
-		title: "渠道",
-		items: [
-			{
-				title: "在线消息",
-				href: "/settings/messenger",
-				icon: MessageCircleMoreIcon,
-			},
-		],
-	},
-	{
-		title: "订阅",
-		items: [{ title: "账单", href: "/settings/billing", icon: CreditCardIcon }],
-	},
-	{
-		title: "数据",
-		items: [{ title: "标签", href: "/settings/tags", icon: TagIcon }],
-	},
-	{
-		title: "个人",
-		items: [
-			{ title: "个人资料", href: "/settings/profile", icon: UserIcon },
-			{ title: "通知", href: "/settings/notifications", icon: BellIcon },
-		],
-	},
-];
-
-// The default settings destination (used by the sidebar gear + profile menu).
 export const settingsHomeHref = "/settings/general" as const;

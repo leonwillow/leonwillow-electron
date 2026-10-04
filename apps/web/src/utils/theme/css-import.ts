@@ -1,4 +1,13 @@
-// 官方 CSS 导入解析器的项目适配与校验边界。
+/**
+ * @file CSS 输入进入主题草稿的校验边界。
+ * 创建时间：2026-10-03（Git 首次收录）
+ * 修改时间：2026-10-04
+ * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
+ * 被调用：apps/web/test/custom-themes.test.ts、components/theme-editor/theme-control-panel.tsx。
+ * 调用：configs/fonts、configs/theme-settings、lib/custom-themes、types/theme、utils/theme/parse-css-input。
+ * 功能：限制输入长度，校验支持的变量并按模式合并。
+ * 预期结果：合法内容形成新草稿，无效内容报错且不改变原草稿。
+ */
 import { FONT_CONFIG } from "@/configs/fonts";
 import { RADIUS_VALUES } from "@/configs/theme-settings";
 import { isStyleValue } from "@/lib/custom-themes";
@@ -7,6 +16,13 @@ import {
 	parseCssInput,
 	parseShadowVariables,
 } from "@/utils/theme/parse-css-input";
+/**
+ * 将支持的 CSS 变量合并到草稿，保留未出现的模式与字段。
+ * @param input 最多 100,000 字符的 CSS；不执行、不插入 style 标签。
+ * @param draft 当前草稿，不会原地修改；字体与圆角仅采用项目已支持的选项。
+ * @returns 可预览的新草稿，保存仍由主题库操作完成。
+ * @throws 内容过大、没有可识别变量或支持的变量值不合法。
+ */
 export function importThemeCss(input: string, draft: ThemeDraft): ThemeDraft {
 	if (input.length > 100_000)
 		throw new Error("CSS 内容过大，请只粘贴主题变量。");

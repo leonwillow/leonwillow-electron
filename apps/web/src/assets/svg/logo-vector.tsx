@@ -1,3 +1,13 @@
+/**
+ * @file 认证展示面板使用的装饰品牌图形。
+ * 创建时间：2026-10-03（Git 首次收录）
+ * 修改时间：2026-10-04
+ * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
+ * 被调用：components/auth/auth-showcase.tsx。
+ * 调用：react。
+ * 功能：提供完整 SVG 图形及标准属性透传。
+ * 预期结果：展示面板可随容器缩放图形。
+ */
 import type { SVGAttributes } from "react";
 
 const LogoVector = (props: SVGAttributes<SVGElement>) => {

@@ -1,8 +1,16 @@
-// Config Imports
+/**
+ * @file 主题设置、预设、草稿与快照的共享类型。
+ * 创建时间：2026-10-03（Git 首次收录）
+ * 修改时间：2026-10-04
+ * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
+ * 被调用：apps/web/test、contexts、utils、utils/theme、components/layout、components/theme-editor、configs、lib。
+ * 调用：configs/fonts、configs/theme-presets。
+ * 功能：区分持久化偏好和临时预览，约束可用设置字段。
+ * 预期结果：组件与算法共享契约，不在类型文件创建运行时状态。
+ */
 import type { FontKey } from "@/configs/fonts";
 import type { ThemePresetKey } from "@/configs/theme-presets";
 
-// ── Theme preset shape (CSS custom-property values per light/dark mode) ───────
 export type ThemeStyleProps = {
 	background: string;
 	foreground: string;
@@ -46,8 +54,6 @@ export type ThemeStyleProps = {
 	"letter-spacing"?: string;
 	spacing?: string;
 	"font-sans"?: string;
-	"font-serif"?: string;
-	"font-mono"?: string;
 };
 
 export type ThemeStyles = {
@@ -60,7 +66,6 @@ export type ThemePreset = {
 	styles: ThemeStyles;
 };
 
-// ── Theme customizer settings ─────────────────────────────────────────────────
 export type Mode = "light" | "dark" | "system";
 export type Radius = "none" | "sm" | "md" | "lg";
 export type Scale = "sm" | "md" | "lg" | "xl";

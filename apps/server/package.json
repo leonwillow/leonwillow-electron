@@ -1,7 +1,7 @@
 {
 	"name": "server",
+	"private": true,
 	"type": "module",
-	"main": "src/index.ts",
 	"scripts": {
 		"build": "bun --bun tsdown",
 		"check-types": "tsc --noEmit",
@@ -9,10 +9,13 @@
 		"dev": "bun run --hot src/index.ts",
 		"start": "bun run dist/index.mjs",
 		"env:generate": "varlock codegen",
-		"test": "bun test"
+		"test": "bun test --preload varlock/auto-load",
+		"test:health": "bun test test/health.test.ts"
 	},
 	"dependencies": {
 		"@elysiajs/cors": "^1.4.2",
+		"@leonwillow-electron/auth": "workspace:*",
+		"@leonwillow-electron/db": "workspace:*",
 		"elysia": "^1.4.30",
 		"varlock": "catalog:"
 	},
@@ -20,10 +23,13 @@
 		"@elysiajs/eden": "^1.4.9",
 		"@leonwillow-electron/config": "workspace:*",
 		"@types/bun": "catalog:",
+		"drizzle-orm": "catalog:",
 		"tsdown": "^0.23.0",
 		"typescript": "catalog:"
 	},
 	"exports": {
-		"./app": "./src/app.ts"
+		"./app": {
+			"types": "./src/app.ts"
+		}
 	}
 }

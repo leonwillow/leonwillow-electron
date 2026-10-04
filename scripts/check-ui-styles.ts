@@ -1,7 +1,23 @@
+/**
+ * @file 仓库 UI 约定的源码检查器。
+ * 创建时间：2026-10-03（Git 首次收录）
+ * 修改时间：2026-10-04
+ * 版本作用：UI 约定的仓库级静态检查入口。
+ * 被调用：根 lint 命令、check-ui-styles.test.ts。
+ * 调用：node:path、typescript。
+ * 功能：解析 TS/TSX 与 CSS，定位独立字号和控件尺寸覆盖。
+ * 预期结果：违规时输出文件位置并以非零退出码结束。
+ */
 import { relative, resolve } from "node:path";
 import ts from "typescript";
 
 // 限制新增代码绕过全局排版和控件尺寸。基础组件的尺寸定义仍由 packages/ui 管理。
+/**
+ * 检查源码是否绕过共享排版和控件尺寸约束。
+ * @param source TS/TSX 或 CSS 源码文本。
+ * @param filename 仓库相对路径，用于区分应用与基础组件的权限。
+ * @returns 含文件名、行号和原因的违规列表；空列表表示通过。
+ */
 export function checkUIStyleSource(source: string, filename: string): string[] {
 	const errors: string[] = [];
 	const report = (position: number, message: string) => {

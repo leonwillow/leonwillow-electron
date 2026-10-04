@@ -1,5 +1,13 @@
-// Next Imports
-
+/**
+ * @file 账号密码登录表单。
+ * 创建时间：2026-10-03（Git 首次收录）
+ * 修改时间：2026-10-04
+ * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
+ * 被调用：views/login/index.tsx。
+ * 调用：@hookform/resolvers、ui 基础组件/样式、@tanstack/react-router、react-hook-form、sonner、components/auth/password-field、configs/app、lib/auth、./login-schema。
+ * 功能：通过 React Hook Form 校验输入，调用账号接口并展示提交状态。
+ * 预期结果：成功后刷新会话进入工作台；错误保留在当前页面。
+ */
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@leonwillow-electron/ui/components/button";
 import { Checkbox } from "@leonwillow-electron/ui/components/checkbox";
@@ -10,19 +18,18 @@ import {
 	FieldLabel,
 } from "@leonwillow-electron/ui/components/field";
 import { Input } from "@leonwillow-electron/ui/components/input";
-// Third-party Imports
+import { useRouter } from "@tanstack/react-router";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
-// Component Imports
 import PasswordField from "@/components/auth/password-field";
 
-// Config Imports
-import { appConfig } from "@/lib/app-config";
+import { appConfig } from "@/configs/app";
+import { authErrorMessage, login } from "@/lib/auth";
 
-// Schema Imports
 import { type LoginFormValues, loginSchema } from "./login-schema";
 
 const LoginForm = () => {
+	const router = useRouter();
 	const {
 		register,
 		handleSubmit,
@@ -33,9 +40,14 @@ const LoginForm = () => {
 		defaultValues: { username: "", password: "", rememberMe: false },
 	});
 
-	// 当前仅迁移页面；接入认证 API 前不创建会话或模拟登录成功。
-	const onSubmit = () => {
-		toast.info("登录服务暂未接入，请稍后再试。");
+	const onSubmit = async (values: LoginFormValues) => {
+		try {
+			await login(values);
+			await router.invalidate();
+			await router.navigate({ to: "/inbox", replace: true });
+		} catch (error) {
+			toast.error(authErrorMessage(error));
+		}
 	};
 
 	return (
@@ -106,7 +118,7 @@ const LoginForm = () => {
 						type="submit"
 						disabled={isSubmitting}
 					>
-						登录 {appConfig.name}
+						{isSubmitting ? "正在登录…" : `登录 ${appConfig.name}`}
 					</Button>
 				</Field>
 			</FieldGroup>

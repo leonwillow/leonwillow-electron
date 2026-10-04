@@ -1,3 +1,13 @@
+/**
+ * @file 输入控件与图标、按钮装饰的组合的基础组件。
+ * 创建时间：2026-10-03（Git 首次收录）
+ * 修改时间：2026-10-04
+ * 版本作用：共享 UI 基础层，随工作区维护。
+ * 被调用：components/command.tsx、components/auth/password-field.tsx。
+ * 调用：ui 基础组件/样式、ui/lib/utils、class-variance-authority、react。
+ * 功能：组合底层控件和语义样式，透传对应属性并提供稳定 data-slot。
+ * 预期结果：业务调用方负责内容与事件，基础层不依赖应用路由或账号接口。
+ */
 import { Button } from "@leonwillow-electron/ui/components/button";
 import { Input } from "@leonwillow-electron/ui/components/input";
 import { Textarea } from "@leonwillow-electron/ui/components/textarea";
@@ -11,7 +21,7 @@ function InputGroup({
 	...props
 }: React.ComponentProps<"div"> & { size?: "sm" | "default" | "lg" }) {
 	return (
-		// biome-ignore lint/a11y/useSemanticElements: 原模板输入框装饰容器不是独立表单字段组。
+		// biome-ignore lint/a11y/useSemanticElements: 输入框装饰容器不是独立表单字段组。
 		<div
 			data-slot="input-group"
 			data-size={size}
@@ -57,7 +67,7 @@ function InputGroupAddon({
 	...props
 }: React.ComponentProps<"div"> & VariantProps<typeof inputGroupAddonVariants>) {
 	return (
-		// biome-ignore lint/a11y/useSemanticElements: 原模板输入框的图标和按钮装饰分组。
+		// biome-ignore lint/a11y/useSemanticElements: 输入框的图标和按钮装饰分组。
 		// biome-ignore lint/a11y/useKeyWithClickEvents: 点击装饰仅聚焦原生输入，键盘可直接 Tab 访问该输入。
 		<div
 			role="group"

@@ -1,3 +1,13 @@
+/**
+ * @file UI 规范检查器的行为测试。
+ * 创建时间：2026-10-03（Git 首次收录）
+ * 修改时间：2026-10-04
+ * 版本作用：当前行为的回归约束，不进入产品构建。
+ * 被调用：Bun 测试命令。
+ * 调用：bun:test、./check-ui-styles。
+ * 功能：给检查器提供允许与拒绝的源码样例。
+ * 预期结果：规则能拒绝绕过令牌的写法，并允许基础组件定义尺寸。
+ */
 import { expect, test } from "bun:test";
 import { checkUIStyleSource } from "./check-ui-styles";
 

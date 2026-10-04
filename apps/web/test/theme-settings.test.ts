@@ -1,3 +1,13 @@
+/**
+ * @file 主题偏好存储版本的回归测试。
+ * 创建时间：2026-10-03（Git 首次收录）
+ * 修改时间：2026-10-04
+ * 版本作用：当前行为的回归约束，不进入产品构建。
+ * 被调用：Bun 测试命令。
+ * 调用：bun:test、../src/configs/theme-settings、../src/lib/theme-settings。
+ * 功能：检查旧三档迁移、四档往返及损坏设置的字段回退。
+ * 预期结果：新版大档不会重复迁移为特大。
+ */
 import { expect, test } from "bun:test";
 import { initialSettings } from "../src/configs/theme-settings";
 import {

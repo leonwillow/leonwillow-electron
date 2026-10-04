@@ -6,9 +6,7 @@
 	"exports": {
 		"./globals.css": "./src/styles/globals.css",
 		"./lib/*": "./src/lib/*.ts",
-		"./components/*": "./src/components/*.tsx",
-		"./hooks/*": "./src/hooks/*.ts",
-		"./postcss.config": "./postcss.config.mjs"
+		"./components/*": "./src/components/*.tsx"
 	},
 	"scripts": {
 		"check-types": "tsc --noEmit"
@@ -22,6 +20,7 @@
 		"next-themes": "catalog:",
 		"react": "catalog:",
 		"react-dom": "catalog:",
+		"react-draggable": "^4.7.2",
 		"shadcn": "^4.21.0",
 		"sonner": "catalog:",
 		"tailwind-merge": "^3.7.0",
@@ -29,7 +28,6 @@
 	},
 	"devDependencies": {
 		"@leonwillow-electron/config": "workspace:*",
-		"@tailwindcss/postcss": "^4.3.3",
 		"@types/react": "catalog:",
 		"@types/react-dom": "catalog:",
 		"tailwindcss": "catalog:",

@@ -1,4 +1,13 @@
-// Type Imports
+/**
+ * @file 内置主题的浅深色配色目录。
+ * 创建时间：2026-10-03（Git 首次收录）
+ * 修改时间：2026-10-04
+ * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
+ * 被调用：types/theme.ts、components/theme-editor/theme-preset-select.tsx、lib/custom-themes.ts、lib/theme-settings.ts。
+ * 调用：types/theme。
+ * 功能：按预设键提供名称和语义 CSS 变量。
+ * 预期结果：主题菜单、草稿和 DOM 应用读取同一份色板。
+ */
 import type { ThemePreset } from "@/types/theme";
 
 export const themePresets = {
