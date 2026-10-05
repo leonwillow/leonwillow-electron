@@ -44,7 +44,7 @@ const LoginForm = () => {
 		try {
 			await login(values);
 			await router.invalidate();
-			await router.navigate({ to: "/inbox", replace: true });
+			await router.navigate({ to: "/", replace: true });
 		} catch (error) {
 			toast.error(authErrorMessage(error));
 		}
@@ -105,7 +105,7 @@ const LoginForm = () => {
 						variant="link"
 						type="button"
 						className="p-0"
-						onClick={() => toast.info("密码找回功能将在后续接入。")}
+						onClick={() => toast.info("请联系管理员重置密码。")}
 					>
 						忘记密码？
 					</Button>

@@ -21,7 +21,11 @@ export default function AuthRouteError() {
 			</p>
 			<div className="flex gap-2">
 				<Button onClick={() => router.invalidate()}>重试</Button>
-				<Button variant="outline" render={<Link to="/login" />}>
+				<Button
+					variant="outline"
+					nativeButton={false}
+					render={<Link to="/login" />}
+				>
 					前往登录
 				</Button>
 			</div>

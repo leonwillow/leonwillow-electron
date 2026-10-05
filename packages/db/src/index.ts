@@ -4,13 +4,13 @@
  * 修改时间：2026-10-04
  * 版本作用：服务端数据基础层，随工作区维护。
  * 被调用：scripts/architecture.test.ts、packages/auth/src/index.ts、packages/auth/src/bootstrap.ts、apps/server/test/auth.test.ts、apps/server/src/index.ts。
- * 调用：drizzle-orm、pg、./schema。
+ * 调用：drizzle-orm、pg、./relations。
  * 功能：创建 PostgreSQL Pool 和带关系定义的 Drizzle 客户端。
  * 预期结果：调用方持有并关闭连接池，导入包不会读取环境。
  */
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import { authRelations } from "./schema";
+import { authRelations } from "./relations";
 
 /**
  * 创建由调用方管理生命周期的 PostgreSQL 连接池和 Drizzle 客户端。
@@ -24,3 +24,6 @@ export function createDatabase(connectionString: string) {
 }
 
 export type Database = ReturnType<typeof createDatabase>["db"];
+export type DatabaseTransaction = Parameters<
+	Parameters<Database["transaction"]>[0]
+>[0];

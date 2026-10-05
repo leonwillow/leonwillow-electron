@@ -8,6 +8,7 @@
 		"build": "bun --bun vite build",
 		"serve": "bun --bun vite preview",
 		"check-types": "tsc --noEmit",
+		"routes:generate": "bun --bun tsr generate",
 		"env:generate": "varlock codegen",
 		"test": "bun test"
 	},
@@ -42,11 +43,13 @@
 		"sonner": "catalog:",
 		"varlock": "catalog:",
 		"zod": "catalog:",
-		"zustand": "^5.0.15"
+		"zustand": "^5.0.15",
+		"@leonwillow-electron/access": "workspace:*"
 	},
 	"devDependencies": {
 		"@leonwillow-electron/config": "workspace:*",
 		"@tailwindcss/vite": "^4.3.3",
+		"@tanstack/router-cli": "1.167.40",
 		"@tanstack/router-plugin": "^1.168.35",
 		"@types/chroma-js": "^3.1.2",
 		"@types/node": "^26.4.1",

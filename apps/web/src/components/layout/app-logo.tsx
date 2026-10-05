@@ -6,7 +6,7 @@
  * 被调用：components/auth/auth-header.tsx、components/layout/app-sidebar.tsx。
  * 调用：ui/lib/utils、@tanstack/react-router、assets/svg/logo、configs/app。
  * 功能：组合品牌图标与可选名称。
- * 预期结果：点击品牌进入收件箱，图标链接具备可访问名称。
+ * 预期结果：点击品牌进入当前用户可访问的首个功能，图标链接具备可访问名称。
  */
 import { cn } from "@leonwillow-electron/ui/lib/utils";
 import { Link } from "@tanstack/react-router";
@@ -22,7 +22,7 @@ const AppLogo = ({
 }) => {
 	return (
 		<Link
-			to="/inbox"
+			to="/"
 			className={cn("flex items-center gap-2", className)}
 			aria-label={appConfig.name}
 		>

@@ -3,9 +3,9 @@
  * 创建时间：2026-10-03（Git 首次收录）
  * 修改时间：2026-10-04
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
- * 被调用：views/register/register-form.tsx、views/login/login-form.tsx。
+ * 被调用：views/login/login-form.tsx、views/admin/users。
  * 调用：ui 基础组件/样式、lucide-react、react、react-hook-form。
- * 功能：组合注册字段、显隐切换、标签与错误提示。
+ * 功能：组合表单字段、显隐切换、标签与错误提示。
  * 预期结果：密码值仍由表单管理；切换显隐不会提交表单。
  */
 import { Button } from "@leonwillow-electron/ui/components/button";

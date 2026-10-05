@@ -25,6 +25,8 @@ initializeTheme(useThemeStore.getState().preferences);
 
 const router = createRouter({
 	routeTree,
+	basepath:
+		window.location.protocol === "file:" ? "/" : import.meta.env.BASE_URL,
 	defaultPreload: "intent",
 	scrollRestoration: true,
 	// Electron 使用 file:// 加载同一份构建时，路由无需服务器回退。

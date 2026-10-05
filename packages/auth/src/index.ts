@@ -9,7 +9,7 @@
  * 预期结果：实例由应用创建，包本身无监听和环境加载副作用。
  */
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
-import type { Database } from "@leonwillow-electron/db";
+import type { Database, DatabaseTransaction } from "@leonwillow-electron/db";
 import * as schema from "@leonwillow-electron/db/schema";
 import { betterAuth } from "better-auth";
 import { authOptions } from "./config";
@@ -35,3 +35,16 @@ export function createAuth(options: {
 }
 
 export type Auth = ReturnType<typeof createAuth>;
+
+/**
+ * 将现有认证配置绑定到管理事务；调用方必须先验证管理员会话。
+ * @param auth 应用认证配置，不复用请求上下文。
+ * @param db 当前管理事务，所有账号、凭据与审计写入共用事务。
+ * @returns 同配置的认证实例；事务回滚时账号操作一并撤销。
+ */
+export function authInTransaction(auth: Auth, db: DatabaseTransaction) {
+	return betterAuth({
+		...auth.options,
+		database: drizzleAdapter(db, { provider: "pg", schema }),
+	});
+}

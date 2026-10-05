@@ -15,20 +15,26 @@ bun run dev
 
 前端默认 <http://localhost:3001>，根路径进入 `/inbox`；未登录时转到 `/login`。端口占用时 Vite 会显示实际可用端口。服务端默认 <http://localhost:3000>，健康检查为 `/api/health`。
 
-当前已接入账号密码认证，正常启动需要 PostgreSQL 和认证环境配置。首次启动自动初始化管理员 `admin / admin`，之后不会重置已有密码。环境配置、旧数据库迁移说明及测试要求见 [后端认证](./docs/auth-backend.md)。健康检查测试仍可独立运行，不要求数据库。
+当前已接入账号密码认证，正常启动需要 PostgreSQL 和认证环境配置。普通启动不创建账号；管理员通过 `bun run auth:init` 和显式注入的初始密码创建，已有密码与角色不会被覆盖。环境配置、旧数据库迁移说明及测试要求见 [后端认证](./docs/auth-backend.md)。健康检查测试仍可独立运行，不要求数据库。
 
 ```bash
 bun run dev:web       # 仅前端
 bun run dev:server    # 仅 Elysia
-bun run check         # Biome 自动整理
+bun run check         # 完整验证（不自动修复手写源码）
+bun run fix           # Biome 自动整理
+bun run verify:all    # 完整验证 + 真实数据库测试
 bun run lint          # Biome、前后端导入边界和 UI 规范检查
 bun run check-types   # 工作区 TypeScript 检查
 bun run build         # 前后端生产构建
 bun run test:api      # 健康检查、CORS 与真实数据库认证测试
 bun run test:ui       # UI 规范、主题存储、样式合并和账号表单校验
 bun run test:architecture # 浏览器导入边界和内部包出口回归
-bun run env:generate  # 生成环境类型
+bun run generate      # 生成环境类型和路由树
+bun run auth:schema   # 安全再生成认证表，手写关系独立
+bun run auth:init     # 显式初始化管理员；密码注入方式见后端文档
 ```
+
+检查、生成顺序、冷启动与子路径验收见 [工程验证](./docs/engineering-verification.md)。Web 默认部署在 `/`；子路径构建使用 `--base=/desk/`，Router 自动使用同一前缀，托管端仍需配置 SPA fallback。
 
 环境默认值在各应用 `.env.schema`，本地 `.env` 可覆盖默认值，请勿提交秘密。修改服务端端口时同步调整 `VITE_SERVER_URL`，修改前端来源时同步调整 `CORS_ORIGIN`。
 
@@ -48,16 +54,17 @@ apps/
       views/login/             # 原登录视图、表单、账号校验
       views/register/          # 原注册视图、表单、账号校验
       configs/                 # 品牌、默认值、11 套主题预设、18 个字体选项
-      contexts/                # 主题和当前用户上下文
-      hooks/                   # 本地持久化、上下文访问和主题颜色解析
+      stores/                  # 主题偏好、主题库、持久化与临时预览
+      hooks/                   # 可复用的 React 行为和主题颜色解析
       assets/                  # 原导航与搜索数据、Logo、头像、本地字体
       styles/fonts.css         # next/font 的 Vite 本地字体适配及中文回退
-      lib/                     # Eden/认证客户端、主题存储与编解码
+      lib/                     # Eden/认证客户端、主题库规则与快照编解码
       types/                   # 布局及主题类型
-      utils/                   # 主题/CSS/颜色/阴影算法、在线状态映射
+      utils/                   # 主题/CSS/颜色/阴影算法及 DOM 适配
   server/
     src/app.ts                 # 可测试 Elysia 工厂及 App 类型
-    src/index.ts               # Varlock 环境加载、监听启动
+    src/index.ts               # 环境装配、监听、信号与连接池生命周期
+    src/init-admin.ts          # 显式管理员初始化命令
     src/modules/auth/          # 认证路由、接口契约与 Better Auth 适配
     test/                      # Bun + Eden 健康检查和认证测试
 packages/

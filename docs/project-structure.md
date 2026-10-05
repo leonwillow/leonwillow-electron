@@ -1,0 +1,42 @@
+# 项目结构与依赖边界
+
+维护日期：2026-10-05。当前是 Bun 工作区中的纯 CSR 应用；目录调整以职责变化为依据。
+
+| 目录 | 职责 | 归属判断 |
+| --- | --- | --- |
+| `apps/web/src/routes` | TanStack 路由、加载、参数和访问前置 | 页面展示交给 views；不在这里堆表单或业务组件 |
+| `views/<feature>` | 页面及专用组件、表单校验和局部 Hook | 仅一个功能使用的代码优先放在功能旁 |
+| `components/layout` | 应用壳、导航和跨路由宿主 | 不承担业务 API 实现 |
+| `components/auth`、`components/theme-editor` | 跨页面认证展示、主题编辑界面 | 局部交互状态留在所属组件/局部 Hook |
+| `stores` | 跨组件、跨路由共享状态及明确的提交操作 | 说明持久化范围、草稿范围和同步责任；不把局部输入全部全局化 |
+| `hooks` | 跨功能复用的 React 行为 | 尚未跨功能复用的 Hook 就近维护 |
+| `lib` | 应用接口适配、领域规则和编解码 | 如 Eden 客户端、主题库规则和快照协议 |
+| `utils/theme` | 纯颜色、CSS 和阴影计算 | 不读写浏览器存储；已有 `utils/theme-script.ts` 是明确的 DOM 适配例外 |
+| `configs`、`types` | 静态目录/默认值、多处共享类型 | 局部 Props 和单表单类型仍就近；类型优先从运行时模型推导 |
+| `assets`、`styles` | 字体/图片/来源数据、字体加载 | 排版和控件令牌统一在共享 UI 的 globals.css |
+| `apps/server/src/app.ts` | 无监听、无环境加载的 Elysia 工厂及 Eden 契约 | 健康检查可独立创建，无需数据库 |
+| `apps/server/src/index.ts` | 进程装配、信号与资源所有权 | 常规启动不创建账号、不执行数据库迁移 |
+| `apps/server/src/server-resources.ts` | 当前服务共用的 auth、db 和安全配置 | 启动时绑定一次，停止后解绑；不保存用户、会话或事务 |
+| `apps/server/src/modules/<feature>` | 功能 HTTP 边界、模型、服务和必要适配 | 纯计算不必变成 Elysia 插件；按实际职责新增文件 |
+| `packages/ui` | Base UI 组件、语义样式、cn | 不依赖应用路由、账号或 Store |
+| `packages/access` | 现有功能标识、名称、路由和访问规则 | 前后端共用的纯 TypeScript 目录；不依赖认证、数据库或 UI |
+| `packages/auth` | Better Auth 配置、工厂、显式初始化、schema 生成适配 | 依赖 db；不自行加载部署环境或监听 |
+| `packages/db` | Pool/Drizzle 工厂、表、关系和迁移 | 调用方关闭 pool；运行时代码不依赖应用 |
+| `packages/config` | 共享 TypeScript 基础选项 | Web、UI、Bun 测试分别覆盖环境 |
+| `scripts` | 仓库检查和部署 smoke check | 根 tsconfig 只负责这些脚本 |
+
+Web 运行时使用共享 UI、纯规则目录和客户端库；通过 `import type { App } from "server/app"` 引入契约。Server 装配 auth/db，auth 依赖 db，跨包通过公开 exports。基础包不能导入应用运行时；Tailwind 扫描应用路径与数据库工具的环境定义导入属于工具配置，应明确记录，不能据此放开 JS 反向依赖。
+
+业务路由直接导出命名 Elysia 实例，通过 `.use(authModule)`、`.use(accessModule)`、`.use(adminModule)` 注册。`createApp()` 只组装 HTTP 应用，不传递 auth/db/Origin；服务在实际处理请求时从 `server-resources.ts` 读取已初始化实例。业务函数的参数保留请求数据、操作者和数据库事务；事务内辅助函数始终使用显式传入的 tx，不能退回共享 db 写入。
+
+`index.ts` 声明路由，`service.ts` 导出普通业务函数，不创建 Elysia 实例或接收整个 Elysia 上下文。跨路由复用的 HTTP 钩子与宏明确放在 `plugin.ts`：`accessPlugin` 读取并校验会话、转交 Cookie、映射错误响应，调用普通 `getAccess()` 判断身份和授权。业务服务可以直接引用权限规则与错误类型，不会同时加载插件。
+
+认证的登录、会话和退出接口直接调用 `http.ts` / `response.ts` 的适配函数，不再创建请求操作对象或包一层认证宏，也不保留空的 `service.ts`。客户端地址在 HTTP 适配器统一按受信代理配置解析；真实连接地址由路由从监听器取得。Cookie、限流头和公开字段转换继续由响应适配器负责。
+
+当前服务进程只运行一套认证和数据库配置，不支持在同一进程并存多套独立后端；资源模块拒绝重复绑定。集成测试按用例串行绑定独立 schema，关闭 HTTP 后解绑再清理数据库。若将来确实出现同进程多实例需求，再调整资源边界。
+
+当前数据库工具通过 `packages/db/.env.schema` 复用 Server 的数据库环境定义；这是保留的工具耦合。只有出现独立部署/第二个服务端需求再拆出中立契约。没有立即加入 domain/repository 等空目录。
+
+UI 包的源码由 Vite 消费；内部包无需为形式统一各自创建 dist。手工文件用 kebab-case，路由特殊名及固定工具入口保留惯例。未来 Electron 放 `apps/desktop`，复用 renderer 和 API；当前未实现桌面打包。
+
+生成与检查责任见 [工程验证](./engineering-verification.md)，注释见 [注释规范](./code-comments.md)，基线问题见 [评审记录](./project-structure-review.md)。

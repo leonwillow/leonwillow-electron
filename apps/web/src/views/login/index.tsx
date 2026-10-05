@@ -4,11 +4,10 @@
  * 修改时间：2026-10-04
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：routes/login.tsx。
- * 调用：components/auth/auth-alt-link、components/auth/auth-header、components/auth/auth-shell、configs/app、./login-form。
- * 功能：组合认证页面壳、标题、专用表单与切换链接。
+ * 调用：components/auth/auth-header、components/auth/auth-shell、configs/app、./login-form。
+ * 功能：组合认证页面壳、标题、登录表单与管理员开通说明。
  * 预期结果：路由文件无需承载页面布局。
  */
-import AuthAltLink from "@/components/auth/auth-alt-link";
 import AuthHeader from "@/components/auth/auth-header";
 import AuthShell from "@/components/auth/auth-shell";
 import { appConfig } from "@/configs/app";
@@ -26,7 +25,9 @@ const LoginView = () => (
 		<AuthHeader title="欢迎回来" subtitle="请输入你的账号和密码。" />
 		<div className="flex flex-col gap-4">
 			<LoginForm />
-			<AuthAltLink prompt="还没有账号？" linkText="创建账号" href="/register" />
+			<p className="text-center text-muted-foreground text-xs">
+				账号由管理员统一创建。如需开通，请联系管理员。
+			</p>
 		</div>
 	</AuthShell>
 );

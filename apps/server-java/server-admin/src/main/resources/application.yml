@@ -1,0 +1,16 @@
+# 开发环境配置
+server:
+  # 服务器的HTTP端口，默认为8080
+  port: 8080
+  servlet:
+    # 应用的访问路径
+    context-path: /
+  # jetty 配置
+  jetty:
+    # HTTP post内容的最大大小。当值为-1时，默认值为大小是无限的
+    max-http-form-post-size: -1
+    threads:
+      # 最小线程数
+      min: 8
+      # 最大线程数
+      max: 256

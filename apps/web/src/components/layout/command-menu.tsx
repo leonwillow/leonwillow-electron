@@ -8,6 +8,8 @@
  * 功能：处理打开快捷键、分组检索及选择后的路由跳转。
  * 预期结果：输入控件内不抢占快捷键，执行命令后关闭面板。
  */
+
+import { canAccessPath } from "@leonwillow-electron/access";
 import { Button } from "@leonwillow-electron/ui/components/button";
 import {
 	Command,
@@ -19,13 +21,22 @@ import {
 	CommandList,
 	CommandSeparator,
 } from "@leonwillow-electron/ui/components/command";
-import { useNavigate } from "@tanstack/react-router";
-import { BarChart3Icon, InboxIcon, SearchIcon } from "lucide-react";
+import { getRouteApi, useNavigate } from "@tanstack/react-router";
+import { SearchIcon } from "lucide-react";
 import { Fragment, useCallback, useEffect, useState } from "react";
 
 import { searchData } from "@/assets/data/search";
 
 const CommandMenu = () => {
+	const { user, moduleIds } = getRouteApi("/_workspace").useRouteContext();
+	const groups = searchData
+		.map((group) => ({
+			...group,
+			data: group.data.filter((item) =>
+				canAccessPath({ role: user.role, moduleIds }, item.href),
+			),
+		}))
+		.filter((group) => group.data.length);
 	const [open, setOpen] = useState(false);
 	const [search, setSearch] = useState("");
 
@@ -106,7 +117,7 @@ const CommandMenu = () => {
 					<CommandList label="搜索结果">
 						<CommandEmpty>没有找到结果。</CommandEmpty>
 						{search ? (
-							searchData.map((searchGroup, index) => (
+							groups.map((searchGroup, index) => (
 								<Fragment key={searchGroup.title}>
 									<CommandGroup heading={searchGroup.title}>
 										{searchGroup.data.map((item) => (
@@ -123,25 +134,25 @@ const CommandMenu = () => {
 											</CommandItem>
 										))}
 									</CommandGroup>
-									{index !== searchData.length - 1 && <CommandSeparator />}
+									{index !== groups.length - 1 && <CommandSeparator />}
 								</Fragment>
 							))
 						) : (
 							<CommandGroup heading="建议">
-								<CommandItem
-									onSelect={() => runCommand(() => navigate({ to: "/inbox" }))}
-								>
-									<InboxIcon />
-									<span>收件箱</span>
-								</CommandItem>
-								<CommandItem
-									onSelect={() =>
-										runCommand(() => navigate({ to: "/reports" }))
-									}
-								>
-									<BarChart3Icon />
-									<span>报表</span>
-								</CommandItem>
+								{groups
+									.flatMap((group) => group.data)
+									.slice(0, 4)
+									.map((item) => (
+										<CommandItem
+											key={item.href}
+											onSelect={() =>
+												runCommand(() => navigate({ to: item.href }))
+											}
+										>
+											<item.icon />
+											<span>{item.name}</span>
+										</CommandItem>
+									))}
 							</CommandGroup>
 						)}
 					</CommandList>

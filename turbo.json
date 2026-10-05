@@ -3,13 +3,23 @@
 	"ui": "tui",
 	"tasks": {
 		"build": {
-			"dependsOn": ["^build"],
+			"dependsOn": ["^build", "env:generate"],
 			"inputs": ["$TURBO_DEFAULT$", ".env*"],
 			"outputs": ["dist/**"]
 		},
 		"check-types": {
-			"dependsOn": ["^check-types"]
+			"dependsOn": ["^check-types", "env:generate"]
 		},
+		"web#check-types": {
+			"dependsOn": ["^check-types", "env:generate", "routes:generate"]
+		},
+		"web#build": {
+			"dependsOn": ["^build", "env:generate", "routes:generate"],
+			"inputs": ["$TURBO_DEFAULT$", ".env*"],
+			"outputs": ["dist/**"]
+		},
+		"env:generate": { "outputs": ["src/env.ts"] },
+		"routes:generate": { "outputs": ["src/routeTree.gen.ts"] },
 		"dev": {
 			"cache": false,
 			"persistent": true
@@ -52,6 +62,7 @@
 		"DATABASE_URL",
 		"NODE_ENV",
 		"PORT",
+		"TRUSTED_PROXY_IPS",
 		"VERCEL",
 		"VERCEL_ENV",
 		"VERCEL_PROJECT_PRODUCTION_URL",

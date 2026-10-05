@@ -1,9 +1,9 @@
 /**
  * @file 账号接口的运行时校验模型。
  * 创建时间：未记录（现有文件尚无 Git 创建记录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-10-05
  * 版本作用：现有 /api/auth 契约的服务端实现。
- * 被调用：apps/server/test/auth-response.test.ts、apps/server/src/modules/auth/response.ts、apps/server/src/modules/auth/index.ts、apps/server/src/modules/auth/service.ts。
+ * 被调用：认证路由、响应适配、认证响应测试。
  * 调用：elysia。
  * 功能：定义输入、公开用户与错误结构，并推导 TypeScript 类型。
  * 预期结果：服务端验证与客户端类型来自同一份模型。

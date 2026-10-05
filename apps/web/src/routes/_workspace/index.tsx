@@ -5,13 +5,21 @@
  * 版本作用：CSR 文件路由契约，由路由生成器收集。
  * 被调用：TanStack Router 生成的路由树。
  * 调用：@tanstack/react-router。
- * 功能：把 / 跳转到收件箱入口。
+ * 功能：把 / 跳转到首个获授权功能，未分配功能时进入说明页。
  * 预期结果：默认地址与侧栏的首个工作入口一致。
  */
+
+import { firstAccessiblePath } from "@leonwillow-electron/access";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_workspace/")({
-	beforeLoad: () => {
-		throw redirect({ to: "/inbox" });
+	beforeLoad: ({ context }) => {
+		throw redirect({
+			to: firstAccessiblePath({
+				role: context.user.role,
+				moduleIds: context.moduleIds,
+			}),
+			replace: true,
+		});
 	},
 });

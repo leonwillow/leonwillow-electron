@@ -1,9 +1,9 @@
 /**
  * @file 认证库响应到公开 API 的转换。
  * 创建时间：未记录（现有文件尚无 Git 创建记录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-10-05
  * 版本作用：现有 /api/auth 契约的服务端实现。
- * 被调用：apps/server/test/auth-response.test.ts、apps/server/src/modules/auth/service.ts。
+ * 被调用：apps/server/test/auth-response.test.ts、apps/server/src/modules/auth/index.ts。
  * 调用：@leonwillow-electron/auth、elysia、./http、./model。
  * 功能：转交 Cookie 与限流头，映射中文错误，只返回公开用户字段。
  * 预期结果：内部邮箱、密码和会话 token 不进入用户资料响应。
@@ -28,6 +28,7 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
 	PASSWORD_TOO_LONG: "密码不能超过 128 个字符。",
 	INVALID_ORIGIN: "当前页面来源未获允许，请检查服务端配置。",
 	MISSING_OR_NULL_ORIGIN: "无法验证当前页面来源。",
+	BANNED_USER: "账号已停用，请联系管理员。",
 };
 
 function errorResponse(statusCode: number, error: AuthError) {
@@ -104,7 +105,11 @@ export async function userAuthResponse(
 	const response = await readAuthResponse(result, path, headers);
 	if (!("payload" in response)) return response;
 	const user = response.payload?.user;
-	if (!user?.username) {
+	if (
+		!user?.username ||
+		(user.banned &&
+			(!user.banExpires || new Date(user.banExpires) > new Date()))
+	) {
 		const error: AuthError = {
 			code: "UNAUTHENTICATED",
 			message: "请先登录。",

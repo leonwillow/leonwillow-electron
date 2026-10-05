@@ -23,7 +23,7 @@ import {
 	DropdownMenuTrigger,
 } from "@leonwillow-electron/ui/components/dropdown-menu";
 import { getRouteApi, Link, useRouter } from "@tanstack/react-router";
-import { LogOutIcon, SettingsIcon, UserIcon } from "lucide-react";
+import { LogOutIcon, UserIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { settingsHomeHref } from "@/assets/data/navigation";
@@ -99,13 +99,9 @@ const ProfileMenu = () => {
 
 				<DropdownMenuSeparator />
 				<DropdownMenuGroup>
-					<DropdownMenuItem render={<Link to="/settings/profile" />}>
+					<DropdownMenuItem render={<Link to={settingsHomeHref} />}>
 						<UserIcon />
 						个人资料
-					</DropdownMenuItem>
-					<DropdownMenuItem render={<Link to={settingsHomeHref} />}>
-						<SettingsIcon />
-						设置
 					</DropdownMenuItem>
 				</DropdownMenuGroup>
 				<DropdownMenuSeparator />

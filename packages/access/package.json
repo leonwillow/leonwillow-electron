@@ -1,0 +1,15 @@
+{
+	"name": "@leonwillow-electron/access",
+	"private": true,
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"scripts": {
+		"check-types": "tsc --noEmit"
+	},
+	"devDependencies": {
+		"@leonwillow-electron/config": "workspace:*",
+		"typescript": "catalog:"
+	}
+}

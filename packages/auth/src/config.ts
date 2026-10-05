@@ -16,6 +16,7 @@ export const authOptions = {
 	basePath: "/api/auth",
 	emailAndPassword: {
 		enabled: true,
+		disableSignUp: true,
 		minPasswordLength: 8,
 		maxPasswordLength: 128,
 	},

@@ -3,9 +3,9 @@
  * 创建时间：未记录（现有文件尚无 Git 创建记录）
  * 修改时间：2026-10-04
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
- * 被调用：components/layout/profile-menu.tsx、views/register/register-form.tsx、views/login/login-form.tsx、routes/_workspace/route.tsx。
+ * 被调用：components/layout/profile-menu.tsx、views/login/login-form.tsx、routes/_workspace/route.tsx。
  * 调用：./api。
- * 功能：封装登录、注册、会话读取、退出及中文错误转换。
+ * 功能：封装登录、会话读取、退出及中文错误转换。
  * 预期结果：路由能区分未登录与服务故障，表单无需处理底层响应结构。
  */
 import { api } from "./api";
@@ -59,21 +59,6 @@ export async function login(values: {
 	rememberMe: boolean;
 }) {
 	const { error } = await api.api.auth.login.post(values);
-	if (error) throwAuthRequestError(error);
-}
-
-/**
- * POST /api/auth/register：创建账号并取得会话。
- * @param values 账号、原始密码及已确认的条款标记；确认密码只用于前端校验。
- * @returns 请求成功后完成；调用方负责刷新路由会话并跳转。
- * @throws 账号冲突、校验或网络错误。
- */
-export async function register(values: {
-	username: string;
-	password: string;
-	agreeToTerms: true;
-}) {
-	const { error } = await api.api.auth.register.post(values);
 	if (error) throwAuthRequestError(error);
 }
 

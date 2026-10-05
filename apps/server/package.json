@@ -6,9 +6,11 @@
 		"build": "bun --bun tsdown",
 		"check-types": "tsc --noEmit",
 		"compile": "bun build --compile --no-compile-autoload-dotenv --minify --sourcemap --bytecode ./src/index.ts --outfile server",
-		"dev": "bun run --hot src/index.ts",
+		"dev": "bun run --watch src/index.ts",
 		"start": "bun run dist/index.mjs",
 		"env:generate": "varlock codegen",
+		"auth:init": "bun src/init-admin.ts",
+		"test:unit": "bun test test/health.test.ts test/auth-response.test.ts test/client-ip.test.ts test/lifecycle.test.ts",
 		"test": "bun test --preload varlock/auto-load",
 		"test:health": "bun test test/health.test.ts"
 	},
@@ -17,13 +19,14 @@
 		"@leonwillow-electron/auth": "workspace:*",
 		"@leonwillow-electron/db": "workspace:*",
 		"elysia": "^1.4.30",
-		"varlock": "catalog:"
+		"varlock": "catalog:",
+		"@leonwillow-electron/access": "workspace:*",
+		"drizzle-orm": "catalog:"
 	},
 	"devDependencies": {
 		"@elysiajs/eden": "^1.4.9",
 		"@leonwillow-electron/config": "workspace:*",
 		"@types/bun": "catalog:",
-		"drizzle-orm": "catalog:",
 		"tsdown": "^0.23.0",
 		"typescript": "catalog:"
 	},

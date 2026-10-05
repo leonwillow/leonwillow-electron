@@ -4,8 +4,8 @@
  * 修改时间：2026-10-04
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/layout/command-menu.tsx。
- * 调用：@tanstack/react-router、lucide-react。
- * 功能：为入口配置中文标题、图标与检索关键词。
+ * 调用：@tanstack/react-router、lucide-react、导航目录。
+ * 功能：为入口配置中文标题、图标与检索关键词，分开个人设置和管理中心。
  * 预期结果：命令面板按匹配程度展示并执行页面跳转。
  */
 import type { LinkProps } from "@tanstack/react-router";
@@ -28,6 +28,7 @@ import {
 	UserIcon,
 	UsersIcon,
 } from "lucide-react";
+import { adminNav, settingsHomeHref } from "./navigation";
 
 type SearchGroup = {
 	title: string;
@@ -82,19 +83,36 @@ export const searchData: SearchGroup[] = [
 		],
 	},
 	{
-		title: "设置",
+		title: "个人设置",
 		data: [
+			{
+				icon: UserIcon,
+				name: "个人资料",
+				href: settingsHomeHref,
+				tags: ["account", "name", "avatar", "away"],
+			},
+			{
+				icon: BellIcon,
+				name: "通知",
+				href: "/settings/notifications",
+				tags: ["email", "alerts", "preferences"],
+			},
+		],
+	},
+	{
+		title: "管理中心",
+		data: [
+			...adminNav.map((item) => ({
+				icon: item.icon,
+				name: item.title,
+				href: item.href,
+				tags: ["管理中心", "admin", "permissions"],
+			})),
 			{
 				icon: SettingsIcon,
 				name: "通用设置",
 				href: "/settings/general",
 				tags: ["workspace", "branding", "preferences"],
-			},
-			{
-				icon: UsersIcon,
-				name: "团队成员",
-				href: "/settings/teammates",
-				tags: ["workspace", "team", "agents", "invite"],
 			},
 			{
 				icon: ClockIcon,
@@ -137,18 +155,6 @@ export const searchData: SearchGroup[] = [
 				name: "标签",
 				href: "/settings/tags",
 				tags: ["labels", "data", "categorize"],
-			},
-			{
-				icon: UserIcon,
-				name: "个人资料",
-				href: "/settings/profile",
-				tags: ["account", "name", "avatar", "away"],
-			},
-			{
-				icon: BellIcon,
-				name: "通知",
-				href: "/settings/notifications",
-				tags: ["email", "alerts", "preferences"],
 			},
 		],
 	},
