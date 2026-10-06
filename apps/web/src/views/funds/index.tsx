@@ -1,7 +1,7 @@
 /**
  * @file 当前案件的资金分析页面。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-06
+ * 修改时间：2026-10-07
  * 版本作用：资料管理独立后，仅组织资金图、交易明细与追踪。
  * 被调用：funds 路由；调用：AnalysisPanel、Eden、案件读取 Hook。
  * 功能：按 URL 案件加载分析；无资料或图未就绪时提供案件管理入口。
@@ -70,7 +70,7 @@ function CaseAnalysis({ caseId }: { caseId: string }) {
 		);
 	return (
 		<div className="min-h-0 flex-1 overflow-auto">
-			<div className="mx-auto max-w-[110rem] p-4 sm:p-6">
+			<div className="mx-auto max-w-[110rem] px-4 pt-3 pb-4 sm:px-6 sm:pb-6">
 				{!record.totals.sourceCount || waitingForGraph ? (
 					<div className="flex flex-col items-start gap-3 py-8">
 						<h2 className="font-medium text-sm">

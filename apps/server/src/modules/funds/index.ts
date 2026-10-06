@@ -104,6 +104,47 @@ export const fundsModule = new Elysia({ name: "funds", prefix: "/api/funds" })
 		({ access, params }) => jobs.enqueueSync(access, params.caseId),
 		{ params: FundsModel.id },
 	)
+	.get(
+		"/cases/:caseId/subjects",
+		({ access, params }) => service.subjectData(access, params.caseId),
+		{ params: FundsModel.id },
+	)
+	.post(
+		"/cases/:caseId/subjects/scan",
+		({ access, params }) => jobs.enqueueSync(access, params.caseId, "subjects"),
+		{ params: FundsModel.id },
+	)
+	.post(
+		"/cases/:caseId/subjects",
+		({ access, params, body }) =>
+			service.adjustSubjects(access, params.caseId, body.revision, body),
+		{
+			params: FundsModel.id,
+			body: t.Object({
+				revision: t.Integer({ minimum: 0 }),
+				action: t.Union([t.Literal("merge"), t.Literal("separate")]),
+				accounts: t.Array(t.String({ minLength: 1, maxLength: 256 }), {
+					minItems: 2,
+					maxItems: 1000,
+				}),
+				name: t.Optional(t.String({ maxLength: 120 })),
+			}),
+		},
+	)
+	.delete(
+		"/cases/:caseId/subjects/:overrideId",
+		({ access, params, body }) =>
+			service.adjustSubjects(access, params.caseId, body.revision, {
+				undo: params.overrideId,
+			}),
+		{
+			params: t.Object({
+				caseId: t.String({ format: "uuid" }),
+				overrideId: t.String({ format: "uuid" }),
+			}),
+			body: t.Object({ revision: t.Integer({ minimum: 0 }) }),
+		},
+	)
 	.post(
 		"/cases/:caseId/standardize",
 		async ({ access, params, body }) =>

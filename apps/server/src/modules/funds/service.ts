@@ -24,11 +24,13 @@ import { csvDocument, standardHeaders, standardRows } from "./export";
 import { originalResponse, readStoredFile, saveOriginal } from "./file-store";
 import { parseStatement } from "./parser";
 import { reconcile } from "./reconcile";
+import { subjectSummary } from "./subjects";
 import type {
 	FundsSnapshot,
 	GraphFilter,
 	MatchDecision,
 	ParsedSource,
+	SubjectOverride,
 } from "./types";
 
 export type Actor = Pick<AccessSession, "user">;
@@ -476,6 +478,8 @@ export async function caseDetails(actor: Actor, caseId: string) {
 	return {
 		...record,
 		totals: snapshot.totals,
+		subjectSummary: subjectSummary(snapshot.subjects),
+		subjectRuleVersion: snapshot.subjectRuleVersion ?? 1,
 		sources: sources.map(
 			({
 				id,
@@ -503,6 +507,131 @@ export async function caseDetails(actor: Actor, caseId: string) {
 		history,
 	};
 }
+/** 查看当前案件归属及调整历史；不返回其他案件的身份资料。 */
+export async function subjectData(actor: Actor, caseId: string) {
+	const record = await findCase(actor, caseId);
+	const { snapshot } = await latest(caseId, record.revision);
+	return {
+		revision: record.revision,
+		groups: snapshot.subjects ?? [],
+		accounts: snapshot.accounts,
+		overrides: snapshot.subjectOverrides ?? [],
+		summary: subjectSummary(snapshot.subjects),
+	};
+}
+
+/** 新规则重识别由 Worker 执行；任务重试不重复创建版本，租约转移后禁止提交。 */
+export async function rescanSubjects(
+	actor: Actor,
+	caseId: string,
+	lease: { jobId: string; owner: string },
+) {
+	return getServerResources().db.transaction(async (tx) => {
+		const record = await lockCase(tx, actor, caseId);
+		const [job] = await tx
+			.select()
+			.from(fundsJob)
+			.where(eq(fundsJob.id, lease.jobId))
+			.for("update");
+		if (
+			!job ||
+			job.caseId !== caseId ||
+			job.leaseOwner !== lease.owner ||
+			job.status !== "running"
+		)
+			throw new Error("任务租约已经转移，停止提交。");
+		const [done] = await tx
+			.select()
+			.from(fundsRevision)
+			.where(
+				and(
+					eq(fundsRevision.caseId, caseId),
+					eq(fundsRevision.action, `subjects:scan:${job.id}`),
+				),
+			);
+		if (done) return;
+		const { snapshot, decisions } = await latest(caseId, record.revision);
+		await saveRevision(
+			tx,
+			actor,
+			caseId,
+			record.revision + 1,
+			`subjects:scan:${job.id}`,
+			snapshot,
+			decisions,
+			false,
+		);
+	});
+}
+
+/** 归属更正只改主体映射；原账户、交易和证据不变，撤销采用删除标记。旧版本提交返回 409。 */
+export async function adjustSubjects(
+	actor: Actor,
+	caseId: string,
+	expectedRevision: number,
+	change:
+		| { action: "merge" | "separate"; accounts: string[]; name?: string }
+		| { undo: string },
+) {
+	await getServerResources().db.transaction(async (tx) => {
+		const record = await lockCase(tx, actor, caseId);
+		if (record.revision !== expectedRevision)
+			throw new AccessError(
+				409,
+				"STALE_CASE",
+				"案件已有新版本，请刷新后重新调整。",
+			);
+		const { snapshot, decisions } = await latest(caseId, record.revision);
+		const overrides: SubjectOverride[] = structuredClone(
+			snapshot.subjectOverrides ?? [],
+		);
+		if ("undo" in change) {
+			const decision = overrides.find(
+				(item) => item.id === change.undo && !item.deletedAt,
+			);
+			if (!decision)
+				throw new AccessError(
+					404,
+					"OVERRIDE_NOT_FOUND",
+					"此归属调整不存在或已撤销。",
+				);
+			decision.deletedAt = new Date().toISOString();
+		} else {
+			const accounts = [...new Set(change.accounts)];
+			if (
+				accounts.length < 2 ||
+				accounts.some(
+					(id) => !snapshot.accounts.some((a) => a.id === id && !a.unknown),
+				)
+			)
+				throw new AccessError(
+					400,
+					"INVALID_ACCOUNTS",
+					"请选择当前案件至少两个有效账户。",
+				);
+			overrides.push({
+				id: crypto.randomUUID(),
+				accounts,
+				action: change.action,
+				name: change.name?.trim() ?? "",
+				actor: actor.user.id,
+				at: new Date().toISOString(),
+			});
+		}
+		snapshot.subjectOverrides = overrides;
+		await saveRevision(
+			tx,
+			actor,
+			caseId,
+			record.revision + 1,
+			"undo" in change ? "subjects:undo" : `subjects:${change.action}`,
+			snapshot,
+			decisions,
+		);
+	});
+	return { message: "主体归属已保存，后台正在更新资金图。" };
+}
+
 export async function reviewData(
 	actor: Actor,
 	caseId: string,

@@ -5,7 +5,7 @@
  * 版本作用：首版整案导入，原始观测与唯一交易分离。
  * 被调用：funds 解析、归并、存储与图服务；Web 仅通过 Eden 推导接口。
  * 功能：金额使用分的十进制字符串，时间统一为中国标准时间。
- * 预期结果：每条交易可追溯原文件、工作表和行，不以姓名合并账户。
+ * 预期结果：每条交易可追溯原文件、工作表和行，主体归属推断与原账户事实分离。
  */
 export type SourceRow = {
 	sheet: string;
@@ -104,6 +104,8 @@ export type FundsSnapshot = {
 	issues: Issue[];
 	heldTransactionIds?: string[];
 	subjects?: FundsSubject[];
+	subjectRuleVersion?: number;
+	subjectOverrides?: SubjectOverride[];
 	totals: {
 		sourceCount: number;
 		rawRows: number;
@@ -123,7 +125,23 @@ export type FundsSubject = {
 	id: string;
 	names: string[];
 	accounts: string[];
-	identityStatus: "documented" | "account-owner" | "unknown";
+	identityStatus:
+		| "documented"
+		| "name-inferred"
+		| "conflict"
+		| "manual"
+		| "account-owner"
+		| "unknown";
+	basis?: string;
+};
+export type SubjectOverride = {
+	id: string;
+	accounts: string[];
+	action: "merge" | "separate";
+	name: string;
+	actor: string;
+	at: string;
+	deletedAt?: string;
 };
 export type GraphFilter = {
 	account?: string;

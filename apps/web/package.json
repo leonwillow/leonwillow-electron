@@ -36,6 +36,7 @@
 		"@leonwillow-electron/access": "workspace:*",
 		"@leonwillow-electron/ui": "workspace:*",
 		"@tanstack/react-router": "^1.170.32",
+		"@tanstack/react-virtual": "^3.14.13",
 		"chroma-js": "^3.2.0",
 		"lucide-react": "catalog:",
 		"next-themes": "catalog:",

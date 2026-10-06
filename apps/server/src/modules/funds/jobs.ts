@@ -31,6 +31,7 @@ import {
 	commitPreparedSources,
 	findCase,
 	lockCase,
+	rescanSubjects,
 	synchronize,
 } from "./service";
 import type { ParsedSource } from "./types";
@@ -42,6 +43,7 @@ type JobResult = {
 	revision: number;
 	graphRevision: number;
 	totals: Awaited<ReturnType<typeof caseDetails>>["totals"];
+	subjectSummary: Awaited<ReturnType<typeof caseDetails>>["subjectSummary"];
 	graphReady: boolean;
 	message: string;
 };
@@ -109,16 +111,24 @@ export async function enqueueImport(
 	};
 }
 
-export async function enqueueSync(actor: Actor, caseId: string) {
+export async function enqueueSync(
+	actor: Actor,
+	caseId: string,
+	mode: "sync" | "subjects" = "sync",
+) {
 	await findCase(actor, caseId);
 	const id = crypto.randomUUID();
 	await getServerResources().db.transaction(async (tx) => {
 		await lockCase(tx, actor, caseId);
 		await tx
 			.insert(fundsJob)
-			.values({ id, caseId, actorId: actor.user.id, mode: "sync" });
+			.values({ id, caseId, actorId: actor.user.id, mode });
 	});
-	return { id, message: "图同步任务已排队。" };
+	return {
+		id,
+		message:
+			mode === "subjects" ? "主体识别任务已排队。" : "图同步任务已排队。",
+	};
 }
 
 export async function listJobs(actor: Actor, caseId: string) {
@@ -366,7 +376,14 @@ export async function processNextFundsJob(
 		let imported:
 			| { added: number; skipped: number; revision: number }
 			| undefined;
-		if (job.mode !== "sync") {
+		if (job.mode === "subjects") {
+			await progress(
+				"identifying",
+				"正在按证件与完整户名重新识别本案账户归属，保留人工调整。",
+			);
+			await rescanSubjects(actor, job.caseId, { jobId: job.id, owner });
+		}
+		if (job.mode === "ai" || job.mode === "standard") {
 			const files = await db
 				.select()
 				.from(fundsJobFile)
@@ -423,7 +440,7 @@ export async function processNextFundsJob(
 			}
 			await progress(
 				"reconciling",
-				"全部文件校验完成，正在按案件进行重复识别、双边配对和规范交易入库。",
+				"全部文件校验完成，正在按案件进行重复识别、双边配对、主体归属识别和规范交易入库。",
 				files.length,
 			);
 			imported = await commitPreparedSources(actor, job.caseId, prepared, {
@@ -444,7 +461,7 @@ export async function processNextFundsJob(
 			throw new Error("图中交易数与规范交易数不一致，尚未通过落库核验。");
 		await progress(
 			"completed",
-			`完成：${details.totals.transactionCount} 笔交易已入图；归并重复 ${details.totals.duplicates} 条，双边对应 ${details.totals.mirrored} 对。`,
+			`完成：${details.totals.transactionCount} 笔交易已入图；归并重复 ${details.totals.duplicates} 条，双边对应 ${details.totals.mirrored} 对；${details.subjectSummary.mergedGroups} 个主体包含多个账户，其中 ${details.subjectSummary.inferredGroups} 个按完整户名推断。`,
 			job.totalFiles,
 		);
 		const result: JobResult = {
@@ -452,6 +469,7 @@ export async function processNextFundsJob(
 			revision: details.revision,
 			graphRevision: details.graphRevision,
 			totals: details.totals,
+			subjectSummary: details.subjectSummary,
 			...projection,
 		};
 		await db

@@ -1,5 +1,5 @@
 /**
- * @file 归并候选与清洗问题核对面板。
+ * @file 归并候选、清洗问题与主体归属核对面板。
  * 创建时间：2026-10-06
  * 修改时间：2026-10-06
  * 版本作用：不确定配对由人员决定，原值可追溯。
@@ -24,6 +24,7 @@ import {
 	getFundsReview,
 } from "@/lib/funds";
 import EvidenceDialog, { type EvidenceTarget } from "./evidence-dialog";
+import SubjectPanel from "./subject-panel";
 import { useFundsResource } from "./use-funds-resource";
 
 const issueNames: Record<string, string> = {
@@ -36,13 +37,16 @@ const issueNames: Record<string, string> = {
 export default function ReviewPanel({
 	record,
 	onChanged,
+	mode,
+	onModeChange: setMode,
 }: {
 	record: FundsCase;
 	onChanged: () => Promise<void>;
+	mode: "issues" | "candidates" | "subjects";
+	onModeChange: (mode: "issues" | "candidates" | "subjects") => void;
 }) {
 	const [offset, setOffset] = useState(0);
 	const [kind, setKind] = useState("quarantine");
-	const [mode, setMode] = useState<"issues" | "candidates">("issues");
 	const [target, setTarget] = useState<EvidenceTarget | null>(null);
 	const [busy, setBusy] = useState("");
 	const [error, setError] = useState("");
@@ -89,168 +93,186 @@ export default function ReviewPanel({
 				>
 					双边配对候选 · {record.totals.candidates}
 				</Button>
+				<Button
+					variant={mode === "subjects" ? "secondary" : "ghost"}
+					onClick={() => setMode("subjects")}
+				>
+					主体归属
+				</Button>
 			</div>
-			<p className="max-w-3xl text-muted-foreground text-sm">
-				{mode === "issues"
-					? "待核记录保留银行原值，暂不计入图金额。对手账号缺失的合格交易使用独立待核节点。"
-					: "以下记录在整组自动匹配后仍有冲突，相关交易暂缓入图，避免重复计数。请核对两侧原文，再决定是否为同一交易。"}
-			</p>
-			{mode === "issues" && (
-				<fieldset className="flex flex-wrap gap-2" aria-label="问题类型">
-					{Object.entries(issueNames).map(([value, name]) => (
-						<Button
-							key={value}
-							variant={kind === value ? "secondary" : "outline"}
-							aria-pressed={kind === value}
-							onClick={() => {
-								setKind(value);
-								setOffset(0);
-							}}
-						>
-							{name}
-						</Button>
-					))}
-				</fieldset>
-			)}
-			{(resource.error || error) && (
-				<div role="alert" className="space-y-2 text-destructive text-sm">
-					<p>{resource.error || error}</p>
-					<Button variant="outline" onClick={() => void resource.reload()}>
-						重新读取
-					</Button>
-				</div>
-			)}
-			{resource.loading && (
-				<p role="status" className="text-muted-foreground text-sm">
-					正在读取核对记录…
-				</p>
-			)}
-			{mode === "issues" ? (
-				<div className="rounded-lg border">
-					<Table>
-						<TableHeader>
-							<TableRow>
-								<TableHead>来源文件</TableHead>
-								<TableHead>位置</TableHead>
-								<TableHead>处理原因</TableHead>
-								<TableHead>操作</TableHead>
-							</TableRow>
-						</TableHeader>
-						<TableBody>
-							{resource.data?.issues.map((issue) => (
-								<TableRow key={issue.id}>
-									<TableCell
-										className="max-w-64 truncate text-xs"
-										title={
-											record.sources.find((s) => s.id === issue.sourceId)?.name
-										}
-									>
-										{record.sources.find((s) => s.id === issue.sourceId)?.name}
-									</TableCell>
-									<TableCell className="whitespace-nowrap text-xs">
-										{issue.sheet} · {issue.row} 行
-									</TableCell>
-									<TableCell className="min-w-56 max-w-xl whitespace-normal text-xs">
-										{issue.message}
-									</TableCell>
-									<TableCell>
-										<Button
-											variant="ghost"
-											onClick={() =>
-												setTarget({
-													sourceId: issue.sourceId,
-													sheet: issue.sheet,
-													row: issue.row,
-												})
-											}
-										>
-											查看原文
-										</Button>
-									</TableCell>
-								</TableRow>
-							))}
-						</TableBody>
-					</Table>
-				</div>
+			{mode === "subjects" ? (
+				<SubjectPanel record={record} onChanged={onChanged} />
 			) : (
-				<div className="space-y-3">
-					{resource.data?.candidates.map((candidate) => (
-						<article
-							key={candidate.id}
-							className="flex flex-wrap items-center justify-between gap-4 rounded-lg border p-4"
-						>
-							<div className="min-w-0 space-y-1 text-xs">
-								<p className="font-medium text-sm">
-									{formatFunds(candidate.amountMinor)} · 时间差{" "}
-									{candidate.seconds} 秒
-								</p>
-								<p className="break-all font-mono text-muted-foreground">
-									{candidate.from} → {candidate.to}
-								</p>
-								<div className="flex gap-2">
-									<Button
-										variant="ghost"
-										onClick={() => setTarget({ transactionId: candidate.left })}
-									>
-										付款侧原文
-									</Button>
-									<Button
-										variant="ghost"
-										onClick={() =>
-											setTarget({ transactionId: candidate.right })
-										}
-									>
-										收款侧原文
-									</Button>
-								</div>
-							</div>
-							<div className="flex gap-2">
+				<>
+					<p className="max-w-3xl text-muted-foreground text-sm">
+						{mode === "issues"
+							? "待核记录保留银行原值，暂不计入图金额。对手账号缺失的合格交易使用独立待核节点。"
+							: "以下记录在整组自动匹配后仍有冲突，相关交易暂缓入图，避免重复计数。请核对两侧原文，再决定是否为同一交易。"}
+					</p>
+					{mode === "issues" && (
+						<fieldset className="flex flex-wrap gap-2" aria-label="问题类型">
+							{Object.entries(issueNames).map(([value, name]) => (
 								<Button
-									variant="outline"
-									disabled={!!busy}
-									onClick={() => void decide(candidate.id, "separate")}
+									key={value}
+									variant={kind === value ? "secondary" : "outline"}
+									aria-pressed={kind === value}
+									onClick={() => {
+										setKind(value);
+										setOffset(0);
+									}}
 								>
-									保留为两笔
+									{name}
 								</Button>
-								<Button
-									disabled={!!busy}
-									onClick={() => void decide(candidate.id, "merge")}
+							))}
+						</fieldset>
+					)}
+					{(resource.error || error) && (
+						<div role="alert" className="space-y-2 text-destructive text-sm">
+							<p>{resource.error || error}</p>
+							<Button variant="outline" onClick={() => void resource.reload()}>
+								重新读取
+							</Button>
+						</div>
+					)}
+					{resource.loading && (
+						<p role="status" className="text-muted-foreground text-sm">
+							正在读取核对记录…
+						</p>
+					)}
+					{mode === "issues" ? (
+						<div className="rounded-lg border">
+							<Table>
+								<TableHeader>
+									<TableRow>
+										<TableHead>来源文件</TableHead>
+										<TableHead>位置</TableHead>
+										<TableHead>处理原因</TableHead>
+										<TableHead>操作</TableHead>
+									</TableRow>
+								</TableHeader>
+								<TableBody>
+									{resource.data?.issues.map((issue) => (
+										<TableRow key={issue.id}>
+											<TableCell
+												className="max-w-64 truncate text-xs"
+												title={
+													record.sources.find((s) => s.id === issue.sourceId)
+														?.name
+												}
+											>
+												{
+													record.sources.find((s) => s.id === issue.sourceId)
+														?.name
+												}
+											</TableCell>
+											<TableCell className="whitespace-nowrap text-xs">
+												{issue.sheet} · {issue.row} 行
+											</TableCell>
+											<TableCell className="min-w-56 max-w-xl whitespace-normal text-xs">
+												{issue.message}
+											</TableCell>
+											<TableCell>
+												<Button
+													variant="ghost"
+													onClick={() =>
+														setTarget({
+															sourceId: issue.sourceId,
+															sheet: issue.sheet,
+															row: issue.row,
+														})
+													}
+												>
+													查看原文
+												</Button>
+											</TableCell>
+										</TableRow>
+									))}
+								</TableBody>
+							</Table>
+						</div>
+					) : (
+						<div className="space-y-3">
+							{resource.data?.candidates.map((candidate) => (
+								<article
+									key={candidate.id}
+									className="flex flex-wrap items-center justify-between gap-4 rounded-lg border p-4"
 								>
-									{busy === candidate.id ? "正在保存…" : "确认同一交易"}
-								</Button>
-							</div>
-						</article>
-					))}
-				</div>
+									<div className="min-w-0 space-y-1 text-xs">
+										<p className="font-medium text-sm">
+											{formatFunds(candidate.amountMinor)} · 时间差{" "}
+											{candidate.seconds} 秒
+										</p>
+										<p className="break-all font-mono text-muted-foreground">
+											{candidate.from} → {candidate.to}
+										</p>
+										<div className="flex gap-2">
+											<Button
+												variant="ghost"
+												onClick={() =>
+													setTarget({ transactionId: candidate.left })
+												}
+											>
+												付款侧原文
+											</Button>
+											<Button
+												variant="ghost"
+												onClick={() =>
+													setTarget({ transactionId: candidate.right })
+												}
+											>
+												收款侧原文
+											</Button>
+										</div>
+									</div>
+									<div className="flex gap-2">
+										<Button
+											variant="outline"
+											disabled={!!busy}
+											onClick={() => void decide(candidate.id, "separate")}
+										>
+											保留为两笔
+										</Button>
+										<Button
+											disabled={!!busy}
+											onClick={() => void decide(candidate.id, "merge")}
+										>
+											{busy === candidate.id ? "正在保存…" : "确认同一交易"}
+										</Button>
+									</div>
+								</article>
+							))}
+						</div>
+					)}
+					{!resource.loading && !resource.error && total === 0 && (
+						<p className="rounded-lg border p-8 text-center text-muted-foreground text-sm">
+							当前分类没有待核对记录。
+						</p>
+					)}
+					<div className="flex items-center justify-between text-muted-foreground text-xs">
+						<span>
+							{total
+								? `${offset + 1}–${Math.min(offset + 50, total)} / ${total}`
+								: "0 条"}
+						</span>
+						<div className="flex gap-2">
+							<Button
+								variant="outline"
+								disabled={!offset || resource.loading}
+								onClick={() => setOffset(offset - 50)}
+							>
+								上一页
+							</Button>
+							<Button
+								variant="outline"
+								disabled={offset + 50 >= total || resource.loading}
+								onClick={() => setOffset(offset + 50)}
+							>
+								下一页
+							</Button>
+						</div>
+					</div>
+				</>
 			)}
-			{!resource.loading && !resource.error && total === 0 && (
-				<p className="rounded-lg border p-8 text-center text-muted-foreground text-sm">
-					当前分类没有待核对记录。
-				</p>
-			)}
-			<div className="flex items-center justify-between text-muted-foreground text-xs">
-				<span>
-					{total
-						? `${offset + 1}–${Math.min(offset + 50, total)} / ${total}`
-						: "0 条"}
-				</span>
-				<div className="flex gap-2">
-					<Button
-						variant="outline"
-						disabled={!offset || resource.loading}
-						onClick={() => setOffset(offset - 50)}
-					>
-						上一页
-					</Button>
-					<Button
-						variant="outline"
-						disabled={offset + 50 >= total || resource.loading}
-						onClick={() => setOffset(offset + 50)}
-					>
-						下一页
-					</Button>
-				</div>
-			</div>
 			{target && (
 				<EvidenceDialog
 					caseId={record.id}

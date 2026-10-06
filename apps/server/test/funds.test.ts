@@ -25,6 +25,8 @@ import {
 	parseStatement,
 } from "../src/modules/funds/parser";
 import { reconcile } from "../src/modules/funds/reconcile";
+import { identifySubjects } from "../src/modules/funds/subjects";
+import type { FundsAccount } from "../src/modules/funds/types";
 
 const headers = [
 	"账号",
@@ -521,4 +523,119 @@ test("精简模板合并日期时间且按人民币元入库，兼容旧银行�
 		source("foreign-currency.csv", [row({ 币种: "USD" })]).observations[0]
 			?.currency,
 	).toBe("USD");
+});
+
+test("主体按完整户名自动归组，遮蔽名和缺失账号不误合并", () => {
+	const make = (id: string, name: string, unknown = false): FundsAccount => ({
+		id,
+		number: unknown ? "" : id,
+		names: [name],
+		ownNames: [name],
+		hasStatement: true,
+		unknown,
+		firstSeen: "",
+		lastSeen: "",
+	});
+	const accounts = [
+		make("100", "赵佳"),
+		make("101", "赵 佳"),
+		make("102", "赵*"),
+		make("103", "赵*"),
+		make("u1", "赵佳", true),
+		make("u2", "赵佳", true),
+	];
+	const result = identifySubjects(accounts, []);
+	expect(result).toHaveLength(5);
+	expect(result.find((s) => s.accounts.includes("100"))?.accounts).toEqual([
+		"100",
+		"101",
+	]);
+	expect(result.find((s) => s.accounts.includes("100"))?.identityStatus).toBe(
+		"name-inferred",
+	);
+	expect(result.filter((s) => s.identityStatus === "unknown")).toHaveLength(2);
+	expect(result.flatMap((s) => s.accounts).sort()).toEqual(
+		accounts.map((a) => a.id).sort(),
+	);
+});
+
+test("同名证件冲突不桥接，单一证件可以支持无证件同名账户但标为推断", () => {
+	const make = (id: string): FundsAccount => ({
+		id,
+		number: id,
+		names: ["赵佳"],
+		ownNames: ["赵佳"],
+		hasStatement: true,
+		unknown: false,
+		firstSeen: "",
+		lastSeen: "",
+	});
+	const a = source("ids.csv", [row(), row()]);
+	a.observations = [];
+	if (!a.rows[0] || !a.rows[1]) throw new Error("缺少行");
+	a.rows[0].fields = { 账号: "100", 证件号码: "123456789000000001" };
+	a.rows[1].fields = { 账号: "101", 证件号码: "123456789000000002" };
+	const accounts = [make("100"), make("101"), make("102")];
+	expect(identifySubjects(accounts, [a])).toHaveLength(3);
+	const conflict = identifySubjects(accounts, [a]).find((s) =>
+		s.accounts.includes("102"),
+	);
+	expect(conflict?.identityStatus).toBe("conflict");
+	a.rows[1].fields.证件号码 = "123456789000000001";
+	const result = identifySubjects(accounts, [a]);
+	expect(result).toHaveLength(1);
+	expect(result[0]?.identityStatus).toBe("name-inferred");
+	// 别案没有这些证件资料，只能独立给出本案同名推断依据。
+	expect(identifySubjects(accounts, [])[0]?.id).not.toBe(result[0]?.id);
+});
+
+test("主体人工拆分及软撤销能重放，不改写交易，追加文件继承调整", () => {
+	const sources = [
+		source("cards.csv", [
+			row({ 账号: "10001", 客户名称: "赵佳" }),
+			row({ 账号: "10002", 客户名称: "赵佳", 交易流水号: "another" }),
+		]),
+	];
+	const first = prepareCanonical(reconcile(sources), undefined, sources);
+	const transactionIds = first.transactions.map((t) => t.id);
+	first.subjectOverrides = [
+		{
+			id: "split",
+			accounts: ["10001", "10002"],
+			action: "separate",
+			name: "",
+			actor: "test",
+			at: "2026-10-06",
+		},
+	];
+	const next = prepareCanonical(reconcile(sources), first, sources);
+	expect(
+		next.subjects?.filter((s) => s.identityStatus === "manual"),
+	).toHaveLength(2);
+	expect(next.transactions.map((t) => t.id)).toEqual(transactionIds);
+	const decision = next.subjectOverrides?.[0];
+	if (!decision) throw new Error("缺少调整");
+	decision.deletedAt = "2026-10-07";
+	const undone = prepareCanonical(reconcile(sources), next, sources);
+	expect(
+		undone.subjects?.find((s) => s.accounts.includes("10001"))?.accounts,
+	).toEqual(["10001", "10002"]);
+	expect(undone.subjectOverrides?.[0]?.deletedAt).toBe("2026-10-07");
+	expect(undone.transactions.map((t) => t.id)).toEqual(transactionIds);
+});
+
+test("主体识别读取原始银行证照列，并用已规范化行位置关联本方账户", () => {
+	const original = source("different-headers.csv", [
+		row({ 账号: "10001", 客户名称: "赵佳" }),
+		row({ 账号: "10002", 客户名称: "原名" }),
+	]);
+	for (const raw of original.rows) {
+		raw.fields.证照号码 = "123456789000000009";
+		raw.fields["查询涉及账（卡）号"] = raw.fields.账号 ?? "";
+		delete raw.fields.账号;
+	}
+	const result = prepareCanonical(reconcile([original]), undefined, [original]);
+	const group = result.subjects?.find((s) => s.accounts.includes("10001"));
+	expect(group?.accounts).toEqual(["10001", "10002"]);
+	expect(group?.identityStatus).toBe("documented");
 });

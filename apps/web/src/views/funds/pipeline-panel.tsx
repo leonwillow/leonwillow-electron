@@ -46,6 +46,7 @@ const stages: Record<string, string> = {
 	validating: "校验标准文件",
 	validated: "标准文件已生成",
 	reconciling: "整理与去重",
+	identifying: "识别主体归属",
 	projecting: "更新资金图",
 	completed: "已完成",
 	retrying: "等待自动重试",
@@ -263,7 +264,9 @@ export default function PipelinePanel({
 									? "AI 标准化与导入"
 									: job.mode === "sync"
 										? "资金图同步"
-										: "标准文件导入"}
+										: job.mode === "subjects"
+											? "主体重新识别"
+											: "标准文件导入"}
 							</span>
 							<Badge
 								variant={job.status === "failed" ? "destructive" : "secondary"}
@@ -307,6 +310,14 @@ export default function PipelinePanel({
 										{job.result.totals.duplicates.toLocaleString("zh-CN")}{" "}
 										条、双边对应 {job.result.totals.mirrored} 对。
 									</p>
+									{job.result.subjectSummary && (
+										<p className="text-xs">
+											主体归属：{job.result.subjectSummary.subjects}{" "}
+											个已知主体，{job.result.subjectSummary.mergedGroups}{" "}
+											组包含多个账户，{job.result.subjectSummary.inferredGroups}{" "}
+											组按完整户名推断。详情与更正在“清洗核对 → 主体归属”。
+										</p>
+									)}
 									<p className="text-muted-foreground text-xs">
 										待核记录 {job.result.totals.quarantined} 条；配对候选{" "}
 										{job.result.totals.candidates} 组；暂缓入图{" "}

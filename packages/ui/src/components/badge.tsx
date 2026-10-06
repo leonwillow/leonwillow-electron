@@ -1,9 +1,9 @@
 /**
  * @file 身份和状态标记组件。
  * 创建时间：2026-10-04
- * 修改时间：2026-10-04
+ * 修改时间：2026-10-06
  * 版本作用：从原模板迁入共享 UI。
- * 被调用：Web 人员管理页面。
+ * 被调用：Web 人员管理页面、资金节点预览与详情。
  * 调用：React、共享样式工具。
  * 功能：透传原生属性，提供共享的布局和状态样式。
  * 预期结果：业务层无需复制基础组件。
@@ -19,6 +19,8 @@ const badgeVariants = cva(
 		variants: {
 			variant: {
 				default: "bg-primary text-primary-foreground [a]:hover:bg-primary/80",
+				success: "bg-success/10 text-success [a]:hover:bg-success/20",
+				warning: "bg-warning/10 text-warning [a]:hover:bg-warning/20",
 				secondary:
 					"bg-secondary text-secondary-foreground [a]:hover:bg-secondary/80",
 				destructive:

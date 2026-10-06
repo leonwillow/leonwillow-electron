@@ -32,11 +32,16 @@ export type DropTarget = { id: string; placement: "before" | "after" };
 
 export function CaseIconAction({
 	label,
+	keepTooltipOnClick = false,
 	...props
-}: ComponentProps<typeof Button> & { label: string }) {
+}: ComponentProps<typeof Button> & {
+	label: string;
+	keepTooltipOnClick?: boolean;
+}) {
 	return (
 		<Tooltip>
 			<TooltipTrigger
+				closeOnClick={!keepTooltipOnClick}
 				render={
 					<Button
 						size="icon-sm"

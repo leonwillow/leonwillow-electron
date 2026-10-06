@@ -67,3 +67,11 @@
 依据 [Tailwind 字号令牌](https://tailwindcss.com/docs/font-size)、[主题变量](https://tailwindcss.com/docs/theme) 和 [Base UI Radio Group](https://base-ui.com/react/components/radio-group) 的公开接口实施。
 
 2026-10-06：共享样式新增 `success`、`warning` 明暗语义色；Button 对应变体用于置顶/恢复和归档图标。页面不硬编码绿、黄色值，图标提供共享 Tooltip。案件行使用 `:hover` / `:focus-visible` 区分鼠标悬停与键盘操作，普通点击焦点不令操作常显。
+
+2026-10-06：Badge 新增 `success`、`warning` 变体，使用同名语义色的浅背景和前景，用于资料覆盖与待补状态；原有变体保持不变。共享 HoverCard 适配 shadcn base-mira/已安装 Base UI PreviewCard，复用浮层排版与主题，限制可用宽高；延迟、定位与内容由调用方指定。
+
+2026-10-06：G6 内置 Toolbar 通过 `.g6-toolbar.funds-graph-toolbar` 在共享样式中适配语义颜色、圆角、阴影与 `control-md` / `text-control` 令牌，保留插件定位和原生工具项。扩展分析操作继续使用共享 Button、Tooltip 和 Popover；窄画布内允许换行，避免横向溢出。插件运行时插入未分层样式，适配也置于层外并使用限定选择器，防止加载顺序覆盖主题。
+
+G6 的原生项通过共享 Tooltip 的 `anchor` 接口复用提示外观，不保留浏览器 `title`。`.funds-graph-zoom` 输入框继承工具栏文字与 `control-md` 高度，焦点/错误/禁用采用共享语义色；四组工具使用同一 `.funds-graph-toolbar-separator`，全部尺寸随 rem 缩放。
+
+2026-10-07：HoverCard 透传泛型 payload 与 Base UI handle，支持多个触发器复用一个浮层。可选 `showArrow` 使用原生 Arrow 定位与 popover/foreground 语义色；使用箭头的业务将可滚动内容放在内部，保持 Popup 的溢出可见，避免裁剪指向标记。

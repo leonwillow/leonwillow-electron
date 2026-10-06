@@ -45,6 +45,9 @@ function CaseWorkspace({ caseId }: { caseId: string }) {
 	const details = useFundsResource(
 		useCallback(() => getFundsCase(caseId), [caseId]),
 	);
+	const [reviewMode, setReviewMode] = useState<
+		"issues" | "candidates" | "subjects"
+	>("issues");
 	const [tab, setTab] = useState("sources");
 	const [busy, setBusy] = useState(false);
 	const [message, setMessage] = useState("");
@@ -176,6 +179,8 @@ function CaseWorkspace({ caseId }: { caseId: string }) {
 					<TabsContent value="review" className="pt-4">
 						<ReviewPanel
 							key={`${caseId}:${record.revision}`}
+							mode={reviewMode}
+							onModeChange={setReviewMode}
 							record={record}
 							onChanged={refresh}
 						/>
@@ -303,9 +308,17 @@ function CaseWorkspace({ caseId }: { caseId: string }) {
 													? "确认纳入跨案资料"
 													: version.action.startsWith("exclude:")
 														? "排除跨案资料"
-														: version.action === "match:merge"
-															? "人工确认同一交易"
-															: "人工保留为不同交易"}
+														: version.action.startsWith("subjects:scan:")
+															? "后台重新识别主体"
+															: version.action === "subjects:merge"
+																? "人工合并主体"
+																: version.action === "subjects:separate"
+																	? "人工拆分主体"
+																	: version.action === "subjects:undo"
+																		? "撤销主体调整"
+																		: version.action === "match:merge"
+																			? "人工确认同一交易"
+																			: "人工保留为不同交易"}
 										</span>
 										<span className="text-muted-foreground">
 											{new Date(version.createdAt).toLocaleString("zh-CN")}

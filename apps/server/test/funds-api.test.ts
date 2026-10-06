@@ -776,3 +776,142 @@ test("案件移动持久化，限制同分组，删除案件不再出现在任�
 	await drainJobs();
 	expect(await graph.summary(a)).toEqual(priorGraph);
 }, 30_000);
+
+test("Worker 自动识别多卡主体；拆分、软撤销与重识别保留全部账户、交易和证据", async () => {
+	const id = await newCase();
+	const endpoint = api.api.funds.cases({ caseId: id });
+	const file = new File(
+		[
+			"本方账号,本方户名,对方账号,对方户名,借贷方向,交易时间,交易金额,交易流水号\n10001,赵佳,20001,周明,借,2022-01-05 10:00:00,100.00,one\n10002,赵佳,20001,周明,借,2022-01-05 11:00:00,60.00,two\n20001,周明,10002,赵佳,借,2022-01-05 12:00:00,30.00,three\n10001,赵佳,10002,赵佳,借,2022-01-05 13:00:00,20.00,four\n",
+		],
+		"multi-card.csv",
+	);
+	const upload = await endpoint.import.post({ files: [file] });
+	const completed = await jobResult(id, upload.data?.id);
+	expect(completed?.status).toBe("completed");
+	expect(completed?.result?.subjectSummary.mergedGroups).toBe(1);
+	const grouped = await endpoint.graph.get();
+	expect(grouped.data?.nodes).toHaveLength(2);
+	expect(grouped.data?.edges).toHaveLength(4);
+	const zhao = grouped.data?.nodes.find((n) => n.names.includes("赵佳"));
+	expect(zhao?.accounts.map((a) => a.number).sort()).toEqual([
+		"10001",
+		"10002",
+	]);
+	expect(zhao?.identityStatus).toBe("name-inferred");
+	expect(
+		grouped.data?.edges.some(
+			(t) => t.from === t.to && t.fromAccount !== t.toAccount,
+		),
+	).toBe(true);
+	const ids = grouped.data?.edges.map((t) => t.id).sort();
+	const first = grouped.data?.edges.find((t) => t.amountMinor === "10000");
+	if (!first) throw new Error("缺少起点");
+	const trace = await endpoint.trace.post({
+		account: "10001",
+		transaction: first.id,
+		depth: 4,
+		from: "",
+		to: "",
+	});
+	// 返回赵佳另一张卡后不能凭“同一人”跳去第一张卡的内部付款。
+	expect(trace.data?.edges.map((t) => t.amountMinor).sort()).toEqual([
+		"10000",
+		"3000",
+	]);
+	expect(
+		(
+			await endpoint.subjects.post({
+				revision: 1,
+				action: "separate",
+				accounts: ["10001", "not-this-case"],
+			})
+		).status,
+	).toBe(400);
+	expect(
+		(
+			await endpoint.subjects.post({
+				revision: 1,
+				action: "separate",
+				accounts: ["10001", "10002"],
+			})
+		).status,
+	).toBe(200);
+	expect(
+		(
+			await endpoint.subjects.post({
+				revision: 1,
+				action: "merge",
+				accounts: ["10001", "10002"],
+			})
+		).status,
+	).toBe(409);
+	await drainJobs();
+	expect((await endpoint.graph.get()).data?.nodes).toHaveLength(3);
+	expect(
+		(await endpoint.graph.get()).data?.edges.map((t) => t.id).sort(),
+	).toEqual(ids);
+	const decision = (await endpoint.subjects.get()).data?.overrides[0];
+	if (!decision) throw new Error("缺少更正记录");
+	expect(
+		(
+			await endpoint
+				.subjects({ overrideId: decision.id })
+				.delete({ revision: 2 })
+		).status,
+	).toBe(200);
+	await drainJobs();
+	expect(
+		(await endpoint.subjects.get()).data?.overrides[0]?.deletedAt,
+	).toBeTruthy();
+	expect((await endpoint.graph.get()).data?.nodes).toHaveLength(2);
+	const scan = await endpoint.subjects.scan.post();
+	await jobResult(id, scan.data?.id);
+	expect((await endpoint.get()).data?.revision).toBe(4);
+	if (!scan.data?.id) throw new Error("缺少任务");
+	await database.db
+		.update(fundsJob)
+		.set({
+			status: "queued",
+			stage: "queued",
+			leaseOwner: null,
+			leaseUntil: null,
+		})
+		.where(eq(fundsJob.id, scan.data.id));
+	await drainJobs();
+	expect((await endpoint.get()).data?.revision).toBe(4);
+	expect(
+		(await endpoint.graph.get()).data?.edges.map((t) => t.id).sort(),
+	).toEqual(ids);
+	expect(
+		(await endpoint.evidence({ transactionId: first.id }).get()).status,
+	).toBe(200);
+	const merged = await endpoint.subjects.post({
+		revision: 4,
+		action: "merge",
+		accounts: ["10001", "10002"],
+		name: "赵佳（人工确认）",
+	});
+	expect(merged.status).toBe(200);
+	await drainJobs();
+	const manual = (await endpoint.graph.get()).data?.nodes.find(
+		(n) => n.identityStatus === "manual",
+	);
+	expect(manual?.names).toEqual(["赵佳（人工确认）"]);
+	expect(manual?.accountNumbers.sort()).toEqual(["10001", "10002"]);
+	expect(
+		(await endpoint.graph.get()).data?.edges.map((t) => t.id).sort(),
+	).toEqual(ids);
+	const repeat = await endpoint.import.post({ files: [file] });
+	await jobResult(id, repeat.data?.id);
+	expect((await endpoint.get()).data?.revision).toBe(5);
+	expect(
+		(await endpoint.subjects.get()).data?.overrides.filter((o) => !o.deletedAt),
+	).toHaveLength(1);
+	const other = api.api.funds.cases({ caseId: await newCase() });
+	expect((await other.subjects.get()).data?.groups).toHaveLength(0);
+	expect(
+		(await other.subjects({ overrideId: decision.id }).delete({ revision: 0 }))
+			.status,
+	).toBe(404);
+}, 30_000);

@@ -1,7 +1,7 @@
 /**
  * @file 下拉菜单、分组、子菜单与选择项的基础组件。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-10-06
  * 版本作用：共享 UI 基础层，随工作区维护。
  * 被调用：components/layout/profile-menu.tsx、components/layout/auth-links-menu.tsx。
  * 调用：@base-ui/react、ui/lib/utils、lucide-react、react。
@@ -29,6 +29,7 @@ function DropdownMenuTrigger({ ...props }: MenuPrimitive.Trigger.Props) {
 function DropdownMenuContent({
 	align = "start",
 	alignOffset = 0,
+	anchor,
 	side = "bottom",
 	sideOffset = 4,
 	className,
@@ -36,12 +37,13 @@ function DropdownMenuContent({
 }: MenuPrimitive.Popup.Props &
 	Pick<
 		MenuPrimitive.Positioner.Props,
-		"align" | "alignOffset" | "side" | "sideOffset"
+		"align" | "alignOffset" | "side" | "sideOffset" | "anchor"
 	>) {
 	return (
 		<MenuPrimitive.Portal>
 			<MenuPrimitive.Positioner
 				className="isolate z-50 outline-none"
+				anchor={anchor}
 				align={align}
 				alignOffset={alignOffset}
 				side={side}

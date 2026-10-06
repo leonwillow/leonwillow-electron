@@ -306,6 +306,7 @@ export default function FundsCaseSidebar() {
 							)}
 							<CaseIconAction
 								size="icon"
+								keepTooltipOnClick
 								label={menu.pinned ? "取消固定案件菜单" : "固定案件菜单"}
 								aria-pressed={menu.pinned}
 								onClick={menu.togglePinned}

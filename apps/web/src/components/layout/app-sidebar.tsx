@@ -66,7 +66,11 @@ const AppSidebar = () => {
 						const active = isActive(pathname, item.href);
 
 						return (
-							<Tooltip key={item.href}>
+							<Tooltip
+								key={item.href}
+								// 禁用整个提示交互，避免隐藏内容期间遗留的 open 状态在固定后重新显示。
+								disabled={item.id === "funds" && !fundsMenu.pinned}
+							>
 								<TooltipTrigger
 									render={
 										<Link
@@ -135,9 +139,7 @@ const AppSidebar = () => {
 										</Link>
 									}
 								/>
-								{(item.id !== "funds" || fundsMenu.pinned) && (
-									<TooltipContent side="right">{item.title}</TooltipContent>
-								)}
+								<TooltipContent side="right">{item.title}</TooltipContent>
 							</Tooltip>
 						);
 					})}

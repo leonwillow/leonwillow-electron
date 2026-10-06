@@ -1,7 +1,7 @@
 /**
  * @file 资金调查的 Eden 客户端与显示工具。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-06
+ * 修改时间：2026-10-07
  * 版本作用：页面通过真实 API 工作，不内置案件样本或服务端运行时代码。
  * 被调用：funds 路由/视图；调用：共享 Eden 入口。
  * 功能：请求整案数据、上传文件、读取图和原始证据；无损格式化金额。
@@ -133,6 +133,25 @@ export const traceFunds = async (
 		to: string;
 	},
 ) => unwrap(await caseApi(caseId).trace.post(body));
+export const getFundsSubjects = async (caseId: string) =>
+	unwrap(await caseApi(caseId).subjects.get());
+export const scanFundsSubjects = async (caseId: string) =>
+	unwrap(await caseApi(caseId).subjects.scan.post());
+export const adjustFundsSubjects = async (
+	caseId: string,
+	body: {
+		revision: number;
+		action: "merge" | "separate";
+		accounts: string[];
+		name?: string;
+	},
+) => unwrap(await caseApi(caseId).subjects.post(body));
+export const undoFundsSubjects = async (
+	caseId: string,
+	overrideId: string,
+	revision: number,
+) =>
+	unwrap(await caseApi(caseId).subjects({ overrideId }).delete({ revision }));
 export const getFundsReview = async (caseId: string, offset = 0, kind = "") =>
 	unwrap(await caseApi(caseId).review.get({ query: { offset, kind } }));
 export const decideFundsMatch = async (
@@ -174,14 +193,13 @@ export type FundsCase = Awaited<ReturnType<typeof getFundsCase>>;
 export type FundsGraph = Awaited<ReturnType<typeof getFundsGraph>>;
 export type FundsAccount = FundsGraph["nodes"][number];
 export type FundsTransaction = FundsGraph["edges"][number];
-export function formatFunds(minor: string, currency = "CNY") {
-	const value = BigInt(minor);
-	const whole = value / 100n;
-	const cents = (value % 100n).toString().padStart(2, "0");
-	return `${currency === "CNY" ? "¥" : `${currency} `}${whole.toLocaleString("zh-CN")}.${cents}`;
-}
+export { formatFunds } from "./funds-money";
 export const accountName = (account?: FundsAccount) =>
-	account?.ownNames.join(" / ") || account?.names[0] || "户名待核";
+	(account?.identityStatus === "manual"
+		? account.names[0]
+		: account?.ownNames.join(" / ")) ||
+	account?.names[0] ||
+	"户名待核";
 
 /** Eden 将 octet-stream 解析为 ArrayBuffer，保留原始 CSV 编码及 Excel 字节。 */
 function saveOriginalDownload(data: unknown, name: string) {

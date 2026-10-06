@@ -8,7 +8,12 @@
  * 预期结果：案件隔离、整数金额无精度损失，图版本落后时由服务拒绝分析。
  */
 import neo4j, { type Driver, type QueryResult } from "neo4j-driver";
-import type { FundsSnapshot, GraphFilter } from "./types";
+import type {
+	FundsAccount,
+	FundsSnapshot,
+	FundsSubject,
+	GraphFilter,
+} from "./types";
 
 const number = (value: unknown) =>
 	neo4j.isInt(value) ? value.toNumber() : Number(value);
@@ -23,6 +28,10 @@ const accountProps = (value: Record<string, unknown>) => ({
 	lastSeen: String(value.lastSeen),
 	accountNumbers: (value.accountNumbers ?? []) as string[],
 	identityStatus: String(value.identityStatus ?? "account-owner"),
+	basis: String(value.basis ?? ""),
+	accounts: value.accountDetailsJson
+		? (JSON.parse(String(value.accountDetailsJson)) as FundsAccount[])
+		: [],
 });
 const transferProps = (value: Record<string, unknown>) => ({
 	id: String(value.transactionId),
@@ -73,7 +82,7 @@ export function createFundsGraph(
 		async project(caseId: string, revision: number, snapshot: FundsSnapshot) {
 			await ensure();
 			const accountMap = new Map(snapshot.accounts.map((a) => [a.id, a]));
-			const subjects =
+			const subjects: FundsSubject[] =
 				snapshot.subjects ??
 				snapshot.accounts.map((a) => ({
 					id: a.id,
@@ -116,6 +125,8 @@ export function createFundsGraph(
 										hasStatement: accounts.some((a) => a.hasStatement),
 										unknown: accounts.every((a) => a.unknown),
 										identityStatus: s.identityStatus,
+										basis: s.basis ?? "",
+										accountDetailsJson: JSON.stringify(accounts),
 										firstSeen: accounts.map((a) => a.firstSeen).sort()[0] ?? "",
 										lastSeen:
 											accounts

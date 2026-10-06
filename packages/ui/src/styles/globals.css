@@ -230,3 +230,97 @@ input[type="number"]::-webkit-outer-spin-button {
 		@apply overflow-x-hidden wrap-anywhere whitespace-pre-wrap;
 	}
 }
+
+/* G6 原生 Toolbar 的主题适配：控件仍使用共享 rem 尺寸，布局保持插件的左下悬浮定位。 */
+.g6-toolbar.funds-graph-toolbar {
+	z-index: 20;
+	max-width: calc(100% - 1rem);
+	flex-wrap: wrap;
+	justify-content: flex-start;
+	gap: 0.125rem;
+	padding: 0.375rem;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-lg);
+	background: var(--background);
+	color: var(--foreground);
+	box-shadow: var(--shadow-sm);
+	opacity: 1;
+	font-family: var(--font-sans);
+	font-size: var(--text-control);
+	line-height: var(--text-control--line-height);
+}
+
+.g6-toolbar.funds-graph-toolbar .g6-toolbar-item {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	box-sizing: border-box;
+	width: var(--spacing-control-md);
+	height: var(--spacing-control-md);
+	padding: 0.375rem;
+	border-radius: var(--radius-md);
+	color: var(--foreground);
+}
+
+.g6-toolbar.funds-graph-toolbar .g6-toolbar-item svg {
+	fill: currentColor;
+}
+
+.g6-toolbar.funds-graph-toolbar .g6-toolbar-item:hover {
+	background: var(--muted);
+}
+
+.g6-toolbar.funds-graph-toolbar .g6-toolbar-item:focus-visible {
+	outline: 2px solid var(--ring);
+	outline-offset: 1px;
+}
+
+.g6-toolbar.funds-graph-toolbar .g6-toolbar-item[aria-disabled="true"] {
+	pointer-events: none;
+	opacity: 0.5;
+}
+
+.funds-graph-zoom {
+	box-sizing: border-box;
+	width: 3.5rem;
+	height: var(--spacing-control-md);
+	padding: 0 0.125rem;
+	border: 0;
+	border-radius: var(--radius-md);
+	background: transparent;
+	color: var(--foreground);
+	font: inherit;
+	text-align: center;
+	font-variant-numeric: tabular-nums;
+}
+
+.funds-graph-zoom:hover:not(:disabled) {
+	background: var(--muted);
+}
+
+.funds-graph-zoom:focus-visible {
+	outline: 2px solid var(--ring);
+	outline-offset: 1px;
+}
+
+.funds-graph-zoom[aria-invalid="true"] {
+	outline: 2px solid var(--destructive);
+}
+
+.funds-graph-zoom:disabled {
+	opacity: 0.5;
+}
+
+.funds-graph-zoom-group,
+.funds-graph-toolbar-extension {
+	display: flex;
+	align-items: center;
+	gap: 0.125rem;
+}
+
+.funds-graph-toolbar-separator {
+	height: 1.25rem;
+	flex-shrink: 0;
+	margin-inline: 0.125rem;
+	border-left: 1px solid var(--border);
+}
