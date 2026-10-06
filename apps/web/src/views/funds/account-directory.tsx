@@ -4,7 +4,7 @@
  * 修改时间：2026-10-07
  * 版本作用：完整目录可浏览，DOM 只保留可见条目与键盘焦点条目。
  * 被调用：AnalysisPanel；调用：TanStack Virtual、AccountDirectoryRow、目录筛选。
- * 功能：动态测量行高，方向键/Home/End 翻阅全部账户，搜索与筛选后回到首行。
+ * 功能：宽屏固定目录、列表独立滚动；动态测量行高，键盘翻阅全部账户。
  * 预期结果：不截断账户，不改变图谱分析范围，悬停和筛选不追加网络请求。
  */
 import {
@@ -96,7 +96,7 @@ function DirectoryList({
 		<>
 			<div
 				ref={scroll}
-				className="max-h-64 overflow-auto overscroll-contain rounded-lg border xl:max-h-[min(42rem,calc(100dvh-9rem))]"
+				className="max-h-64 min-h-0 overflow-auto overscroll-contain rounded-lg border xl:max-h-[42rem]"
 				style={{ height: virtualizer.getTotalSize() }}
 				data-slot="account-directory-scroll"
 				onScroll={dismissPreview}
@@ -253,8 +253,12 @@ export default function AccountDirectory({
 		entries.map((item) => item.id),
 	]);
 	return (
-		<aside className="min-w-0 space-y-3" aria-label="案件账户">
-			<div className="flex items-center gap-2">
+		// 2.25rem = 正文顶部 pt-3 + 底部 pb-6；列表收缩，搜索和计数保留可见。
+		<aside
+			className="flex min-w-0 flex-col gap-3 self-start xl:sticky xl:top-3 xl:max-h-[calc(100dvh-var(--spacing-workspace-header)-2.25rem)]"
+			aria-label="案件账户"
+		>
+			<div className="flex shrink-0 items-center gap-2">
 				<form
 					className="min-w-0 flex-1"
 					aria-label="账户搜索"
@@ -302,7 +306,7 @@ export default function AccountDirectory({
 				</p>
 			)}
 			{!loading && (
-				<p role="status" className="text-muted-foreground text-xs">
+				<p role="status" className="shrink-0 text-muted-foreground text-xs">
 					{entries.length === all.length
 						? `共 ${all.length.toLocaleString("zh-CN")}`
 						: `${entries.length.toLocaleString("zh-CN")} / ${all.length.toLocaleString("zh-CN")}`}{" "}
