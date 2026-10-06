@@ -1,7 +1,7 @@
 /**
  * @file 工作台的固定图标导航。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-10-06
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/layout/workspace-layout.tsx。
  * 调用：ui 基础组件/样式、路由、导航目录、管理中心菜单、搜索、品牌、主题与个人菜单。
@@ -17,7 +17,12 @@ import {
 	TooltipTrigger,
 } from "@leonwillow-electron/ui/components/tooltip";
 import { cn } from "@leonwillow-electron/ui/lib/utils";
-import { getRouteApi, Link, useLocation } from "@tanstack/react-router";
+import {
+	getRouteApi,
+	Link,
+	useLocation,
+	useSearch,
+} from "@tanstack/react-router";
 import { SettingsIcon } from "lucide-react";
 import { primaryNav, settingsHomeHref } from "@/assets/data/navigation";
 import AdminMenu from "@/components/layout/admin-menu";
@@ -26,20 +31,26 @@ import CommandMenu from "@/components/layout/command-menu";
 import ModeToggle from "@/components/layout/mode-toggle";
 import ProfileMenu from "@/components/layout/profile-menu";
 import ThemeCustomizer from "@/components/layout/theme-customizer";
+import { useFundsNavigation } from "./funds-navigation-provider";
 
 const isActive = (pathname: string, href: string) =>
 	pathname === href || pathname.startsWith(`${href}/`);
 
 const AppSidebar = () => {
+	const fundsMenu = useFundsNavigation();
 	const { user, moduleIds } = getRouteApi("/_workspace").useRouteContext();
 	const pathname = useLocation({ select: (location) => location.pathname });
+	const { caseId } = useSearch({ strict: false });
 	const settingsActive = [settingsHomeHref, "/settings/notifications"].includes(
 		pathname,
 	);
 
 	return (
 		<aside className="flex w-16 shrink-0 flex-col items-center overflow-y-auto border-r bg-sidebar pb-3">
-			<div className="flex h-14 w-full items-center justify-center border-border border-b">
+			<div
+				data-slot="workspace-header"
+				className="flex h-workspace-header w-full shrink-0 items-center justify-center border-border border-b"
+			>
 				<AppLogo />
 			</div>
 
@@ -59,7 +70,54 @@ const AppSidebar = () => {
 								<TooltipTrigger
 									render={
 										<Link
+											ref={
+												item.id === "funds" ? fundsMenu.triggerRef : undefined
+											}
+											aria-controls={
+												item.id === "funds" ? "funds-case-menu" : undefined
+											}
+											aria-expanded={
+												item.id === "funds" ? fundsMenu.visible : undefined
+											}
+											onPointerEnter={
+												item.id === "funds" && !fundsMenu.pinned
+													? fundsMenu.show
+													: undefined
+											}
+											onPointerLeave={
+												item.id === "funds"
+													? fundsMenu.scheduleClose
+													: undefined
+											}
+											onFocus={
+												item.id === "funds" && !fundsMenu.pinned
+													? fundsMenu.show
+													: undefined
+											}
+											onBlur={
+												item.id === "funds"
+													? fundsMenu.scheduleClose
+													: undefined
+											}
+											onClick={item.id === "funds" ? fundsMenu.show : undefined}
+											onKeyDown={
+												item.id === "funds"
+													? (event) => {
+															if (
+																event.key === "ArrowRight" ||
+																(event.key === "Tab" &&
+																	!event.shiftKey &&
+																	fundsMenu.visible)
+															) {
+																event.preventDefault();
+																fundsMenu.focusPanel();
+															}
+														}
+													: undefined
+											}
 											to={item.href}
+											activeOptions={{ exact: false }}
+											search={item.id === "funds" ? { caseId } : undefined}
 											aria-label={item.title}
 											aria-current={active ? "page" : undefined}
 											className={cn(
@@ -77,7 +135,9 @@ const AppSidebar = () => {
 										</Link>
 									}
 								/>
-								<TooltipContent side="right">{item.title}</TooltipContent>
+								{(item.id !== "funds" || fundsMenu.pinned) && (
+									<TooltipContent side="right">{item.title}</TooltipContent>
+								)}
 							</Tooltip>
 						);
 					})}

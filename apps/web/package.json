@@ -13,6 +13,7 @@
 		"test": "bun test"
 	},
 	"dependencies": {
+		"@antv/g6": "^5.1.1",
 		"@elysiajs/eden": "^1.4.9",
 		"@fontsource-variable/dm-sans": "^5.3.0",
 		"@fontsource-variable/figtree": "^5.3.0",
@@ -32,6 +33,7 @@
 		"@fontsource-variable/roboto": "^5.3.0",
 		"@fontsource-variable/roboto-slab": "^5.3.0",
 		"@hookform/resolvers": "5.4.0",
+		"@leonwillow-electron/access": "workspace:*",
 		"@leonwillow-electron/ui": "workspace:*",
 		"@tanstack/react-router": "^1.170.32",
 		"chroma-js": "^3.2.0",
@@ -43,8 +45,7 @@
 		"sonner": "catalog:",
 		"varlock": "catalog:",
 		"zod": "catalog:",
-		"zustand": "^5.0.15",
-		"@leonwillow-electron/access": "workspace:*"
+		"zustand": "^5.0.15"
 	},
 	"devDependencies": {
 		"@leonwillow-electron/config": "workspace:*",

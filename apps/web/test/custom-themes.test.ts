@@ -1,7 +1,7 @@
 /**
  * @file 主题库与 CSS 往返的回归测试。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-10-06
  * 版本作用：当前行为的回归约束，不进入产品构建。
  * 被调用：Bun 测试命令。
  * 调用：bun:test、chroma-js、../src/configs/theme-settings、../src/lib/custom-themes、../src/lib/theme-settings、../src/types/theme、../src/utils/theme/color-converter、../src/utils/theme/css-import、../src/utils/theme/parse-css-input、../src/utils/theme/shadows、../src/utils/theme/theme-style-generator。
@@ -84,7 +84,13 @@ test("自定义主题保存、改名和另存时维持稳定 ID，删除当前�
 	const removed = deleteCustomTheme(copy, "custom:copy");
 	expect(removed.settings.themePreset).toBe("default");
 	expect(removed.settings.scale).toBe("lg");
-	expect(removed.customThemes).toHaveLength(1);
+	expect(removed.customThemes).toHaveLength(2);
+	expect(
+		removed.customThemes.find((theme) => theme.id === "custom:copy")?.deletedAt,
+	).toBeString();
+	expect(decodeCustomThemes(removed.customThemes)).toEqual(
+		removed.customThemes,
+	);
 });
 
 test("一个快照同时恢复主题库和当前选择，四档缩放遵循已有 version 2 编解码", () => {
@@ -227,5 +233,29 @@ test("CSS 导出可重新导入颜色、透明度、阴影参数及项目字体/
 	);
 	expect(Object.values(getShadowMap(styled.styles.light)).join()).not.toContain(
 		"/ 1.75)",
+	);
+});
+
+test("标记删除主题不占名称，历史超过百条仍保留且不能被旧选择重新激活", () => {
+	const saved = saveCustomTheme(empty, draft, "custom:first");
+	const removed = deleteCustomTheme(saved, "custom:first");
+	const copy = saveCustomTheme(removed, draft, "custom:second");
+	const deletedTheme = removed.customThemes[0];
+	if (!deletedTheme) throw new Error("缺少主题");
+	const tombstones = Array.from({ length: 110 }, (_, i) => ({
+		...deletedTheme,
+		id: `custom:old-${i}` as const,
+	}));
+	const decoded = decodeThemePreferences(
+		encodeThemePreferences({
+			...copy,
+			customThemes: [...tombstones, ...copy.customThemes],
+			settings: { ...copy.settings, themePreset: "custom:first" },
+		}),
+	);
+	expect(decoded.customThemes).toHaveLength(112);
+	expect(decoded.settings.themePreset).toBe("default");
+	expect(() => saveCustomTheme(removed, draft, "custom:first")).toThrow(
+		"该主题已删除",
 	);
 });

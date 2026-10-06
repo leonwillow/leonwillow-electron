@@ -1,7 +1,7 @@
 /**
  * @file 当前服务进程共用的认证、数据库和安全配置。
  * 创建时间：2026-10-05
- * 修改时间：2026-10-05
+ * 修改时间：2026-10-06
  * 版本作用：基础依赖只在启动时绑定一次，业务模块按需读取。
  * 被调用：index.ts、认证/权限服务、管理事务服务、服务端测试。
  * 调用：auth/db 类型；不加载环境、不创建连接或监听器。
@@ -10,12 +10,16 @@
  */
 import type { Auth } from "@leonwillow-electron/auth";
 import type { Database } from "@leonwillow-electron/db";
+import type { FundsFileStore } from "./modules/funds/file-store";
+import type { FundsGraph } from "./modules/funds/graph";
 
 type ServerResources = Readonly<{
 	auth: Auth;
 	db: Database;
 	origins: readonly string[];
 	trustedProxyIps: readonly string[];
+	fundsGraph?: FundsGraph;
+	fundsFiles?: FundsFileStore;
 }>;
 
 let current: ServerResources | undefined;

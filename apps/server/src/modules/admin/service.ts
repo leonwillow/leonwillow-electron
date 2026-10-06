@@ -1,7 +1,7 @@
 /**
  * @file 人员账号与功能授权的事务服务。
  * 创建时间：2026-10-04
- * 修改时间：2026-10-05
+ * 修改时间：2026-10-06
  * 版本作用：管理员操作闭环；共享锁串行化权限变更。
  * 被调用：admin 路由。
  * 调用：server-resources、Better Auth 事务实例、Drizzle、认证与授权表。
@@ -18,7 +18,7 @@ import {
 	user,
 	userModuleAccess,
 } from "@leonwillow-electron/db/schema";
-import { and, asc, desc, eq, gt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, isNull, sql } from "drizzle-orm";
 import { getServerResources } from "../../server-resources";
 import { AccessError, type AccessSession } from "../access/service";
 import type { CreateUserInput, UpdateUserInput } from "./model";
@@ -48,7 +48,9 @@ async function readUser(tx: DatabaseTransaction, id: string) {
 	const grants = await tx
 		.select()
 		.from(userModuleAccess)
-		.where(eq(userModuleAccess.userId, id));
+		.where(
+			and(eq(userModuleAccess.userId, id), isNull(userModuleAccess.deletedAt)),
+		);
 	return {
 		...snapshot(
 			record,
@@ -101,11 +103,20 @@ async function writeGrants(
 		)
 	)
 		throw new AccessError(400, "INVALID_MODULE", "所选功能不存在或已停用。");
-	await tx.delete(userModuleAccess).where(eq(userModuleAccess.userId, id));
+	await tx
+		.update(userModuleAccess)
+		.set({ deletedAt: new Date() })
+		.where(
+			and(eq(userModuleAccess.userId, id), isNull(userModuleAccess.deletedAt)),
+		);
 	if (role === "user" && ids.length)
 		await tx
 			.insert(userModuleAccess)
-			.values(ids.map((moduleId) => ({ userId: id, moduleId })));
+			.values(ids.map((moduleId) => ({ userId: id, moduleId })))
+			.onConflictDoUpdate({
+				target: [userModuleAccess.userId, userModuleAccess.moduleId],
+				set: { deletedAt: null },
+			});
 }
 
 async function audit(
@@ -146,7 +157,10 @@ export async function listUsers() {
 	const { db } = getServerResources();
 	const [people, grants] = await Promise.all([
 		db.select().from(user).orderBy(asc(user.createdAt)),
-		db.select().from(userModuleAccess),
+		db
+			.select()
+			.from(userModuleAccess)
+			.where(isNull(userModuleAccess.deletedAt)),
 	]);
 	return people.map((person) => ({
 		...snapshot(

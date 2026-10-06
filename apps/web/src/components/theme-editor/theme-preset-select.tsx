@@ -1,7 +1,7 @@
 /**
  * @file 内置和自定义主题的统一选择器。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-10-06
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/layout/theme-customizer.tsx、components/theme-editor/theme-control-panel.tsx。
  * 调用：ui 基础组件/样式、configs/theme-presets、stores/theme-store、types/theme。
@@ -43,10 +43,12 @@ export default function ThemePresetSelect({
 		value,
 		...theme,
 	}));
-	const saved = customThemes.map(({ id: value, ...theme }) => ({
-		value,
-		...theme,
-	}));
+	const saved = customThemes
+		.filter((theme) => !theme.deletedAt)
+		.map(({ id: value, ...theme }) => ({
+			value,
+			...theme,
+		}));
 	const presets = [...builtIn, ...saved];
 	const current = presets.find((preset) => preset.value === value);
 	return (

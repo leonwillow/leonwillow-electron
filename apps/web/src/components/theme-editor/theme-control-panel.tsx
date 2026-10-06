@@ -1,7 +1,7 @@
 /**
  * @file 一次主题编辑会话的草稿与操作面板。
  * 创建时间：未记录（现有文件尚无 Git 创建记录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-10-06
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/theme-editor/theme-editor.tsx。
  * 调用：ui 基础组件/样式、lucide-react、next-themes、react、sonner、configs/fonts、configs/theme-settings、stores/theme-store、lib/custom-themes、types/theme、utils/theme/color-converter、utils/theme/css-import、utils/theme/theme-draft、utils/theme/theme-style-generator、./css-import-dialog、./shadow-control、./slider-with-input、./theme-color-panel、./theme-preset-select。
@@ -105,7 +105,7 @@ export default function ThemeControlPanel({
 	const currentStyles = draft.styles[mode];
 	const editingSaved =
 		isCustomThemeId(sourcePreset) &&
-		customThemes.some((theme) => theme.id === sourcePreset);
+		customThemes.some((theme) => !theme.deletedAt && theme.id === sourcePreset);
 	const valid = !invalidFields.size && draft.label.trim().length > 0;
 
 	useEffect(() => {
@@ -133,7 +133,9 @@ export default function ThemeControlPanel({
 	};
 
 	const selectSource = (themePreset: Settings["themePreset"]) => {
-		const saved = customThemes.find((theme) => theme.id === themePreset);
+		const saved = customThemes.find(
+			(theme) => !theme.deletedAt && theme.id === themePreset,
+		);
 		const next = createThemeDraft({
 			customThemes,
 			settings: {

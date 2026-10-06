@@ -1,15 +1,45 @@
-# 文件意义：本地开发 PostgreSQL 服务配置。
+# 文件意义：本地 PostgreSQL、Neo4j 与 RustFS 服务配置。
 # 创建时间：2026-10-03（Git 首次收录）
-# 修改时间：2026-10-04
+# 修改时间：2026-10-06
 # 版本作用：当前工作区的工具/启动配置。
 # 被调用：db:start/watch/stop/down 命令。
-# 调用：Docker Compose、PostgreSQL 镜像。
+# 调用：Docker Compose、PostgreSQL、Neo4j 和 RustFS 镜像。
 # 功能：配置回环端口、持久化卷和健康检查。
 # 预期结果：开发数据库可独立启动，数据保留在命名卷。
 
 name: leonwillow-electron
 
 services:
+  rustfs:
+    image: rustfs/rustfs:1.0.1
+    container_name: leonwillow-electron-rustfs
+    command: /data
+    environment:
+      RUSTFS_ACCESS_KEY: local-funds
+      RUSTFS_SECRET_KEY: local-funds-files-dev
+      RUSTFS_ADDRESS: ":9000"
+      RUSTFS_CONSOLE_ADDRESS: ":9001"
+      RUSTFS_CONSOLE_ENABLE: "true"
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - leonwillow-electron_rustfs_data:/data
+    restart: unless-stopped
+  neo4j:
+    image: neo4j:2026.09.0
+    container_name: leonwillow-electron-neo4j
+    environment:
+      NEO4J_AUTH: neo4j/local-funds-dev
+      NEO4J_server_memory_heap_initial__size: 256m
+      NEO4J_server_memory_heap_max__size: 512m
+      NEO4J_server_memory_pagecache_size: 256m
+    ports:
+      - "127.0.0.1:7474:7474"
+      - "127.0.0.1:7687:7687"
+    volumes:
+      - leonwillow-electron_neo4j_data:/data
+    restart: unless-stopped
   postgres:
     image: postgres:18
     container_name: leonwillow-electron-postgres
@@ -29,4 +59,6 @@ services:
     restart: unless-stopped
 
 volumes:
+  leonwillow-electron_rustfs_data:
+  leonwillow-electron_neo4j_data:
   leonwillow-electron_postgres_data:

@@ -1,7 +1,7 @@
 /**
  * @file 当前人员的身份与功能授权规则。
  * 创建时间：2026-10-04
- * 修改时间：2026-10-05
+ * 修改时间：2026-10-06
  * 版本作用：用普通函数实现身份检查、授权读取和功能访问判断。
  * 被调用：权限插件、access 路由、人员管理服务。
  * 调用：server-resources、认证类型、Drizzle、共享功能目录。
@@ -15,7 +15,7 @@ import {
 } from "@leonwillow-electron/access";
 import type { Auth } from "@leonwillow-electron/auth";
 import { userModuleAccess } from "@leonwillow-electron/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { getServerResources } from "../../server-resources";
 
 export class AccessError extends Error {
@@ -87,7 +87,12 @@ export async function getAccess(
 					await db
 						.select({ id: userModuleAccess.moduleId })
 						.from(userModuleAccess)
-						.where(eq(userModuleAccess.userId, current.user.id))
+						.where(
+							and(
+								eq(userModuleAccess.userId, current.user.id),
+								isNull(userModuleAccess.deletedAt),
+							),
+						)
 				).map((grant) => grant.id);
 	const access: AccessSession = {
 		user: {

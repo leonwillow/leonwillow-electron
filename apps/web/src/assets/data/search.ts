@@ -1,7 +1,7 @@
 /**
  * @file 命令面板的搜索目录。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-10-06
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/layout/command-menu.tsx。
  * 调用：@tanstack/react-router、lucide-react、导航目录。
@@ -28,7 +28,7 @@ import {
 	UserIcon,
 	UsersIcon,
 } from "lucide-react";
-import { adminNav, settingsHomeHref } from "./navigation";
+import { adminNav, primaryNav, settingsHomeHref } from "./navigation";
 
 type SearchGroup = {
 	title: string;
@@ -44,6 +44,14 @@ export const searchData: SearchGroup[] = [
 	{
 		title: "工作区",
 		data: [
+			...primaryNav
+				.filter((item) => item.id === "funds")
+				.map((item) => ({
+					icon: item.icon,
+					name: item.title,
+					href: item.href,
+					tags: ["资金", "交易", "图谱", "追踪", "案件", "导入", "流水"],
+				})),
 			{
 				icon: InboxIcon,
 				name: "收件箱",

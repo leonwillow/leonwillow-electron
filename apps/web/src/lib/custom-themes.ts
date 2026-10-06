@@ -1,7 +1,7 @@
 /**
  * @file 自定义主题库的校验与变更规则。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-10-06
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：apps/web/test、contexts、utils、utils/theme、components/theme-editor、lib。
  * 调用：chroma-js、configs/fonts、configs/theme-presets、configs/theme-settings、configs/theme-variables、types/theme。
@@ -95,13 +95,13 @@ function sanitizeStyles(value: unknown): ThemeStyles | null {
 
 /**
  * 从存储读取主题库，跳过损坏条目、重复 ID 和重复名称。
- * @param value 未校验的 JSON 值；最多检查前 100 个条目。
+ * @param value 未校验的 JSON 值；保留有效的删除标记，不截断历史条目。
  * @returns 可用主题列表；字体与圆角不合法时回退到默认值。
  */
 export function decodeCustomThemes(value: unknown): CustomTheme[] {
 	if (!Array.isArray(value)) return [];
 	const result: CustomTheme[] = [];
-	for (const entry of value.slice(0, 100)) {
+	for (const entry of value) {
 		if (!entry || typeof entry !== "object" || !isCustomThemeId(entry.id))
 			continue;
 		if (
@@ -110,19 +110,27 @@ export function decodeCustomThemes(value: unknown): CustomTheme[] {
 			entry.label.trim().length > 40
 		)
 			continue;
+		const deletedAt =
+			typeof entry.deletedAt === "string" &&
+			Number.isFinite(Date.parse(entry.deletedAt))
+				? entry.deletedAt
+				: undefined;
 		const styles = sanitizeStyles(entry.styles);
 		if (
 			!styles ||
 			result.some(
 				(theme) =>
 					theme.id === entry.id ||
-					theme.label.toLocaleLowerCase() ===
-						entry.label.trim().toLocaleLowerCase(),
+					(!theme.deletedAt &&
+						!deletedAt &&
+						theme.label.toLocaleLowerCase() ===
+							entry.label.trim().toLocaleLowerCase()),
 			)
 		)
 			continue;
 		result.push({
 			id: entry.id,
+			...(deletedAt ? { deletedAt } : {}),
 			label: entry.label.trim(),
 			styles,
 			font: Object.hasOwn(FONT_CONFIG, entry.font)
@@ -155,6 +163,7 @@ export function saveCustomTheme(
 	if (
 		preferences.customThemes.some(
 			(theme) =>
+				!theme.deletedAt &&
 				theme.id !== id &&
 				theme.label.toLocaleLowerCase() === label.toLocaleLowerCase(),
 		) ||
@@ -168,7 +177,12 @@ export function saveCustomTheme(
 	if (!styles) throw new Error("主题中存在无效颜色或样式，请先修正。");
 	const theme: CustomTheme = { ...draft, label, styles, id };
 	const index = preferences.customThemes.findIndex((item) => item.id === id);
-	if (index < 0 && preferences.customThemes.length >= 100)
+	if (index >= 0 && preferences.customThemes[index]?.deletedAt)
+		throw new Error("该主题已删除，请另存为新主题。");
+	if (
+		index < 0 &&
+		preferences.customThemes.filter((item) => !item.deletedAt).length >= 100
+	)
 		throw new Error("最多保存 100 个主题，请先删除不需要的主题。");
 	return {
 		settings: {
@@ -187,7 +201,7 @@ export function saveCustomTheme(
 }
 
 /**
- * 移除指定主题，并在删除当前主题时回退到默认配色。
+ * 标记删除指定主题，保留样式与名称；删除当前主题时回退到默认配色。
  * @param preferences 当前快照；保留字号缩放等其他偏好。
  * @param id 要移除的稳定 ID。
  * @returns 新快照；目标不存在时主题内容保持不变。
@@ -201,7 +215,11 @@ export function deleteCustomTheme(
 			preferences.settings.themePreset === id
 				? { ...preferences.settings, themePreset: "default" }
 				: preferences.settings,
-		customThemes: preferences.customThemes.filter((theme) => theme.id !== id),
+		customThemes: preferences.customThemes.map((theme) =>
+			theme.id === id && !theme.deletedAt
+				? { ...theme, deletedAt: new Date().toISOString() }
+				: theme,
+		),
 	};
 }
 
@@ -213,7 +231,9 @@ export function deleteCustomTheme(
 export function getPreset(preferences: ThemePreferences) {
 	const key = preferences.settings.themePreset;
 	if (isCustomThemeId(key))
-		return preferences.customThemes.find((theme) => theme.id === key);
+		return preferences.customThemes.find(
+			(theme) => theme.id === key && !theme.deletedAt,
+		);
 	return key === "default" ? undefined : themePresets[key];
 }
 

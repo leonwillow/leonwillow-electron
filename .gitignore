@@ -50,6 +50,7 @@ lerna-debug.log*
 # Testing
 coverage
 .nyc_output
+apps/web/.impeccable/review/
 
 # Misc
 *.tgz

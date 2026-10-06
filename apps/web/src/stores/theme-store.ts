@@ -1,7 +1,7 @@
 /**
  * @file 应用共享的主题偏好与编辑器会话状态。
  * 创建时间：2026-10-04
- * 修改时间：2026-10-04
+ * 修改时间：2026-10-06
  * 版本作用：Zustand 状态入口，沿用主题快照 v2。
  * 被调用：main.tsx、components/layout、components/theme-editor、test/theme-store.test.ts。
  * 调用：zustand、React ref 类型、configs/theme-settings、lib/theme-settings、lib/custom-themes、types/theme、浏览器存储与消息 API。
@@ -79,7 +79,7 @@ export const useThemeStore = create<ThemeState>()((set, get) => {
 		updateSettings: (settings) => {
 			const preferences = get().preferences;
 			const selected = preferences.customThemes.find(
-				(theme) => theme.id === settings.themePreset,
+				(theme) => !theme.deletedAt && theme.id === settings.themePreset,
 			);
 			persistPreferences({
 				...preferences,

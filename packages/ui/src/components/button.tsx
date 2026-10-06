@@ -1,7 +1,7 @@
 /**
  * @file 按钮外观、尺寸变体与自定义触发器的基础组件。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-10-06
  * 版本作用：共享 UI 基础层，随工作区维护。
  * 被调用：packages/ui/test、components、components/auth、components/layout、components/theme-editor、views/register、views/login。
  * 调用：@base-ui/react、ui/lib/utils、class-variance-authority。
@@ -24,6 +24,10 @@ const buttonVariants = cva(
 					"bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
 				ghost:
 					"hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
+				success:
+					"text-success hover:bg-success/10 focus-visible:border-success/40 focus-visible:ring-success/20",
+				warning:
+					"text-warning hover:bg-warning/10 focus-visible:border-warning/40 focus-visible:ring-warning/20",
 				destructive:
 					"bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:focus-visible:ring-destructive/40 dark:hover:bg-destructive/30",
 				link: "text-primary underline-offset-4 hover:underline",

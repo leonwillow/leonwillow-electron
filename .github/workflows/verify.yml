@@ -7,6 +7,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     services:
+      neo4j:
+        image: neo4j:2026.09.0
+        env:
+          NEO4J_AUTH: neo4j/local-funds-dev
+          NEO4J_server_memory_heap_max__size: 512m
+        ports: ["7687:7687", "7474:7474"]
+        options: >-
+          --health-cmd "wget -q -O /dev/null http://localhost:7474"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 30
       postgres:
         image: postgres:18
         env:
@@ -31,6 +42,15 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.14
+      - name: Start RustFS
+        run: |
+          docker run -d --name funds-rustfs -p 9000:9000 -e RUSTFS_ACCESS_KEY=local-funds -e RUSTFS_SECRET_KEY=local-funds-files-dev -v funds-rustfs-data:/data rustfs/rustfs:1.0.1 /data
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://localhost:9000/health; then exit 0; fi
+            sleep 2
+          done
+          docker logs funds-rustfs
+          exit 1
       - run: bun install --frozen-lockfile
       - run: bun run verify:all
       - run: bun run auth:schema

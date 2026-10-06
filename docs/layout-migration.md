@@ -24,3 +24,5 @@ Web 默认资源 base 为 `/`。子路径构建使用 Vite `--base=/desk/`，Rou
 未来使用 `file:` 的 renderer 仍选择 hash history；需要单独按本地资源方式构建和验证 Cookie、Origin、CORS、协议及 Electron 安全边界。当前不把这一分支当作桌面兼容性证明。
 
 `next-themes` 继续用于客户端明暗模式和系统主题监听；没有 Next.js 运行时。布局复用已有 DOM/控件结构；尺寸和缩放改共享令牌，不借统一样式重写交互。认证来源见 [认证迁移](./auth-migration.md)，主题实现见 [自定义主题](./custom-theme-migration.md)。
+
+资金分析的二级案件栏复用原 `KnowledgeBaseSidebar` 的标题、列表、共享按钮和边框结构，增加悬停/焦点展开与固定按钮。固定只在资金模块内生效，偏好按用户 ID 保存；48rem 以下使用浮层，选案或关闭后让出正文。主侧栏仍只有一个资金分析入口，案件管理下拉框已移除。

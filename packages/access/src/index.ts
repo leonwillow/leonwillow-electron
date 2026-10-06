@@ -1,7 +1,7 @@
 /**
  * @file 工作台现有功能和访问规则的共享目录。
  * 创建时间：2026-10-04
- * 修改时间：2026-10-05
+ * 修改时间：2026-10-06
  * 版本作用：首次接入按功能授权；不包含业务实现或服务端依赖。
  * 被调用：服务端 access/admin 模块、Web 导航与路由。
  * 调用：无外部运行时依赖。
@@ -9,6 +9,7 @@
  * 预期结果：新增入口必须明确登记权限，浏览器与后端使用相同标识。
  */
 const definitions = {
+	funds: { name: "资金调查", enabled: true },
 	inbox: { name: "收件箱", enabled: true },
 	tickets: { name: "工单", enabled: true },
 	contacts: { name: "联系人", enabled: true },
@@ -68,6 +69,7 @@ export function routeRequirement(path: string): AccessRequirement | null {
 	)
 		return "session";
 	if (adminPaths.has(pathname)) return "admin";
+	if (pathname === "/funds/cases") return "funds";
 	if (pathname === "/knowledge-base/collections") return "knowledge-base";
 	return modules.find((module) => module.path === pathname)?.id ?? null;
 }

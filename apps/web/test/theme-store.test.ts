@@ -1,7 +1,7 @@
 /**
  * @file 主题 Store 的持久化与窗口同步回归测试。
  * 创建时间：2026-10-04
- * 修改时间：2026-10-04
+ * 修改时间：2026-10-06
  * 版本作用：验证 Zustand 迁移后的行为，不进入产品构建。
  * 被调用：Bun 测试命令、test:ui。
  * 调用：bun:test、configs/theme-settings、configs/theme-variables、lib/theme-settings、stores/theme-store、types/theme。
@@ -144,7 +144,8 @@ test("保存后清除预览，切换自定义主题采用字体圆角并保留�
 	});
 	deleteTheme("custom:test");
 	expect(readThemePreferences().settings.themePreset).toBe("default");
-	expect(readThemePreferences().customThemes).toEqual([]);
+	expect(readThemePreferences().customThemes).toHaveLength(1);
+	expect(readThemePreferences().customThemes[0]?.deletedAt).toBeString();
 });
 
 test("存储失败时保存和删除都保留原偏好及草稿，普通设置仍可生效", () => {

@@ -1,7 +1,7 @@
 /**
  * @file 前端入口与路由权限策略的安全回归测试。
  * 创建时间：2026-10-04
- * 修改时间：2026-10-04
+ * 修改时间：2026-10-06
  * 版本作用：覆盖无授权、路径绕过和管理中心与个人设置隔离。
  * 被调用：bun run test:ui。
  * 调用：bun:test、共享权限目录、导航与搜索目录。
@@ -29,6 +29,19 @@ test("所有现有导航与搜索目标都显式登记访问规则", () => {
 		...searchData.flatMap((group) => group.data.map((item) => item.href)),
 	])
 		expect(routeRequirement(path)).not.toBeNull();
+});
+
+test("案件管理和资金分析共享资金调查授权，未授权与相似子路径仍拒绝", () => {
+	const allowed = { role: "user" as const, moduleIds: ["funds"] };
+	const denied = { role: "user" as const, moduleIds: ["inbox"] };
+	for (const path of ["/funds", "/funds/cases", "/funds/cases/"]) {
+		expect(canAccessPath(allowed, path)).toBe(true);
+		expect(canAccessPath(denied, path)).toBe(false);
+	}
+	for (const path of ["/funds/cases-extra", "/funds/cases/unknown"]) {
+		expect(canAccessPath(allowed, path)).toBe(false);
+		expect(canAccessPath({ role: "admin", moduleIds: [] }, path)).toBe(false);
+	}
 });
 
 test("未授权人员只能访问个人设置与权限说明，不会默认进入收件箱", () => {

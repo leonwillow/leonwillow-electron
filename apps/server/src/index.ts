@@ -1,7 +1,7 @@
 /**
  * @file Bun 服务进程的启动入口。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-05
+ * 修改时间：2026-10-06
  * 版本作用：Bun 服务进程的唯一启动入口。
  * 被调用：server 的 dev/start 命令。
  * 调用：Varlock、auth/db 工厂、app、env、lifecycle、server-resources、auth/client-ip。
@@ -15,10 +15,18 @@ import { createApp } from "./app";
 import { ENV } from "./env";
 import { createShutdown } from "./lifecycle";
 import { parseTrustedProxyIps } from "./modules/auth/client-ip";
+import { createFundsFileStore } from "./modules/funds/file-store";
+import { createFundsGraph } from "./modules/funds/graph";
 import { initializeServerResources } from "./server-resources";
 
 const trustedProxyIps = parseTrustedProxyIps(ENV.TRUSTED_PROXY_IPS);
 const { db, pool } = createDatabase(ENV.DATABASE_URL);
+const fundsFiles = createFundsFileStore(ENV);
+const fundsGraph = createFundsGraph(
+	ENV.NEO4J_URI,
+	ENV.NEO4J_USER,
+	ENV.NEO4J_PASSWORD,
+);
 const origins = ENV.CORS_ORIGIN.split(",").map((origin) => origin.trim());
 let releaseResources: (() => void) | undefined;
 try {
@@ -29,10 +37,12 @@ try {
 		trustedOrigins: origins,
 	});
 	releaseResources = initializeServerResources({
+		fundsFiles,
 		auth,
 		db,
 		origins,
 		trustedProxyIps,
+		fundsGraph,
 	});
 	const app = createApp().listen({
 		port: ENV.PORT,
@@ -42,9 +52,10 @@ try {
 	if (!server) throw new Error("API 未建立监听。");
 	const shutdown = createShutdown({
 		stop: (force) => server.stop(force),
-		close: () => {
+		close: async () => {
 			releaseResources?.();
-			return pool.end();
+			fundsFiles.close();
+			await Promise.all([pool.end(), fundsGraph.close()]);
 		},
 	});
 	const onSignal = () => {
@@ -61,6 +72,7 @@ try {
 	console.info("API 已启动，端口：", server.port);
 } catch (error) {
 	releaseResources?.();
-	await pool.end();
+	fundsFiles.close();
+	await Promise.all([pool.end(), fundsGraph.close()]);
 	throw error;
 }

@@ -1,7 +1,7 @@
 /**
  * @file 独立于启动流程的 HTTP 应用工厂。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-05
+ * 修改时间：2026-10-06
  * 版本作用：Web 与未来桌面客户端共用的 HTTP 契约入口。
  * 被调用：apps/server/test/auth.test.ts、apps/server/test/health.test.ts、apps/server/src/index.ts。
  * 调用：@elysiajs/cors、elysia、业务模块实例、共用来源校验。
@@ -13,6 +13,7 @@ import { Elysia } from "elysia";
 import { accessModule } from "./modules/access";
 import { adminModule } from "./modules/admin";
 import { authModule } from "./modules/auth";
+import { fundsModule } from "./modules/funds";
 import { isTrustedOrigin } from "./server-resources";
 
 /**
@@ -35,6 +36,7 @@ export const createApp = () =>
 		)
 		.use(authModule)
 		.use(accessModule)
-		.use(adminModule);
+		.use(adminModule)
+		.use(fundsModule);
 
 export type App = ReturnType<typeof createApp>;

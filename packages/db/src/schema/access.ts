@@ -1,7 +1,7 @@
 /**
  * @file 人员功能授权与管理员操作记录。
  * 创建时间：2026-10-04
- * 修改时间：2026-10-04
+ * 修改时间：2026-10-06
  * 版本作用：工作台权限基础表，与自动生成的认证表分开维护。
  * 被调用：schema 出口、数据库迁移、服务端 access/admin。
  * 调用：Drizzle、认证 user 表。
@@ -25,6 +25,7 @@ export const userModuleAccess = pgTable(
 			.notNull()
 			.references(() => user.id, { onDelete: "cascade" }),
 		moduleId: text("module_id").notNull(),
+		deletedAt: timestamp("deleted_at"),
 		createdAt: timestamp("created_at").defaultNow().notNull(),
 	},
 	(table) => [primaryKey({ columns: [table.userId, table.moduleId] })],

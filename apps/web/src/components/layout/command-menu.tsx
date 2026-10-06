@@ -1,7 +1,7 @@
 /**
  * @file 页面搜索和快捷导航面板。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-10-06
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/layout/app-sidebar.tsx。
  * 调用：ui 基础组件/样式、@tanstack/react-router、lucide-react、react、assets/data/search。
@@ -21,7 +21,7 @@ import {
 	CommandList,
 	CommandSeparator,
 } from "@leonwillow-electron/ui/components/command";
-import { getRouteApi, useNavigate } from "@tanstack/react-router";
+import { getRouteApi, useNavigate, useSearch } from "@tanstack/react-router";
 import { SearchIcon } from "lucide-react";
 import { Fragment, useCallback, useEffect, useState } from "react";
 
@@ -41,6 +41,7 @@ const CommandMenu = () => {
 	const [search, setSearch] = useState("");
 
 	const navigate = useNavigate();
+	const { caseId } = useSearch({ strict: false });
 
 	const runCommand = useCallback((command: () => unknown) => {
 		setOpen(false);
@@ -126,7 +127,16 @@ const CommandMenu = () => {
 												value={item.name}
 												keywords={item.tags}
 												onSelect={() =>
-													runCommand(() => navigate({ to: item.href }))
+													runCommand(() =>
+														navigate({
+															to: item.href,
+															search:
+																item.href === "/funds" ||
+																item.href === "/funds/cases"
+																	? { caseId }
+																	: undefined,
+														}),
+													)
 												}
 											>
 												<item.icon />
@@ -146,7 +156,16 @@ const CommandMenu = () => {
 										<CommandItem
 											key={item.href}
 											onSelect={() =>
-												runCommand(() => navigate({ to: item.href }))
+												runCommand(() =>
+													navigate({
+														to: item.href,
+														search:
+															item.href === "/funds" ||
+															item.href === "/funds/cases"
+																? { caseId }
+																: undefined,
+													}),
+												)
 											}
 										>
 											<item.icon />

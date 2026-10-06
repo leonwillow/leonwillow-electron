@@ -1,6 +1,6 @@
 # 排版、控件与缩放规范
 
-维护日期：2026-10-04。以下尺寸约定沿用原迁移实现；持久化由 `stores/theme-store.ts` 负责，DOM 和窗口同步由 `components/layout/theme-effects.tsx` 连接。
+维护日期：2026-10-06。以下尺寸约定沿用原迁移实现；持久化由 `stores/theme-store.ts` 负责，DOM 和窗口同步由 `components/layout/theme-effects.tsx` 连接。
 
 原模板迁移时，原 `ThemeCustomizer` 中 Select 用 `h-8`，单选格用 `py-2` 加子文字 `text-sm leading-none` 撑高；它们的字号分别是 `text-xs` 和 `text-sm`。原全局缩放只改 `--text-sm/base/lg` 和 `--spacing`，遗漏小字、其他字号与临时 rem 字号，导致上下控件尺寸变化不一致。
 
@@ -48,6 +48,12 @@
 </RadioGroup>
 ```
 
+## 工作区顶栏
+
+`globals.css` 中的 `--spacing-workspace-header: 3.5rem` 统一主图标栏顶部、案件菜单顶部和资金页头；三处使用 `h-workspace-header` 与 `shrink-0`，使高度及底部分隔线随根 rem 一起对齐。`packages/ui/src/lib/utils.ts` 已将 `workspace-header` 注册到 `tailwind-merge` 的 spacing 配置，避免共享高度与其他尺寸类合并时产生歧义。
+
+案件菜单标题与资金模块标题沿用 `text-base` 并垂直居中，菜单顶部操作使用共享按钮 `size="icon"`。资金页头的模块名与案件名以箭头分层，长名截断并保留完整名称提示；窄窗口标题区改为两行但不增加顶栏高度。内部导航保持单行且不压缩，管理页统计仍可换行。此约定只统一当前三处工作区顶栏，不要求其他页面重写组件结构；实测记录见[资金界面 v7](./funds-ui.md#v7-顶栏对齐验证)。
+
 ## 持久化和检查
 
 序列化对象增加 `version: 2`，业务 Settings 类型保持原字段。启动、storage 事件和 BroadcastChannel 共用编解码；旧版 `lg` 解码为 `xl`，保留其他有效偏好；新版本 `lg` 可正常保存、刷新及跨窗口同步，不会重复迁移。
@@ -59,3 +65,5 @@
 `bun run test:ui` 覆盖规则拒绝/允许的代码、实际按钮颜色与控件尺寸合并、旧设置迁移、四档编解码和损坏数据回退。浏览器验证五行控件在每档高度/字号完全一致，并检查其余文字、键盘、刷新、小窗口以及主题切换。
 
 依据 [Tailwind 字号令牌](https://tailwindcss.com/docs/font-size)、[主题变量](https://tailwindcss.com/docs/theme) 和 [Base UI Radio Group](https://base-ui.com/react/components/radio-group) 的公开接口实施。
+
+2026-10-06：共享样式新增 `success`、`warning` 明暗语义色；Button 对应变体用于置顶/恢复和归档图标。页面不硬编码绿、黄色值，图标提供共享 Tooltip。案件行使用 `:hover` / `:focus-visible` 区分鼠标悬停与键盘操作，普通点击焦点不令操作常显。
