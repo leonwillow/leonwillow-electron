@@ -1,16 +1,25 @@
 /**
  * @file G6 内置 Toolbar 与分析操作的 DOM 适配。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-06
+ * 修改时间：2026-10-07
  * 版本作用：原生工具栏统一承载加载状态、可编辑缩放和共享提示的锚点。
- * 被调用：GraphCanvas；调用：G6 Toolbar、zoomTo、aftertransform。
- * 预期结果：四组工具清晰分区，滚轮、输入、按钮及历史恢复的缩放读数一致。
+ * 被调用：GraphCanvas；调用：G6 Toolbar、zoomTo、aftertransform、停靠控制器。
+ * 预期结果：各组工具清晰分区，停靠和折叠不改变滚轮、输入及历史的缩放读数。
  */
 import type { Graph, Toolbar } from "@antv/g6";
+import type { ToolbarLayout } from "@/lib/funds-toolbar-layout";
+import {
+	attachToolbarDock,
+	type ToolbarDock,
+	type ToolbarDockState,
+} from "./graph-toolbar-dock";
+import { createGraphZoomField } from "./graph-zoom-field";
 
 export type GraphToolbarHint = { anchor: HTMLElement; text: string };
 export type GraphToolbarController = {
 	setStatus: (status: "loading" | "ready" | "error") => void;
+	dock: ToolbarDock;
+	hint: { enter: () => void; leave: () => void; close: () => void };
 	destroy: () => void;
 };
 
@@ -19,7 +28,10 @@ export async function attachGraphToolbar(
 	graph: Graph,
 	host: HTMLElement,
 	slot: HTMLElement,
+	toggleSlot: HTMLElement,
+	layout: ToolbarLayout,
 	hints: { id: string; onChange: (hint: GraphToolbarHint | null) => void },
+	onDockStateChange: (state: ToolbarDockState) => void,
 ): Promise<GraphToolbarController | undefined> {
 	const plugin = graph.getPluginInstance<Toolbar>("funds-toolbar");
 	await plugin.update({});
@@ -36,13 +48,8 @@ export async function attachGraphToolbar(
 		item.setAttribute("aria-label", item.title);
 		item.removeAttribute("title");
 	}
-	const input = document.createElement("input");
-	input.className = "funds-graph-zoom";
-	input.type = "text";
-	input.inputMode = "decimal";
-	input.autocomplete = "off";
-	input.spellcheck = false;
-	input.setAttribute("aria-label", "缩放比例（百分比）");
+	const zoomField = createGraphZoomField();
+	const { input } = zoomField;
 	labels.set(input, "输入缩放百分比，回车应用，Esc 取消");
 	const zoomGroup = document.createElement("div");
 	zoomGroup.className = "funds-graph-zoom-group";
@@ -56,27 +63,44 @@ export async function attachGraphToolbar(
 	separator.setAttribute("aria-hidden", "true");
 	bar.insertBefore(separator, plus);
 	bar.insertBefore(zoomGroup, plus);
-	zoomGroup.append(plus, input, minus);
+	zoomGroup.append(plus, zoomField.element, minus);
 	slot.className = "funds-graph-toolbar-extension";
 	bar.appendChild(slot);
 	let status: "loading" | "ready" | "error" = "loading";
 	let dirty = false;
 	let destroyed = false;
 	let activeHint: HTMLElement | null = null;
+	let hintTimer: ReturnType<typeof setTimeout> | undefined;
 	const events = new AbortController();
 	const options = { signal: events.signal };
 	const hideHint = () => {
+		clearTimeout(hintTimer);
 		activeHint?.removeAttribute("aria-describedby");
 		activeHint = null;
 		hints.onChange(null);
+	};
+	// 原生 G6 项没有 React Trigger；跨越按钮与气泡间隙时保留一次短暂关闭宽限。
+	const leaveHint = () => {
+		clearTimeout(hintTimer);
+		hintTimer = setTimeout(() => {
+			// 原生 leave 与 Portal 的 React enter 顺序可能相反，以实际命中结果为准。
+			if (
+				activeHint?.matches(":hover") ||
+				document.getElementById(hints.id)?.matches(":hover")
+			)
+				return;
+			hideHint();
+		}, 180);
 	};
 	const showHint = (anchor: HTMLElement, text = labels.get(anchor) ?? "") => {
 		if (
 			destroyed ||
 			status !== "ready" ||
+			bar.dataset.moving === "true" ||
 			anchor.getAttribute("aria-disabled") === "true"
 		)
 			return;
+		clearTimeout(hintTimer);
 		activeHint?.removeAttribute("aria-describedby");
 		activeHint = anchor;
 		anchor.setAttribute("aria-describedby", hints.id);
@@ -95,6 +119,8 @@ export async function attachGraphToolbar(
 				: status === "loading"
 					? "加载中"
 					: "失败";
+		zoomField.sync();
+		labels.set(input, `${input.value} · 输入缩放百分比，回车应用，Esc 取消`);
 		input.setAttribute(
 			"aria-label",
 			ready ? "缩放比例（百分比）" : "图谱加载状态",
@@ -151,7 +177,7 @@ export async function attachGraphToolbar(
 	};
 	for (const element of labels.keys()) {
 		element.addEventListener("pointerenter", () => showHint(element), options);
-		element.addEventListener("pointerleave", hideHint, options);
+		element.addEventListener("pointerleave", leaveHint, options);
 		element.addEventListener("focus", () => showHint(element), options);
 		element.addEventListener("blur", hideHint, options);
 		element.addEventListener("click", hideHint, options);
@@ -205,22 +231,39 @@ export async function attachGraphToolbar(
 		},
 		options,
 	);
+	const dock = attachToolbarDock(
+		bar,
+		host,
+		toggleSlot,
+		layout,
+		hideHint,
+		onDockStateChange,
+	);
 	graph.on("aftertransform", update);
 	update();
 	// 插件初始隐藏，组装完整且禁用后才一次显示。
 	bar.style.visibility = "visible";
 	return {
+		dock,
+		hint: {
+			enter: () => clearTimeout(hintTimer),
+			leave: leaveHint,
+			close: hideHint,
+		},
 		setStatus(next) {
 			status = next;
+			dock.setReady(next === "ready");
 			if (next !== "ready") hideHint();
 			update();
 		},
 		destroy() {
 			destroyed = true;
 			events.abort();
+			zoomField.destroy();
+			dock.destroy();
 			hideHint();
 			graph.off("aftertransform", update);
-			if (slot.parentElement === bar) slot.remove();
+			slot.remove();
 		},
 	};
 }

@@ -1,7 +1,7 @@
 /**
  * @file 四种资金视图的笔数、金额、方向与追溯守恒测试。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-06
+ * 修改时间：2026-10-07
  * 被调用：Bun；调用：实际纯视图投影函数。
  * 预期结果：合并只改变展示粒度，不丢失回向、内部划转或超安全整数金额。
  */
@@ -31,6 +31,7 @@ import {
 	summarizeNode,
 	validNodeMark,
 } from "../src/lib/funds-graph-presentation";
+import { createGraphPreviewIndex } from "../src/lib/funds-graph-preview";
 import {
 	createViewHistory,
 	moveView,
@@ -91,6 +92,56 @@ const data = {
 		edge("5", "赵佳", "对手", "a1", "b", "7", "USD"),
 	],
 };
+
+test("悬停索引在四种视图中守恒，缓存节点摘要并正确区分节点与边 ID", () => {
+	for (const nodeMode of ["account", "subject"] as const) {
+		const raw = projectAccounts(data, nodeMode);
+		for (const edgeMode of ["transaction", "flow"] as const) {
+			const graph = aggregateAnalysis(raw, edgeMode);
+			const index = createGraphPreviewIndex(graph);
+			for (const node of graph.nodes) {
+				const target = { kind: "node" as const, id: node.id };
+				const preview = index.get(target);
+				expect(preview?.kind).toBe("node");
+				if (preview?.kind === "node")
+					expect(preview.summary).toEqual(summarizeNode(raw, node.id));
+				expect(index.get(target)).toBe(preview);
+			}
+			const first = graph.edges[0];
+			if (!first) throw new Error("测试交易缺失");
+			const preview = index.get({ kind: "edge", id: first.id });
+			expect(preview?.kind).toBe("edge");
+			if (preview?.kind === "edge") {
+				expect(preview.edge).toBe(first);
+				expect(preview.from?.id).toBe(first.from);
+				expect(preview.to?.id).toBe(first.to);
+			}
+			expect(index.get({ kind: "node", id: "不存在" })).toBeNull();
+		}
+	}
+});
+
+test("悬停统计使用当前视图范围，汇总包含末次时间与原笔数，换图不复用缓存", () => {
+	const [first, second] = data.edges;
+	if (!first || !second) throw new Error("测试交易缺失");
+	const later = { ...second, timestamp: "2023-06-01T15:00:00+08:00" };
+	const current = { nodes: data.nodes, edges: [first, later] };
+	const graph = aggregateAnalysis(current, "flow");
+	const index = createGraphPreviewIndex(graph);
+	const preview = index.get({ kind: "node", id: "赵佳" });
+	if (preview?.kind !== "node") throw new Error("节点摘要缺失");
+	expect(preview.summary.count).toBe(2);
+	expect(preview.summary.last).toBe(later.timestamp);
+	expect(preview.summary.currencies[0]?.outgoing).toBe(9007199254741094n);
+	const empty = createGraphPreviewIndex({ nodes: data.nodes, edges: [] }).get({
+		kind: "node",
+		id: "赵佳",
+	});
+	if (empty?.kind !== "node") throw new Error("孤立节点摘要缺失");
+	expect(empty.summary.count).toBe(0);
+	expect(empty.summary.currencies).toEqual([]);
+	expect(index.get({ kind: "edge", id: "赵佳" })).toBeNull();
+});
 
 test("四种模式所有交易恰好出现一次，金额不受合并影响", () => {
 	for (const nodeMode of ["account", "subject"] as const)

@@ -1,7 +1,7 @@
 /**
  * @file 银行 Excel/CSV 原文读取与字段规范化。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-06
+ * 修改时间：2026-10-07
  * 版本作用：按表头识别混合文件，拒绝无把握的数据转换。
  * 被调用：导入服务、离线整案导入和解析测试；调用：SheetJS。
  * 功能：识别编码、修复错误表范围、保留原始单元格和问题行。
@@ -29,7 +29,7 @@ const aliases = {
 	otherAccount: ["对方账号", "交易对方账号", "对手账号"],
 	otherCard: ["交易对方卡号"],
 	otherName: ["对方户名", "交易对方名称", "对手户名"],
-	direction: ["借贷方向", "借贷标志", "收付标志"],
+	direction: ["出入方向"],
 	amount: ["交易金额", "发生额", "金额"],
 	balance: ["账户余额", "交易余额", "余额"],
 	date: ["交易日期", "记账日期"],
@@ -194,11 +194,13 @@ export function parseStatement(name: string, bytes: Uint8Array): ParsedSource {
 			headers.includes("交易时间") &&
 			!headers.some((header) => aliases.date.includes(header as "交易日期")) &&
 			!headers.some((header) => aliases.currency.includes(header as "币种"));
-		const isTransaction =
-			headers.some((header) => aliases.amount.includes(header as "交易金额")) &&
-			headers.some((header) =>
-				aliases.direction.includes(header as "借贷方向"),
-			);
+		// 缺少方向列的流水仍须校验，不能误归为开户资料后跳过。
+		const isTransaction = headers.some((header) =>
+			aliases.amount.includes(header as "交易金额"),
+		);
+		const directionColumns = headers.filter((header) =>
+			aliases.direction.includes(header as "出入方向"),
+		).length;
 		for (let r = headerIndex + 1; r < rows.length; r++) {
 			const cells = rows[r] ?? [];
 			if (!cells.some((value) => clean(value))) continue;
@@ -233,6 +235,12 @@ export function parseStatement(name: string, bytes: Uint8Array): ParsedSource {
 				continue;
 			}
 			try {
+				if (directionColumns !== 1)
+					throw new Error(
+						directionColumns === 0
+							? "缺少出入方向列，请使用新模板填写出或入；原始银行文件请使用 AI 标准化"
+							: "出入方向列重复，无法确定本方资金方向",
+					);
 				const amountMinor = moneyMinor(get(row, "amount"));
 				if (!amountMinor || amountMinor === "0")
 					throw new Error("金额缺失、为零或不是可确认的非负两位小数");
@@ -254,14 +262,16 @@ export function parseStatement(name: string, bytes: Uint8Array): ParsedSource {
 					get(row, "otherAccount") || get(row, "otherCard"),
 				);
 				const directionValue = get(row, "direction");
-				const direction = ["借", "出", "支出", "付", "D"].includes(
-					directionValue,
-				)
-					? "out"
-					: ["贷", "进", "收入", "收", "C"].includes(directionValue)
-						? "in"
-						: null;
-				if (!direction) throw new Error(`无法识别借贷方向：${directionValue}`);
+				const direction =
+					directionValue === "出"
+						? "out"
+						: directionValue === "入"
+							? "in"
+							: null;
+				if (!direction)
+					throw new Error(
+						`出入方向只允许“出”或“入”，当前值：${directionValue || "空"}`,
+					);
 				const timestamp = bankTimestamp(get(row, "date"), get(row, "time"));
 				if (!timestamp)
 					throw new Error("交易日期或时间缺失/无效，需核对完整时间");

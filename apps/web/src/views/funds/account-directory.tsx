@@ -4,7 +4,7 @@
  * 修改时间：2026-10-07
  * 版本作用：完整目录可浏览，DOM 只保留可见条目与键盘焦点条目。
  * 被调用：AnalysisPanel；调用：TanStack Virtual、AccountDirectoryRow、目录筛选。
- * 功能：宽屏固定目录、列表独立滚动；动态测量行高，键盘翻阅全部账户。
+ * 功能：宽屏以共享菜单宽度固定目录和分隔线；列表独立滚动，键盘翻阅全部账户。
  * 预期结果：不截断账户，不改变图谱分析范围，悬停和筛选不追加网络请求。
  */
 import {
@@ -96,7 +96,7 @@ function DirectoryList({
 		<>
 			<div
 				ref={scroll}
-				className="max-h-64 min-h-0 overflow-auto overscroll-contain rounded-lg border xl:max-h-[42rem]"
+				className="max-h-64 min-h-0 overflow-auto overscroll-contain rounded-lg border xl:max-h-none xl:flex-1"
 				style={{ height: virtualizer.getTotalSize() }}
 				data-slot="account-directory-scroll"
 				onScroll={dismissPreview}
@@ -253,9 +253,9 @@ export default function AccountDirectory({
 		entries.map((item) => item.id),
 	]);
 	return (
-		// 2.25rem = 正文顶部 pt-3 + 底部 pb-6；列表收缩，搜索和计数保留可见。
+		// 菜单贴齐页头和工作区边界；内边距负责留白，只有列表参与收缩和滚动。
 		<aside
-			className="flex min-w-0 flex-col gap-3 self-start xl:sticky xl:top-3 xl:max-h-[calc(100dvh-var(--spacing-workspace-header)-2.25rem)]"
+			className="flex min-h-0 min-w-0 flex-col gap-3 self-start border-b bg-sidebar p-3 xl:sticky xl:top-0 xl:h-[calc(100dvh-var(--spacing-workspace-header))] xl:border-r xl:border-b-0"
 			aria-label="案件账户"
 		>
 			<div className="flex shrink-0 items-center gap-2">

@@ -7,6 +7,7 @@
  * 功能：图表联动、分页、账户搜索、日期筛选、多笔交易起点和证据查看。
  * 预期结果：图与明细覆盖同一完整事实范围，仅见对手照常显示，路径只作为待研判关联。
  */
+
 import { Badge } from "@leonwillow-electron/ui/components/badge";
 import { Button } from "@leonwillow-electron/ui/components/button";
 import { Checkbox } from "@leonwillow-electron/ui/components/checkbox";
@@ -24,6 +25,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@leonwillow-electron/ui/components/table";
+import { TooltipText } from "@leonwillow-electron/ui/components/tooltip";
 import { getRouteApi } from "@tanstack/react-router";
 import { ArrowRightIcon } from "lucide-react";
 import {
@@ -63,15 +65,17 @@ import {
 	nodePresentationKey,
 } from "@/lib/funds-graph-presentation";
 import AccountDirectory from "./account-directory";
-import EvidenceDialog, { type EvidenceTarget } from "./evidence-dialog";
 import FlowTable from "./flow-table";
 import GraphCanvas from "./graph-canvas";
+import GraphInspector, {
+	type InspectorSelection,
+	type InspectorTarget,
+} from "./graph-inspector";
 import GraphToolbar, {
 	emptyRelationFilter,
 	type RelationFilter,
 } from "./graph-toolbar";
 import NodeActionMenu, { type NodeMenuTarget } from "./node-action-menu";
-import NodeInspector from "./node-inspector";
 import { useFundsResource } from "./use-funds-resource";
 import { useGraphHistory } from "./use-graph-history";
 import { useGraphPresentation } from "./use-graph-presentation";
@@ -94,10 +98,7 @@ type AnalysisView = RelationFilter & {
 export default function AnalysisPanel({ caseId }: { caseId: string }) {
 	const { user } = getRouteApi("/_workspace").useRouteContext();
 	const presentation = useGraphPresentation(user.id, caseId);
-	const [inspector, setInspector] = useState<{
-		id: string;
-		tab: "details" | "mark";
-	} | null>(null);
+	const [inspector, setInspector] = useState<InspectorTarget | null>(null);
 	const [nodeMenu, setNodeMenu] = useState<NodeMenuTarget | null>(null);
 	const history = useGraphHistory<AnalysisView>({
 		...emptyRelationFilter,
@@ -135,7 +136,6 @@ export default function AnalysisPanel({ caseId }: { caseId: string }) {
 	const [flowId, setFlowId] = useState("");
 	const [offset, setOffset] = useState(0);
 	const [depth, setDepth] = useState(2);
-	const [evidence, setEvidence] = useState<EvidenceTarget | null>(null);
 	const [selected, setSelected] = useState<FundsTransaction[]>([]);
 	const [tracing, setTracing] = useState(false);
 	const [traceError, setTraceError] = useState("");
@@ -174,10 +174,25 @@ export default function AnalysisPanel({ caseId }: { caseId: string }) {
 		() => aggregateAnalysis(source, edgeMode),
 		[source, edgeMode],
 	);
+	// 筛选只依赖“是否标记”；颜色、大小和隐藏样式变化不应创建新图并重置镜头。
+	const markedIds = JSON.stringify(
+		view.nodes.mark === "all"
+			? []
+			: full.nodes
+					.filter((node) => appearances[node.id]?.marked)
+					.map((node) => node.id),
+	);
+	const filterMarks = useMemo<Record<string, { marked: boolean }>>(
+		() =>
+			Object.fromEntries(
+				(JSON.parse(markedIds) as string[]).map((id) => [id, { marked: true }]),
+			),
+		[markedIds],
+	);
 	const graph = useMemo(
 		() =>
-			filterGraph(aggregated, view.nodes, view.edges, edgeMode, appearances),
-		[aggregated, view.nodes, view.edges, edgeMode, appearances],
+			filterGraph(aggregated, view.nodes, view.edges, edgeMode, filterMarks),
+		[aggregated, view.nodes, view.edges, edgeMode, filterMarks],
 	);
 	const raw = useMemo(() => {
 		const ids = new Set(graph.edges.flatMap((e) => e.transactionIds));
@@ -248,7 +263,11 @@ export default function AnalysisPanel({ caseId }: { caseId: string }) {
 	};
 	const inspectNode = (id: string, tab: "details" | "mark" = "details") => {
 		setNodeMenu(null);
-		setInspector({ id, tab });
+		setInspector({ kind: "node", id, tab });
+	};
+	const inspectEdge = (id: string) => {
+		setNodeMenu(null);
+		setInspector({ kind: "edge", id });
 	};
 	const hideNode = (id: string) => {
 		const key = nodePresentationKey(nodeMode, id);
@@ -271,7 +290,29 @@ export default function AnalysisPanel({ caseId }: { caseId: string }) {
 			mark,
 			updatedAt: Date.now(),
 		});
-	const inspectedNode = inspector ? lookup.get(inspector.id) : undefined;
+	const inspected: InspectorSelection | null = useMemo(() => {
+		if (!inspector) return null;
+		if (inspector.kind === "node") {
+			const node = full.nodes.find((item) => item.id === inspector.id);
+			return node ? { kind: "node", node, tab: inspector.tab } : null;
+		}
+		const edge = graph.edges.find((item) => item.id === inspector.id);
+		if (edge) return { kind: "edge", edge };
+		// 汇总内的原交易未作为画布边绘制，仍可在同一详情侧栏核对。
+		const transaction = full.edges.find((item) => item.id === inspector.id);
+		return transaction
+			? {
+					kind: "edge",
+					edge: {
+						...transaction,
+						transactionIds: [transaction.id],
+						count: 1,
+						lastTimestamp: transaction.timestamp,
+						aggregated: false,
+					},
+				}
+			: null;
+	}, [inspector, full, graph.edges]);
 	const currentAccount = full.nodes.find((item) => item.id === account);
 	const trace = async (seeds: FundsTransaction[]) => {
 		if ((!account && !seeds.length) || tracing) return;
@@ -317,7 +358,7 @@ export default function AnalysisPanel({ caseId }: { caseId: string }) {
 		}
 	};
 	return (
-		<div className="grid min-w-0 gap-5 xl:grid-cols-[16rem_minmax(0,1fr)]">
+		<div className="grid min-h-full min-w-0 xl:grid-cols-[var(--spacing-workspace-menu)_minmax(0,1fr)]">
 			<AccountDirectory
 				full={full}
 				mode={nodeMode}
@@ -328,58 +369,96 @@ export default function AnalysisPanel({ caseId }: { caseId: string }) {
 				onDrill={chooseAccount}
 				onMenu={setNodeMenu}
 			/>
-			<div className="min-w-0 space-y-4">
-				<div className="flex flex-wrap items-start justify-between gap-3">
-					<div>
-						<h2 className="font-medium text-sm">
-							{account ? accountName(currentAccount) : "整案资金关系"}
-						</h2>
-						<p className="mt-1 break-all text-muted-foreground text-xs">
-							{account
-								? nodeMode === "subject"
+			<div className="min-w-0 space-y-4 px-4 pt-3 pb-4 sm:px-6 sm:pb-6">
+				<div className="-mx-1 -mt-1 overflow-x-auto overscroll-x-contain p-1">
+					<fieldset
+						className="flex w-max min-w-full items-center gap-6"
+						aria-label="图谱分析操作"
+					>
+						<AnalysisMode
+							label="节点"
+							value={nodeMode}
+							options={[
+								["account", "按账户"],
+								["subject", "合并主体"],
+							]}
+							onChange={(value) => {
+								navigate({
+									nodeMode: value as NodeMode,
+									account: "",
+									counterparty: "",
+									traced: null,
+								});
+							}}
+						/>
+						<AnalysisMode
+							label="连线"
+							value={edgeMode}
+							options={[
+								["transaction", "逐笔交易"],
+								["flow", "汇总流向"],
+							]}
+							onChange={(value) => {
+								navigate({ edgeMode: value as EdgeMode });
+							}}
+						/>
+						<div className="flex shrink-0 items-center gap-2 whitespace-nowrap">
+							<Label htmlFor="trace-depth">追踪层数</Label>
+							<Input
+								id="trace-depth"
+								className="w-16"
+								type="number"
+								min={1}
+								max={4}
+								value={depth}
+								onChange={(event) =>
+									setDepth(
+										Math.max(1, Math.min(4, Number(event.target.value) || 1)),
+									)
+								}
+							/>
+							<Button
+								variant="outline"
+								disabled={!account || tracing}
+								onClick={() => void trace([])}
+							>
+								从此{nodeMode === "subject" ? "主体" : "账户"}向下追踪
+								<ArrowRightIcon />
+							</Button>
+							<Button
+								disabled={!selected.length || tracing}
+								onClick={() => void trace(selected)}
+							>
+								{tracing ? "正在追踪…" : `追踪所选 ${selected.length} 笔`}
+							</Button>
+							{traced && (
+								<Button
+									variant="ghost"
+									onClick={() => navigate({ traced: null })}
+								>
+									返回关系图
+								</Button>
+							)}
+						</div>
+					</fieldset>
+				</div>
+				{account && (
+					<div className="flex flex-wrap items-start justify-between gap-3">
+						<div>
+							<h2 className="font-medium text-sm">
+								{accountName(currentAccount)}
+							</h2>
+							<p className="mt-1 break-all text-muted-foreground text-xs">
+								{nodeMode === "subject"
 									? `${currentAccount?.accountNumbers.length ?? 0} 个账户 · ${currentAccount?.basis ?? ""}`
-									: currentAccount?.number
-								: "展示本案全部已导入交易，包含尚未取得本方流水的对手。"}
-						</p>
-					</div>
-					{account && (
+									: currentAccount?.number}
+							</p>
+						</div>
 						<Badge variant="outline">
 							{currentAccount?.hasStatement ? "已有本方流水" : "对方流水待补充"}
 						</Badge>
-					)}
-				</div>
-				<fieldset
-					className="flex flex-wrap items-center gap-x-6 gap-y-3"
-					aria-label="分析方式"
-				>
-					<AnalysisMode
-						label="节点"
-						value={nodeMode}
-						options={[
-							["account", "按账户"],
-							["subject", "合并主体"],
-						]}
-						onChange={(value) => {
-							navigate({
-								nodeMode: value as NodeMode,
-								account: "",
-								counterparty: "",
-								traced: null,
-							});
-						}}
-					/>
-					<AnalysisMode
-						label="连线"
-						value={edgeMode}
-						options={[
-							["transaction", "逐笔交易"],
-							["flow", "汇总流向"],
-						]}
-						onChange={(value) => {
-							navigate({ edgeMode: value as EdgeMode });
-						}}
-					/>
-				</fieldset>
+					</div>
+				)}
 				{nodeMode === "subject" && currentAccount && (
 					<details className="text-xs">
 						<summary className="cursor-pointer text-muted-foreground">
@@ -399,41 +478,6 @@ export default function AnalysisPanel({ caseId }: { caseId: string }) {
 						</ul>
 					</details>
 				)}
-				<div className="flex flex-wrap items-center gap-2">
-					<Label htmlFor="trace-depth">追踪层数</Label>
-					<Input
-						id="trace-depth"
-						className="w-16"
-						type="number"
-						min={1}
-						max={4}
-						value={depth}
-						onChange={(event) =>
-							setDepth(
-								Math.max(1, Math.min(4, Number(event.target.value) || 1)),
-							)
-						}
-					/>
-					<Button
-						variant="outline"
-						disabled={!account || tracing}
-						onClick={() => void trace([])}
-					>
-						从此{nodeMode === "subject" ? "主体" : "账户"}向下追踪
-						<ArrowRightIcon />
-					</Button>
-					<Button
-						disabled={!selected.length || tracing}
-						onClick={() => void trace(selected)}
-					>
-						{tracing ? "正在追踪…" : `追踪所选 ${selected.length} 笔`}
-					</Button>
-					{traced && (
-						<Button variant="ghost" onClick={() => navigate({ traced: null })}>
-							返回关系图
-						</Button>
-					)}
-				</div>
 				<p className="text-muted-foreground text-xs">
 					汇总按方向分别统计，不抵销往返金额。追踪仍按原账户与交易时间连续展开，主体内部划转照常保留。关联路径不等于同一笔钱，每个起点最多展示
 					200 条路径。
@@ -509,6 +553,7 @@ export default function AnalysisPanel({ caseId }: { caseId: string }) {
 				) : (
 					<>
 						<GraphCanvas
+							userId={user.id}
 							viewKey={history.frame.id}
 							ref={history.canvas}
 							initialCanvas={history.frame.canvas}
@@ -549,17 +594,12 @@ export default function AnalysisPanel({ caseId }: { caseId: string }) {
 								/>
 							}
 							data={graph}
+							nodeMode={nodeMode}
 							presentation={appearances}
 							onDetails={inspectNode}
 							onDrill={chooseAccount}
 							onNodeMenu={(id, x, y) => setNodeMenu({ id, x, y })}
-							onTransaction={(id) => {
-								if (edgeMode === "flow") {
-									setFlowId(id);
-									setOffset(0);
-									setSelected([]);
-								} else setEvidence({ transactionId: id });
-							}}
+							onTransaction={inspectEdge}
 						/>
 						<div className="flex flex-wrap justify-between gap-2 text-muted-foreground text-xs">
 							<span>
@@ -675,19 +715,19 @@ export default function AnalysisPanel({ caseId }: { caseId: string }) {
 											</span>
 										</TableCell>
 										<TableCell className="text-xs">
-											<div
-												className="max-w-80 truncate"
-												title={`${accountName(lookup.get(t.from))} ${t.fromAccount} → ${accountName(lookup.get(t.to))} ${t.toAccount}`}
+											<TooltipText
+												content={`${accountName(lookup.get(t.from))} ${t.fromAccount} → ${accountName(lookup.get(t.to))} ${t.toAccount}`}
 											>
-												{accountName(lookup.get(t.from))} →{" "}
-												{accountName(lookup.get(t.to))}
-											</div>
-											<p
-												className="max-w-80 truncate text-muted-foreground"
-												title={t.summary}
-											>
-												{t.summary || "摘要为空"}
-											</p>
+												<div className="max-w-80 truncate">
+													{accountName(lookup.get(t.from))} →{" "}
+													{accountName(lookup.get(t.to))}
+												</div>
+											</TooltipText>
+											<TooltipText content={t.summary}>
+												<p className="max-w-80 truncate text-muted-foreground">
+													{t.summary || "摘要为空"}
+												</p>
+											</TooltipText>
 										</TableCell>
 										<TableCell className="text-right font-medium text-xs tabular-nums">
 											{formatFunds(t.amountMinor, t.currency)}
@@ -703,7 +743,7 @@ export default function AnalysisPanel({ caseId }: { caseId: string }) {
 											<Button
 												size="sm"
 												variant="ghost"
-												onClick={() => setEvidence({ transactionId: t.id })}
+												onClick={() => inspectEdge(t.id)}
 											>
 												核对 {t.evidenceIds.length} 条
 											</Button>
@@ -768,26 +808,26 @@ export default function AnalysisPanel({ caseId }: { caseId: string }) {
 					onReset={() => resetMark(nodeMenu.id)}
 				/>
 			)}
-			{inspector && inspectedNode && (
-				<NodeInspector
-					key={`${nodeMode}:${inspector.id}:${inspector.tab}`}
-					node={inspectedNode}
+			{inspector && inspected && (
+				<GraphInspector
+					selection={inspected}
+					caseId={caseId}
 					mode={nodeMode}
 					full={full}
-					presentation={appearances[inspector.id]}
-					initialTab={inspector.tab}
+					presentation={
+						inspector.kind === "node" ? appearances[inspector.id] : undefined
+					}
 					onClose={() => setInspector(null)}
+					onTabChange={(tab) =>
+						setInspector((current) =>
+							current?.kind === "node" ? { ...current, tab } : current,
+						)
+					}
 					onDrill={() => chooseAccount(inspector.id)}
 					onHide={() => hideNode(inspector.id)}
 					onMark={(mark) => saveMark(inspector.id, mark)}
 					onReset={() => resetMark(inspector.id)}
-				/>
-			)}
-			{evidence && (
-				<EvidenceDialog
-					caseId={caseId}
-					target={evidence}
-					onClose={() => setEvidence(null)}
+					onEdge={inspectEdge}
 				/>
 			)}
 		</div>
@@ -807,7 +847,7 @@ function AnalysisMode({
 	onChange: (value: string) => void;
 }) {
 	return (
-		<div className="flex items-center gap-2">
+		<div className="flex shrink-0 items-center gap-2 whitespace-nowrap">
 			<span className="shrink-0 text-muted-foreground text-xs">{label}</span>
 			<RadioGroup
 				aria-label={label}

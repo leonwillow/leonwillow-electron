@@ -1,7 +1,7 @@
 /**
  * @file 随主题变化的全局通知容器的基础组件。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-10-07
  * 版本作用：共享 UI 基础层，随工作区维护。
  * 被调用：components/layout/root-layout.tsx。
  * 调用：next-themes、sonner。
@@ -24,6 +24,11 @@ const Toaster = ({ ...props }: ToasterProps) => {
 					"--normal-bg": "var(--popover)",
 					"--normal-text": "var(--popover-foreground)",
 					"--normal-border": "var(--border)",
+					"--success-bg":
+						"color-mix(in oklab, var(--success) 10%, var(--popover))",
+					"--success-text": "var(--success)",
+					"--success-border":
+						"color-mix(in oklab, var(--success) 25%, var(--border))",
 				} as React.CSSProperties
 			}
 			{...props}

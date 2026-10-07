@@ -1,6 +1,6 @@
 # 排版、控件与缩放规范
 
-维护日期：2026-10-06。以下尺寸约定沿用原迁移实现；持久化由 `stores/theme-store.ts` 负责，DOM 和窗口同步由 `components/layout/theme-effects.tsx` 连接。
+维护日期：2026-10-07。以下尺寸约定沿用原迁移实现；持久化由 `stores/theme-store.ts` 负责，DOM 和窗口同步由 `components/layout/theme-effects.tsx` 连接。
 
 原模板迁移时，原 `ThemeCustomizer` 中 Select 用 `h-8`，单选格用 `py-2` 加子文字 `text-sm leading-none` 撑高；它们的字号分别是 `text-xs` 和 `text-sm`。原全局缩放只改 `--text-sm/base/lg` 和 `--spacing`，遗漏小字、其他字号与临时 rem 字号，导致上下控件尺寸变化不一致。
 
@@ -56,6 +56,8 @@
 
 ## 持久化和检查
 
+2026-10-07：`--spacing-workspace-menu: 15rem` 统一资金分析的案件菜单与账户菜单默认宽度，已注册到 `tailwind-merge` spacing。两者使用同一 `border-r` 和 `bg-sidebar`，账户菜单直接衔接页头，内部 `p-3` 与案件搜索留白一致；菜单宽度跟随根 rem，窄屏账户目录改为上下排列，不挤压画布。
+
 序列化对象增加 `version: 2`，业务 Settings 类型保持原字段。启动、storage 事件和 BroadcastChannel 共用编解码；旧版 `lg` 解码为 `xl`，保留其他有效偏好；新版本 `lg` 可正常保存、刷新及跨窗口同步，不会重复迁移。
 
 `bun run lint` 用 TypeScript AST 检查临时字号、内联字号/行高及页面对 Button/Input/SelectTrigger/RadioGroup 高度和字号的覆盖，并检查 CSS 排版声明是否集中在共享样式中。检查不能代替视觉验证：新布局仍需实际对比不同档位、窗口尺寸和字体。
@@ -75,3 +77,23 @@
 G6 的原生项通过共享 Tooltip 的 `anchor` 接口复用提示外观，不保留浏览器 `title`。`.funds-graph-zoom` 输入框继承工具栏文字与 `control-md` 高度，焦点/错误/禁用采用共享语义色；四组工具使用同一 `.funds-graph-toolbar-separator`，全部尺寸随 rem 缩放。
 
 2026-10-07：HoverCard 透传泛型 payload 与 Base UI handle，支持多个触发器复用一个浮层。可选 `showArrow` 使用原生 Arrow 定位与 popover/foreground 语义色；使用箭头的业务将可滚动内容放在内部，保持 Popup 的溢出可见，避免裁剪指向标记。
+
+2026-10-07：G6 工具栏停靠与折叠继续使用同一语义色、尺寸和阴影；停靠规则由业务控制器写入数据属性，布局与动画样式集中于 `globals.css`。竖排时分组分隔线转为横线，横排窄画布按组换行。折叠入口与展开末端复用同一个控件 DOM，仅折叠或过渡中保持纯图标、透明悬停背景且无 Tooltip；完整展开恢复共享 `ghost` Button 的悬停反馈及 Tooltip。图标随展开、临时展开和折叠动作变化，各状态保留中文可访问名称与焦点环；外框宽高、控件位置及内容显隐分阶段过渡，支持中途反向和减少动态效果偏好。设置沿用共享 Popover、RadioGroup、FieldSet 与 Button，工具栏原生项和扩展按钮继续使用同一 Tooltip，通过 `TooltipOpenScope` 在折叠动画期间暂停提示。
+
+2026-10-07：`CopyText` 为文字复制入口，继承所在标题或正文的字号、颜色和行高，不套用操作按钮的固定高度；复用 Tooltip、语义焦点样式及现有 Sonner 通知。可用 `truncate` 限定显示宽度，提示和复制始终保留完整值。Clipboard API 成功后才通知成功，失败不得误报；不引入另一套通知宿主。
+
+复制成功启用 Sonner 的 `richColors`，其成功前景、浅背景与边框由共享通知组件映射到 `success` 和 `popover` 语义色，明暗主题一致。HoverCard 内的 Tooltip 使用 `TooltipPortalScope`，Portal 挂在 Popup 内、正文滚动层外；提示及箭头属于父卡片的 DOM 范围，鼠标移入提示不会触发父卡片离开，且仍能超出正文区域显示。普通页面 Tooltip 沿用默认 Portal。
+
+全局 Tooltip 允许鼠标移入 Popup，保留 Base UI 的悬停路径和 Escape 关闭行为。原生 `title` 说明统一改用 `TooltipText`，复用原文字、表格单元格或链接节点，无额外布局包装。案件菜单使用 `TooltipPortalScope`，移入伸出菜单的气泡仍视为处于菜单内。会自动折叠的工具栏通过 `TooltipOpenScope` 汇总提示打开状态；原生 G6 项的外部锚点额外处理按钮与气泡之间的离开宽限，并在定时关闭前核验真实悬停命中，避免原生 leave 与 Portal enter 事件先后顺序导致误关。
+
+2026-10-07：画布悬停速览继续使用共享 Card、Badge、Button、Popover、Tooltip 和 `CopyText`，从原模板迁移 Base UI `Collapsible` 作为共享折叠基础组件；保留同一个面板及原生展开语义，不另造字号、控件高度或主题色。停靠位置选择复用工具栏网格，速览的布局存储由自身维护；此处属于既有体系的组件扩展，没有新增持久设计令牌。
+
+速览的业务外观集中于 `globals.css`：宽 18rem，画布边距 0.5rem，最大宽高扣除双侧留白；沿用卡片语义色、圆角与共享阴影。标题保持完整，正文允许在 flex 布局中缩小并独立滚动，长名称、账号和多币种内容不得撑开画布。折叠通过网格行在 `1fr` 与 `0fr` 间收缩，过渡遵守 `prefers-reduced-motion`，设置弹窗、Tooltip 与内部键盘焦点可保持临时展开，图标使用中文可访问名称；这些约定仅描述当前画布速览，不推广为所有卡片的尺寸或交互规则。浏览器与数据口径验证见[画布悬停速览](./funds-ui.md#画布悬停速览2026-10-07)。
+
+2026-10-07：节点、逐笔交易与汇总流向详情共用一个非模态 Sheet，保留共享关闭控件；切换对象只替换内部内容，不改变侧栏位置或宽度，也不重播侧栏入场。桌面宽度上限 25rem、窄屏全宽，页头继续使用 `workspace-header`，正文独立滚动。对象相关标记草稿、分页和来源加载随内容切换隔离，避免为保留外框而保留上一对象的数据。
+
+内容切换动效集中在 `globals.css`，160ms 内将透明度从 0.65 恢复至 1；新内容直接替换，不等待旧内容退场或叠放两份数据，`prefers-reduced-motion` 下取消动效。该规则只用于资金详情内容更新，复用现有语义色、排版、控件与 rem 缩放，没有新增持久设计令牌。交互及验证见[节点与连线共享详情面板](./funds-ui.md#节点与连线共享详情面板2026-10-07)。
+
+2026-10-07：`CopyText` 的下划线偏移从 `underline-offset-4` 调整为 `underline-offset-2`，避免截断的等宽卡号将下划线裁在行框外；页头高度、截断和复制行为保持不变，无新增令牌。文档已核对源码；主实现者在浅色 1512 × 828 和深色 390 × 844 窗口验证名称、卡号的 2px 下划线可见及键盘 `focus-visible` 正常，截图为 `apps/web/.impeccable/review/copy-underline-desktop.png`、`copy-underline-mobile.png`。`lint`、`check-types`、`build`、`test:ui`（51 项）和 `git diff --check` 通过。
+
+2026-10-07：画布背景设置复用现有 `ColorSwatch` 及共享表单、Popover 和 Button；预设颜色、CSS 纹理与背景预览集中于 `globals.css` 的画布表面规则。新增变量仅作用于资金画布的背景、墨色与纹理，不修改全局品牌令牌；默认图元按实际背景校正可读性，个人标记保持原样。空结果提示、速览和工具栏使用独立主题底色，避免自定义画布色破坏浮层文字与控件对比。行为与验证见[画布背景设置](./funds-ui.md#画布背景设置2026-10-07)。

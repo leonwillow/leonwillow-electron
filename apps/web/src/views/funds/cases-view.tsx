@@ -1,12 +1,13 @@
 /**
  * @file 案件管理、流水导入与清洗核对页面。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-06
+ * 修改时间：2026-10-07
  * 版本作用：将资料准备从资金分析中分离，保留既有导入与核对组件。
  * 被调用：funds_.cases 路由；调用：共享 UI、Eden、流水与核对面板。
  * 功能：案件选择/创建、文件导入/下载、处理进度、清洗与跨案资料管理。
  * 预期结果：用户自由决定追踪起点，不内置演示付款；错误与部分待核可见。
  */
+
 import { Badge } from "@leonwillow-electron/ui/components/badge";
 import { Button } from "@leonwillow-electron/ui/components/button";
 import {
@@ -23,6 +24,7 @@ import {
 	TabsList,
 	TabsTrigger,
 } from "@leonwillow-electron/ui/components/tabs";
+import { TooltipText } from "@leonwillow-electron/ui/components/tooltip";
 import { getRouteApi } from "@tanstack/react-router";
 import { DownloadIcon, RefreshCwIcon } from "lucide-react";
 import { useCallback, useState } from "react";
@@ -230,12 +232,11 @@ function CaseWorkspace({ caseId }: { caseId: string }) {
 									<TableBody>
 										{record.sources.map((source) => (
 											<TableRow key={source.id}>
-												<TableCell
-													className="max-w-96 truncate text-xs"
-													title={source.name}
-												>
-													{source.name}
-												</TableCell>
+												<TooltipText content={source.name}>
+													<TableCell className="max-w-96 truncate text-xs">
+														{source.name}
+													</TableCell>
+												</TooltipText>
 												<TableCell>
 													<Button
 														variant="ghost"

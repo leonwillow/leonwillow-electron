@@ -29,7 +29,7 @@ import {
 	ListFilterIcon,
 	RotateCcwIcon,
 } from "lucide-react";
-import { useId, useState } from "react";
+import { useContext, useEffect, useId, useState } from "react";
 import type { EdgeMode } from "@/lib/funds-analysis";
 import {
 	type EdgeFilter,
@@ -42,6 +42,7 @@ import {
 } from "@/lib/funds-graph-filters";
 
 import FilterSelect from "./filter-select";
+import { GraphToolbarContext } from "./graph-toolbar-context";
 
 export type RelationFilter = {
 	from: string;
@@ -86,8 +87,13 @@ export default function GraphToolbar({
 	onClear: () => void;
 }) {
 	const id = useId();
+	const { side, onPopupChange } = useContext(GraphToolbarContext);
 	const [nodeOpen, setNodeOpen] = useState(false);
 	const [edgeOpen, setEdgeOpen] = useState(false);
+	useEffect(() => {
+		onPopupChange("filters", nodeOpen || edgeOpen);
+		return () => onPopupChange("filters", false);
+	}, [nodeOpen, edgeOpen, onPopupChange]);
 	const [nodeDraft, setNodeDraft] = useState(nodes);
 	const [edgeDraft, setEdgeDraft] = useState(edges);
 	const [rangeDraft, setRangeDraft] = useState(relation);
@@ -170,7 +176,7 @@ export default function GraphToolbar({
 					<TooltipContent>节点筛选{nodeActive && "（已启用）"}</TooltipContent>
 				</Tooltip>
 				<PopoverContent
-					side="top"
+					side={side}
 					sideOffset={10}
 					align="start"
 					className="max-h-[min(38rem,80dvh)] w-80 max-w-[calc(100vw-2rem)] overflow-y-auto p-4"
@@ -285,7 +291,7 @@ export default function GraphToolbar({
 					<TooltipContent>连线筛选{edgeActive && "（已启用）"}</TooltipContent>
 				</Tooltip>
 				<PopoverContent
-					side="top"
+					side={side}
 					sideOffset={10}
 					align="start"
 					className="max-h-[min(42rem,80dvh)] w-[28rem] max-w-[calc(100vw-2rem)] overflow-y-auto p-4"

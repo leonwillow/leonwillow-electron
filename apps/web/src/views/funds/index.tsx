@@ -70,9 +70,9 @@ function CaseAnalysis({ caseId }: { caseId: string }) {
 		);
 	return (
 		<div className="min-h-0 flex-1 overflow-auto">
-			<div className="mx-auto max-w-[110rem] px-4 pt-3 pb-4 sm:px-6 sm:pb-6">
+			<div className="min-h-full">
 				{!record.totals.sourceCount || waitingForGraph ? (
-					<div className="flex flex-col items-start gap-3 py-8">
+					<div className="mx-auto flex max-w-[110rem] flex-col items-start gap-3 px-4 py-8 sm:px-6">
 						<h2 className="font-medium text-sm">
 							{waitingForGraph ? "案件资料正在处理" : "这个案件还没有流水"}
 						</h2>

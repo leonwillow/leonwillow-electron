@@ -1,7 +1,7 @@
 /**
  * @file 资金调查 API 与双数据库的真实集成测试。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-06
+ * 修改时间：2026-10-07
  * 版本作用：验证导入、权限、幂等、图恢复和时间路径。
  * 被调用：test:api；调用：独立 PG schema、真实 Neo4j/Bun/Eden/Better Auth。
  * 预期结果：只清理本次随机案件与 schema，不修改已有测试案件。
@@ -98,7 +98,7 @@ const cookieOf = (response: Response) =>
 const statement = (name = "bank.csv") =>
 	new File(
 		[
-			"本方账号,本方户名,对方账号,对方户名,借贷方向,交易日期,交易时间,交易金额,币种,交易流水号,摘要\n10001,甲,20001,乙,借,2022-01-05,10:00:00,100.00,CNY,one,转账\n20001,乙,10001,甲,贷,2022-01-05,10:00:00,100.00,CNY,two,收款\n20001,乙,30001,丙,借,2022-01-05,11:00:00,90.00,CNY,three,转出\n30001,丙,10001,甲,借,2022-01-05,09:00:00,80.00,CNY,four,早于起点\n",
+			"本方账号,本方户名,对方账号,对方户名,出入方向,交易日期,交易时间,交易金额,币种,交易流水号,摘要\n10001,甲,20001,乙,出,2022-01-05,10:00:00,100.00,CNY,one,转账\n20001,乙,10001,甲,入,2022-01-05,10:00:00,100.00,CNY,two,收款\n20001,乙,30001,丙,出,2022-01-05,11:00:00,90.00,CNY,three,转出\n30001,丙,10001,甲,出,2022-01-05,09:00:00,80.00,CNY,four,早于起点\n",
 		],
 		name,
 		{ type: "text/csv" },
@@ -217,7 +217,7 @@ test("跨案只提示，确认才纳入，可排除，任务与下载不能越�
 							"甲",
 							"40001",
 							"丁",
-							"借",
+							"出",
 							"2022-02-01 12:00:00",
 							"50.00",
 							"",
@@ -386,6 +386,8 @@ test("完整文件上传、双边归并、精确图金额、时间路径和再�
 	expect(exported.data).toContain("10001");
 	const template = await api.api.funds.template.get();
 	expect(template.status).toBe(200);
+	expect(template.data).toContain('"出入方向"');
+	expect(template.data).not.toContain("借贷");
 	expect(template.data).toContain('"交易时间"');
 	expect(template.data).not.toContain("交易日期");
 	expect(template.data).not.toContain("币种");
@@ -405,23 +407,87 @@ test("完整文件上传、双边归并、精确图金额、时间路径和再�
 	expect((await endpoint.summary.get()).data?.transactions).toBe(3);
 }, 30_000);
 
+test("导入任务仅接收出入方向，待核不入图，历史标准下载使用新模板", async () => {
+	const id = await newCase();
+	const endpoint = api.api.funds.cases({ caseId: id });
+	const directions = ["出", "入", "借", "贷", "", "D", "未知"];
+	const csv = csvDocument(
+		standardHeaders,
+		directions.map((direction, i) => [
+			"10001",
+			"甲",
+			String(20001 + i),
+			"乙",
+			direction,
+			"2022-01-05 10:00:00",
+			"10.00",
+			"",
+			`direction-${i}`,
+			"方向校验",
+			"",
+			"",
+			"",
+		]),
+	);
+	const upload = await endpoint.import.post({
+		files: [new File([csv], "directions.csv")],
+	});
+	expect(upload.status).toBe(200);
+	const job = await jobResult(id, upload.data?.id);
+	expect(job?.status).toBe("completed");
+	const file = job?.files[0];
+	if (!job || !file) throw new Error("缺少文件校验结果");
+	expect(file.report).toMatchObject({
+		rawRows: 7,
+		standardRows: 2,
+		quarantined: 5,
+		auxiliary: 0,
+		rowConservation: true,
+		amountTotals: { incomingMinor: "1000", outgoingMinor: "1000" },
+	});
+	expect((await endpoint.summary.get()).data?.transactions).toBe(2);
+	expect((await endpoint.graph.get()).data?.total).toBe(2);
+	const download = endpoint.jobs({ jobId: job.id }).files({ fileId: file.id });
+	const exported = await download.get({ query: { format: "csv" } });
+	if (typeof exported.data !== "string") throw new Error("标准 CSV 下载失败");
+	const parsed = parseStatement(
+		"download.csv",
+		new TextEncoder().encode(exported.data),
+	);
+	expect(parsed.observations.map((o) => o.direction)).toEqual(["out", "in"]);
+	expect(parsed.rows.map((r) => r.fields.出入方向)).toEqual(["出", "入"]);
+	// 只在隔离测试文件中模拟升级前缓存，历史下载须使用已保存的 in/out 生成新表。
+	await database.db
+		.update(fundsJobFile)
+		.set({
+			standardCsv: exported.data
+				.replace("出入方向", "借贷方向")
+				.replaceAll('"出"', '"借"')
+				.replaceAll('"入"', '"贷"'),
+		})
+		.where(eq(fundsJobFile.id, file.id));
+	expect((await download.get({ query: { format: "csv" } })).data).toBe(
+		exported.data,
+	);
+}, 30_000);
+
 test("只有一人流水时完整图保留全部对手、超过200笔的逐笔交易及筛选，案件互不混入", async () => {
 	const id = await newCase();
 	const endpoint = api.api.funds.cases({ caseId: id });
 	const rows = Array.from(
 		{ length: 225 },
 		(_, i) =>
-			`10001,甲,${20001 + i},对手${i},${i % 3 === 0 ? "贷" : "借"},2022-01-05,10:00:00,${100 + i}.00,CNY,single-${i},单方流水`,
+			`10001,甲,${20001 + i},对手${i},${i % 3 === 0 ? "入" : "出"},2022-01-05,10:00:00,${100 + i}.00,CNY,single-${i},单方流水`,
 	);
 	rows.push(
-		"10001,甲,20001,对手0,借,2022-01-06,10:00:00,1.00,CNY,repeat-1,另一次付款",
-		"10001,甲,20001,对手0,借,2022-01-06,11:00:00,2.00,CNY,repeat-2,另一次付款",
+		"10001,甲,20001,对手0,出,2022-01-06,10:00:00,1.00,CNY,repeat-1,另一次付款",
+		"10001,甲,20001,对手0,出,2022-01-06,11:00:00,2.00,CNY,repeat-2,另一次付款",
 	);
 	const upload = await endpoint.import.post({
 		files: [
 			new File(
 				[
-					"本方账号,本方户名,对方账号,对方户名,借贷方向,交易日期,交易时间,交易金额,币种,交易流水号,摘要\n",
+					"本方账号,本方户名,对方账号,对方户名,出入方向,交易日期,交易时间,交易金额,币种,交易流水号,摘要\n",
 					rows.join("\n"),
 				],
 				"single-owner.csv",
@@ -782,7 +848,7 @@ test("Worker 自动识别多卡主体；拆分、软撤销与重识别保留全�
 	const endpoint = api.api.funds.cases({ caseId: id });
 	const file = new File(
 		[
-			"本方账号,本方户名,对方账号,对方户名,借贷方向,交易时间,交易金额,交易流水号\n10001,赵佳,20001,周明,借,2022-01-05 10:00:00,100.00,one\n10002,赵佳,20001,周明,借,2022-01-05 11:00:00,60.00,two\n20001,周明,10002,赵佳,借,2022-01-05 12:00:00,30.00,three\n10001,赵佳,10002,赵佳,借,2022-01-05 13:00:00,20.00,four\n",
+			"本方账号,本方户名,对方账号,对方户名,出入方向,交易时间,交易金额,交易流水号\n10001,赵佳,20001,周明,出,2022-01-05 10:00:00,100.00,one\n10002,赵佳,20001,周明,出,2022-01-05 11:00:00,60.00,two\n20001,周明,10002,赵佳,出,2022-01-05 12:00:00,30.00,three\n10001,赵佳,10002,赵佳,出,2022-01-05 13:00:00,20.00,four\n",
 		],
 		"multi-card.csv",
 	);

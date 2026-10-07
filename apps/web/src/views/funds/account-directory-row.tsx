@@ -3,10 +3,11 @@
  * 创建时间：2026-10-06
  * 修改时间：2026-10-07
  * 版本作用：列表保持两行，悬停预览已加载数据，点击查看完整详情。
- * 被调用：AccountDirectory；调用：共享 HoverCard、NodeStatusTags、summarizeNode。
+ * 被调用：AccountDirectory；调用：共享 HoverCard、CopyText、NodeStatusTags、summarizeNode。
  * 功能：名称与笔数单行显示；预览按需计算本案收付、对手与交易区间。
  * 预期结果：悬停不发起网络请求，不加载全部账户的预览统计；点击关闭预览。
  */
+import { CopyText } from "@leonwillow-electron/ui/components/copy-text";
 import {
 	type createHoverCardHandle,
 	HoverCardTrigger,
@@ -39,11 +40,20 @@ export function AccountPreview({
 	return (
 		<div className="flex flex-col gap-3">
 			<div className="flex flex-col gap-1">
-				<h3 className="break-words font-medium text-sm">{accountName(node)}</h3>
+				<h3
+					className="min-w-0 font-medium text-sm"
+					aria-label={accountName(node)}
+				>
+					<CopyText value={accountName(node)} className="block truncate" />
+				</h3>
 				<p className="break-all text-muted-foreground">
-					{mode === "subject"
-						? `${node.accountNumbers.length} 个账户`
-						: node.number}
+					{mode === "subject" ? (
+						`${node.accountNumbers.length} 个账户`
+					) : node.unknown ? (
+						"账号待核"
+					) : (
+						<CopyText value={node.number} />
+					)}
 				</p>
 			</div>
 			<NodeStatusTags node={node} presentation={presentation} />
@@ -60,13 +70,19 @@ export function AccountPreview({
 						<div className="flex items-baseline justify-between gap-2">
 							<dt className="shrink-0 text-muted-foreground">流入</dt>
 							<dd className="break-all text-right tabular-nums">
-								{formatFunds(row.incoming.toString(), row.currency)}
+								<CopyText
+									value={formatFunds(row.incoming.toString(), row.currency)}
+									className="text-right"
+								/>
 							</dd>
 						</div>
 						<div className="flex items-baseline justify-between gap-2">
 							<dt className="shrink-0 text-muted-foreground">流出</dt>
 							<dd className="break-all text-right tabular-nums">
-								{formatFunds(row.outgoing.toString(), row.currency)}
+								<CopyText
+									value={formatFunds(row.outgoing.toString(), row.currency)}
+									className="text-right"
+								/>
 							</dd>
 						</div>
 						<div className="flex items-baseline justify-between gap-2">
@@ -74,10 +90,13 @@ export function AccountPreview({
 								差额（流入－流出）
 							</dt>
 							<dd className="break-all text-right tabular-nums">
-								{formatFunds(
-									(row.incoming - row.outgoing).toString(),
-									row.currency,
-								)}
+								<CopyText
+									value={formatFunds(
+										(row.incoming - row.outgoing).toString(),
+										row.currency,
+									)}
+									className="text-right"
+								/>
 							</dd>
 						</div>
 					</div>

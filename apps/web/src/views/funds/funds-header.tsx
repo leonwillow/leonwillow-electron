@@ -1,13 +1,15 @@
 /**
  * @file 资金分析模块的共享页头与内部导航。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-06
+ * 修改时间：2026-10-07
  * 版本作用：顶栏与案件菜单共用高度，模块与案件名按路径层级排列。
  * 被调用：FundsView、CasesView；调用：共享按钮样式与 TanStack Link。
  * 功能：显示模块标题及可选案件名，切换内部页面时携带 caseId。
  * 预期结果：顶栏分隔线一致，长案件名不撑高页头，窄窗口保留内部导航。
  */
+
 import { buttonVariants } from "@leonwillow-electron/ui/components/button";
+import { TooltipText } from "@leonwillow-electron/ui/components/tooltip";
 import { cn } from "@leonwillow-electron/ui/lib/utils";
 import { Link, useLocation } from "@tanstack/react-router";
 import { ChevronRightIcon } from "lucide-react";
@@ -40,12 +42,11 @@ export default function FundsHeader({
 							aria-hidden="true"
 							className="hidden size-3.5 shrink-0 text-muted-foreground sm:block"
 						/>
-						<p
-							title={caseName}
-							className="min-w-0 truncate text-muted-foreground text-xs sm:text-sm"
-						>
-							{caseName}
-						</p>
+						<TooltipText content={caseName}>
+							<p className="min-w-0 truncate text-muted-foreground text-xs sm:text-sm">
+								{caseName}
+							</p>
+						</TooltipText>
 					</>
 				)}
 			</div>

@@ -1,20 +1,22 @@
 /**
  * @file Neo4j 查询结果的 G6 画布。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-06
+ * 修改时间：2026-10-07
  * 版本作用：绘制逐笔或有向汇总结果，平行边保持独立可展开 ID。
  * 被调用：analysis-panel；调用：按需加载的 G6、共享主题令牌。
  * 功能：节点交互与个人标记；G6 Toolbar 悬浮工具栏提供缩放并承载分析操作。
- * 预期结果：销毁旧实例，画布外提供同等可操作的账户/交易列表。
+ * 预期结果：主题更新保留镜头与位置，分批绘制不锁住页面，切换视图取消旧任务。
  */
-import type { Graph, IPointerEvent } from "@antv/g6";
+import type { Graph, IKeyboardEvent, IPointerEvent } from "@antv/g6";
 import {
 	Tooltip,
 	TooltipContent,
+	TooltipOpenScope,
 } from "@leonwillow-electron/ui/components/tooltip";
 import {
 	type ReactNode,
 	type Ref,
+	useCallback,
 	useEffect,
 	useEffectEvent,
 	useId,
@@ -23,29 +25,41 @@ import {
 	useState,
 } from "react";
 import { createPortal } from "react-dom";
-import { accountName, formatFunds } from "@/lib/funds";
-import type { AnalysisGraph } from "@/lib/funds-analysis";
-import { fundsEdgeStyles } from "@/lib/funds-graph-layout";
-import {
-	lineDash,
-	type NodePresentation,
-	relatedEdgeMark,
-} from "@/lib/funds-graph-presentation";
+import type { AnalysisGraph, NodeMode } from "@/lib/funds-analysis";
+import type { NodePresentation } from "@/lib/funds-graph-presentation";
+import { toolbarPlacement } from "@/lib/funds-toolbar-layout";
 import type { CanvasSnapshot } from "@/lib/funds-view-history";
+import GraphBackgroundSettings, {
+	canvasBackgroundProps,
+} from "./graph-background-settings";
+import GraphHoverPreview, {
+	type GraphHoverPreviewHandle,
+} from "./graph-hover-preview";
+import { createGraphPaintController } from "./graph-paint-controller";
+import { createGraphRenderer, type GraphProgress } from "./graph-renderer";
 import {
 	attachGraphToolbar,
 	type GraphToolbarController,
 	type GraphToolbarHint,
 } from "./graph-toolbar-adapter";
+import { GraphToolbarContext } from "./graph-toolbar-context";
+import type { ToolbarDockState } from "./graph-toolbar-dock";
+import GraphToolbarSettings, {
+	ToolbarFoldButton,
+} from "./graph-toolbar-settings";
+import { useCanvasBackground } from "./use-canvas-background";
+import { useToolbarLayout } from "./use-toolbar-layout";
 
 export type GraphCanvasHandle = { capture: () => CanvasSnapshot | undefined };
 
 export default function GraphCanvas({
 	ref,
+	userId,
 	toolbar,
 	initialCanvas,
 	viewKey,
 	data,
+	nodeMode,
 	onDetails,
 	onDrill,
 	onNodeMenu,
@@ -53,10 +67,12 @@ export default function GraphCanvas({
 	onTransaction,
 }: {
 	ref?: Ref<GraphCanvasHandle>;
+	userId: string;
 	toolbar?: ReactNode;
 	initialCanvas?: CanvasSnapshot;
 	viewKey: number;
 	data: AnalysisGraph;
+	nodeMode: NodeMode;
 	onDetails: (id: string) => void;
 	onDrill: (id: string) => void;
 	onNodeMenu: (id: string, x: number, y: number) => void;
@@ -64,8 +80,31 @@ export default function GraphCanvas({
 	onTransaction: (id: string) => void;
 }) {
 	const host = useRef<HTMLElement>(null);
+	const preview = useRef<GraphHoverPreviewHandle>(null);
 	const [toolbarSlot] = useState(() => document.createElement("div"));
+	const [toggleSlot] = useState(() => document.createElement("div"));
+	const toolbarPreferences = useToolbarLayout(userId);
+	const backgroundPreferences = useCanvasBackground(userId);
+	const toolbarControllerRef = useRef<GraphToolbarController | null>(null);
+	const popups = useRef(new Set<string>());
+	const onPopupChange = useCallback((key: string, open: boolean) => {
+		if (open) popups.current.add(key);
+		else popups.current.delete(key);
+		toolbarControllerRef.current?.dock.setHeld(popups.current.size > 0);
+	}, []);
+	const getToolbarLayout = useEffectEvent(() => toolbarPreferences.layout);
+	useEffect(() => {
+		toolbarControllerRef.current?.dock.update(toolbarPreferences.layout);
+	}, [toolbarPreferences.layout]);
 	const [ready, setReady] = useState(false);
+	const [toolbarState, setToolbarState] = useState<ToolbarDockState>({
+		expanded: false,
+		moving: false,
+	});
+	const [progress, setProgress] = useState<GraphProgress>({
+		nodes: 0,
+		edges: 0,
+	});
 	const [toolbarHint, setToolbarHint] = useState<{
 		data: GraphToolbarHint | null;
 		open: boolean;
@@ -110,9 +149,14 @@ export default function GraphCanvas({
 	const paintRef = useRef<
 		((entries: Record<string, NodePresentation>) => void) | null
 	>(null);
+	// biome-ignore lint/correctness/useExhaustiveDependencies: 背景色通过容器 CSS 供 renderer 读取，变化时只刷新样式，不重建画布。
 	useEffect(() => {
 		paintRef.current?.(presentation);
-	}, [presentation]);
+	}, [
+		presentation,
+		backgroundPreferences.background.tone,
+		backgroundPreferences.background.customColor,
+	]);
 	const transactionEvent = useEffectEvent(onTransaction);
 	useEffect(() => {
 		const container = host.current;
@@ -124,6 +168,10 @@ export default function GraphCanvas({
 		container.addEventListener("contextmenu", preventMenu);
 		let disposed = false;
 		let drawRevision = 0;
+		const lifetime = new AbortController();
+		let themeFrame = 0;
+		let progressTime = 0;
+		setProgress({ nodes: 0, edges: 0 });
 		let clickTimer: ReturnType<typeof setTimeout> | undefined;
 		let menuFrame = 0;
 		const cancelClick = () => clearTimeout(clickTimer);
@@ -134,27 +182,25 @@ export default function GraphCanvas({
 				toolbarFocus.current = focused;
 			toolbarController?.destroy();
 			toolbarController = undefined;
+			toolbarControllerRef.current = null;
 		};
 		let resize: ResizeObserver | undefined;
 		let observer: MutationObserver | undefined;
 		const draw = async (revision: number) => {
-			const { Graph } = await import("@antv/g6");
+			const { Graph, CanvasRenderer } = await import("./graph-runtime");
 			if (disposed || revision !== drawRevision) return;
-			const style = getComputedStyle(container);
-			const root = getComputedStyle(document.documentElement);
-			// Canvas 不继承 CSS 字体和颜色，显式从共享令牌取值，随主题重建。
-			const color = (token: string) => style.getPropertyValue(token).trim();
-			const unit = Number.parseFloat(root.fontSize);
-			const edgeStyles = fundsEdgeStyles(
-				data.edges,
-				data.edges.some((t) => t.aggregated) ? 3 * unit : 4,
-				3 * unit,
-			);
+			let renderer: ReturnType<typeof createGraphRenderer> | undefined;
 			const graph = new Graph({
+				transforms: [
+					{
+						type: "funds-node-style",
+						nodeStyleOnly: () => renderer?.nodeStyleOnly() ?? false,
+					},
+				],
 				container,
-				autoResize: true,
+				renderer: () => new CanvasRenderer({ enableAutoRendering: false }),
+				autoResize: false,
 				animation: false,
-				autoFit: "view",
 				padding: [48, 48, 72, 48],
 				plugins: [
 					{
@@ -189,8 +235,6 @@ export default function GraphCanvas({
 				node: {
 					style: {
 						labelPlacement: "bottom",
-						labelFontSize: unit * 0.75,
-						labelFontFamily: style.fontFamily,
 						labelOffsetY: 8,
 						cursor: "pointer",
 					},
@@ -198,77 +242,64 @@ export default function GraphCanvas({
 				edge: {
 					type: "quadratic",
 					style: {
-						endArrow: true,
-						labelFontSize: unit * 0.625,
 						labelBackground: true,
-						labelBackgroundFill: color("--background"),
 						cursor: "pointer",
 					},
 				},
-				layout: {
-					type: "circular",
-					radius: Math.max(
-						150,
-						Math.min(container.clientWidth, container.clientHeight) * 0.32,
-						// 全量节点按周长留出空间，避免所有节点仍挤在小图的固定半径上。
-						(data.nodes.length * 2.5 * unit) / (2 * Math.PI),
-					),
-				},
 				behaviors: [
-					"drag-canvas",
-					"zoom-canvas",
-					"drag-element",
-					"hover-activate",
+					{
+						type: "drag-canvas",
+						// 加载保护须保留 G6 的空白目标限制，否则节点拖拽会同时平移镜头。
+						enable: (event: IPointerEvent | IKeyboardEvent) =>
+							readyRef.current &&
+							(!("targetType" in event) || event.targetType === "canvas"),
+					},
+					...["zoom-canvas", "drag-element", "hover-activate"].map((type) => ({
+						type,
+						enable: () => readyRef.current,
+					})),
 				],
 			});
 			graphRef.current = graph;
 			// 先初始化同一实例的空画布与原生插件，再绘制案件数据；不创建占位工具栏。
 			await graph.draw();
 			if (disposed || graph.destroyed || revision !== drawRevision) return;
+			const paintController = createGraphPaintController(
+				graph,
+				container,
+				lifetime.signal,
+				() => setError("画布更新失败，请刷新后重试。"),
+			);
 			const controller = await attachGraphToolbar(
 				graph,
 				container,
 				toolbarSlot,
+				toggleSlot,
+				getToolbarLayout(),
 				{ id: toolbarHintId, onChange: updateToolbarHint },
+				setToolbarState,
 			);
 			if (disposed || graph.destroyed || revision !== drawRevision) {
 				controller?.destroy();
 				return;
 			}
 			toolbarController = controller;
+			toolbarControllerRef.current = controller ?? null;
+			controller?.dock.setHeld(popups.current.size > 0);
 			// 给浏览器一帧显示完整的禁用工具栏，再开始大图绘制。
 			await new Promise<void>((resolve) =>
 				requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
 			);
 			if (disposed || graph.destroyed || revision !== drawRevision) return;
-			graph.setData({
-				nodes: data.nodes.map((a) => ({
-					id: a.id,
-					style: {
-						labelText: `${accountName(a).length > 12 ? `${accountName(a).slice(0, 12)}…` : accountName(a)}\n${a.accountNumbers.length > 1 ? `${a.accountNumbers.length} 个账户` : a.number ? `尾号 ${a.number.slice(-4)}` : "账号待核"}`,
-						fill: color(a.hasStatement ? "--primary" : "--background"),
-						stroke: color(a.hasStatement ? "--primary" : "--muted-foreground"),
-						lineDash: a.hasStatement ? undefined : [4, 3],
-						labelFill: color("--foreground"),
-					},
-				})),
-				edges: data.edges.map((t) => ({
-					id: t.id,
-					source: t.from,
-					target: t.to,
-					style: {
-						...edgeStyles.get(t.id),
-						labelText:
-							data.edges.length <= 24
-								? `${formatFunds(t.amountMinor, t.currency)}${t.aggregated ? ` · ${t.count} 笔` : ""}`
-								: "",
-						stroke: color("--muted-foreground"),
-						labelFill: color("--foreground"),
-					},
-				})),
-			});
+			for (const kind of ["node", "edge"] as const) {
+				graph.on(`${kind}:pointerenter`, (event: IPointerEvent) => {
+					if (readyRef.current && "id" in event.target)
+						preview.current?.show({ kind, id: String(event.target.id) });
+				});
+			}
 			graph.on("node:click", (event: IPointerEvent) => {
-				if (event.button !== 0 || !("id" in event.target)) return;
+				if (!readyRef.current || event.button !== 0 || !("id" in event.target))
+					return;
 				cancelClick();
 				const id = String(event.target.id);
 				clickTimer = setTimeout(() => {
@@ -277,12 +308,13 @@ export default function GraphCanvas({
 			});
 			graph.on("node:dblclick", (event: IPointerEvent) => {
 				cancelClick();
-				if ("id" in event.target) drillEvent(String(event.target.id));
+				if (readyRef.current && "id" in event.target)
+					drillEvent(String(event.target.id));
 			});
 			graph.on("node:contextmenu", (event: IPointerEvent) => {
 				cancelClick();
 				event.preventDefault();
-				if ("id" in event.target) {
+				if (readyRef.current && "id" in event.target) {
 					const id = String(event.target.id);
 					const { x, y } = event.client;
 					// G6 在 pointerdown 合成 contextmenu；等本次事件结束再打开，避免被菜单的外部点击监听立即关闭。
@@ -294,95 +326,46 @@ export default function GraphCanvas({
 			});
 			graph.on("node:dragstart", cancelClick);
 			graph.on("edge:click", (event: IPointerEvent) => {
-				if ("id" in event.target) transactionEvent(String(event.target.id));
+				if (!readyRef.current || event.button !== 0 || !("id" in event.target))
+					return;
+				// 节点单击等待双击判定；随后点线时必须取消旧选择，避免详情跳回节点。
+				cancelClick();
+				transactionEvent(String(event.target.id));
 			});
-			// 尺寸和粗细只放在 datum.style；G6 的全局 node/edge.style 优先级更高，会覆盖用户标记。
-			const paint = (entries: Record<string, NodePresentation>) => {
-				if (disposed || graph.destroyed) return;
-				graph.updateNodeData(
-					data.nodes.map((node) => {
-						const entry = entries[node.id];
-						const mark = entry?.marked ? entry.mark : undefined;
-						return {
-							id: node.id,
-							type: mark?.shape ?? "circle",
-							style: {
-								size: (2 * unit * (mark?.size ?? 100)) / 100,
-								radius: mark?.shape === "rect" ? unit * 0.3 : 0,
-								fill:
-									mark?.fill ??
-									color(node.hasStatement ? "--primary" : "--background"),
-								stroke:
-									mark?.stroke ??
-									color(node.hasStatement ? "--primary" : "--muted-foreground"),
-								lineWidth: mark?.borderWidth ?? 1.5,
-								lineDash: mark
-									? lineDash(mark.borderDash)
-									: node.hasStatement
-										? []
-										: [4, 3],
-								visibility: entry?.hidden ? "hidden" : "visible",
-							},
-						};
-					}),
-				);
-				graph.updateEdgeData(
-					data.edges.map((edge) => {
-						const mark = relatedEdgeMark(entries[edge.from], entries[edge.to]);
-						return {
-							id: edge.id,
-							style: {
-								stroke: mark?.edgeColor ?? color("--muted-foreground"),
-								lineWidth: mark?.edgeWidth ?? 1,
-								lineDash: mark ? lineDash(mark.edgeDash) : [],
-								visibility:
-									entries[edge.from]?.hidden || entries[edge.to]?.hidden
-										? "hidden"
-										: "visible",
-							},
-						};
-					}),
-				);
-			};
-			const initialPresentation = getPresentation();
-			paint(initialPresentation);
-			await graph.render();
-			if (disposed || revision !== drawRevision) return;
-			if (initialCanvas) {
-				const ids = new Set(data.nodes.map((n) => n.id));
-				graph.updateNodeData(
-					initialCanvas.nodes
-						.filter((n) => ids.has(n.id))
-						.map(({ id, x, y }) => ({ id, style: { x, y } })),
-				);
-				await graph.draw();
-				if (disposed || graph.destroyed || revision !== drawRevision) return;
-				await graph.zoomTo(initialCanvas.zoom, false);
-				if (disposed || graph.destroyed || revision !== drawRevision) return;
-				// G6 getPosition/translateTo 在缩放后并非互逆；使用画布原点的视口坐标差恢复。
-				const [x = 0, y = 0] = graph.getViewportByCanvas([0, 0]);
-				await graph.translateBy(
-					[initialCanvas.position[0] - x, initialCanvas.position[1] - y],
-					false,
-				);
-			}
-			if (disposed || graph.destroyed || revision !== drawRevision) return;
-			readyRef.current = true;
-			toolbarController?.setStatus("ready");
-			setReady(true);
-			paintRef.current = (entries) => {
-				paint(entries);
-				void graph.draw().catch(() => {
-					if (!disposed) setError("标记绘制失败，请刷新画布后重试。");
-				});
-			};
-			const latestPresentation = getPresentation();
-			if (latestPresentation !== initialPresentation)
-				paintRef.current(latestPresentation);
+			renderer = createGraphRenderer({
+				graph,
+				paintController,
+				container,
+				data,
+				presentation: getPresentation(),
+				snapshot: initialCanvas,
+				signal: lifetime.signal,
+				onProgress: (value) => {
+					if (disposed) return;
+					if (
+						performance.now() - progressTime >= 80 ||
+						value.edges === data.edges.length
+					) {
+						progressTime = performance.now();
+						setProgress(value);
+					}
+				},
+				onError: () => setError("样式更新失败，请刷新画布后重试。"),
+			});
+			paintRef.current = renderer.update;
+			graph.on("aftertransform", () => {
+				if (readyRef.current) renderer?.update(getPresentation());
+			});
 			resize = new ResizeObserver(() => {
 				if (!disposed && !graph.destroyed) graph.resize();
 			});
 			resize.observe(container);
+			const loaded = await renderer.load();
+			if (!loaded || disposed || revision !== drawRevision) return;
+			readyRef.current = true;
+			toolbarController?.setStatus("ready");
+			setReady(true);
+			renderer.update(getPresentation());
 		};
 		const redraw = () => {
 			cancelClick();
@@ -403,13 +386,20 @@ export default function GraphCanvas({
 			});
 		};
 		redraw();
-		observer = new MutationObserver(redraw);
+		observer = new MutationObserver(() => {
+			cancelAnimationFrame(themeFrame);
+			themeFrame = requestAnimationFrame(() => {
+				if (!disposed) paintRef.current?.(getPresentation());
+			});
+		});
 		observer.observe(document.documentElement, {
 			attributes: true,
 			attributeFilter: ["class", "style"],
 		});
 		return () => {
 			disposed = true;
+			lifetime.abort();
+			cancelAnimationFrame(themeFrame);
 			container.removeEventListener("contextmenu", preventMenu);
 			cancelClick();
 			cancelAnimationFrame(menuFrame);
@@ -421,60 +411,147 @@ export default function GraphCanvas({
 			graphRef.current?.destroy();
 			graphRef.current = null;
 		};
-	}, [data, initialCanvas, viewKey, toolbarSlot, toolbarHintId]);
+	}, [data, initialCanvas, viewKey, toolbarSlot, toolbarHintId, toggleSlot]);
 	useEffect(() => {
 		if (!ready) return;
 		toolbarFocus.current?.focus({ preventScroll: true });
 		toolbarFocus.current = null;
 	}, [ready]);
 	return (
-		<div className="relative rounded-lg border bg-background">
-			{createPortal(
-				<>
-					<div className="funds-graph-toolbar-separator" aria-hidden="true" />
-					<fieldset
-						className="flex items-center gap-0.5"
-						aria-label="图谱分析工具"
-						disabled={!ready}
-						inert={!ready}
-					>
-						{toolbar}
-					</fieldset>
-				</>,
-				toolbarSlot,
-			)}
-			<Tooltip
-				open={ready && toolbarHint.open}
-				onOpenChange={(open) => {
-					if (!open)
-						setToolbarHint((previous) => ({ ...previous, open: false }));
-				}}
+		<GraphToolbarContext
+			value={{
+				side: toolbarPlacement(toolbarPreferences.layout).side,
+				onPopupChange,
+			}}
+		>
+			<div
+				{...canvasBackgroundProps(backgroundPreferences.background)}
+				className="funds-canvas-surface relative rounded-lg border"
 			>
-				<TooltipContent id={toolbarHintId} anchor={toolbarHint.data?.anchor}>
-					{toolbarHint.data?.text}
-				</TooltipContent>
-			</Tooltip>
-			<section
-				ref={host}
-				className="relative h-96 min-h-80 w-full lg:h-[30rem]"
-				aria-label="资金关系图；单击查看详情，双击下钻，右键打开节点菜单；左侧列表提供键盘操作"
-			/>
-			{!data.nodes.length && !error && (
-				<div
-					className="pointer-events-none absolute inset-x-4 top-1/2 text-center text-muted-foreground text-sm"
-					role="status"
+				<TooltipOpenScope
+					onOpenChange={onPopupChange}
+					disabled={toolbarState.moving}
 				>
-					没有符合条件的节点或连线，可调整筛选或返回上一步。
-				</div>
-			)}
-			{error && (
-				<p
-					role="alert"
-					className="absolute top-4 left-4 bg-background p-2 text-destructive text-xs"
-				>
-					{error}
-				</p>
-			)}
-		</div>
+					{createPortal(
+						<ToolbarFoldButton
+							layout={toolbarPreferences.layout}
+							dockState={toolbarState}
+							disabled={!ready}
+							onChange={toolbarPreferences.save}
+						/>,
+						toggleSlot,
+					)}
+					{createPortal(
+						<>
+							<div
+								className="funds-graph-toolbar-separator"
+								aria-hidden="true"
+							/>
+							<fieldset
+								className="funds-graph-toolbar-tools flex items-center gap-0.5"
+								aria-label="图谱分析工具"
+								disabled={!ready}
+								inert={!ready}
+							>
+								{toolbar}
+								<div
+									className="funds-graph-toolbar-separator"
+									aria-hidden="true"
+								/>
+								<GraphBackgroundSettings
+									background={backgroundPreferences.background}
+									onChange={backgroundPreferences.save}
+									error={backgroundPreferences.error}
+								/>
+								<GraphToolbarSettings
+									layout={toolbarPreferences.layout}
+									onChange={toolbarPreferences.save}
+									error={toolbarPreferences.error}
+								/>
+							</fieldset>
+						</>,
+						toolbarSlot,
+					)}
+					<Tooltip
+						open={ready && toolbarHint.open}
+						onOpenChange={(open) => {
+							if (!open) toolbarControllerRef.current?.hint.close();
+						}}
+					>
+						<TooltipContent
+							id={toolbarHintId}
+							anchor={toolbarHint.data?.anchor}
+							onPointerEnter={() => toolbarControllerRef.current?.hint.enter()}
+							onPointerLeave={() => toolbarControllerRef.current?.hint.leave()}
+							side={toolbarPlacement(toolbarPreferences.layout).side}
+						>
+							{toolbarHint.data?.text}
+						</TooltipContent>
+					</Tooltip>
+				</TooltipOpenScope>
+				<section
+					ref={host}
+					aria-busy={!ready && !error}
+					className="relative h-96 min-h-80 w-full lg:h-[30rem]"
+					aria-label="资金关系图；单击查看详情，双击下钻，右键打开节点菜单；左侧列表提供键盘操作"
+				/>
+				<GraphHoverPreview
+					ref={preview}
+					userId={userId}
+					data={data}
+					mode={nodeMode}
+					presentation={presentation}
+					ready={ready}
+					error={error}
+				/>
+				{backgroundPreferences.error && (
+					<p
+						role="alert"
+						className="absolute top-3 left-3 max-w-[calc(100%-1.5rem)] rounded-md bg-background p-2 text-destructive text-xs"
+					>
+						{backgroundPreferences.error}
+					</p>
+				)}
+				{toolbarPreferences.error && (
+					<p
+						role="alert"
+						className="absolute top-3 left-3 max-w-[calc(100%-1.5rem)] rounded-md bg-background p-2 text-destructive text-xs"
+					>
+						{toolbarPreferences.error}
+					</p>
+				)}
+				{!ready && !error && data.nodes.length > 0 && (
+					<div
+						className="pointer-events-none absolute top-3 right-3 max-w-[calc(100%-1.5rem)] rounded-md border bg-background/95 px-3 py-2 text-muted-foreground text-xs tabular-nums"
+						role="progressbar"
+						aria-label="绘制图谱"
+						aria-valuemin={0}
+						aria-valuemax={data.nodes.length + data.edges.length}
+						aria-valuenow={progress.nodes + progress.edges}
+					>
+						节点 {progress.nodes.toLocaleString()} /{" "}
+						{data.nodes.length.toLocaleString()} · 连线{" "}
+						{progress.edges.toLocaleString()} /{" "}
+						{data.edges.length.toLocaleString()}
+					</div>
+				)}
+				{!data.nodes.length && !error && (
+					<div
+						className="pointer-events-none absolute inset-x-4 top-1/2 rounded-md bg-background p-2 text-center text-foreground text-sm"
+						role="status"
+					>
+						没有符合条件的节点或连线，可调整筛选或返回上一步。
+					</div>
+				)}
+				{error && (
+					<p
+						role="alert"
+						className="absolute top-4 left-4 bg-background p-2 text-destructive text-xs"
+					>
+						{error}
+					</p>
+				)}
+			</div>
+		</GraphToolbarContext>
 	);
 }

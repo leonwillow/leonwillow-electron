@@ -1,7 +1,7 @@
 /**
  * @file 案件导入任务队列、可见进度、可恢复后台处理。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-06
+ * 修改时间：2026-10-07
  * 版本作用：上传只持久化；独立 worker 完成 AI、标准导入、去重和图同步。
  * 被调用：funds API、funds-worker 入口及集成测试。
  * 调用：PostgreSQL 任务租约、AI normalizer、正式案件服务。
@@ -232,8 +232,10 @@ export async function downloadJobFile(
 			"STANDARD_FILE_UNAVAILABLE",
 			"标准文件尚未生成。",
 		);
-	if (format === "csv") return entry.file.standardCsv;
 	const parsed = entry.file.parsed as ParsedSource;
+	// 历史任务仍保留原报告；下载按当前模板生成，旧借贷 CSV 不再流入标准入口。
+	if (format === "csv")
+		return csvDocument(standardHeaders, standardRows(parsed));
 	return JSON.stringify(
 		{
 			file: entry.file.name,
@@ -514,7 +516,7 @@ function standardFile(name: string, bytes: Uint8Array) {
 	const csv = csvDocument(standardHeaders, standardRows(source));
 	const report: NormalizationReport = {
 		model: "标准文件校验",
-		promptVersion: "13-columns",
+		promptVersion: "13-columns-in-out-v2",
 		mappings: [],
 		rawRows: source.rows.length,
 		standardRows: source.observations.length,

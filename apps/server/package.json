@@ -13,7 +13,7 @@
 		"start:worker": "bun run dist/funds-worker.mjs",
 		"env:generate": "varlock codegen",
 		"auth:init": "bun src/init-admin.ts",
-		"test:unit": "bun test test/health.test.ts test/auth-response.test.ts test/client-ip.test.ts test/lifecycle.test.ts test/funds.test.ts",
+		"test:unit": "bun test test/health.test.ts test/auth-response.test.ts test/client-ip.test.ts test/lifecycle.test.ts test/funds.test.ts test/funds-direction.test.ts",
 		"test": "bun test --preload varlock/auto-load",
 		"test:health": "bun test test/health.test.ts"
 	},

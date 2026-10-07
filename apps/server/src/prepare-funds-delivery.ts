@@ -1,11 +1,11 @@
 /**
  * @file 用户授权测试资料的标准化输出准备。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-06
+ * 修改时间：2026-10-07
  * 版本作用：生成可核对的中间表，供文档工具导出 CSV/Excel。
  * 被调用：bun src/prepare-funds-delivery.ts <源目录> <中间 JSON 路径>。
  * 调用：文件系统、与正式导入一致的 parser/reconcile/export。
- * 预期结果：处理目录中全部原始文件，归并计数与案件导入保持一致。
+ * 预期结果：处理已符合出入方向契约的文件；原始银行表须先 AI 标准化，不猜测方向。
  */
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
@@ -60,9 +60,9 @@ const reasonRows = (kind: string) =>
 				i.sheet,
 				i.row,
 				i.message,
-				raw.账号 || raw["查询涉及账（卡）号"] || "",
-				raw.客户名称 || "",
-				raw.借贷方向 || raw.借贷标志 || "",
+				raw.本方账号 || raw.账号 || raw["查询涉及账（卡）号"] || "",
+				raw.本方户名 || raw.客户名称 || "",
+				raw.出入方向 || raw.借贷方向 || raw.借贷标志 || "",
 				raw.交易金额 || "",
 				raw.交易日期 || "",
 				raw.交易时间 || "",

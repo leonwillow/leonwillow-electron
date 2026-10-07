@@ -1,14 +1,15 @@
 /**
  * @file 图谱个人标记、可见性与节点统计的纯规则。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-06
+ * 修改时间：2026-10-07
  * 版本作用：显示偏好与交易事实分离，账户和主体标记分别保存。
  * 被调用：图谱偏好 Hook、详情面板、G6 画布及测试。
  * 功能：校验存储、解析关联边标记、按币种统计收付与内部划转。
  * 预期结果：隐藏不减少账目，往返不抵销，重置标记保留原配置。
  */
 import { isColorValue } from "./custom-themes";
-import type { NodeMode, RawGraph } from "./funds-analysis";
+import type { FundsTransaction } from "./funds";
+import type { NodeMode } from "./funds-analysis";
 
 export type NodeMark = {
 	shape: "circle" | "rect" | "diamond" | "triangle" | "hexagon";
@@ -129,8 +130,16 @@ export function relatedEdgeMark(
 	)?.mark;
 }
 
-/** 使用整案规范交易，每筆只计一次；内部划转独立统计，不同时计入对外收付。 */
-export function summarizeNode(data: RawGraph, id: string) {
+/** 统计传入范围，汇总边按原交易笔数计数；内部划转独立统计，不混入对外收付。 */
+export function summarizeNode(
+	data: {
+		edges: readonly (FundsTransaction & {
+			count?: number;
+			lastTimestamp?: string;
+		})[];
+	},
+	id: string,
+) {
 	const currencies = new Map<
 		string,
 		{
@@ -148,9 +157,11 @@ export function summarizeNode(data: RawGraph, id: string) {
 	let last = "";
 	for (const t of data.edges) {
 		if (t.from !== id && t.to !== id) continue;
-		count++;
+		const transactionCount = t.count ?? 1;
+		count += transactionCount;
 		if (!first || t.timestamp < first) first = t.timestamp;
-		if (t.timestamp > last) last = t.timestamp;
+		const end = t.lastTimestamp ?? t.timestamp;
+		if (end > last) last = end;
 		const row = currencies.get(t.currency) ?? {
 			incoming: 0n,
 			outgoing: 0n,
@@ -161,14 +172,14 @@ export function summarizeNode(data: RawGraph, id: string) {
 		};
 		if (t.from === id && t.to === id) {
 			row.internal += BigInt(t.amountMinor);
-			row.internalCount++;
+			row.internalCount += transactionCount;
 		} else if (t.from === id) {
 			row.outgoing += BigInt(t.amountMinor);
-			row.outCount++;
+			row.outCount += transactionCount;
 			peers.add(t.to);
 		} else {
 			row.incoming += BigInt(t.amountMinor);
-			row.inCount++;
+			row.inCount += transactionCount;
 			peers.add(t.from);
 		}
 		currencies.set(t.currency, row);

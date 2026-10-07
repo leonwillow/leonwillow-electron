@@ -1,11 +1,12 @@
 /**
  * @file 归并候选、清洗问题与主体归属核对面板。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-06
+ * 修改时间：2026-10-07
  * 版本作用：不确定配对由人员决定，原值可追溯。
  * 被调用：funds 工作台；调用：Eden 和证据弹窗。
  * 预期结果：决定带版本提交，过期提示刷新，不静默覆盖新增证据。
  */
+
 import { Button } from "@leonwillow-electron/ui/components/button";
 import {
 	Table,
@@ -15,6 +16,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@leonwillow-electron/ui/components/table";
+import { TooltipText } from "@leonwillow-electron/ui/components/tooltip";
 import { useCallback, useState } from "react";
 import {
 	decideFundsMatch,
@@ -153,18 +155,19 @@ export default function ReviewPanel({
 								<TableBody>
 									{resource.data?.issues.map((issue) => (
 										<TableRow key={issue.id}>
-											<TableCell
-												className="max-w-64 truncate text-xs"
-												title={
+											<TooltipText
+												content={
 													record.sources.find((s) => s.id === issue.sourceId)
 														?.name
 												}
 											>
-												{
-													record.sources.find((s) => s.id === issue.sourceId)
-														?.name
-												}
-											</TableCell>
+												<TableCell className="max-w-64 truncate text-xs">
+													{
+														record.sources.find((s) => s.id === issue.sourceId)
+															?.name
+													}
+												</TableCell>
+											</TooltipText>
 											<TableCell className="whitespace-nowrap text-xs">
 												{issue.sheet} · {issue.row} 行
 											</TableCell>
