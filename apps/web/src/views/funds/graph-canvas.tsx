@@ -1,7 +1,7 @@
 /**
  * @file Neo4j 查询结果的 G6 画布。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-07
+ * 修改时间：2026-10-08
  * 版本作用：绘制逐笔或有向汇总结果，平行边保持独立可展开 ID。
  * 被调用：analysis-panel；调用：按需加载的 G6、共享主题令牌。
  * 功能：节点交互与个人标记；G6 Toolbar 悬浮工具栏提供缩放并承载分析操作。
@@ -32,6 +32,7 @@ import type { CanvasSnapshot } from "@/lib/funds-view-history";
 import GraphBackgroundSettings, {
 	canvasBackgroundProps,
 } from "./graph-background-settings";
+import { readCanvasSize, waitForCanvasSize } from "./graph-canvas-size";
 import GraphHoverPreview, {
 	type GraphHoverPreviewHandle,
 } from "./graph-hover-preview";
@@ -188,6 +189,8 @@ export default function GraphCanvas({
 		let observer: MutationObserver | undefined;
 		const draw = async (revision: number) => {
 			const { Graph, CanvasRenderer } = await import("./graph-runtime");
+			const size = await waitForCanvasSize(container, lifetime.signal);
+			if (!size) return;
 			if (disposed || revision !== drawRevision) return;
 			let renderer: ReturnType<typeof createGraphRenderer> | undefined;
 			const graph = new Graph({
@@ -198,6 +201,8 @@ export default function GraphCanvas({
 					},
 				],
 				container,
+				width: size[0],
+				height: size[1],
 				renderer: () => new CanvasRenderer({ enableAutoRendering: false }),
 				autoResize: false,
 				animation: false,
@@ -357,7 +362,12 @@ export default function GraphCanvas({
 				if (readyRef.current) renderer?.update(getPresentation());
 			});
 			resize = new ResizeObserver(() => {
-				if (!disposed && !graph.destroyed) graph.resize();
+				// 隐藏的页签仍保留实例，不能把零尺寸写进 G6 镜头。
+				const next = readCanvasSize(container);
+				if (disposed || graph.destroyed || !next) return;
+				const current = graph.getSize();
+				if (next[0] !== current[0] || next[1] !== current[1])
+					graph.resize(next[0], next[1]);
 			});
 			resize.observe(container);
 			const loaded = await renderer.load();
@@ -426,7 +436,7 @@ export default function GraphCanvas({
 		>
 			<div
 				{...canvasBackgroundProps(backgroundPreferences.background)}
-				className="funds-canvas-surface relative rounded-lg border"
+				className="funds-canvas-surface relative min-h-0 min-w-0 flex-1 overflow-hidden rounded-lg border"
 			>
 				<TooltipOpenScope
 					onOpenChange={onPopupChange}
@@ -492,7 +502,7 @@ export default function GraphCanvas({
 				<section
 					ref={host}
 					aria-busy={!ready && !error}
-					className="relative h-96 min-h-80 w-full lg:h-[30rem]"
+					className="relative h-full min-h-0 w-full"
 					aria-label="资金关系图；单击查看详情，双击下钻，右键打开节点菜单；左侧列表提供键盘操作"
 				/>
 				<GraphHoverPreview

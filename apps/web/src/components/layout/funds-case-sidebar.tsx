@@ -1,7 +1,7 @@
 /**
  * @file 主图标栏右侧的案件菜单。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-07
+ * 修改时间：2026-10-08
  * 版本作用：沿用二级栏，按置顶/普通/归档组织案件，持久化排序及标记删除。
  * 被调用：WorkspaceLayout；调用：Eden、共享 UI、FundsNavigationProvider、FundsCaseRow。
  * 功能：显式搜索、创建、置顶、拖放排序、独立归档视图和删除确认。
@@ -271,7 +271,7 @@ export default function FundsCaseSidebar() {
 					<TooltipPortalScope>
 						<div
 							data-slot="workspace-header"
-							className="flex h-workspace-header shrink-0 items-center justify-between gap-3 border-b px-4"
+							className="flex h-workspace-header shrink-0 items-center justify-between gap-3 border-b px-workspace-gutter"
 						>
 							<div className="flex items-center gap-1">
 								{archived && (
@@ -320,7 +320,7 @@ export default function FundsCaseSidebar() {
 						<search>
 							<form
 								aria-label="案件搜索"
-								className="p-3 pb-2"
+								className="p-workspace-gutter pb-2"
 								onSubmit={(e) => {
 									e.preventDefault();
 									setSearch(draft);
@@ -366,7 +366,7 @@ export default function FundsCaseSidebar() {
 						<nav
 							aria-label={archived ? "已归档案件列表" : "案件列表"}
 							aria-busy={busy || cases.loading}
-							className="min-h-0 flex-1 overflow-y-auto px-3 pb-3"
+							className="min-h-0 flex-1 overflow-y-auto px-workspace-gutter pb-workspace-gutter"
 						>
 							{cases.loading && (
 								<p role="status" className="p-2 text-muted-foreground text-sm">

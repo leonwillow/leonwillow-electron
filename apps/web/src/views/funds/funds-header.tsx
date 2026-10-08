@@ -1,7 +1,7 @@
 /**
  * @file 资金分析模块的共享页头与内部导航。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-07
+ * 修改时间：2026-10-08
  * 版本作用：顶栏与案件菜单共用高度，模块与案件名按路径层级排列。
  * 被调用：FundsView、CasesView；调用：共享按钮样式与 TanStack Link。
  * 功能：显示模块标题及可选案件名，切换内部页面时携带 caseId。
@@ -30,7 +30,7 @@ export default function FundsHeader({
 	return (
 		<header
 			data-slot="workspace-header"
-			className="flex h-workspace-header shrink-0 items-center justify-between gap-3 border-b px-4 sm:px-6"
+			className="flex h-workspace-header shrink-0 items-center justify-between gap-3 border-b px-workspace-gutter"
 		>
 			<div className="flex min-w-0 flex-1 flex-col justify-center sm:flex-row sm:items-center sm:justify-start sm:gap-3">
 				<h1 className="shrink-0 whitespace-nowrap font-semibold text-base">

@@ -1,7 +1,7 @@
 /**
  * @file 工作台的固定图标导航。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-06
+ * 修改时间：2026-10-08
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/layout/workspace-layout.tsx。
  * 调用：ui 基础组件/样式、路由、导航目录、管理中心菜单、搜索、品牌、主题与个人菜单。
@@ -46,18 +46,15 @@ const AppSidebar = () => {
 	);
 
 	return (
-		<aside className="flex w-16 shrink-0 flex-col items-center overflow-y-auto border-r bg-sidebar pb-3">
+		<aside className="flex w-workspace-rail shrink-0 flex-col items-center overflow-y-auto border-r bg-sidebar">
 			<div
 				data-slot="workspace-header"
 				className="flex h-workspace-header w-full shrink-0 items-center justify-center border-border border-b"
 			>
-				<AppLogo />
+				<AppLogo variant="rail" />
 			</div>
 
-			<nav
-				aria-label="主导航"
-				className="flex flex-1 flex-col items-center gap-1 pt-2"
-			>
+			<nav aria-label="主导航" className="workspace-rail-group w-full flex-1">
 				{primaryNav
 					.filter((item) =>
 						canAccessModule({ role: user.role, moduleIds }, item.id),
@@ -127,12 +124,9 @@ const AppSidebar = () => {
 											className={cn(
 												buttonVariants({
 													variant: "ghost",
-													size: "icon-lg",
-													className: active
-														? "bg-primary/10 text-primary before:absolute before:top-1/2 before:-left-2 before:h-5 before:w-0.5 before:-translate-y-1/2 before:rounded-full before:bg-primary hover:bg-primary/10 hover:text-primary focus-visible:border-0 focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:ring-offset-1"
-														: "hover:bg-primary/10 hover:text-primary",
+													size: "icon-workspace",
 												}),
-												"relative border-0 transition-colors duration-200",
+												"workspace-nav-item",
 											)}
 										>
 											<item.icon />
@@ -145,7 +139,7 @@ const AppSidebar = () => {
 					})}
 			</nav>
 
-			<div className="flex flex-col items-center gap-1">
+			<div className="workspace-rail-group w-full">
 				<CommandMenu />
 				<AdminMenu />
 				<Tooltip>
@@ -158,12 +152,9 @@ const AppSidebar = () => {
 								className={cn(
 									buttonVariants({
 										variant: "ghost",
-										size: "icon-lg",
-										className: settingsActive
-											? "bg-primary/10 text-primary before:absolute before:top-1/2 before:-left-2 before:h-5 before:w-0.5 before:-translate-y-1/2 before:rounded-full before:bg-primary hover:bg-primary/10 hover:text-primary focus-visible:border-0 focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:ring-offset-1"
-											: "hover:bg-primary/10 hover:text-primary",
+										size: "icon-workspace",
 									}),
-									"relative border-0 transition-colors duration-200",
+									"workspace-nav-item",
 								)}
 							>
 								<SettingsIcon />

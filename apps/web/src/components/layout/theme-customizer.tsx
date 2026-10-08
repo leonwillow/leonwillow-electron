@@ -1,7 +1,7 @@
 /**
  * @file 常用外观设置的轻量入口。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-10-08
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/layout/app-sidebar.tsx。
  * 调用：ui 基础组件/样式、lucide-react、next-themes、react、components/theme-editor/theme-preset-select、configs/fonts、configs/theme-settings、stores/theme-store、types/theme。
@@ -95,7 +95,7 @@ const ThemeCustomizer = () => {
 						ref={themeEditorTrigger}
 						className="hover:bg-primary/10 hover:text-primary"
 						variant="ghost"
-						size="icon-lg"
+						size="icon-workspace"
 					/>
 				}
 			>

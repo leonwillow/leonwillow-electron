@@ -1,7 +1,7 @@
 /**
  * @file 当前案件账户/主体目录、搜索、筛选与虚拟滚动。
  * 创建时间：2026-10-07
- * 修改时间：2026-10-07
+ * 修改时间：2026-10-08
  * 版本作用：完整目录可浏览，DOM 只保留可见条目与键盘焦点条目。
  * 被调用：AnalysisPanel；调用：TanStack Virtual、AccountDirectoryRow、目录筛选。
  * 功能：宽屏以共享菜单宽度固定目录和分隔线；列表独立滚动，键盘翻阅全部账户。
@@ -255,7 +255,7 @@ export default function AccountDirectory({
 	return (
 		// 菜单贴齐页头和工作区边界；内边距负责留白，只有列表参与收缩和滚动。
 		<aside
-			className="flex min-h-0 min-w-0 flex-col gap-3 self-start border-b bg-sidebar p-3 xl:sticky xl:top-0 xl:h-[calc(100dvh-var(--spacing-workspace-header))] xl:border-r xl:border-b-0"
+			className="flex max-h-1/3 min-h-0 min-w-0 shrink-0 flex-col gap-3 overflow-hidden border-b bg-sidebar p-workspace-gutter xl:max-h-none xl:w-workspace-menu xl:border-r xl:border-b-0"
 			aria-label="案件账户"
 		>
 			<div className="flex shrink-0 items-center gap-2">

@@ -1,6 +1,6 @@
 # 排版、控件与缩放规范
 
-维护日期：2026-10-07。以下尺寸约定沿用原迁移实现；持久化由 `stores/theme-store.ts` 负责，DOM 和窗口同步由 `components/layout/theme-effects.tsx` 连接。
+维护日期：2026-10-08。以下尺寸约定沿用原迁移实现；持久化由 `stores/theme-store.ts` 负责，DOM 和窗口同步由 `components/layout/theme-effects.tsx` 连接。
 
 原模板迁移时，原 `ThemeCustomizer` 中 Select 用 `h-8`，单选格用 `py-2` 加子文字 `text-sm leading-none` 撑高；它们的字号分别是 `text-xs` 和 `text-sm`。原全局缩放只改 `--text-sm/base/lg` 和 `--spacing`，遗漏小字、其他字号与临时 rem 字号，导致上下控件尺寸变化不一致。
 
@@ -30,6 +30,8 @@
 | 控件文字 | `text-control` | 引用 `text-xs`，行高 1.5 |
 | 辅助小字 / 快捷键 | `text-caption` | 0.625rem |
 
+资金分析的视图页签与节点、连线模式使用一致的默认 Tabs 外观。模式单选通过共享 `RadioGroup variant="tabs"` 提供同样的高度、内边距、圆角、文字和选中底色，继续保留 `Label > RadioGroupItem` 结构及单选语义；主题面板原有 `segmented` 外观不受影响。
+
 主题面板的五个控件统一使用 `size="lg"`，高度 2rem、文字 `text-control`、正常字重。分段单选保留原 `ThemeCustomizer` 的 `Label > RadioGroupItem` 结构，圆角选项保留 Tooltip 渲染 Label 的组合。Label 仍负责原有边框、选中背景和首尾圆角；`RadioGroup variant="segmented"` 仅集中管理行高、字号、图标和焦点。移除 Label 的纵向 padding 及子文字的独立字号，让它在统一行高内居中，而不改变组件结构。
 
 此前为统一尺寸而把分段外观移到 Radio 本身，是一次不必要的结构改动，现已撤回。Base UI 的隐藏输入框在原组合中位于 Label 内，不影响 Label 的首尾圆角判断；不再用另一套选择器补偿改动造成的问题。样式规范化应先适配原有组合，不替换已有可用实现。
@@ -48,15 +50,23 @@
 </RadioGroup>
 ```
 
+## 主图标栏
+
+`--spacing-workspace-rail: 3rem` 统一主图标栏宽度并随根 rem 缩放；`workspace-icon` 为栏宽的黄金比例（约 61.8%），共享 `icon-workspace` 按钮尺寸与 Logo 的 `rail` 变体保持正方形。`workspace-rail-inset` 将扣除右侧 1px 分隔线后的剩余宽度等分为左右留白；导航组和底部操作组的图标间距、组首及组尾内边距均使用这一份留白，不累加相邻图标的上下间距，也不要求每个图标所在行是正方形。头像填满对应触发区域，其他页面的按钮尺寸和默认 Logo 不变。
+
+主导航、个人设置、管理中心共用 `workspace-nav-item` 状态样式：选中、悬停或展开时使用 `primary/10` 背景和 `primary` 图标色，键盘仍有可见焦点；不再显示选中项左侧竖线。样式只限主图标栏导航，避免影响普通 ghost 按钮及弹层触发器。
+
 ## 工作区顶栏
 
-`globals.css` 中的 `--spacing-workspace-header: 3.5rem` 统一主图标栏顶部、案件菜单顶部和资金页头；三处使用 `h-workspace-header` 与 `shrink-0`，使高度及底部分隔线随根 rem 一起对齐。`packages/ui/src/lib/utils.ts` 已将 `workspace-header` 注册到 `tailwind-merge` 的 spacing 配置，避免共享高度与其他尺寸类合并时产生歧义。
+`globals.css` 中的 `--spacing-workspace-header` 引用 `workspace-rail`（3rem），使顶部 Logo 四向留白一致，同时统一案件菜单顶部和资金页头；三处使用 `h-workspace-header` 与 `shrink-0`，使高度及底部分隔线随根 rem 一起对齐。详情面板页头和账户目录定位继续复用该高度。`packages/ui/src/lib/utils.ts` 已将这些工作区尺寸注册到 `tailwind-merge` 的 spacing 配置，避免共享尺寸类合并时产生歧义。
 
 案件菜单标题与资金模块标题沿用 `text-base` 并垂直居中，菜单顶部操作使用共享按钮 `size="icon"`。资金页头的模块名与案件名以箭头分层，长名截断并保留完整名称提示；窄窗口标题区改为两行但不增加顶栏高度。内部导航保持单行且不压缩，管理页统计仍可换行。此约定只统一当前三处工作区顶栏，不要求其他页面重写组件结构；实测记录见[资金界面 v7](./funds-ui.md#v7-顶栏对齐验证)。
 
+资金分析分栏外边距统一使用 `--spacing-workspace-gutter: 0.75rem`，并注册到 `tailwind-merge` spacing。案件与资金页头用 `px-workspace-gutter`，案件搜索/列表、账户菜单及图谱正文复用同一令牌；取消资金页头和图谱正文在宽屏单独增加的水平边距。标题对齐各自分栏的搜索框，账户列表到分隔线、分隔线到画布两侧留白相等。分组标题、行内文字和图标仍保留各自层级缩进，不把外边距套用到控件内部。
+
 ## 持久化和检查
 
-2026-10-07：`--spacing-workspace-menu: 15rem` 统一资金分析的案件菜单与账户菜单默认宽度，已注册到 `tailwind-merge` spacing。两者使用同一 `border-r` 和 `bg-sidebar`，账户菜单直接衔接页头，内部 `p-3` 与案件搜索留白一致；菜单宽度跟随根 rem，窄屏账户目录改为上下排列，不挤压画布。
+2026-10-07：`--spacing-workspace-menu: 15rem` 统一资金分析的案件菜单与账户菜单默认宽度，已注册到 `tailwind-merge` spacing。两者使用同一 `border-r` 和 `bg-sidebar`，账户菜单直接衔接页头，2026-10-08 将原 `p-3` 留白收敛为 `p-workspace-gutter`，与案件搜索及画布外边距一致；菜单宽度跟随根 rem，窄屏账户目录改为上下排列，不挤压画布。
 
 序列化对象增加 `version: 2`，业务 Settings 类型保持原字段。启动、storage 事件和 BroadcastChannel 共用编解码；旧版 `lg` 解码为 `xl`，保留其他有效偏好；新版本 `lg` 可正常保存、刷新及跨窗口同步，不会重复迁移。
 

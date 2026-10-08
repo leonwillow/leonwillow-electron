@@ -1,7 +1,7 @@
 /**
  * @file G6 图元分批绘制与原位样式更新。
  * 创建时间：2026-10-07
- * 修改时间：2026-10-07
+ * 修改时间：2026-10-08
  * 版本作用：布局坐标只在进入视图时计算，主题和标记不触发布局或自动缩放。
  * 被调用：graph-canvas；调用：G6 draw/addData、共享主题令牌、分批调度与画面提交器。
  * 预期结果：完整绘制全部节点/边，加载过程可取消，主题连续切换以最新样式为准。
@@ -264,9 +264,11 @@ export function createGraphRenderer({
 			let initialTheme = theme;
 			const initialEntries = entries;
 			const unit = initialTheme.unit;
+			// 分批绘制途中可能切到流水页签；沿用初始化时的有效尺寸。
+			const [width, height] = graph.getSize();
 			const radius = Math.max(
 				150,
-				Math.min(container.clientWidth, container.clientHeight) * 0.32,
+				Math.min(width, height) * 0.32,
 				(data.nodes.length * 2.5 * unit) / (2 * Math.PI),
 			);
 			const positions = fundsNodePositions(data.nodes, radius, snapshot?.nodes);
@@ -282,11 +284,7 @@ export function createGraphRenderer({
 						1,
 						Math.max(
 							0.01,
-							Math.min(
-								container.clientWidth - 96,
-								container.clientHeight - 120,
-							) /
-								(2 * radius + 4 * unit),
+							Math.min(width - 96, height - 120) / (2 * radius + 4 * unit),
 						),
 					),
 				false,
@@ -294,8 +292,8 @@ export function createGraphRenderer({
 			if (!active()) return false;
 			const [x = 0, y = 0] = graph.getViewportByCanvas([0, 0]);
 			const origin: [number, number] = snapshot?.position ?? [
-				container.clientWidth / 2,
-				container.clientHeight / 2,
+				width / 2,
+				height / 2,
 			];
 			await graph.translateBy([origin[0] - x, origin[1] - y], false);
 			if (!active()) return false;

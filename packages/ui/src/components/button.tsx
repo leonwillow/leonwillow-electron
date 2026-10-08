@@ -1,7 +1,7 @@
 /**
  * @file 按钮外观、尺寸变体与自定义触发器的基础组件。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-06
+ * 修改时间：2026-10-08
  * 版本作用：共享 UI 基础层，随工作区维护。
  * 被调用：packages/ui/test、components、components/auth、components/layout、components/theme-editor、views/register、views/login。
  * 调用：@base-ui/react、ui/lib/utils、class-variance-authority。
@@ -43,6 +43,8 @@ const buttonVariants = cva(
 					"size-control-xs rounded-sm [&_svg:not([class*='size-'])]:size-2.5",
 				"icon-sm": "size-control-sm [&_svg:not([class*='size-'])]:size-3",
 				"icon-lg": "size-control-lg [&_svg:not([class*='size-'])]:size-4",
+				"icon-workspace":
+					"size-workspace-icon [&_svg:not([class*='size-'])]:size-4",
 			},
 		},
 		defaultVariants: {

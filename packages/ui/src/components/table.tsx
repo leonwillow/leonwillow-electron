@@ -1,9 +1,9 @@
 /**
- * @file 人员列表使用的语义表格组件。
+ * @file 人员列表与资金明细使用的语义表格组件。
  * 创建时间：2026-10-04
- * 修改时间：2026-10-04
+ * 修改时间：2026-10-08
  * 版本作用：从原模板迁入共享 UI。
- * 被调用：Web 人员管理页面。
+ * 被调用：Web 人员管理、资金明细与流向汇总。
  * 调用：React、共享样式工具。
  * 功能：透传原生属性，提供共享的布局和状态样式。
  * 预期结果：业务层无需复制基础组件。
@@ -12,11 +12,21 @@
 import { cn } from "@leonwillow-electron/ui/lib/utils";
 import type * as React from "react";
 
-function Table({ className, ...props }: React.ComponentProps<"table">) {
+function Table({
+	className,
+	containerProps,
+	...props
+}: React.ComponentProps<"table"> & {
+	containerProps?: React.ComponentProps<"div">;
+}) {
 	return (
 		<div
+			{...containerProps}
 			data-slot="table-container"
-			className="relative w-full overflow-x-auto"
+			className={cn(
+				"relative w-full overflow-x-auto",
+				containerProps?.className,
+			)}
 		>
 			<table
 				data-slot="table"

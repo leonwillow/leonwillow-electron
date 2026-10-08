@@ -1,7 +1,7 @@
 /**
  * @file 仅管理员可见的管理中心菜单。
  * 创建时间：2026-10-04
- * 修改时间：2026-10-04
+ * 修改时间：2026-10-08
  * 版本作用：在工作台图标栏提供独立于个人设置的管理入口。
  * 被调用：components/layout/app-sidebar.tsx。
  * 调用：共享 UI、权限目录、工作台路由上下文、assets/data/navigation。
@@ -45,21 +45,11 @@ export default function AdminMenu() {
 							render={
 								<Button
 									variant="ghost"
-									size="icon-lg"
+									size="icon-workspace"
 									aria-label="管理中心"
 									aria-current={active ? "location" : undefined}
-									className={cn(
-										"relative border-0 transition-colors duration-200 hover:bg-primary/10 hover:text-primary",
-										active &&
-											"bg-primary/10 text-primary focus-visible:border-0 focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:ring-offset-1",
-									)}
+									className="workspace-nav-item"
 								>
-									{active && (
-										<span
-											aria-hidden="true"
-											className="absolute top-1/2 -left-2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-primary"
-										/>
-									)}
 									<ShieldCheckIcon />
 								</Button>
 							}
