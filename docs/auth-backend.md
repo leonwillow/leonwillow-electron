@@ -1,16 +1,17 @@
 # 后端认证与部署
 
-维护日期：2026-10-05。Elysia 暴露受控接口，Eden 消费类型；Better Auth 管理密码哈希、会话和数据库限流。
+维护日期：2026-11-03。Elysia 暴露受控接口，Eden 消费类型；Better Auth 管理密码哈希、会话和数据库限流。
 
 ## 本地配置与数据库
 
-在 `apps/server/.env` 设置 `DATABASE_URL` 和至少 32 字符的随机 `BETTER_AUTH_SECRET`。开发数据库由 `bun run db:start` 启动，连接地址按 `packages/db/docker-compose.yml` 配置。`.env` 不入库，不把生产连接放进测试命令。
+在 `apps/server/.env` 设置 `DATABASE_URL` 和至少 32 字符的随机 `BETTER_AUTH_SECRET`。当前 PostgreSQL 地址为 `100.100.1.3:5432`，数据库与连接用户均为 `leonwillow`；实际凭据仅保存在忽略的环境文件。`DATABASE_URL` 和 `DATABASE_URL_UNPOOLED` 均使用该库的直接连接，根 `.env.local` 同步保持一致。数据库工具和隔离 schema 测试优先读取 `DATABASE_URL_UNPOOLED`，未配置时复用 `DATABASE_URL`。
+
+2026-11-03 已确认目标库为空，并执行仓库现有八份 Drizzle 迁移建立表结构，仅初始化管理员账号；没有从原数据库迁入账号、权限、文书或资金业务数据。案件原件的 S3 配置沿用现有值，历史 Neon 接入说明见 [Neon 测试环境](./neon-setup.md)。也可显式通过 `bun run db:start` 启动原 Compose 环境。`.env` 不入库，不把实际生产数据所在的数据库用作测试库。
 
 `CORS_ORIGIN` 是逗号分隔的明确前端 Origin；`BETTER_AUTH_URL` 是客户端实际访问的 API 地址；Web 的 `VITE_SERVER_URL` 是构建时公开地址。改端口或域名时同步配置。生产显式设置 `NODE_ENV=production`，通过 HTTPS 对外服务。当前 Cookie 使用 SameSite=Lax；生产拓扑以同站点部署为前提，独立站点和第三方 Cookie 场景尚未验证。
 
 ```sh
 bun install --frozen-lockfile
-bun run db:start
 bun run db:migrate
 bun run dev
 ```
@@ -35,6 +36,8 @@ unset ADMIN_INITIAL_PASSWORD
 ```
 
 此命令创建 `admin`，使用原有并发初始化锁；已有完整管理员不会被重置，同名普通账号不会被提权。命令不监听端口，成功和失败均关闭 pool。部署产物中的等效命令是在服务工作目录运行 `bun dist/init-admin.mjs`。现有账号密码不会因本次代码调整自动改变；原环境若曾用公开默认密码，需要由管理员更换后再对外开放。
+
+2026-11-03 的新库按操作者明确指定的初始密码，在受控终端调用 Better Auth `createUser` 完成一次性初始化。创建使用现有事务适配器和初始化锁，写入后验证密码哈希；登录、管理员权限、人员列表和退出均已通过真实 HTTP 接口验证。此次操作没有调整常规 `auth:init` 或人员管理的密码长度规则，也没有把初始密码保存为默认配置。
 
 ## 代理、Cookie 与错误
 

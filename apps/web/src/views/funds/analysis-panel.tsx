@@ -783,13 +783,13 @@ export default function AnalysisPanel({ caseId }: { caseId: string }) {
 														<TooltipText
 															content={`${accountName(lookup.get(t.from))} ${t.fromAccount} → ${accountName(lookup.get(t.to))} ${t.toAccount}`}
 														>
-															<div className="max-w-80 truncate">
+															<div className="w-fit max-w-80 truncate">
 																{accountName(lookup.get(t.from))} →{" "}
 																{accountName(lookup.get(t.to))}
 															</div>
 														</TooltipText>
 														<TooltipText content={t.summary}>
-															<p className="max-w-80 truncate text-muted-foreground">
+															<p className="w-fit max-w-80 truncate text-muted-foreground">
 																{t.summary || "摘要为空"}
 															</p>
 														</TooltipText>

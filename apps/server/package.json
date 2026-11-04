@@ -13,8 +13,8 @@
 		"start:worker": "bun run dist/funds-worker.mjs",
 		"env:generate": "varlock codegen",
 		"auth:init": "bun src/init-admin.ts",
-		"test:unit": "bun test test/health.test.ts test/auth-response.test.ts test/client-ip.test.ts test/lifecycle.test.ts test/funds.test.ts test/funds-direction.test.ts",
-		"test": "bun test --preload varlock/auto-load",
+		"test:unit": "bun test test/health.test.ts test/auth-response.test.ts test/client-ip.test.ts test/lifecycle.test.ts test/funds.test.ts test/funds-direction.test.ts test/document-template.test.ts test/inquiries.test.ts",
+		"test": "bun test --timeout 120000 --preload varlock/auto-load",
 		"test:health": "bun test test/health.test.ts"
 	},
 	"dependencies": {
@@ -23,9 +23,12 @@
 		"@leonwillow-electron/access": "workspace:*",
 		"@leonwillow-electron/auth": "workspace:*",
 		"@leonwillow-electron/db": "workspace:*",
+		"@xmldom/xmldom": "^0.9.12",
+		"docxtemplater": "^3.71.0",
 		"drizzle-orm": "catalog:",
 		"elysia": "^1.4.30",
 		"neo4j-driver": "^6.2.0",
+		"pizzip": "^3.3.0",
 		"varlock": "catalog:",
 		"xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
 	},

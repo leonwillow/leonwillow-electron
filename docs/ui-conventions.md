@@ -1,10 +1,12 @@
 # 排版、控件与缩放规范
 
-维护日期：2026-10-08。以下尺寸约定沿用原迁移实现；持久化由 `stores/theme-store.ts` 负责，DOM 和窗口同步由 `components/layout/theme-effects.tsx` 连接。
+维护日期：2026-11-04。以下尺寸约定沿用原迁移实现；持久化由 `stores/theme-store.ts` 负责，DOM 和窗口同步由 `components/layout/theme-effects.tsx` 连接。
 
 原模板迁移时，原 `ThemeCustomizer` 中 Select 用 `h-8`，单选格用 `py-2` 加子文字 `text-sm leading-none` 撑高；它们的字号分别是 `text-xs` 和 `text-sm`。原全局缩放只改 `--text-sm/base/lg` 和 `--spacing`，遗漏小字、其他字号与临时 rem 字号，导致上下控件尺寸变化不一致。
 
 现在保留原主题预设、字体、语义色和交互逻辑，通过共享基础组件修正尺寸和排版。
+
+笔录编辑控件和案件菜单继续使用共享语义字号、控件及工作区令牌。A4 文书属于输出介质，纸张、仿宋、行距和页边距集中在 `globals.css` 的 `inquiry-document-*` 规则，以 mm/pt 保持实际打印尺寸；预览按容器等比缩小，不随界面缩放改变分页。文书使用白纸黑字，周围编辑器跟随明暗主题。来源和输出差异见 [笔录功能](./inquiries-migration.md)。
 
 ## 四档缩放
 
@@ -58,13 +60,23 @@
 
 ## 工作区顶栏
 
+2026-11-04：笔录工具栏与模块标题共用一行，以 `min-h-workspace-header` 保持宽屏顶线对齐，窄空间允许操作分组换行。`CollapsibleSidePanel` 的中部折叠手柄由 `globals.css` 统一设置 rem 尺寸、语义色、方向反馈、焦点环及减少动态效果适配；折叠状态由 Base UI 管理，视图仅提供内容、边侧和展开状态。
+
 `globals.css` 中的 `--spacing-workspace-header` 引用 `workspace-rail`（3rem），使顶部 Logo 四向留白一致，同时统一案件菜单顶部和资金页头；三处使用 `h-workspace-header` 与 `shrink-0`，使高度及底部分隔线随根 rem 一起对齐。详情面板页头和账户目录定位继续复用该高度。`packages/ui/src/lib/utils.ts` 已将这些工作区尺寸注册到 `tailwind-merge` 的 spacing 配置，避免共享尺寸类合并时产生歧义。
 
 案件菜单标题与资金模块标题沿用 `text-base` 并垂直居中，菜单顶部操作使用共享按钮 `size="icon"`。资金页头的模块名与案件名以箭头分层，长名截断并保留完整名称提示；窄窗口标题区改为两行但不增加顶栏高度。内部导航保持单行且不压缩，管理页统计仍可换行。此约定只统一当前三处工作区顶栏，不要求其他页面重写组件结构；实测记录见[资金界面 v7](./funds-ui.md#v7-顶栏对齐验证)。
 
+2026-11-04：资金、文书和笔录在工作台中只挂载一个 `WorkspaceMenu`，共用固定和展开状态，并使用 `workspace-menu`、`workspace-header`、`workspace-gutter` 令牌呈现。标题在左侧占用剩余空间，过长时截断并提供完整文字提示；右侧工具栏不收缩，先显示模块操作，最右侧始终是共享的固定/取消固定按钮，保留中文可访问名称、`aria-pressed` 和 Tooltip。搜索、列表及底部内容按当前模块替换；切换内容不重建外框或固定按钮，固定/取消固定统一生效，刷新后恢复同一份用户偏好。标题/外框/固定入口的后续调整只维护共享组件。
+
+浮动外框与主图标栏、窗口上下边缘均留出 `workspace-gutter`（0.75rem），使用共享 `rounded-xl`、完整边框和 `shadow-xl`，与全高停靠栏区分。浮动宽度仍为 `workspace-menu`，最大宽度扣除可用区域两侧留白。位置和透明悬停通道集中在 `globals.css` 的 `.workspace-menu-floating`；通道仅覆盖左侧间隙，不额外维护展开状态，外框不裁剪 Tooltip。实际停靠时恢复全高、贴边和右分隔线；窄窗沿用浮动外观并保留统一固定偏好。
+
 资金分析分栏外边距统一使用 `--spacing-workspace-gutter: 0.75rem`，并注册到 `tailwind-merge` spacing。案件与资金页头用 `px-workspace-gutter`，案件搜索/列表、账户菜单及图谱正文复用同一令牌；取消资金页头和图谱正文在宽屏单独增加的水平边距。标题对齐各自分栏的搜索框，账户列表到分隔线、分隔线到画布两侧留白相等。分组标题、行内文字和图标仍保留各自层级缩进，不把外边距套用到控件内部。
 
 ## 持久化和检查
+
+2026-11-04：笔录目录迁入 ReUI Tree，使用 `control-md`、`text-control` 和语义色。`--spacing-tree-indent: 1.25rem` 统一每级缩进，节点的 `data-level` 和 `--tree-padding` 在共享样式中连接引导线；左侧展开箭头、文件夹/文件图标及同行操作一起随 rem 缩放。业务组件不覆盖控件尺寸或节点字号。
+
+2026-11-04：共享 Calendar/DatePicker 迁入 shadcn base-mira 官方实现，使用 React DayPicker 和 date-fns，默认中文及年月下拉；日历单元引用 `control-md`，按钮与文字复用共享令牌。ReUI TimePicker 保留官方分列、键盘、清空及范围限制 API，中文标签与24小时格式默认可用；时间列行高和列表留白统一由 `globals.css` 的 `data-slot="time-picker-column"` 规则引用现有控件高度与基础间距。笔录通过 FieldGroup 组织日期和起止时间及姓名/性别同行，不在页面覆盖控件尺寸。
 
 2026-10-07：`--spacing-workspace-menu: 15rem` 统一资金分析的案件菜单与账户菜单默认宽度，已注册到 `tailwind-merge` spacing。两者使用同一 `border-r` 和 `bg-sidebar`，账户菜单直接衔接页头，2026-10-08 将原 `p-3` 留白收敛为 `p-workspace-gutter`，与案件搜索及画布外边距一致；菜单宽度跟随根 rem，窄屏账户目录改为上下排列，不挤压画布。
 
@@ -96,6 +108,10 @@ G6 的原生项通过共享 Tooltip 的 `anchor` 接口复用提示外观，不�
 
 全局 Tooltip 允许鼠标移入 Popup，保留 Base UI 的悬停路径和 Escape 关闭行为。原生 `title` 说明统一改用 `TooltipText`，复用原文字、表格单元格或链接节点，无额外布局包装。案件菜单使用 `TooltipPortalScope`，移入伸出菜单的气泡仍视为处于菜单内。会自动折叠的工具栏通过 `TooltipOpenScope` 汇总提示打开状态；原生 G6 项的外部锚点额外处理按钮与气泡之间的离开宽限，并在定时关闭前核验真实悬停命中，避免原生 leave 与 Portal enter 事件先后顺序导致误关。
 
+2026-10-08：`TooltipText` 仅在实际文字节点的 `scrollWidth > clientWidth` 时打开完整内容提示，链接内优先测量 `.truncate` 文字，不把图标或留白作为锚点。气泡与文字起点对齐，继续由 Base UI 处理屏幕边缘避让；打开时测量，并仅为当前打开的文字监听尺寸与字体变化，恢复完整显示时关闭提示。复制操作提示及图标说明沿用各自的 Tooltip，不受文字截断规则限制。银行流水的名称与摘要采用自然文字宽度及既有最大宽度，空白不再成为悬停范围。
+
+2026-11-04：全局 Tooltip 处理 Base UI 定位器的 `anchorHidden` 状态。行内按钮被 `display:none` 隐藏、外部 DOM 锚点移除或锚点完全滚出裁剪区域时，定位器立即隐藏气泡并禁用指针命中，退场动画也不得显示在零坐标。若提示仍打开，通过公开 `actionsRef.close()` 通知受控调用方及 `TooltipOpenScope`，避免仅视觉隐藏而留下打开状态。关闭调度延至下一帧并在定位状态变化时取消，避免快速重新打开时使用上一次的隐藏结果。保留原有 Portal 归属、可移入气泡、调用方动作引用及取消关闭语义；不引入业务页面逐个修补或全页常驻观察器。浏览器复核覆盖笔录行内按钮焦点离开、外部锚点移除、滚动裁剪、受控状态与父层汇总归零、普通提示及嵌套 Portal 内帮助链接。
+
 2026-10-07：画布悬停速览继续使用共享 Card、Badge、Button、Popover、Tooltip 和 `CopyText`，从原模板迁移 Base UI `Collapsible` 作为共享折叠基础组件；保留同一个面板及原生展开语义，不另造字号、控件高度或主题色。停靠位置选择复用工具栏网格，速览的布局存储由自身维护；此处属于既有体系的组件扩展，没有新增持久设计令牌。
 
 速览的业务外观集中于 `globals.css`：宽 18rem，画布边距 0.5rem，最大宽高扣除双侧留白；沿用卡片语义色、圆角与共享阴影。标题保持完整，正文允许在 flex 布局中缩小并独立滚动，长名称、账号和多币种内容不得撑开画布。折叠通过网格行在 `1fr` 与 `0fr` 间收缩，过渡遵守 `prefers-reduced-motion`，设置弹窗、Tooltip 与内部键盘焦点可保持临时展开，图标使用中文可访问名称；这些约定仅描述当前画布速览，不推广为所有卡片的尺寸或交互规则。浏览器与数据口径验证见[画布悬停速览](./funds-ui.md#画布悬停速览2026-10-07)。
@@ -107,3 +123,8 @@ G6 的原生项通过共享 Tooltip 的 `anchor` 接口复用提示外观，不�
 2026-10-07：`CopyText` 的下划线偏移从 `underline-offset-4` 调整为 `underline-offset-2`，避免截断的等宽卡号将下划线裁在行框外；页头高度、截断和复制行为保持不变，无新增令牌。文档已核对源码；主实现者在浅色 1512 × 828 和深色 390 × 844 窗口验证名称、卡号的 2px 下划线可见及键盘 `focus-visible` 正常，截图为 `apps/web/.impeccable/review/copy-underline-desktop.png`、`copy-underline-mobile.png`。`lint`、`check-types`、`build`、`test:ui`（51 项）和 `git diff --check` 通过。
 
 2026-10-07：画布背景设置复用现有 `ColorSwatch` 及共享表单、Popover 和 Button；预设颜色、CSS 纹理与背景预览集中于 `globals.css` 的画布表面规则。新增变量仅作用于资金画布的背景、墨色与纹理，不修改全局品牌令牌；默认图元按实际背景校正可读性，个人标记保持原样。空结果提示、速览和工具栏使用独立主题底色，避免自定义画布色破坏浮层文字与控件对比。行为与验证见[画布背景设置](./funds-ui.md#画布背景设置2026-10-07)。
+
+
+2026-11-04：固定二级菜单支持 ReUI 分隔条调整宽度。共享 `--workspace-menu-default-size` 为 15rem，`--spacing-workspace-menu` 引用它供浮窗和其他默认菜单使用；固定菜单的 min/max 分别由 `--workspace-menu-min-size`（12rem）及 `--workspace-menu-max-size`（28rem）定义，正文最小宽度使用 `--workspace-content-min-size`（20rem）。尺寸只在 globals.css 定义，布局读取带单位的值传给 ReUI。用户宽度以 rem 保存，窗口空间不足时由官方约束临时收窄，不覆盖原偏好。
+
+`.workspace-menu-resize-handle` 保留 `c-resizable-5` 的原版伪元素：默认高 1.5rem、宽 0.25rem，悬停高 2rem，按下高 3rem、宽 0.375rem；颜色使用 muted-foreground/primary，共享 focus ring 保留键盘可见焦点。手柄仅在实际停靠时显示；窄窗继续使用现有浮窗及其边距，不提供拖宽控件。

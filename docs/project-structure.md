@@ -1,6 +1,6 @@
 # 项目结构与依赖边界
 
-维护日期：2026-10-06。当前是 Bun 工作区中的纯 CSR 应用；目录调整以职责变化为依据。
+维护日期：2026-10-10。当前是 Bun 工作区中的纯 CSR 应用；目录调整以职责变化为依据。
 
 | 目录 | 职责 | 归属判断 |
 | --- | --- | --- |
@@ -41,11 +41,21 @@ UI 包的源码由 Vite 消费；内部包无需为形式统一各自创建 dist
 
 生成与检查责任见 [工程验证](./engineering-verification.md)，注释见 [注释规范](./code-comments.md)，基线问题见 [评审记录](./project-structure-review.md)。
 
+文书取号的模板版本、年度计数、简要取号及可选 Word 生成见 [文书取号](./document-numbering.md)。数据归 `packages/db`，事务与模板生成归 `modules/documents`，CSR 页面归 `views/documents`；预览器按需加载，应用壳不承担文书处理。
+
+笔录功能的来源和行为见 [笔录功能](./inquiries-migration.md)。目录搜索、状态筛选、树行操作与导航 Provider 位于 `components/layout`；`inquiry-editor-actions.tsx` 协调目录操作前的保存和编辑锁，编辑、常用人员和 A4 实测分页位于 `views/inquiries`；Eden 适配位于 `lib/inquiries.ts`，HTTP/事务/校验/Word 导出位于 `modules/inquiries`，三张持久表及生成迁移位于 `packages/db`。笔录直接复用现有认证和 PostgreSQL，不依赖资金图或文件对象存储。
+
 资金调查的实现边界见 [案件基础版本](./funds-investigation-design.md) 与 [导入规范](./funds-import.md)。`modules/funds` 将纯解析、归并、字段导出和 Neo4j 适配分开；案件及来源表归 `packages/db`。`views/funds` 负责页面，`lib/funds.ts` 只做 Eden 调用和显示转换；图组件按需加载 G6，没有把测试流水打包进客户端。图连接由服务入口关闭，不影响独立健康检查。`ai-normalizer.ts` 管理版本化 AI 映射与确定性转换，`jobs.ts` 管理 PG 持久任务与租约，`canonical.ts` 负责稳定交易 ID 和案件主体，`case-links.ts` 负责明确确认的跨案快照。`apps/server/src/funds-worker.ts` 为独立后台入口，`submit-funds.ts` 将完整目录提交到同一队列。规范交易、任务、文件检查点和跨案纳入记录均归 `packages/db`；页面 `pipeline-panel.tsx`、`case-links-panel.tsx` 分别展示处理过程和跨案操作。
 
 资金调查页面按工作职责拆分：`views/funds/index.tsx` 只组织资金分析，`cases-view.tsx` 组织案件与资料管理；`routes/_workspace/funds_.cases.tsx` 使用 TanStack 非嵌套路由约定，地址为 `/funds/cases`，不嵌套分析视图。两页沿用同一案件 API 与授权，通过 `funds-header.tsx` 提供模块内部导航和统一页头，导航通过 URL 传递当前案件；全局侧栏只提供一个资金分析入口。
 
-案件二级菜单位于 `components/layout/funds-case-sidebar.tsx`，沿用原 KnowledgeBaseSidebar 的结构。`funds-navigation-provider.tsx` 连接主图标、浮层和固定偏好；`workspace-layout.tsx` 根据资金模块权限挂载，宽窗口固定时让出内容空间，窄窗口回到浮动模式。只存储按用户区分的固定开关，案件内容继续通过 Eden 读取。
+案件二级菜单位于 `components/layout/funds-case-sidebar.tsx`，沿用原 KnowledgeBaseSidebar 的结构。`funds-navigation-provider.tsx` 仅把资金入口绑定到统一工作台导航，不再创建独立 Provider；`workspace-layout.tsx` 根据模块权限提供可用内容，宽窗口固定时让出内容空间，窄窗口回到浮动模式。只存储按用户区分的固定开关，案件内容继续通过 Eden 读取。
+
+2026-10-13：案件与文书类型菜单共用 `components/layout/use-workspace-menu.ts` 的悬停、延迟关闭、键盘、固定和拖动保护。各自的导航 Provider 保留独立上下文和用户偏好键；文书 Provider 额外协调目录刷新与类型选择，页面加载和模板管理通过目录回写忽略旧请求。两套菜单由 `workspace-layout.tsx` 按模块授权挂载；目录与文书处理仍经 Eden，不迁入应用壳实现。
+
+2026-11-04：二级菜单由 `workspace-navigation-provider.tsx` 在用户工作台中唯一创建状态，`use-workspace-menu.ts` 管理悬停/焦点、计时器和响应式停靠，`lib/workspace-menu-state.ts` 管理内容切换及统一固定偏好的读写和旧值合并。模块适配入口只绑定菜单 ID，不创建另一份固定或展开状态。
+
+`workspace-secondary-menu.tsx` 持续调用资金、文书和笔录的菜单内容 Hook，选择当前内容后只渲染一次 `workspace-menu.tsx`。内容契约为 `label`、`title`、`toolbar`、`children` 和可选的 `dialogs`；标题、固定按钮和外框只存在于共享组件中，弹窗单独渲染。业务数据仍经 Eden 读取，未授权的菜单不可显示，资金目录加载及文书/笔录资源也遵循模块授权。新增同类菜单应注册内容及入口，不再增加菜单框 Provider 或独立固定存储键。
 
 ## 全局删除约定（2026-10-06）
 
@@ -54,3 +64,5 @@ UI 包的源码由 Vite 消费；内部包无需为形式统一各自创建 dist
 规范交易重新归并时，旧交易只标记失效，有效交易按稳定 ID 更新或恢复；各次完整快照保存在版本表中。跨案排除继续使用 `active=false`，只撤销目标案的纳入关系。授权撤销使用 `deleted_at` 并由权限读取统一过滤，恢复授权复用原行；自定义主题保留带 `deletedAt` 的本地快照并从选择器隐藏，删除当前主题回退默认。新增业务模块沿用此约定。
 
 认证会话/令牌的撤销与过期清理、临时对象 URL、请求头等运行时清理不属于业务资料删除，沿用原生命周期。Neo4j 为当前有效规范数据的可重建分析投影，资料变更的投影重建仍可替换节点/边；案件删除本身不触发图重建或物理清理。测试仅在独立随机 schema、案件 ID 与对象桶中做测试资源清理，不清理用户案件。
+
+2026-11-04：共享二级菜单分栏位于 `components/layout/workspace-panels.tsx`，基础 ReUI 组件位于 `packages/ui/src/components/resizable.tsx`；宽度偏好的校验读写位于 `lib/workspace-menu-width.ts`，持续状态与跨窗口同步由 `use-workspace-menu-width.ts` 提供，并只在统一菜单控制器创建一次。

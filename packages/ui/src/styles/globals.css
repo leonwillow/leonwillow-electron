@@ -1,11 +1,11 @@
 /**
  * @file 全局语义色、排版与控件尺寸的唯一来源。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-08
+ * 修改时间：2026-11-04
  * 版本作用：共享 UI 基础层，随工作区维护。
  * 被调用：main.tsx、utils/theme/theme-draft.ts。
  * 调用：tailwindcss、tw-animate-css、shadcn。
- * 功能：声明明暗主题、字体映射、rem 缩放及基础交互样式。
+ * 功能：声明 Shadcn Studio 默认明暗配色、字体映射、rem 缩放及基础交互样式。
  * 预期结果：页面和控件随同一套令牌缩放，主题不建立第二套尺寸体系。
  */
 @import "tailwindcss";
@@ -28,9 +28,11 @@
 		2
 	);
 	/* 案件与账户菜单共用默认宽度，随界面缩放保持一致。 */
-	--spacing-workspace-menu: 15rem;
+	--spacing-workspace-menu: var(--workspace-menu-default-size);
 	/* 资金工作区各分栏共用外边距，标题、搜索和画布按同一基线排列。 */
 	--spacing-workspace-gutter: 0.75rem;
+	/* ReUI 目录每级缩进随界面 rem 缩放。 */
+	--spacing-tree-indent: 1.25rem;
 	/* 所有单行控件共用尺寸与字号，随根 rem 一起缩放。 */
 	--spacing-control-xs: 1.25rem;
 	--spacing-control-sm: 1.5rem;
@@ -89,6 +91,11 @@
 }
 
 :root {
+	/* 停靠菜单的默认及约束宽度供 ReUI 读取，浮窗仍使用默认宽度。 */
+	--workspace-menu-default-size: 15rem;
+	--workspace-menu-min-size: 12rem;
+	--workspace-menu-max-size: 28rem;
+	--workspace-content-min-size: 20rem;
 	--success: oklch(0.48 0.14 150);
 	--warning: oklch(0.53 0.13 65);
 	--ui-scale: 0.95;
@@ -99,8 +106,8 @@
 	--card-foreground: oklch(0.141 0.005 285.823);
 	--popover: oklch(1 0 0);
 	--popover-foreground: oklch(0.141 0.005 285.823);
-	--primary: oklch(0.52 0.105 223.128);
-	--primary-foreground: oklch(0.984 0.019 200.873);
+	--primary: oklch(0.21 0.006 285.885);
+	--primary-foreground: oklch(0.985 0 0);
 	--secondary: oklch(0.967 0.001 286.375);
 	--secondary-foreground: oklch(0.21 0.006 285.885);
 	--muted: oklch(0.967 0.001 286.375);
@@ -111,16 +118,16 @@
 	--border: oklch(0.92 0.004 286.32);
 	--input: oklch(0.92 0.004 286.32);
 	--ring: oklch(0.705 0.015 286.067);
-	--chart-1: oklch(66.906% 0.14082 162.14);
-	--chart-2: oklch(76.441% 0.16112 75.113);
-	--chart-3: oklch(57.528% 0.16264 255.549);
-	--chart-4: oklch(62.254% 0.19091 24.895);
-	--chart-5: oklch(43.315% 0.16721 283.63);
+	--chart-1: oklch(0.646 0.222 41.116);
+	--chart-2: oklch(0.6 0.118 184.704);
+	--chart-3: oklch(0.398 0.07 227.392);
+	--chart-4: oklch(0.828 0.189 84.429);
+	--chart-5: oklch(0.769 0.188 70.08);
 	--radius: 0.625rem;
 	--sidebar: oklch(0.985 0 0);
 	--sidebar-foreground: oklch(0.141 0.005 285.823);
-	--sidebar-primary: oklch(0.609 0.126 221.723);
-	--sidebar-primary-foreground: oklch(0.984 0.019 200.873);
+	--sidebar-primary: oklch(0.21 0.006 285.885);
+	--sidebar-primary-foreground: oklch(0.985 0 0);
 	--sidebar-accent: oklch(0.967 0.001 286.375);
 	--sidebar-accent-foreground: oklch(0.21 0.006 285.885);
 	--sidebar-border: oklch(0.92 0.004 286.32);
@@ -138,8 +145,8 @@
 	--card-foreground: oklch(0.985 0 0);
 	--popover: oklch(0.21 0.006 285.885);
 	--popover-foreground: oklch(0.985 0 0);
-	--primary: oklch(0.45 0.085 224.283);
-	--primary-foreground: oklch(0.984 0.019 200.873);
+	--primary: oklch(0.92 0.004 286.32);
+	--primary-foreground: oklch(0.21 0.006 285.885);
 	--secondary: oklch(0.274 0.006 286.033);
 	--secondary-foreground: oklch(0.985 0 0);
 	--muted: oklch(0.274 0.006 286.033);
@@ -150,15 +157,15 @@
 	--border: oklch(1 0 0 / 10%);
 	--input: oklch(1 0 0 / 15%);
 	--ring: oklch(0.552 0.016 285.938);
-	--chart-1: oklch(62.123% 0.1283 163.144);
-	--chart-2: oklch(66.992% 0.14248 73.223);
-	--chart-3: oklch(62.207% 0.16129 255.071);
-	--chart-4: oklch(66.927% 0.15856 22.282);
-	--chart-5: oklch(66.963% 0.14527 286.826);
+	--chart-1: oklch(0.488 0.243 264.376);
+	--chart-2: oklch(0.696 0.17 162.48);
+	--chart-3: oklch(0.769 0.188 70.08);
+	--chart-4: oklch(0.627 0.265 303.9);
+	--chart-5: oklch(0.645 0.246 16.439);
 	--sidebar: oklch(0.21 0.006 285.885);
 	--sidebar-foreground: oklch(0.985 0 0);
-	--sidebar-primary: oklch(0.715 0.143 215.221);
-	--sidebar-primary-foreground: oklch(0.302 0.056 229.695);
+	--sidebar-primary: oklch(0.488 0.243 264.376);
+	--sidebar-primary-foreground: oklch(0.985 0 0);
 	--sidebar-accent: oklch(0.274 0.006 286.033);
 	--sidebar-accent-foreground: oklch(0.985 0 0);
 	--sidebar-border: oklch(1 0 0 / 10%);
@@ -262,6 +269,137 @@ input[type="number"]::-webkit-outer-spin-button {
 
 .workspace-nav-item[aria-current]:focus-visible {
 	@apply ring-2 ring-primary/20 ring-offset-1;
+}
+
+/* 浮动二级菜单与主导航、窗口上下边缘分离；窄窗也保留两侧留白。 */
+.workspace-menu-floating {
+	inset-block: var(--spacing-workspace-gutter);
+	left: var(--spacing-workspace-gutter);
+	max-width: calc(100% - var(--spacing-workspace-gutter) * 2);
+}
+
+/* 透明通道属于菜单的悬停区域，经过左侧间隙时保持展开；不裁剪 Tooltip。 */
+.workspace-menu-floating::before {
+	content: "";
+	position: absolute;
+	inset-block: -1px;
+	right: 100%;
+	width: calc(var(--spacing-workspace-gutter) + 1px);
+}
+
+/* ReUI c-resizable-5 原版胶囊手柄效果；拖拽与键盘行为由官方分栏组件处理。 */
+.workspace-menu-resize-handle {
+	@apply before:bg-muted-foreground/25 hover:before:bg-muted-foreground/50 active:before:bg-primary before:pointer-events-none before:absolute before:top-1/2 before:left-1/2 before:z-10 before:h-6 before:w-1 before:-translate-x-1/2 before:-translate-y-1/2 before:rounded-full before:transition-all before:duration-300 before:ease-[cubic-bezier(0.32,0.72,0,1)] hover:before:h-8 active:before:h-12 active:before:w-1.5;
+}
+
+/* 侧面板折叠手柄参考 Naive UI toggle-bar；尺寸随 rem 缩放，状态由 Base UI 管理。 */
+.collapsible-side-panel {
+	position: relative;
+	min-height: 0;
+	flex-shrink: 0;
+	--panel-toggle-angle: 12deg;
+}
+
+.collapsible-side-panel[data-closed] {
+	width: 1rem;
+}
+
+.collapsible-side-panel[data-side="right"],
+.collapsible-side-panel[data-side="left"][data-closed] {
+	--panel-toggle-angle: -12deg;
+}
+
+.collapsible-side-panel[data-side="right"][data-closed] {
+	--panel-toggle-angle: 12deg;
+}
+
+.collapsible-side-panel-toggle {
+	position: absolute;
+	z-index: 1;
+	top: 50%;
+	right: 0;
+	width: 2rem;
+	height: 4.5rem;
+	padding: 0;
+	border: 0;
+	border-radius: var(--radius-sm);
+	background: transparent;
+	color: color-mix(in oklch, var(--muted-foreground) 45%, var(--background));
+	cursor: pointer;
+	touch-action: manipulation;
+	transform: translate(50%, -50%);
+	outline: none;
+}
+
+.collapsible-side-panel[data-side="right"] .collapsible-side-panel-toggle {
+	right: auto;
+	left: 0;
+	transform: translate(-50%, -50%);
+}
+
+.collapsible-side-panel-toggle:focus-visible {
+	outline: 2px solid var(--ring);
+	outline-offset: 2px;
+}
+
+.collapsible-side-panel-toggle-top,
+.collapsible-side-panel-toggle-bottom {
+	position: absolute;
+	left: 0.875rem;
+	width: 0.25rem;
+	height: 2.375rem;
+	border-radius: 0.125rem;
+	background: currentColor;
+	pointer-events: none;
+	transition:
+		background-color 300ms cubic-bezier(0.4, 0, 0.2, 1),
+		transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.collapsible-side-panel-toggle-top {
+	top: 0;
+}
+
+.collapsible-side-panel-toggle-bottom {
+	top: 2.125rem;
+}
+
+.collapsible-side-panel-toggle:is(:hover, :focus-visible) {
+	color: var(--muted-foreground);
+}
+
+.collapsible-side-panel-toggle:is(:hover, :focus-visible)
+	.collapsible-side-panel-toggle-top {
+	transform: rotate(var(--panel-toggle-angle)) scale(1.15) translateY(-0.125rem);
+}
+
+.collapsible-side-panel-toggle:is(:hover, :focus-visible)
+	.collapsible-side-panel-toggle-bottom {
+	transform: rotate(calc(-1 * var(--panel-toggle-angle))) scale(1.15)
+		translateY(0.125rem);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.collapsible-side-panel-toggle-top,
+	.collapsible-side-panel-toggle-bottom {
+		transition: none;
+	}
+}
+
+/* ReUI 时间列复用单行控件高度与基础间距。 */
+[data-slot="time-picker-column"] {
+	--time-picker-option-height: var(--spacing-control-md);
+	--time-picker-list-padding: var(--spacing);
+}
+
+/* 扁平渲染的树条目按层级衔接引导线，保留整行点击区域。 */
+[data-slot="tree-item"][data-level]:not([data-level="0"])::before {
+	content: "";
+	position: absolute;
+	inset-block: 0;
+	inset-inline-start: calc(var(--tree-padding) - var(--tree-indent) + 1rem);
+	border-inline-start: 1px solid var(--border);
+	pointer-events: none;
 }
 
 /* 详情只淡入新的数据内容，侧栏外框保持原位；不等待退场、不叠放旧数据。 */
@@ -758,4 +896,194 @@ input[type="number"]::-webkit-outer-spin-button {
 	margin-inline: 0;
 	border-top: 1px solid var(--border);
 	border-left: 0;
+}
+
+/* 笔录文书：2026-11-04 创建并修改；沿用 haoji 的 A4 物理排版。
+   被调用：InquiryDocumentPages。纸张独立于 UI 缩放，编辑控件仍使用共享 rem 令牌。 */
+@font-face {
+	font-family: "Inquiry FangSong";
+	src: url("../assets/fonts/inquiry-fangsong.ttf") format("truetype");
+	font-display: swap;
+}
+.inquiry-document-pages {
+	position: relative;
+	width: 100%;
+	min-width: 0;
+}
+.inquiry-document-stage {
+	display: grid;
+	justify-items: center;
+	gap: 1rem;
+	width: 100%;
+}
+.inquiry-document-page-frame {
+	position: relative;
+	flex: none;
+	width: 210mm;
+	height: 297mm;
+}
+.inquiry-document-page {
+	--inquiry-document-ink: #111;
+	--inquiry-document-paper: #fff;
+	--inquiry-document-font:
+		"Inquiry FangSong", "仿宋_GB2312", FangSong, STFangsong, "Songti SC", serif;
+	box-sizing: border-box;
+	position: absolute;
+	inset: 0 auto auto 0;
+	width: 210mm;
+	height: 297mm;
+	transform-origin: top left;
+	overflow: hidden;
+	background: var(--inquiry-document-paper);
+	color: var(--inquiry-document-ink);
+	font-family: var(--inquiry-document-font);
+	font-size: 14pt;
+	font-weight: 400;
+	line-height: 31.7pt;
+	box-shadow: var(--shadow-md);
+}
+.inquiry-document-page-header {
+	position: absolute;
+	top: 23mm;
+	right: 25mm;
+	left: 25mm;
+}
+.inquiry-document-page-header h1 {
+	margin: 0;
+	text-align: center;
+	font-family: inherit;
+	font-size: 26pt;
+	font-weight: 700;
+	line-height: 28pt;
+}
+.inquiry-document-authority {
+	text-align: center;
+	font-size: 20pt;
+	line-height: 24pt;
+	overflow-wrap: anywhere;
+}
+.inquiry-document-inquiry-count,
+.inquiry-document-page-count {
+	height: 25pt;
+	text-align: right;
+	line-height: 25pt;
+}
+.inquiry-document-page-header--continuation h1 {
+	margin: 5.292mm 0 9.172mm;
+}
+.inquiry-document-page-body {
+	position: absolute;
+	top: 63.5mm;
+	right: 25mm;
+	bottom: 40.569mm;
+	left: 25mm;
+	min-width: 0;
+	overflow: hidden;
+}
+.inquiry-document-line {
+	display: block;
+	box-sizing: border-box;
+	width: 100%;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	font-weight: 400;
+	text-align: left;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+.inquiry-document-line--metadata {
+	line-height: 23.5pt;
+}
+.inquiry-document-line--notice {
+	line-height: 25pt;
+}
+.inquiry-document-line--qa {
+	line-height: 31.7pt;
+}
+.inquiry-document-line-text {
+	text-decoration: underline;
+	text-decoration-thickness: 0.65625pt;
+	text-underline-offset: 2pt;
+	text-decoration-skip-ink: none;
+}
+.inquiry-document-focus-target {
+	cursor: pointer;
+}
+.inquiry-document-focus-target:hover,
+.inquiry-document-focus-target:focus-visible {
+	outline: 1px solid var(--primary);
+	outline-offset: 1px;
+}
+.inquiry-document-signature-footer {
+	position: absolute;
+	right: 25mm;
+	bottom: 6.35mm;
+	left: 25mm;
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	height: 94.4pt;
+	line-height: 31.7pt;
+}
+.inquiry-document-signature-footer > div {
+	white-space: nowrap;
+}
+.inquiry-document-signature-footer > :nth-child(3) {
+	grid-column: 1 / -1;
+}
+.inquiry-document-signature-date {
+	grid-column: 1 / -1;
+	display: flex;
+	justify-content: space-between;
+}
+.inquiry-document-measurement {
+	position: fixed;
+	top: 0;
+	left: -300mm;
+	visibility: hidden;
+	pointer-events: none;
+}
+.inquiry-print-root {
+	position: fixed;
+	top: 0;
+	left: -300mm;
+	width: 210mm;
+}
+@media print {
+	@page {
+		size: A4 portrait;
+		margin: 0;
+	}
+	body:has(> .inquiry-print-root) > :not(.inquiry-print-root) {
+		display: none;
+	}
+	body:has(> .inquiry-print-root) {
+		margin: 0;
+		padding: 0;
+	}
+	.inquiry-print-root {
+		position: static;
+		width: 210mm;
+	}
+	.inquiry-print-root .inquiry-document-stage {
+		display: block;
+	}
+	.inquiry-print-root .inquiry-document-page-frame {
+		break-after: page;
+		page-break-after: always;
+	}
+	.inquiry-print-root .inquiry-document-page-frame:last-child {
+		break-after: auto;
+		page-break-after: auto;
+	}
+	.inquiry-print-root .inquiry-document-page {
+		box-shadow: none;
+		print-color-adjust: exact;
+	}
+	.inquiry-print-root .inquiry-document-measurement {
+		display: none;
+	}
 }

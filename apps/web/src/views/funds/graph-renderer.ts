@@ -1,7 +1,7 @@
 /**
  * @file G6 图元分批绘制与原位样式更新。
  * 创建时间：2026-10-07
- * 修改时间：2026-10-08
+ * 修改时间：2026-10-09
  * 版本作用：布局坐标只在进入视图时计算，主题和标记不触发布局或自动缩放。
  * 被调用：graph-canvas；调用：G6 draw/addData、共享主题令牌、分批调度与画面提交器。
  * 预期结果：完整绘制全部节点/边，加载过程可取消，主题连续切换以最新样式为准。
@@ -229,6 +229,8 @@ export function createGraphRenderer({
 
 	return {
 		nodeStyleOnly: () => nodeStyleOnly,
+		// 悬停只覆盖线色，不写回标记；箭头继承线色，移开由 G6 恢复原样式。
+		edgeHoverStyle: () => ({ stroke: theme.primary }),
 		/** 忽略与画布无关的根样式变更；绘制期间只记录最新版，所有 G6 写入串行执行。 */
 		update(next: GraphPresentation) {
 			if (!active()) return;

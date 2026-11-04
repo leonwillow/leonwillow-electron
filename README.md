@@ -2,13 +2,15 @@
 
 采用纯 SPA / CSR、前后端分离：Vite + React 负责前端，Bun + Elysia 提供独立 API，Eden 连接两端。不使用 SSR、SSG 或 React Server Components。
 
-逐步迁移 AIDesk Next.js 模板的工作台。当前已迁移根布局、左侧固定图标导航、菜单交互、完整主题设置、中文，以及账号密码登录/注册页面；右侧业务页面尚未迁移。
+逐步迁移 AIDesk Next.js 模板的工作台。当前已迁移根布局、左侧固定图标导航、菜单交互、完整主题设置、中文及账号页面，并已接入资金分析、文书取号和笔录业务。
+
+笔录入口使用案件文件夹管理多份询问记录，支持自动保存、常用询问人、问答编辑、A4 预览和 Word／打印 PDF。功能复用 haoji 的记录规则，前后端及数据库沿用本项目技术栈；使用方式与迁移记录见 [笔录功能](./docs/inquiries-migration.md)。
 
 ## 开发
 
 ```bash
 bun install
-bun run db:start
+# 先按 docs/auth-backend.md 配置 apps/server/.env
 bun run db:migrate
 bun run dev
 ```
@@ -16,6 +18,8 @@ bun run dev
 前端默认 <http://localhost:3001>，根路径进入 `/inbox`；未登录时转到 `/login`。端口占用时 Vite 会显示实际可用端口。服务端默认 <http://localhost:3000>，健康检查为 `/api/health`。
 
 当前已接入账号密码认证，正常启动需要 PostgreSQL 和认证环境配置。普通启动不创建账号；管理员通过 `bun run auth:init` 和显式注入的初始密码创建，已有密码与角色不会被覆盖。环境配置、旧数据库迁移说明及测试要求见 [后端认证](./docs/auth-backend.md)。健康检查测试仍可独立运行，不要求数据库。
+
+当前 PostgreSQL 连接 `100.100.1.3:5432` 的 `leonwillow` 库，已完成空库表结构和管理员初始化，没有迁入旧数据。连接配置见 [后端认证](./docs/auth-backend.md)。案件原件存储继续使用已配置的 Neon S3，历史接入记录见 [Neon 测试环境](./docs/neon-setup.md)。资金图分析仍需要独立的 Neo4j；原 Compose 配置保留为可选本地环境。
 
 ```bash
 bun run dev:web       # 仅前端
@@ -86,7 +90,7 @@ packages/
 - 主题面板保留默认主题及原 11 套预设、18 个字体选项、浅色/深色/跟随系统、圆角、缩放和重置。缩放四档为小/中/大/特大（90%/95%/100%/105%），控件高度与字号统一，所有文字和间距随根 rem 缩放。
 - 主题面板的“设置”入口支持自定义浅深色、字体、圆角和阴影，实时预览、命名保存/修改/删除、CSS 导入导出；复用 shadcn Studio 官方公开的调色和主题算法。来源、必要适配及保存边界见 [自定义主题迁移](./docs/custom-theme-migration.md)。
 - 设置保存在 `localStorage["aidesk-theme-settings"]`，刷新后恢复，支持同源窗口同步。`D` 切换明暗，`⌘/Ctrl+K` 或 `/` 打开搜索；输入框中不抢占这些快捷键。
-- 导航、搜索和个人菜单使用真实路由；业务页当前均为空白。工作台统一检查真实会话，个人菜单显示登录用户，退出会删除会话并返回登录页。
+- 导航、搜索和个人菜单使用真实路由；尚未实现的业务保留预留页面。工作台统一检查真实会话，个人菜单显示登录用户，退出会删除会话并返回登录页。
 - 原字体的拉丁子集本地打包，中文使用系统中文字体回退，无 Google Fonts 运行时请求。
 - `/login` 与 `/register` 直接复用原认证页面，去掉第三方登录并通过 Eden 使用账号密码认证；内部邮箱由服务端生成，不向用户展示，浏览器不保存密码。原丝绸背景已限制绘制成本并支持隐藏暂停与减少动态效果。
 - 后续 shadcn CLI 使用 `bunx --bun shadcn@latest ... -c packages/ui`，先检查原模板和已迁移组件，禁止覆盖源迁移代码。

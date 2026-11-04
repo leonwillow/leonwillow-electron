@@ -1,7 +1,7 @@
 /**
  * @file 前端访问独立服务端的 Eden 入口。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-06
+ * 修改时间：2026-10-10
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：lib/auth.ts。
  * 调用：@elysiajs/eden、server、env。
@@ -17,4 +17,14 @@ export const api = treaty<App>(ENV.VITE_SERVER_URL, {
 	fetch: { credentials: "include" },
 	// 保留银行 ISO 时间与原文字段，避免客户端自动把日期字符串转成 Date。
 	parseDate: false,
+	// Eden 默认按文本解析 DOCX；在解析前保留二进制，避免压缩字节被 UTF-8 解码损坏。
+	onResponse: (response) =>
+		response.ok &&
+		response.headers
+			.get("content-type")
+			?.startsWith(
+				"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+			)
+			? response.blob()
+			: undefined,
 });

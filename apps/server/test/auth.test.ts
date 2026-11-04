@@ -1,7 +1,7 @@
 /**
  * @file 账号认证全链路的数据库集成测试。
  * 创建时间：2026-10-04（Git 首次收录）
- * 修改时间：2026-10-05
+ * 修改时间：2026-10-20
  * 版本作用：当前行为的回归约束，不进入产品构建。
  * 被调用：Bun 测试命令。
  * 调用：bun:test、@elysiajs/eden、@leonwillow-electron/auth、@leonwillow-electron/db、drizzle-orm、../src/app。
@@ -32,7 +32,9 @@ describe("真实账号密码认证", () => {
 
 	beforeEach(async () => {
 		schemaName = `auth_test_${crypto.randomUUID().replaceAll("-", "")}`;
-		const url = new URL(process.env.DATABASE_URL ?? "");
+		const url = new URL(
+			process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL || "",
+		);
 		url.searchParams.set("options", `-c search_path=${schemaName}`);
 		database = createDatabase(url.toString());
 		await database.pool.query(`CREATE SCHEMA "${schemaName}"`);

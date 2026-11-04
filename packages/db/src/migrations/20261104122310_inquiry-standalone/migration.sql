@@ -1,0 +1,1 @@
+ALTER TABLE "inquiry_case" ADD COLUMN "kind" text DEFAULT 'folder' NOT NULL;

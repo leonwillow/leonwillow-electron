@@ -1,16 +1,17 @@
 /**
  * @file 触发器的提示说明的基础组件。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-07
+ * 修改时间：2026-11-04
  * 版本作用：共享 UI 基础层，随工作区维护。
  * 被调用：布局图标、主题设置、资金图谱原生工具栏与分析操作。
  * 调用：@base-ui/react、ui/lib/utils。
- * 功能：支持外部 DOM 锚点；悬停容器内可限定 Portal 归属，避免移入气泡误关父层。
- * 预期结果：业务调用方负责内容与事件，基础层不依赖应用路由或账号接口。
+ * 功能：支持外部 DOM 锚点、截断文字和 Portal 归属；锚点失效时统一隐藏并关闭提示。
+ * 预期结果：气泡只依附可见锚点，退场动画不漂移；保留父浮层与受控打开状态的协作。
  */
 import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip";
 import { cn } from "@leonwillow-electron/ui/lib/utils";
 import {
+	type ComponentPropsWithRef,
 	createContext,
 	type ReactElement,
 	type ReactNode,
@@ -18,6 +19,8 @@ import {
 	useContext,
 	useEffect,
 	useId,
+	useImperativeHandle,
+	useLayoutEffect,
 	useRef,
 	useState,
 } from "react";
@@ -30,6 +33,9 @@ const TooltipOpenContext = createContext<
 	((id: string, open: boolean) => void) | undefined
 >(undefined);
 const TooltipDisabledContext = createContext(false);
+const TooltipActionsContext = createContext<
+	RefObject<TooltipPrimitive.Root.Actions | null> | undefined
+>(undefined);
 
 /** 自动收起的父容器借此识别其 Portal 气泡；不改变全局提示的打开策略。 */
 function TooltipOpenScope({
@@ -74,7 +80,16 @@ function TooltipProvider({
 	);
 }
 
-function Tooltip({ onOpenChange, ...props }: TooltipPrimitive.Root.Props) {
+function Tooltip({
+	actionsRef,
+	onOpenChange,
+	...props
+}: TooltipPrimitive.Root.Props) {
+	const actions = useRef<TooltipPrimitive.Root.Actions>(null);
+	useImperativeHandle(actionsRef, () => ({
+		close: () => actions.current?.close(),
+		unmount: () => actions.current?.unmount(),
+	}));
 	const notify = useContext(TooltipOpenContext);
 	const scopeDisabled = useContext(TooltipDisabledContext);
 	const disabled = props.disabled || scopeDisabled;
@@ -88,24 +103,55 @@ function Tooltip({ onOpenChange, ...props }: TooltipPrimitive.Root.Props) {
 		return () => notify?.(id, false);
 	}, [notify, id, open]);
 	return (
-		<TooltipPrimitive.Root
-			data-slot="tooltip"
-			{...props}
-			disabled={disabled}
-			disableHoverablePopup={false}
-			onOpenChange={(next, details) => {
-				onOpenChange?.(next, details);
-				if (!details.isCanceled) setUncontrolledOpen(next);
-			}}
-		/>
+		<TooltipActionsContext.Provider value={actions}>
+			<TooltipPrimitive.Root
+				data-slot="tooltip"
+				{...props}
+				actionsRef={actions}
+				disabled={disabled}
+				disableHoverablePopup={false}
+				onOpenChange={(next, details) => {
+					onOpenChange?.(next, details);
+					if (!details.isCanceled) setUncontrolledOpen(next);
+				}}
+			/>
+		</TooltipActionsContext.Provider>
 	);
+}
+
+/**
+ * 使用定位器的隐藏状态关闭失效锚点；通过公共动作同步受控调用方及父层打开状态。
+ * CSS 立即隐藏退场气泡，关闭延至下一帧，让快速重开时的旧定位结果有机会刷新。
+ * 直接转发定位器的 ref 和 DOM 属性，保留 Base UI 的测量及事件处理。
+ */
+function TooltipPositionerGuard({
+	open,
+	anchorHidden,
+	...props
+}: ComponentPropsWithRef<"div"> &
+	Pick<TooltipPrimitive.Positioner.State, "open" | "anchorHidden">) {
+	const actions = useContext(TooltipActionsContext);
+	useLayoutEffect(() => {
+		if (!open || !anchorHidden) return;
+		const frame = requestAnimationFrame(() => actions?.current?.close());
+		return () => cancelAnimationFrame(frame);
+	}, [open, anchorHidden, actions]);
+	return <div {...props} />;
 }
 
 function TooltipTrigger({ ...props }: TooltipPrimitive.Trigger.Props) {
 	return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />;
 }
 
-/** 替代浏览器 title 提示，复用原文字或链接节点，不增加布局包装元素。 */
+/** 返回实际被省略的文字节点；链接中的图标和留白不作为提示锚点。 */
+function truncatedText(root: HTMLElement | null) {
+	const text = root?.querySelector<HTMLElement>(".truncate") ?? root;
+	return text && text.clientWidth > 0 && text.scrollWidth > text.clientWidth
+		? text
+		: null;
+}
+
+/** 仅截断文字显示完整值；打开时测量，保持原文字或链接的 DOM 与交互。 */
 function TooltipText({
 	content,
 	children,
@@ -113,11 +159,52 @@ function TooltipText({
 	content?: string;
 	children: ReactElement;
 }) {
+	const trigger = useRef<HTMLElement>(null);
+	const [hint, setHint] = useState<{
+		anchor: HTMLElement;
+		content: string;
+	} | null>(null);
+	const open = !!content && hint?.content === content;
+	useEffect(() => {
+		if (!open || !hint) return;
+		const measure = () => {
+			if (!truncatedText(hint.anchor)) setHint(null);
+		};
+		// 只为当前打开的文字监听尺寸和字体变化，避免每个表格单元常驻观察器。
+		const observer = new ResizeObserver(measure);
+		observer.observe(hint.anchor);
+		document.fonts.addEventListener("loadingdone", measure);
+		return () => {
+			observer.disconnect();
+			document.fonts.removeEventListener("loadingdone", measure);
+		};
+	}, [open, hint]);
 	if (!content) return children;
 	return (
-		<Tooltip>
-			<TooltipTrigger render={children} />
-			<TooltipContent className="break-all">{content}</TooltipContent>
+		<Tooltip
+			open={open}
+			onOpenChange={(next, details) => {
+				if (!next) {
+					setHint(null);
+					return;
+				}
+				const anchor = truncatedText(trigger.current);
+				if (!anchor) {
+					details.cancel();
+					return;
+				}
+				setHint({ anchor, content });
+			}}
+		>
+			<TooltipTrigger
+				ref={(element) => {
+					trigger.current = element;
+				}}
+				render={children}
+			/>
+			<TooltipContent anchor={hint?.anchor} align="start" className="break-all">
+				{content}
+			</TooltipContent>
 		</Tooltip>
 	);
 }
@@ -145,7 +232,14 @@ function TooltipContent({
 				alignOffset={alignOffset}
 				side={side}
 				sideOffset={sideOffset}
-				className="isolate z-50"
+				className="isolate z-50 data-[anchor-hidden]:pointer-events-none data-[anchor-hidden]:invisible"
+				render={(positionerProps, state) => (
+					<TooltipPositionerGuard
+						{...positionerProps}
+						open={state.open}
+						anchorHidden={state.anchorHidden}
+					/>
+				)}
 			>
 				<TooltipPrimitive.Popup
 					data-slot="tooltip-content"

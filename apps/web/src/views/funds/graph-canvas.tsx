@@ -1,7 +1,7 @@
 /**
  * @file Neo4j 查询结果的 G6 画布。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-08
+ * 修改时间：2026-10-09
  * 版本作用：绘制逐笔或有向汇总结果，平行边保持独立可展开 ID。
  * 被调用：analysis-panel；调用：按需加载的 G6、共享主题令牌。
  * 功能：节点交互与个人标记；G6 Toolbar 悬浮工具栏提供缩放并承载分析操作。
@@ -249,6 +249,9 @@ export default function GraphCanvas({
 					style: {
 						labelBackground: true,
 						cursor: "pointer",
+					},
+					state: {
+						active: () => renderer?.edgeHoverStyle() ?? {},
 					},
 				},
 				behaviors: [

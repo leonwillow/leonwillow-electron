@@ -12,6 +12,8 @@
 			"!**/.next",
 			"!**/dist",
 			"!**/.turbo",
+			"!**/.impeccable",
+			"!packages/db/src/migrations/**/snapshot.json",
 			"!**/.nx",
 			"!**/dev-dist",
 			"!**/.zed",

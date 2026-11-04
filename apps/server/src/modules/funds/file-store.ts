@@ -1,7 +1,7 @@
 /**
- * @file 案件原件的 RustFS / S3 存储适配。
+ * @file 案件原件的 Neon / RustFS / S3 存储适配。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-06
+ * 修改时间：2026-10-20
  * 版本作用：按案件和原始字节哈希存储，上传及读取均核验完整性。
  * 被调用：启动入口、导入队列、worker、原件下载及迁移脚本。
  * 调用：AWS S3 SDK；构造工厂不连接网络，第一次写入创建私有桶。
@@ -20,6 +20,10 @@ import { getServerResources } from "../../server-resources";
 import { AccessError } from "../access/service";
 
 export type FundsFileConfig = {
+	AWS_ENDPOINT_URL_S3?: string;
+	AWS_REGION?: string;
+	AWS_ACCESS_KEY_ID?: string;
+	AWS_SECRET_ACCESS_KEY?: string;
 	RUSTFS_ENDPOINT: string;
 	RUSTFS_BUCKET: string;
 	RUSTFS_ACCESS_KEY: string;
@@ -27,13 +31,23 @@ export type FundsFileConfig = {
 };
 export const fileHash = (bytes: Uint8Array) =>
 	createHash("sha256").update(bytes).digest("hex");
+/** 创建延迟连接的 S3 存储；Neon 字段不完整时立即拒绝，调用方负责 close。 */
 export function createFundsFileStore(config: FundsFileConfig) {
+	const useNeon = Boolean(config.AWS_ENDPOINT_URL_S3);
+	const accessKeyId = useNeon
+		? config.AWS_ACCESS_KEY_ID
+		: config.RUSTFS_ACCESS_KEY;
+	const secretAccessKey = useNeon
+		? config.AWS_SECRET_ACCESS_KEY
+		: config.RUSTFS_SECRET_KEY;
+	if (!accessKeyId || !secretAccessKey || (useNeon && !config.AWS_REGION))
+		throw new Error("Neon 对象存储配置不完整，请重新拉取 AWS 环境变量。");
 	const client = new S3Client({
-		endpoint: config.RUSTFS_ENDPOINT,
-		region: "us-east-1",
+		endpoint: useNeon ? config.AWS_ENDPOINT_URL_S3 : config.RUSTFS_ENDPOINT,
+		region: useNeon ? config.AWS_REGION : "us-east-1",
 		credentials: {
-			accessKeyId: config.RUSTFS_ACCESS_KEY,
-			secretAccessKey: config.RUSTFS_SECRET_KEY,
+			accessKeyId,
+			secretAccessKey,
 		},
 		forcePathStyle: true,
 		maxAttempts: 3,
@@ -138,7 +152,7 @@ export async function readStoredFile(
 		throw new AccessError(
 			503,
 			"ORIGINAL_UNAVAILABLE",
-			"原件读取或完整性校验失败，请检查 RustFS 后重试。",
+			"原件读取或完整性校验失败，请检查对象存储后重试。",
 		);
 	}
 }
@@ -149,7 +163,7 @@ export async function saveOriginal(caseId: string, bytes: Uint8Array) {
 		throw new AccessError(
 			503,
 			"FILE_STORE_UNAVAILABLE",
-			"RustFS 原件保存或校验失败，本批尚未提交，请稍后重试。",
+			"原件保存或校验失败，本批尚未提交，请稍后重试。",
 		);
 	}
 }

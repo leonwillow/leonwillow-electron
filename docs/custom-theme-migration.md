@@ -40,6 +40,10 @@
 
 `components/theme-editor` 放编辑器视图与局部草稿；`configs/theme-variables.ts` 放可编辑变量；`lib/custom-themes.ts` 管理主题库规则；`utils/theme` 放颜色、阴影和 CSS 算法。默认色板读取同一份共享 CSS。
 
+2026-11-04：默认配色改为 [Shadcn Studio 官方生成器默认配置](https://github.com/shadcnstudio/shadcn-studio/blob/72a20331970218848103184b61e1efa9d0e08dea/src/config/theme.ts) 的 `defaultLightThemeStyles` / `defaultDarkThemeStyles`，采用其 Zinc 中性色、主色/前景配对、侧栏与图表色。来源为明确的默认主题对象，不使用营销站自身的基础 CSS 或其他命名预设。按 [官方主题生成器说明](https://shadcnstudio.com/docs/getting-started/theme-generator) 仅合并共享 `globals.css` 的 `:root` / `.dark` 颜色：浅色主色 `oklch(0.21 0.006 285.885)`，深色主色 `oklch(0.92 0.004 286.32)`。
+
+项目扩展的成功、警告、在线状态及危险操作前景色继续保留；字体、圆角、字号、缩放和布局尺寸不随配色变更。`initialSettings.themePreset` 仍为 `default`；`getPreset` 对它返回空覆盖，首屏与运行时的 `applyTheme` 清除旧颜色后使用共享 CSS，`createThemeDraft` 也读取这一份默认值。已有其他预设及用户保存的自定义色板不改写；当前选择“默认”时开发热更新或刷新即可采用新配色。
+
 `stores/theme-store.ts` 持有已保存偏好和主题库，临时 preview 不进入持久化快照。`theme-effects.tsx` 连接 DOM、storage、BroadcastChannel 与快捷键。`root-layout.tsx` 在 Outlet 外按需加载编辑器，跨路由保留编辑会话。
 
 快照格式仍为 version 2，旧 lg 到 xl 的迁移、损坏数据回退与主题 ID 校验由同一编解码入口处理。草稿归面板管理，保存通过 Store 提交；存储失败保留草稿。后续可以提取局部编辑会话，但这不属于本次工程修正。

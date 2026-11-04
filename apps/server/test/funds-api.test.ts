@@ -1,7 +1,7 @@
 /**
  * @file 资金调查 API 与双数据库的真实集成测试。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-07
+ * 修改时间：2026-10-20
  * 版本作用：验证导入、权限、幂等、图恢复和时间路径。
  * 被调用：test:api；调用：独立 PG schema、真实 Neo4j/Bun/Eden/Better Auth。
  * 预期结果：只清理本次随机案件与 schema，不修改已有测试案件。
@@ -39,6 +39,10 @@ import { parseStatement } from "../src/modules/funds/parser";
 import { initializeServerResources } from "../src/server-resources";
 
 const fileConfig = {
+	AWS_ENDPOINT_URL_S3: process.env.AWS_ENDPOINT_URL_S3,
+	AWS_REGION: process.env.AWS_REGION,
+	AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID,
+	AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,
 	RUSTFS_ENDPOINT: process.env.RUSTFS_ENDPOINT ?? "http://127.0.0.1:9000",
 	RUSTFS_BUCKET: `funds-test-${crypto.randomUUID()}`,
 	RUSTFS_ACCESS_KEY: process.env.RUSTFS_ACCESS_KEY ?? "local-funds",
@@ -46,12 +50,16 @@ const fileConfig = {
 };
 const files = createFundsFileStore(fileConfig);
 const s3 = new S3Client({
-	endpoint: fileConfig.RUSTFS_ENDPOINT,
-	region: "us-east-1",
+	endpoint: fileConfig.AWS_ENDPOINT_URL_S3 || fileConfig.RUSTFS_ENDPOINT,
+	region: fileConfig.AWS_ENDPOINT_URL_S3 ? fileConfig.AWS_REGION : "us-east-1",
 	forcePathStyle: true,
 	credentials: {
-		accessKeyId: fileConfig.RUSTFS_ACCESS_KEY,
-		secretAccessKey: fileConfig.RUSTFS_SECRET_KEY,
+		accessKeyId: fileConfig.AWS_ENDPOINT_URL_S3
+			? (fileConfig.AWS_ACCESS_KEY_ID ?? "")
+			: fileConfig.RUSTFS_ACCESS_KEY,
+		secretAccessKey: fileConfig.AWS_ENDPOINT_URL_S3
+			? (fileConfig.AWS_SECRET_ACCESS_KEY ?? "")
+			: fileConfig.RUSTFS_SECRET_KEY,
 	},
 });
 afterAll(async () => {
@@ -106,7 +114,9 @@ const statement = (name = "bank.csv") =>
 
 beforeEach(async () => {
 	schema = `funds_test_${crypto.randomUUID().replaceAll("-", "")}`;
-	const url = new URL(process.env.DATABASE_URL ?? "");
+	const url = new URL(
+		process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL || "",
+	);
 	url.searchParams.set("options", `-c search_path=${schema}`);
 	database = createDatabase(url.toString());
 	await database.pool.query(`CREATE SCHEMA "${schema}"`);
@@ -314,7 +324,7 @@ test("跨案只提示，确认才纳入，可排除，任务与下载不能越�
 				.get()
 		).status,
 	).toBe(404);
-}, 30_000);
+}, 120_000);
 
 test("后台租约过期可恢复，重复执行不会增加图中的交易边", async () => {
 	const id = await newCase();
@@ -332,7 +342,7 @@ test("后台租约过期可恢复，重复执行不会增加图中的交易边",
 	await endpoint.sync.post();
 	await drainJobs();
 	expect((await endpoint.summary.get()).data?.transactions).toBe(3);
-}, 30_000);
+}, 120_000);
 
 test("完整文件上传、双边归并、精确图金额、时间路径和再次导入幂等", async () => {
 	const id = await newCase();
@@ -405,7 +415,7 @@ test("完整文件上传、双边归并、精确图金额、时间路径和再�
 	expect(standardImport.status).toBe(200);
 	await drainJobs();
 	expect((await endpoint.summary.get()).data?.transactions).toBe(3);
-}, 30_000);
+}, 120_000);
 
 test("导入任务仅接收出入方向，待核不入图，历史标准下载使用新模板", async () => {
 	const id = await newCase();
@@ -469,7 +479,7 @@ test("导入任务仅接收出入方向，待核不入图，历史标准下载�
 	expect((await download.get({ query: { format: "csv" } })).data).toBe(
 		exported.data,
 	);
-}, 30_000);
+}, 120_000);
 
 test("只有一人流水时完整图保留全部对手、超过200笔的逐笔交易及筛选，案件互不混入", async () => {
 	const id = await newCase();
@@ -537,7 +547,7 @@ test("只有一人流水时完整图保留全部对手、超过200笔的逐笔�
 	await jobResult(otherId, otherUpload.data?.id);
 	expect((await other.graph.get()).data?.edges).toHaveLength(3);
 	expect((await endpoint.graph.get()).data?.edges).toHaveLength(227);
-}, 30_000);
+}, 120_000);
 
 test("批次拒绝原子性、案件归属隔离、非法来源与未登录拒绝", async () => {
 	const id = await newCase();
@@ -593,7 +603,7 @@ test("批次拒绝原子性、案件归属隔离、非法来源与未登录拒�
 			)
 		).status,
 	).toBe(403);
-}, 30_000);
+}, 120_000);
 
 test("图不可用时仍保存原文，待投影版本拒绝查询，恢复后可重放", async () => {
 	const id = await newCase();
@@ -642,7 +652,7 @@ test("图不可用时仍保存原文，待投影版本拒绝查询，恢复后�
 		(await api.api.funds.cases({ caseId: id }).summary.get()).data
 			?.transactions,
 	).toBe(3);
-}, 30_000);
+}, 120_000);
 
 test("案件置顶与归档持久化，恢复不改变流水版本", async () => {
 	const id = await newCase();
@@ -713,7 +723,7 @@ test("原件在处理前可下载，worker 从 RustFS 读取，哈希损坏阻�
 	expect(
 		(await endpoint.sources({ sourceId: source.id }).original.get()).status,
 	).toBe(503);
-}, 30_000);
+}, 120_000);
 
 test("存储不可用时不创建任务，上传者得到明确错误", async () => {
 	const id = await newCase();
@@ -841,7 +851,7 @@ test("案件移动持久化，限制同分组，删除案件不再出现在任�
 	expect(jobs.find((j) => j.id === upload.data?.id)?.status).toBe("completed");
 	await drainJobs();
 	expect(await graph.summary(a)).toEqual(priorGraph);
-}, 30_000);
+}, 120_000);
 
 test("Worker 自动识别多卡主体；拆分、软撤销与重识别保留全部账户、交易和证据", async () => {
 	const id = await newCase();
@@ -980,4 +990,4 @@ test("Worker 自动识别多卡主体；拆分、软撤销与重识别保留全�
 		(await other.subjects({ overrideId: decision.id }).delete({ revision: 0 }))
 			.status,
 	).toBe(404);
-}, 30_000);
+}, 120_000);

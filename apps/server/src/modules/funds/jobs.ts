@@ -1,7 +1,7 @@
 /**
  * @file 案件导入任务队列、可见进度、可恢复后台处理。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-07
+ * 修改时间：2026-10-20
  * 版本作用：上传只持久化；独立 worker 完成 AI、标准导入、去重和图同步。
  * 被调用：funds API、funds-worker 入口及集成测试。
  * 调用：PostgreSQL 任务租约、AI normalizer、正式案件服务。
@@ -89,7 +89,7 @@ export async function enqueueImport(
 				{
 					at: new Date().toISOString(),
 					stage: "queued",
-					message: `${files.length} 个原件已保存至 RustFS 并通过 SHA-256 校验，等待后台处理。`,
+					message: `${files.length} 个原件已保存至对象存储并通过 SHA-256 校验，等待后台处理。`,
 				},
 			],
 		});

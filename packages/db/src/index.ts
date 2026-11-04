@@ -1,7 +1,7 @@
 /**
  * @file 数据库工作区的连接工厂出口。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-10-20
  * 版本作用：服务端数据基础层，随工作区维护。
  * 被调用：scripts/architecture.test.ts、packages/auth/src/index.ts、packages/auth/src/bootstrap.ts、apps/server/test/auth.test.ts、apps/server/src/index.ts。
  * 调用：drizzle-orm、pg、./relations。
@@ -16,9 +16,14 @@ import { authRelations } from "./relations";
  * 创建由调用方管理生命周期的 PostgreSQL 连接池和 Drizzle 客户端。
  * @param connectionString PostgreSQL 连接串；不在这里读取环境变量。
  * @returns db 用于查询，pool 用于关闭连接；不自动迁移表结构。
+ * @throws 连接或查询失败时由 pg 拒绝操作；建立连接最多等待 10 秒。
  */
 export function createDatabase(connectionString: string) {
-	const pool = new Pool({ connectionString });
+	const pool = new Pool({
+		connectionString,
+		enableChannelBinding: true,
+		connectionTimeoutMillis: 10_000,
+	});
 	const db = drizzle({ client: pool, relations: authRelations });
 	return { db, pool };
 }

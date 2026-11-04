@@ -57,3 +57,4 @@ apps/web/.impeccable/review/
 .cache
 tmp
 temp
+.neon
