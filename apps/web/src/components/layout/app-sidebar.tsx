@@ -1,16 +1,18 @@
 /**
  * @file 工作台的固定图标导航。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-04
+ * 修改时间：2026-11-05
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/layout/workspace-layout.tsx。
  * 调用：共享 UI、路由、导航目录、工作台统一导航上下文、管理中心、搜索、品牌、主题与个人菜单。
- * 功能：按授权展示入口；未固定时悬停预览，固定时点击或键盘激活入口才切换内容。
+ * 功能：按侧栏可见配置与授权展示入口；未固定时悬停预览，固定时点击或键盘激活入口才切换内容。
  * 预期结果：图标提供中文名称，入口可通过键盘和路由访问。
  */
 
 import { canAccessModule } from "@leonwillow-electron/access";
 import { buttonVariants } from "@leonwillow-electron/ui/components/button";
+import { HoverCardTrigger } from "@leonwillow-electron/ui/components/hover-card";
+import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
 import {
 	Tooltip,
 	TooltipContent,
@@ -24,7 +26,7 @@ import {
 	useSearch,
 } from "@tanstack/react-router";
 import { SettingsIcon } from "lucide-react";
-import { primaryNav, settingsHomeHref } from "@/assets/data/navigation";
+import { settingsHomeHref, sidebarNav } from "@/assets/data/navigation";
 import AdminMenu from "@/components/layout/admin-menu";
 import AppLogo from "@/components/layout/app-logo";
 import CommandMenu from "@/components/layout/command-menu";
@@ -52,7 +54,11 @@ const AppSidebar = () => {
 	};
 
 	return (
-		<aside className="flex w-workspace-rail shrink-0 flex-col items-center overflow-y-auto border-r bg-sidebar">
+		<ScrollArea
+			className="w-workspace-rail shrink-0 border-r bg-sidebar"
+			contentClassName="flex flex-col items-center"
+			render={<aside />}
+		>
 			<div
 				data-slot="workspace-header"
 				className="flex h-workspace-header w-full shrink-0 items-center justify-center border-border border-b"
@@ -64,10 +70,8 @@ const AppSidebar = () => {
 				aria-label="主导航"
 				className="workspace-rail-group w-full flex-1"
 				ref={menu.navigationRef}
-				onPointerEnter={menu.keepOpen}
-				onPointerLeave={menu.scheduleClose}
 			>
-				{primaryNav
+				{sidebarNav
 					.filter((item) =>
 						canAccessModule({ role: user.role, moduleIds }, item.id),
 					)
@@ -76,60 +80,74 @@ const AppSidebar = () => {
 						const menuId = isWorkspaceMenuId(item.id) ? item.id : null;
 						const expanded =
 							!!menuId && menu.visible && menu.activeMenu === menuId;
-						return (
-							<Tooltip key={item.href} disabled={!!menuId && !menu.pinned}>
+						const link = (
+							<Link
+								ref={menuId ? menu.triggerRefs[menuId] : undefined}
+								aria-controls={menuId ? "workspace-menu" : undefined}
+								aria-expanded={menuId ? expanded : undefined}
+								onPointerEnter={menuId ? undefined : () => enterItem(item.id)}
+								onFocus={menuId ? undefined : () => enterItem(item.id)}
+								onClick={menuId ? () => menu.show(menuId) : undefined}
+								onKeyDown={
+									menuId
+										? (event) => {
+												if (
+													(!menu.pinned || menu.activeMenu === menuId) &&
+													(event.key === "ArrowRight" ||
+														(event.key === "Tab" &&
+															!event.shiftKey &&
+															expanded))
+												) {
+													event.preventDefault();
+													menu.focusPanel(menuId);
+												}
+											}
+										: undefined
+								}
+								to={item.href}
+								activeOptions={{ exact: false }}
+								search={
+									item.id === "funds"
+										? { caseId }
+										: item.id === "documents"
+											? { typeId }
+											: item.id === "inquiries"
+												? { inquiryCaseId, recordId, inquiryView }
+												: undefined
+								}
+								aria-label={item.title}
+								aria-current={active ? "page" : undefined}
+								className={cn(
+									buttonVariants({
+										variant: "ghost",
+										size: "icon-workspace",
+									}),
+									"workspace-nav-item",
+								)}
+							>
+								<item.icon />
+							</Link>
+						);
+						return menuId ? (
+							<Tooltip key={item.href} disabled={!menu.pinned}>
 								<TooltipTrigger
 									render={
-										<Link
-											ref={menuId ? menu.triggerRefs[menuId] : undefined}
-											aria-controls={menuId ? "workspace-menu" : undefined}
-											aria-expanded={menuId ? expanded : undefined}
-											onPointerEnter={() => enterItem(item.id)}
-											onPointerLeave={menu.scheduleClose}
-											onFocus={() => enterItem(item.id)}
-											onBlur={menu.scheduleClose}
-											onClick={menuId ? () => menu.show(menuId) : undefined}
-											onKeyDown={
-												menuId
-													? (event) => {
-															if (
-																(!menu.pinned || menu.activeMenu === menuId) &&
-																(event.key === "ArrowRight" ||
-																	(event.key === "Tab" &&
-																		!event.shiftKey &&
-																		expanded))
-															) {
-																event.preventDefault();
-																menu.focusPanel(menuId);
-															}
-														}
-													: undefined
-											}
-											to={item.href}
-											activeOptions={{ exact: false }}
-											search={
-												item.id === "funds"
-													? { caseId }
-													: item.id === "documents"
-														? { typeId }
-														: item.id === "inquiries"
-															? { inquiryCaseId, recordId, inquiryView }
-															: undefined
-											}
-											aria-label={item.title}
-											aria-current={active ? "page" : undefined}
-											className={cn(
-												buttonVariants({
-													variant: "ghost",
-													size: "icon-workspace",
-												}),
-												"workspace-nav-item",
-											)}
-										>
-											<item.icon />
-										</Link>
+										<HoverCardTrigger
+											id={`workspace-trigger-${menuId}`}
+											data-menu-trigger={menuId}
+											handle={menu.hoverHandle}
+											payload={menuId}
+											delay={150}
+											closeDelay={180}
+											render={link}
+										/>
 									}
 								/>
+								<TooltipContent side="right">{item.title}</TooltipContent>
+							</Tooltip>
+						) : (
+							<Tooltip key={item.href}>
+								<TooltipTrigger render={link} />
 								<TooltipContent side="right">{item.title}</TooltipContent>
 							</Tooltip>
 						);
@@ -164,7 +182,7 @@ const AppSidebar = () => {
 				<ModeToggle />
 				<ProfileMenu />
 			</div>
-		</aside>
+		</ScrollArea>
 	);
 };
 

@@ -1,6 +1,6 @@
 /**
  * @file 笔录案件/人员隔离、自动保存修订和导出链路的真实 API 测试。
- * 创建时间：2026-11-04；修改时间：2026-11-04。
+ * 创建时间：2026-11-04；修改时间：2026-11-05。
  * 版本作用：使用现有直连 PostgreSQL 和独立随机 schema 验证迁移及事务。
  * 被调用：test:api；调用：Better Auth、Eden、Drizzle 生成迁移。
  * 预期结果：失败不覆盖笔录，归档禁止写入；测试结束只清理自己的 schema。
@@ -114,7 +114,7 @@ async function member(username: string, granted = true) {
 	);
 }
 
-test("目录搜索覆盖文件夹、子笔录和被询问人，状态须命中同一份笔录", async () => {
+test("目录搜索覆盖文件夹、子笔录和被询问人", async () => {
 	const folder = await createCase("目录筛选-文件夹名");
 	const empty = await createCase("目录筛选-空文件夹");
 	const special = await createCase("目录筛选-百分%号_斜杠\\");
@@ -135,8 +135,7 @@ test("目录搜索覆盖文件夹、子笔录和被询问人，状态须命中�
 			await records.post(
 				{
 					...fixture,
-					title: "其他已完成笔录",
-					status: "final",
+					title: "其他笔录",
 					requestId: crypto.randomUUID(),
 				},
 				headers(),
@@ -148,7 +147,6 @@ test("目录搜索覆盖文件夹、子笔录和被询问人，状态须命中�
 			...fixture,
 			title: "目录筛选-独立",
 			content: { ...fixture.content, subjectName: "目录筛选-李四" },
-			status: "final",
 			requestId: crypto.randomUUID(),
 		},
 		headers(),
@@ -159,26 +157,22 @@ test("目录搜索覆盖文件夹、子笔录和被询问人，状态须命中�
 		(
 			await records.get({ ...headers(), query: { limit: 1 } })
 		).data?.records.map((row) => row.title),
-	).toEqual(["其他已完成笔录"]);
-	async function find(q: string, status?: "draft" | "final") {
+	).toEqual(["其他笔录"]);
+	async function find(q: string) {
 		const result = await api.api.inquiries.cases.get({
 			...headers(),
-			query: { q, status },
+			query: { q },
 		});
 		expect(result.status).toBe(200);
 		return result.data?.cases.map((row) => row.id);
 	}
 	expect(await find("目录筛选-文件夹名")).toEqual([folder.id]);
 	expect(await find("目录筛选-空文件夹")).toEqual([empty.id]);
-	expect(await find("目录筛选-空文件夹", "draft")).toEqual([]);
-	expect(await find("目录筛选-标题", "draft")).toEqual([folder.id]);
-	expect(await find("目录筛选-标题", "final")).toEqual([]);
+	expect(await find("目录筛选-标题")).toEqual([folder.id]);
 	expect(await find(" 目录筛选-张三 ")).toEqual([folder.id]);
-	expect(await find("目录筛选-文件夹名", "final")).toEqual([folder.id]);
-	expect(await find("目录筛选-李四", "final")).toEqual([
-		standalone.data.caseId,
-	]);
-	expect(await find("目录筛选-独立", "draft")).toEqual([]);
+	expect(await find("目录筛选-文件夹名")).toEqual([folder.id]);
+	expect(await find("目录筛选-李四")).toEqual([standalone.data.caseId]);
+	expect(await find("目录筛选-独立")).toEqual([standalone.data.caseId]);
 	for (const literal of ["%", "_", "\\"])
 		expect(await find(literal)).toEqual([special.id]);
 	const summaries = await api.api.inquiries.cases.get({
@@ -227,7 +221,7 @@ test("目录筛选不泄漏其他人员或已删除案件、笔录", async () =>
 	);
 	expect(foreign.status).toBe(200);
 	if (!foreign.data) throw new Error("其他人员的独立笔录创建失败");
-	const query = { q: "目录边界", status: "draft" as const };
+	const query = { q: "目录边界" };
 	expect(
 		(
 			await api.api.inquiries.cases.get({ ...headers(), query })
@@ -242,9 +236,12 @@ test("目录筛选不泄漏其他人员或已删除案件、笔录", async () =>
 		(await route.records({ recordId }).delete({ revision: 1 }, headers()))
 			.status,
 	).toBe(200);
-	expect(
-		(await api.api.inquiries.cases.get({ ...headers(), query })).data?.cases,
-	).toEqual([]);
+	const emptyFolder = await api.api.inquiries.cases.get({
+		...headers(),
+		query,
+	});
+	expect(emptyFolder.data?.cases.map((row) => row.id)).toEqual([folder.id]);
+	expect(emptyFolder.data?.cases[0]?.recordCount).toBe(0);
 	expect(
 		(
 			await api.api.inquiries.cases.get({
@@ -310,13 +307,46 @@ test("案件、笔录和导出严格隔离人员与案件，模块授权可拒�
 		).status,
 	).toBe(403);
 }, 120_000);
-test("草稿重试幂等、保存冲突不覆盖、归档与删除隔离写入，Word 可下载", async () => {
+test("未填写完整的笔录可创建、保存和重开，接口不返回状态字段", async () => {
+	const folder = await createCase("逐步填写");
+	const document = inquiryFixture();
+	document.content.subjectName = "";
+	document.content.inquirers = [];
+	document.content.inquiryStartAt = "2026-11-05";
+	document.content.inquiryEndAt = "";
+	document.content.subjectRelationshipOther = "";
+	const recordId = crypto.randomUUID();
+	const records = api.api.inquiries.cases({ caseId: folder.id }).records;
+	const created = await records.post(
+		{ ...document, requestId: recordId },
+		headers(),
+	);
+	expect(created.status).toBe(200);
+	expect(created.data).not.toHaveProperty("status");
+	const row = records({ recordId });
+	const saved = await row.put(
+		{ ...document, title: "补充后的笔录", revision: 1 },
+		headers(),
+	);
+	expect(saved.status).toBe(200);
+	expect(saved.data?.revision).toBe(2);
+	const reopened = await row.get(headers());
+	expect(reopened.data?.title).toBe("补充后的笔录");
+	expect(reopened.data?.content).toEqual(document.content);
+	expect(reopened.data).not.toHaveProperty("status");
+	expect((await records.get(headers())).data?.records[0]).not.toHaveProperty(
+		"status",
+	);
+}, 120_000);
+
+test("笔录重试幂等、保存冲突不覆盖、归档与删除隔离写入，Word 可下载", async () => {
 	const folder = await createCase("保存测试");
 	const route = api.api.inquiries.cases({ caseId: folder.id });
 	const draft = inquiryFixture();
 	const requestId = crypto.randomUUID();
 	const create = await route.records.post({ ...draft, requestId }, headers());
 	expect(create.status).toBe(200);
+	expect(create.data).not.toHaveProperty("status");
 	expect(
 		(await route.records.post({ ...draft, requestId }, headers())).data?.id,
 	).toBe(create.data?.id);
@@ -332,6 +362,7 @@ test("草稿重试幂等、保存冲突不覆盖、归档与删除隔离写入�
 	const saved = await row.put(changed, headers());
 	expect(saved.status).toBe(200);
 	expect(saved.data?.revision).toBe(2);
+	expect(saved.data).not.toHaveProperty("status");
 	expect(
 		(await row.put({ ...changed, title: "旧窗口内容" }, headers())).status,
 	).toBe(409);
@@ -342,20 +373,15 @@ test("草稿重试幂等、保存冲突不覆盖、归档与删除隔离写入�
 				{
 					...draft,
 					revision: 2,
-					status: "final",
-					content: { ...draft.content, subjectName: "" },
+					content: { ...draft.content, inquiryEndAt: "2026-02-30T10:00" },
 				},
 				headers(),
 			)
 		).status,
 	).toBe(400);
 	expect(
-		(
-			await row.put(
-				{ ...draft, title: "完成笔录", revision: 2, status: "final" },
-				headers(),
-			)
-		).status,
+		(await row.put({ ...draft, title: "保存笔录", revision: 2 }, headers()))
+			.status,
 	).toBe(200);
 	const file = await row.file.get(headers());
 	expect(file.status).toBe(200);
@@ -469,7 +495,6 @@ test("独立笔录原子创建且并发重试幂等，摘要列表不暴露正�
 	expect(entry?.record && Object.keys(entry.record).sort()).toEqual([
 		"id",
 		"revision",
-		"status",
 		"title",
 		"updatedAt",
 	]);
@@ -557,8 +582,7 @@ test("独立笔录校验和 ID 冲突不会留下空容器或覆盖已有笔录"
 				{
 					...input,
 					requestId: invalidId,
-					status: "final",
-					content: { ...input.content, subjectName: "" },
+					content: { ...input.content, inquiryEndAt: "2026-02-30T10:00" },
 				},
 				headers(),
 			)

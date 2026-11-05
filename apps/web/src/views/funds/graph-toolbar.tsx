@@ -1,7 +1,7 @@
 /**
  * @file 图谱菜单栏、节点筛选和连线筛选。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-07
+ * 修改时间：2026-11-05
  * 版本作用：复用原模板 FilterSelect 与共享 Popover，草稿提交后才改变视图。
  * 被调用：analysis-panel；调用：共享 UI、图谱筛选校验。
  * 预期结果：以紧凑图标扩展 G6 悬浮工具栏，悬停有中文提示，筛选草稿按需展开。
@@ -179,7 +179,9 @@ export default function GraphToolbar({
 					side={side}
 					sideOffset={10}
 					align="start"
-					className="max-h-[min(38rem,80dvh)] w-80 max-w-[calc(100vw-2rem)] overflow-y-auto p-4"
+					scrollable
+					className="max-h-[min(38rem,80dvh)] w-80 max-w-[calc(100vw-2rem)]"
+					scrollContentClassName="p-4"
 				>
 					<PopoverHeader>
 						<PopoverTitle>筛选节点</PopoverTitle>
@@ -294,7 +296,9 @@ export default function GraphToolbar({
 					side={side}
 					sideOffset={10}
 					align="start"
-					className="max-h-[min(42rem,80dvh)] w-[28rem] max-w-[calc(100vw-2rem)] overflow-y-auto p-4"
+					scrollable
+					className="max-h-[min(42rem,80dvh)] w-[28rem] max-w-[calc(100vw-2rem)]"
+					scrollContentClassName="p-4"
 				>
 					<PopoverHeader>
 						<PopoverTitle>筛选连线</PopoverTitle>

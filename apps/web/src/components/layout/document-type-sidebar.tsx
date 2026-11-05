@@ -1,19 +1,21 @@
 /**
  * @file 文书类型菜单的内容和模板入口。
- * 创建时间：2026-10-11；修改时间：2026-11-04。
+ * 创建时间：2026-10-11；修改时间：2026-11-05。
  * 版本作用：为统一菜单框 提供文书类型标题、模板操作及类型列表。
  * 被调用：WorkspaceSecondaryMenu；调用：DocumentNavigationProvider、共享控件、路由。
  * 功能与预期结果：未固定时选类型收起，固定偏好按用户保留，窄窗回到浮层。
  */
+
 import {
 	Button,
 	buttonVariants,
 } from "@leonwillow-electron/ui/components/button";
 import { Input } from "@leonwillow-electron/ui/components/input";
+import { MenuLabel } from "@leonwillow-electron/ui/components/menu-label";
+import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
 import {
 	Tooltip,
 	TooltipContent,
-	TooltipText,
 	TooltipTrigger,
 } from "@leonwillow-electron/ui/components/tooltip";
 import { cn } from "@leonwillow-electron/ui/lib/utils";
@@ -62,9 +64,11 @@ export default function useDocumentTypeMenu(): WorkspaceMenuContent {
 						onChange={(event) => setSearch(event.target.value)}
 					/>
 				</div>
-				<nav
+				<ScrollArea
 					aria-label="文书类型列表"
-					className="min-h-0 flex-1 overflow-y-auto px-workspace-gutter pb-workspace-gutter"
+					className="min-h-0 flex-1"
+					contentClassName="w-full min-w-0! px-workspace-gutter pb-workspace-gutter"
+					render={<nav />}
 				>
 					{menu.loading || (!menu.error && menu.catalog === null) ? (
 						<p role="status" className="p-2 text-muted-foreground text-xs">
@@ -98,34 +102,30 @@ export default function useDocumentTypeMenu(): WorkspaceMenuContent {
 										)}
 										<ul className="flex flex-col gap-1">
 											{group.map((type) => (
-												<li key={type.id}>
-													<TooltipText content={type.name}>
-														<Link
-															to="/documents"
-															search={{ typeId: type.id }}
-															aria-current={
-																view !== "templates" && typeId === type.id
-																	? "page"
-																	: undefined
-															}
-															onClick={menu.selectType}
-															className={cn(
-																buttonVariants({
-																	variant: "ghost",
-																	size: "lg",
-																}),
-																"w-full justify-start",
-																view !== "templates" &&
-																	typeId === type.id &&
-																	"bg-sidebar-accent",
-															)}
-														>
-															<FileTextIcon />
-															<span className="min-w-0 truncate">
-																{type.name}
-															</span>
-														</Link>
-													</TooltipText>
+												<li key={type.id} data-menu-row>
+													<Link
+														to="/documents"
+														search={{ typeId: type.id }}
+														aria-current={
+															view !== "templates" && typeId === type.id
+																? "page"
+																: undefined
+														}
+														onClick={menu.selectType}
+														className={cn(
+															buttonVariants({
+																variant: "ghost",
+																size: "lg",
+															}),
+															"w-full justify-start",
+															view !== "templates" &&
+																typeId === type.id &&
+																"bg-sidebar-accent",
+														)}
+													>
+														<FileTextIcon />
+														<MenuLabel>{type.name}</MenuLabel>
+													</Link>
 												</li>
 											))}
 										</ul>
@@ -141,7 +141,7 @@ export default function useDocumentTypeMenu(): WorkspaceMenuContent {
 							)}
 						</>
 					)}
-				</nav>
+				</ScrollArea>
 			</>
 		),
 	};

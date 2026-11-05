@@ -1,7 +1,7 @@
 /**
  * @file 案件管理、流水导入与清洗核对页面。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-07
+ * 修改时间：2026-11-05
  * 版本作用：将资料准备从资金分析中分离，保留既有导入与核对组件。
  * 被调用：funds_.cases 路由；调用：共享 UI、Eden、流水与核对面板。
  * 功能：案件选择/创建、文件导入/下载、处理进度、清洗与跨案资料管理。
@@ -10,6 +10,7 @@
 
 import { Badge } from "@leonwillow-electron/ui/components/badge";
 import { Button } from "@leonwillow-electron/ui/components/button";
+import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
 import {
 	Table,
 	TableBody,
@@ -104,7 +105,7 @@ function CaseWorkspace({ caseId }: { caseId: string }) {
 	const record = details.data;
 	const totals = record.totals;
 	return (
-		<div className="min-h-0 flex-1 overflow-auto">
+		<ScrollArea className="min-h-0 flex-1" contentClassName="">
 			<div className="mx-auto max-w-[110rem] space-y-5 p-4 sm:p-6">
 				<div className="flex flex-wrap items-start justify-between gap-3">
 					<div>
@@ -331,7 +332,7 @@ function CaseWorkspace({ caseId }: { caseId: string }) {
 					</TabsContent>
 				</Tabs>
 			</div>
-		</div>
+		</ScrollArea>
 	);
 }
 

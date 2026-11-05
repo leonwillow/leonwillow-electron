@@ -1,7 +1,7 @@
 /**
  * @file 全局语义色、排版与控件尺寸的唯一来源。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-04
+ * 修改时间：2026-11-05
  * 版本作用：共享 UI 基础层，随工作区维护。
  * 被调用：main.tsx、utils/theme/theme-draft.ts。
  * 调用：tailwindcss、tw-animate-css、shadcn。
@@ -64,6 +64,7 @@
 	--color-input: var(--input);
 	--color-border: var(--border);
 	--color-destructive: var(--destructive);
+	--color-info: var(--info);
 	--color-success: var(--success);
 	--color-warning: var(--warning);
 	--color-destructive-foreground: var(--destructive-foreground);
@@ -96,6 +97,15 @@
 	--workspace-menu-min-size: 12rem;
 	--workspace-menu-max-size: 28rem;
 	--workspace-content-min-size: 20rem;
+	/* 笔录三栏默认延续原宽度，拖动约束为问答及表单保留可用空间。 */
+	--inquiry-basic-default-size: 18rem;
+	--inquiry-basic-min-size: 12rem;
+	--inquiry-basic-max-size: 45%;
+	--inquiry-preview-default-size: 24rem;
+	--inquiry-preview-min-size: 14rem;
+	--inquiry-preview-max-size: 55%;
+	--inquiry-questions-min-size: 16rem;
+	--info: oklch(0.52 0.18 255);
 	--success: oklch(0.48 0.14 150);
 	--warning: oklch(0.53 0.13 65);
 	--ui-scale: 0.95;
@@ -137,6 +147,7 @@
 }
 
 .dark {
+	--info: oklch(0.75 0.13 250);
 	--success: oklch(0.78 0.16 150);
 	--warning: oklch(0.8 0.15 75);
 	--background: oklch(0.141 0.005 285.823);
@@ -190,18 +201,28 @@
 	--ui-scale: 1.05;
 }
 
-button:not(:disabled),
-[role="checkbox"]:not(:disabled),
-[role="radio"]:not(:disabled),
-[role="switch"]:not(:disabled),
-[role="button"]:not(:disabled) {
+button:not(:disabled):not([aria-disabled="true"]):not([data-disabled]),
+[role="checkbox"]:not(:disabled):not([aria-disabled="true"]):not(
+	[data-disabled]
+),
+[role="radio"]:not(:disabled):not([aria-disabled="true"]):not([data-disabled]),
+[role="switch"]:not(:disabled):not([aria-disabled="true"]):not([data-disabled]),
+[role="button"]:not(:disabled):not([aria-disabled="true"]):not(
+	[data-disabled]
+) {
 	cursor: pointer;
 }
 
 label[for],
-label:has([role="checkbox"]):not(:disabled),
-label:has([role="radio"]):not(:disabled),
-label:has([role="switch"]):not(:disabled) {
+label:has([role="checkbox"]):not(:disabled):not([aria-disabled="true"]):not(
+	[data-disabled]
+),
+label:has([role="radio"]):not(:disabled):not([aria-disabled="true"]):not(
+	[data-disabled]
+),
+label:has([role="switch"]):not(:disabled):not([aria-disabled="true"]):not(
+	[data-disabled]
+) {
 	cursor: pointer;
 }
 
@@ -211,17 +232,31 @@ label:has([role="switch"]):not(:disabled) {
 	cursor: pointer;
 }
 
-[role="menuitem"]:not(:disabled),
-[role="menuitemcheckbox"]:not(:disabled),
-[role="menuitemradio"]:not(:disabled) {
+[role="menuitem"]:not(:disabled):not([aria-disabled="true"]):not(
+	[data-disabled]
+),
+[role="menuitemcheckbox"]:not(:disabled):not([aria-disabled="true"]):not(
+	[data-disabled]
+),
+[role="menuitemradio"]:not(:disabled):not([aria-disabled="true"]):not(
+	[data-disabled]
+) {
 	/* biome-ignore lint/complexity/noImportantStyles: 覆盖菜单与选项的默认 cursor，保持可点击指针。 */
 	cursor: pointer !important;
 }
 
-[role="option"]:not(:disabled),
-select[data-slot="native-select"]:not(:disabled) {
+[role="option"]:not(:disabled):not([aria-disabled="true"]):not([data-disabled]),
+select[data-slot="native-select"]:not(:disabled):not(
+	[aria-disabled="true"]
+):not([data-disabled]) {
 	/* biome-ignore lint/complexity/noImportantStyles: 覆盖菜单与选项的默认 cursor，保持可点击指针。 */
 	cursor: pointer !important;
+}
+
+button:disabled,
+[aria-disabled="true"],
+[data-slot="button"][data-disabled] {
+	cursor: not-allowed;
 }
 
 input[type="number"]::-webkit-inner-spin-button,
@@ -271,37 +306,88 @@ input[type="number"]::-webkit-outer-spin-button {
 	@apply ring-2 ring-primary/20 ring-offset-1;
 }
 
-/* 浮动二级菜单与主导航、窗口上下边缘分离；窄窗也保留两侧留白。 */
-.workspace-menu-floating {
-	inset-block: var(--spacing-workspace-gutter);
-	left: var(--spacing-workspace-gutter);
-	max-width: calc(100% - var(--spacing-workspace-gutter) * 2);
+/* 二级菜单浮窗使用 HoverCard 的 Portal 与视口避让，不参与正文布局。 */
+.scroll-area {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	min-height: 0;
+	overflow: hidden;
+}
+.scroll-area-viewport {
+	width: 100%;
+	min-height: 0;
+	flex: 1 1 auto;
+	border-radius: inherit;
+	overscroll-behavior: contain;
+	outline: none;
+}
+.scroll-area-viewport:focus-visible {
+	box-shadow: inset 0 0 0 2px var(--ring);
+}
+.scroll-area-content {
+	min-width: 100%;
+	min-height: 100%;
+}
+.scroll-area-scrollbar {
+	display: flex;
+	touch-action: none;
+	user-select: none;
+	padding: 2px;
+	opacity: 0;
+	transition: opacity 150ms;
+}
+.scroll-area-scrollbar[data-orientation="vertical"] {
+	width: 0.625rem;
+}
+.scroll-area-scrollbar[data-orientation="horizontal"] {
+	height: 0.625rem;
+	flex-direction: column;
+}
+.scroll-area-scrollbar:is([data-hovering], [data-scrolling]) {
+	opacity: 1;
+}
+.scroll-area-thumb {
+	flex: 1;
+	border-radius: var(--radius-full, 9999px);
+	background: color-mix(in oklch, var(--muted-foreground) 45%, transparent);
+}
+.scroll-area-thumb:hover {
+	background: var(--muted-foreground);
 }
 
-/* 透明通道属于菜单的悬停区域，经过左侧间隙时保持展开；不裁剪 Tooltip。 */
-.workspace-menu-floating::before {
-	content: "";
-	position: absolute;
-	inset-block: -1px;
-	right: 100%;
-	width: calc(var(--spacing-workspace-gutter) + 1px);
-}
-
-/* ReUI c-resizable-5 原版胶囊手柄效果；拖拽与键盘行为由官方分栏组件处理。 */
-.workspace-menu-resize-handle {
-	@apply before:bg-muted-foreground/25 hover:before:bg-muted-foreground/50 active:before:bg-primary before:pointer-events-none before:absolute before:top-1/2 before:left-1/2 before:z-10 before:h-6 before:w-1 before:-translate-x-1/2 before:-translate-y-1/2 before:rounded-full before:transition-all before:duration-300 before:ease-[cubic-bezier(0.32,0.72,0,1)] hover:before:h-8 active:before:h-12 active:before:w-1.5;
+.workspace-menu-hover-card {
+	width: var(--spacing-workspace-menu);
+	height: calc(100dvh - var(--spacing-workspace-gutter) * 2);
+	max-width: min(
+		var(--available-width),
+		calc(
+			100vw -
+			var(--spacing-workspace-rail) -
+			var(--spacing-workspace-gutter) *
+			2
+		)
+	);
+	max-height: var(--available-height);
+	padding: 0;
+	overflow: hidden;
 }
 
 /* 侧面板折叠手柄参考 Naive UI toggle-bar；尺寸随 rem 缩放，状态由 Base UI 管理。 */
 .collapsible-side-panel {
 	position: relative;
+	width: 100%;
+	height: 100%;
 	min-height: 0;
+	min-width: 0;
 	flex-shrink: 0;
 	--panel-toggle-angle: 12deg;
 }
 
 .collapsible-side-panel[data-closed] {
-	width: 1rem;
+	width: 0;
+	border-inline-width: 0;
 }
 
 .collapsible-side-panel[data-side="right"],
@@ -317,7 +403,7 @@ input[type="number"]::-webkit-outer-spin-button {
 	position: absolute;
 	z-index: 1;
 	top: 50%;
-	right: 0;
+	right: calc(var(--spacing-workspace-gutter) / -2);
 	width: 2rem;
 	height: 4.5rem;
 	padding: 0;
@@ -333,7 +419,7 @@ input[type="number"]::-webkit-outer-spin-button {
 
 .collapsible-side-panel[data-side="right"] .collapsible-side-panel-toggle {
 	right: auto;
-	left: 0;
+	left: calc(var(--spacing-workspace-gutter) / -2);
 	transform: translate(-50%, -50%);
 }
 
@@ -599,11 +685,6 @@ input[type="number"]::-webkit-outer-spin-button {
 	pointer-events: none;
 	transition-delay: 0s;
 }
-.funds-graph-preview-content {
-	min-height: 0;
-	overflow-y: auto;
-	overscroll-behavior: contain;
-}
 @media (prefers-reduced-motion: reduce) {
 	.funds-graph-preview-panel,
 	.funds-graph-preview-expand {
@@ -664,7 +745,7 @@ input[type="number"]::-webkit-outer-spin-button {
 	gap: 0.125rem;
 	overflow: auto;
 	overscroll-behavior: contain;
-	scrollbar-width: thin;
+	scrollbar-width: none;
 	opacity: 0;
 	transition: opacity 70ms ease-out;
 }
@@ -1085,5 +1166,50 @@ input[type="number"]::-webkit-outer-spin-button {
 	}
 	.inquiry-print-root .inquiry-document-measurement {
 		display: none;
+	}
+}
+
+/* 二级菜单名称保持固定布局；只有实际溢出的文字渐隐并在行悬停时滚动。 */
+.menu-label {
+	display: block;
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-align: start;
+	white-space: nowrap;
+}
+.menu-label-text {
+	display: block;
+	width: max-content;
+}
+.menu-label[data-overflow] {
+	mask-image: linear-gradient(to right, black calc(100% - 1.5rem), transparent);
+}
+
+[data-menu-row]:is(:hover, :focus-within)
+	.menu-label[data-overflow]
+	.menu-label-text {
+	animation: menu-label-scroll var(--menu-label-duration) linear infinite
+		alternate;
+}
+@keyframes menu-label-scroll {
+	0%,
+	15% {
+		transform: translateX(0);
+	}
+	85%,
+	100% {
+		transform: translateX(calc(var(--menu-label-travel) - 1.5rem));
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	[data-menu-row]:is(:hover, :focus-within)
+		.menu-label[data-overflow]
+		.menu-label-text {
+		animation: none;
+	}
+	.menu-label[data-overflow] {
+		overflow-x: auto;
+		scrollbar-width: none;
 	}
 }

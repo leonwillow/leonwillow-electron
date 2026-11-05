@@ -1,6 +1,6 @@
 /**
  * @file 笔录问答的编辑、插入、删除与排序。
- * 创建时间：2026-11-04；修改时间：2026-11-04。
+ * 创建时间：2026-11-04；修改时间：2026-11-05。
  * 版本作用：使用 ReUI c-sortable-3 的组合排序问答组，接入原有编辑历史与保存。
  * 被调用：RecordEditor；调用：共享 Sortable、表单、Textarea、UUID 工具。
  * 预期结果：稳定 ID 保持输入焦点，正文换行保留，删除后可由编辑器撤销。
@@ -28,7 +28,7 @@ import {
 import { useRef } from "react";
 import type { InquiryContent } from "@/lib/inquiries";
 import { InquiryIconButton } from "./controls";
-import { emptyQuestion } from "./draft";
+import { emptyQuestion } from "./record-fields";
 
 export default function InquiryQuestionFields({
 	items,
@@ -64,6 +64,7 @@ export default function InquiryQuestionFields({
 				<Button
 					variant="outline"
 					disabled={readOnly || items.length >= 200}
+					disabledReason={readOnly ? "当前笔录不可编辑" : "问答最多添加 200 组"}
 					onClick={() => insert(items.length)}
 				>
 					<PlusIcon data-icon="inline-start" />
@@ -105,6 +106,9 @@ export default function InquiryQuestionFields({
 							<InquiryIconButton
 								label={`上移第 ${index + 1} 组问答`}
 								disabled={readOnly || index === 0}
+								disabledReason={
+									readOnly ? "当前笔录不可编辑" : "已经是第一组，不能再上移"
+								}
 								onClick={() => move(item.id, index - 1)}
 							>
 								<ArrowUpIcon />
@@ -112,6 +116,9 @@ export default function InquiryQuestionFields({
 							<InquiryIconButton
 								label={`下移第 ${index + 1} 组问答`}
 								disabled={readOnly || index === items.length - 1}
+								disabledReason={
+									readOnly ? "当前笔录不可编辑" : "已经是最后一组，不能再下移"
+								}
 								onClick={() => move(item.id, index + 1)}
 							>
 								<ArrowDownIcon />
@@ -119,6 +126,9 @@ export default function InquiryQuestionFields({
 							<InquiryIconButton
 								label={`在第 ${index + 1} 组上方插入问答`}
 								disabled={readOnly || items.length >= 200}
+								disabledReason={
+									readOnly ? "当前笔录不可编辑" : "问答最多添加 200 组"
+								}
 								onClick={() => insert(index)}
 							>
 								<PlusIcon />
@@ -126,13 +136,22 @@ export default function InquiryQuestionFields({
 							<InquiryIconButton
 								label={`在第 ${index + 1} 组下方插入问答`}
 								disabled={readOnly || items.length >= 200}
+								disabledReason={
+									readOnly ? "当前笔录不可编辑" : "问答最多添加 200 组"
+								}
 								onClick={() => insert(index + 1)}
 							>
 								<ListPlusIcon />
 							</InquiryIconButton>
 							<InquiryIconButton
 								label={`删除第 ${index + 1} 组问答`}
+								variant="destructive"
 								disabled={readOnly || items.length <= 1}
+								disabledReason={
+									readOnly
+										? "当前笔录不可编辑"
+										: "至少保留一组问答，不能继续删除"
+								}
 								onClick={() => onChange(items.filter((r) => r.id !== item.id))}
 							>
 								<Trash2Icon />

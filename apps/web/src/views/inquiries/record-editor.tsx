@@ -1,11 +1,11 @@
 /**
  * @file 案件笔录的三栏编辑工作区。
- * 创建时间：2026-11-04；修改时间：2026-11-04。
- * 版本作用：顶部合并笔录操作，三栏承载信息、问答和文书；边缘手柄控制侧栏显隐。
+ * 创建时间：2026-11-04；修改时间：2026-11-05。
+ * 版本作用：顶部合并笔录操作，三栏支持拖动分隔线调宽；边缘按钮控制侧栏显隐。
  * 被调用：InquiriesView；调用：编辑 Hook、基础/问答表单、A4 页面、Eden。
  * 预期结果：宽屏独立滚动和折叠，窄屏页签切换；离开/导出前保存，失败不误报成功。
  */
-import { Badge } from "@leonwillow-electron/ui/components/badge";
+
 import { Button } from "@leonwillow-electron/ui/components/button";
 import { CollapsibleSidePanel } from "@leonwillow-electron/ui/components/collapsible-side-panel";
 import {
@@ -19,12 +19,18 @@ import {
 import { Field, FieldLabel } from "@leonwillow-electron/ui/components/field";
 import { Input } from "@leonwillow-electron/ui/components/input";
 import {
+	ResizableHandle,
+	ResizablePanel,
+	ResizablePanelGroup,
+} from "@leonwillow-electron/ui/components/resizable";
+import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
+import {
 	Tabs,
 	TabsList,
 	TabsTrigger,
 } from "@leonwillow-electron/ui/components/tabs";
+import { cn } from "@leonwillow-electron/ui/lib/utils";
 import {
-	CheckIcon,
 	DownloadIcon,
 	EyeIcon,
 	PrinterIcon,
@@ -37,7 +43,7 @@ import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import {
 	exportInquiryRecord,
-	type InquiryDraft,
+	type InquiryDocument,
 	type InquiryRecord,
 	inquiryError,
 	saveInquiryFile,
@@ -62,15 +68,39 @@ export default function InquiryRecordEditor({
 		() => window.matchMedia("(min-width: 80rem)").matches,
 	);
 	const [tab, setTab] = useState("basic");
+	const [panelSizes] = useState(() => {
+		const styles = getComputedStyle(document.documentElement);
+		const size = (name: string) =>
+			styles.getPropertyValue(`--inquiry-${name}`).trim();
+		return {
+			basicDefault: size("basic-default-size"),
+			basicMin: size("basic-min-size"),
+			basicMax: size("basic-max-size"),
+			previewDefault: size("preview-default-size"),
+			previewMin: size("preview-min-size"),
+			previewMax: size("preview-max-size"),
+			questionsMin: size("questions-min-size"),
+		};
+	});
 	const [basicOpen, setBasicOpen] = useState(true);
 	const [previewOpen, setPreviewOpen] = useState(true);
 	const [exporting, setExporting] = useState(false);
+	const operationDisabledReason = editor.conflicted
+		? "笔录已在其他位置更新，请重新打开后操作"
+		: editor.mutating
+			? "正在处理笔录，请稍候"
+			: editor.saving
+				? "正在保存笔录，请稍候"
+				: exporting
+					? "正在准备导出，请稍候"
+					: "当前笔录不可编辑";
+
 	const exportLock = useRef(false);
-	const [printDraft, setPrintDraft] = useState<InquiryDraft | null>(null);
+	const [printDraft, setPrintDraft] = useState<InquiryDocument | null>(null);
 	const printed = useRef(false);
 	const root = useRef<HTMLDivElement>(null);
 	const { draft } = editor;
-	const contentChange = (content: InquiryDraft["content"]) =>
+	const contentChange = (content: InquiryDocument["content"]) =>
 		editor.change({ title: draft.title, content });
 	useEffect(() => {
 		const media = window.matchMedia("(min-width: 80rem)");
@@ -78,11 +108,11 @@ export default function InquiryRecordEditor({
 		media.addEventListener("change", update);
 		return () => media.removeEventListener("change", update);
 	}, []);
-	const save = async (status: "draft" | "final") => {
+	const save = async () => {
 		if (editingDisabled) return;
-		const result = await editor.persist(status);
+		const result = await editor.persist();
 		if (result) {
-			toast.success(status === "final" ? "笔录已完成" : "草稿已保存");
+			toast.success("笔录已保存");
 		}
 	};
 	const saveRef = useRef(save);
@@ -91,7 +121,7 @@ export default function InquiryRecordEditor({
 		const key = (event: KeyboardEvent) => {
 			if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
 				event.preventDefault();
-				if (!editingDisabled) void saveRef.current("draft");
+				if (!editingDisabled) void saveRef.current();
 			}
 		};
 		document.addEventListener("keydown", key);
@@ -102,16 +132,13 @@ export default function InquiryRecordEditor({
 		exportLock.current = true;
 		setExporting(true);
 		try {
-			const stored = await editor.persist(
-				editor.dirty ? "draft" : draft.status,
-			);
+			const stored = await editor.persist();
 			if (!stored) return;
 			if (print) {
 				printed.current = false;
 				setPrintDraft({
 					title: stored.title,
 					content: stored.content,
-					status: stored.status,
 				});
 			} else {
 				saveInquiryFile(
@@ -185,9 +212,6 @@ export default function InquiryRecordEditor({
 							}
 						/>
 					</Field>
-					<Badge variant={draft.status === "final" ? "success" : "secondary"}>
-						{draft.status === "final" ? "已完成" : "草稿"}
-					</Badge>
 					<span
 						role="status"
 						className="min-w-0 truncate text-muted-foreground text-xs"
@@ -211,6 +235,9 @@ export default function InquiryRecordEditor({
 				>
 					<InquiryIconButton
 						label="撤销上一步操作"
+						disabledReason={
+							editingDisabled ? "当前笔录不可编辑" : "没有可以撤销的操作"
+						}
 						disabled={editingDisabled || !editor.canUndo}
 						onClick={editor.undo}
 					>
@@ -218,45 +245,36 @@ export default function InquiryRecordEditor({
 					</InquiryIconButton>
 					<InquiryIconButton
 						label="重做上一步操作"
+						disabledReason={
+							editingDisabled ? "当前笔录不可编辑" : "没有可以重做的操作"
+						}
 						disabled={editingDisabled || !editor.canRedo}
 						onClick={editor.redo}
 					>
 						<Redo2Icon />
 					</InquiryIconButton>
 					{!readOnly && (
-						<>
-							<Button
-								variant="outline"
-								disabled={
-									editingDisabled ||
-									editor.saving ||
-									exporting ||
-									editor.conflicted
-								}
-								onClick={() => void save("draft")}
-							>
-								<SaveIcon data-icon="inline-start" />
-								保存草稿
-							</Button>
-							<Button
-								disabled={
-									editingDisabled ||
-									editor.saving ||
-									exporting ||
-									editor.conflicted
-								}
-								onClick={() => void save("final")}
-							>
-								<CheckIcon data-icon="inline-start" />
-								完成笔录
-							</Button>
-						</>
+						<Button
+							variant="outline"
+							disabled={
+								editingDisabled ||
+								editor.saving ||
+								exporting ||
+								editor.conflicted
+							}
+							disabledReason={operationDisabledReason}
+							onClick={() => void save()}
+						>
+							<SaveIcon data-icon="inline-start" />
+							保存笔录
+						</Button>
 					)}
 					<Button
 						variant="outline"
 						disabled={
 							editor.mutating || editor.saving || exporting || editor.conflicted
 						}
+						disabledReason={operationDisabledReason}
 						onClick={() => void exportFile(false)}
 					>
 						<DownloadIcon data-icon="inline-start" />
@@ -271,6 +289,9 @@ export default function InquiryRecordEditor({
 							!!printDraft ||
 							editor.conflicted
 						}
+						disabledReason={
+							printDraft ? "正在准备打印，请稍候" : operationDisabledReason
+						}
 						onClick={() => void exportFile(true)}
 					>
 						<PrinterIcon data-icon="inline-start" />
@@ -278,56 +299,65 @@ export default function InquiryRecordEditor({
 					</Button>
 				</fieldset>
 			</InquiryWorkspaceHeader>
-			{editor.error && (
-				<div className="flex flex-wrap items-center gap-2 border-b p-workspace-gutter">
-					<p role="alert" className="text-destructive text-sm">
-						{editor.error}
-					</p>
-					{!editor.conflicted && (
-						<Button
-							variant="outline"
-							disabled={editingDisabled || editor.saving}
-							onClick={() => void save("draft")}
-						>
-							重试保存
-						</Button>
-					)}
-					{editor.conflicted && (
-						<p className="text-muted-foreground text-sm">
-							请先复制需要保留的内容，再重新打开这份笔录。
-						</p>
-					)}
-				</div>
-			)}
 			{wide ? (
-				<div className="flex min-h-0 min-w-0 flex-1">
+				<ResizablePanelGroup
+					id="inquiry-editor-panels"
+					orientation="horizontal"
+					className="min-h-0 min-w-0 flex-1"
+				>
 					<CollapsibleSidePanel
+						id="inquiry-basic-panel"
 						title="基础信息"
 						label="笔录基础信息"
 						side="left"
 						open={basicOpen}
 						onOpenChange={setBasicOpen}
-						className="w-72 border-r"
+						defaultSize={panelSizes.basicDefault}
+						minSize={panelSizes.basicMin}
+						maxSize={panelSizes.basicMax}
 					>
 						{basic}
 					</CollapsibleSidePanel>
-					<section
-						aria-label="笔录问答编辑"
-						className="min-h-0 min-w-0 flex-1 overflow-auto p-workspace-gutter"
+					<ResizableHandle
+						aria-label="调整基础信息宽度"
+						disabled={!basicOpen}
+						className={cn(!basicOpen && "hidden")}
+					/>
+					<ResizablePanel
+						id="inquiry-questions-panel"
+						minSize={panelSizes.questionsMin}
+						className="min-h-0 min-w-0"
+						style={{ overflow: "hidden" }}
 					>
-						{questions}
-					</section>
+						<ScrollArea
+							aria-label="笔录问答编辑"
+							className="h-full"
+							contentClassName="p-workspace-gutter"
+							render={<section />}
+						>
+							{questions}
+						</ScrollArea>
+					</ResizablePanel>
+					<ResizableHandle
+						aria-label="调整文书预览宽度"
+						disabled={!previewOpen}
+						className={cn(!previewOpen && "hidden")}
+					/>
 					<CollapsibleSidePanel
+						id="inquiry-preview-panel"
 						title="文书预览"
 						label="笔录文书预览"
 						side="right"
 						open={previewOpen}
 						onOpenChange={setPreviewOpen}
-						className="w-96 border-l bg-muted/20"
+						defaultSize={panelSizes.previewDefault}
+						minSize={panelSizes.previewMin}
+						maxSize={panelSizes.previewMax}
+						className="bg-muted/20"
 					>
 						{preview}
 					</CollapsibleSidePanel>
-				</div>
+				</ResizablePanelGroup>
 			) : (
 				<>
 					<Tabs
@@ -344,7 +374,7 @@ export default function InquiryRecordEditor({
 							</TabsTrigger>
 						</TabsList>
 					</Tabs>
-					<section
+					<ScrollArea
 						aria-label={
 							tab === "basic"
 								? "笔录基础信息"
@@ -352,14 +382,16 @@ export default function InquiryRecordEditor({
 									? "笔录问答编辑"
 									: "笔录文书预览"
 						}
-						className="min-h-0 min-w-0 flex-1 overflow-auto p-workspace-gutter"
+						className="min-h-0 min-w-0 flex-1"
+						contentClassName="p-workspace-gutter"
+						render={<section />}
 					>
 						{tab === "basic"
 							? basic
 							: tab === "questions"
 								? questions
 								: preview}
-					</section>
+					</ScrollArea>
 				</>
 			)}
 			<Dialog

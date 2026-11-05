@@ -1,10 +1,11 @@
 /**
  * @file 文书弹窗中的精简表单、补充字段和自动 Word 预览。
- * 创建时间：2026-10-10；修改时间：2026-10-11。
+ * 创建时间：2026-10-10；修改时间：2026-11-05。
  * 版本作用：同一表单完成取号和补填，选填信息可折叠，预览随输入更新。
  * 被调用：documents/records-workspace；调用：字段控件、预览器、Eden 文书客户端。
  * 功能与预期结果：只填对象即可取号；失败保留草稿，历史号码固定，普通人员只修改本人。
  */
+
 import { Button } from "@leonwillow-electron/ui/components/button";
 import {
 	Collapsible,
@@ -19,6 +20,7 @@ import {
 	FieldLabel,
 } from "@leonwillow-electron/ui/components/field";
 import { Input } from "@leonwillow-electron/ui/components/input";
+import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
 import {
 	ChevronDownIcon,
 	DownloadIcon,
@@ -173,12 +175,18 @@ export default function DocumentEditor({
 		}
 	};
 	return (
-		<div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
+		<ScrollArea
+			className="min-h-0 min-w-0 flex-1"
+			contentClassName="flex flex-col lg:h-full lg:flex-row"
+		>
 			<form
 				onSubmit={(event) => void save(event)}
 				className="flex min-h-0 shrink-0 flex-col border-b lg:w-96 lg:border-r lg:border-b-0"
 			>
-				<div className="flex min-h-0 flex-1 flex-col gap-4 p-workspace-gutter lg:overflow-y-auto">
+				<ScrollArea
+					className="min-h-0 flex-1"
+					contentClassName="flex flex-col gap-4 p-workspace-gutter"
+				>
 					{details && (
 						<div className="flex flex-col gap-1">
 							<CopyText
@@ -329,7 +337,7 @@ export default function DocumentEditor({
 						</Collapsible>
 					)}
 					{error && <FieldError role="alert">{error}</FieldError>}
-				</div>
+				</ScrollArea>
 				<div className="flex shrink-0 flex-col gap-3 border-t p-workspace-gutter">
 					<p className="text-muted-foreground text-xs">
 						{missingFields.length > 0
@@ -405,6 +413,6 @@ export default function DocumentEditor({
 				)}
 				<DocumentPreview blob={preview.blob} />
 			</section>
-		</div>
+		</ScrollArea>
 	);
 }

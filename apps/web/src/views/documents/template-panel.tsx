@@ -1,10 +1,11 @@
 /**
  * @file 管理员模板目录和删除确认。
- * 创建时间：2026-10-10；修改时间：2026-10-10。
+ * 创建时间：2026-10-10；修改时间：2026-11-05。
  * 版本作用：复用原知识库目录的卡片和弹窗操作，使用服务端模板列表。
  * 被调用：documents/index；调用：共享 UI、template-dialog、文书客户端。
  * 功能与预期结果：可导入/设置/下载/删除模板，删除保留原版本与历史文书。
  */
+
 import { Badge } from "@leonwillow-electron/ui/components/badge";
 import { Button } from "@leonwillow-electron/ui/components/button";
 import {
@@ -23,6 +24,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@leonwillow-electron/ui/components/dialog";
+import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
 import {
 	DownloadIcon,
 	FilePlus2Icon,
@@ -83,7 +85,10 @@ export default function TemplatePanel({
 		}
 	};
 	return (
-		<div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-workspace-gutter">
+		<ScrollArea
+			className="min-h-0 flex-1"
+			contentClassName="flex flex-col gap-5 p-workspace-gutter"
+		>
 			<div className="flex flex-wrap items-center justify-between gap-3">
 				<div>
 					<h2 className="font-medium text-base">文书模板</h2>
@@ -200,6 +205,6 @@ export default function TemplatePanel({
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
-		</div>
+		</ScrollArea>
 	);
 }

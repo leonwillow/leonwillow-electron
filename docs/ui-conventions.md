@@ -1,6 +1,6 @@
 # 排版、控件与缩放规范
 
-维护日期：2026-11-04。以下尺寸约定沿用原迁移实现；持久化由 `stores/theme-store.ts` 负责，DOM 和窗口同步由 `components/layout/theme-effects.tsx` 连接。
+维护日期：2026-11-05。以下尺寸约定沿用原迁移实现；持久化由 `stores/theme-store.ts` 负责，DOM 和窗口同步由 `components/layout/theme-effects.tsx` 连接。
 
 原模板迁移时，原 `ThemeCustomizer` 中 Select 用 `h-8`，单选格用 `py-2` 加子文字 `text-sm leading-none` 撑高；它们的字号分别是 `text-xs` 和 `text-sm`。原全局缩放只改 `--text-sm/base/lg` 和 `--spacing`，遗漏小字、其他字号与临时 rem 字号，导致上下控件尺寸变化不一致。
 
@@ -62,6 +62,10 @@
 
 2026-11-04：笔录工具栏与模块标题共用一行，以 `min-h-workspace-header` 保持宽屏顶线对齐，窄空间允许操作分组换行。`CollapsibleSidePanel` 的中部折叠手柄由 `globals.css` 统一设置 rem 尺寸、语义色、方向反馈、焦点环及减少动态效果适配；折叠状态由 Base UI 管理，视图仅提供内容、边侧和展开状态。
 
+2026-11-05：笔录侧面板通过共享 ReUI Resizable 调宽，Base UI Collapsible 保留内容显隐及按钮语义。收起时面板宽度为零，相邻分隔线隐藏；展开由官方 API 恢复最近展开尺寸。折叠按钮绝对定位，竖条中线位于问答留白 `workspace-gutter` 的一半处，不额外占位。按最新要求删除折叠按钮的悬停预览及所有专用状态、内容副本和样式，悬停仅显示方向反馈。
+
+笔录分栏尺寸统一在 `globals.css` 的 `--inquiry-*` 令牌中维护：基础信息默认 18rem、最小 12rem、最大 45%；文书预览默认 24rem、最小 14rem、最大 55%；问答最小 16rem。默认宽度延续已有页面，约束随 rem 缩放；尺寸计算和鼠标/键盘拖动交由已有 ReUI 实现，页面不另写拖动逻辑。
+
 `globals.css` 中的 `--spacing-workspace-header` 引用 `workspace-rail`（3rem），使顶部 Logo 四向留白一致，同时统一案件菜单顶部和资金页头；三处使用 `h-workspace-header` 与 `shrink-0`，使高度及底部分隔线随根 rem 一起对齐。详情面板页头和账户目录定位继续复用该高度。`packages/ui/src/lib/utils.ts` 已将这些工作区尺寸注册到 `tailwind-merge` 的 spacing 配置，避免共享尺寸类合并时产生歧义。
 
 案件菜单标题与资金模块标题沿用 `text-base` 并垂直居中，菜单顶部操作使用共享按钮 `size="icon"`。资金页头的模块名与案件名以箭头分层，长名截断并保留完整名称提示；窄窗口标题区改为两行但不增加顶栏高度。内部导航保持单行且不压缩，管理页统计仍可换行。此约定只统一当前三处工作区顶栏，不要求其他页面重写组件结构；实测记录见[资金界面 v7](./funds-ui.md#v7-顶栏对齐验证)。
@@ -106,6 +110,8 @@ G6 的原生项通过共享 Tooltip 的 `anchor` 接口复用提示外观，不�
 
 复制成功启用 Sonner 的 `richColors`，其成功前景、浅背景与边框由共享通知组件映射到 `success` 和 `popover` 语义色，明暗主题一致。HoverCard 内的 Tooltip 使用 `TooltipPortalScope`，Portal 挂在 Popup 内、正文滚动层外；提示及箭头属于父卡片的 DOM 范围，鼠标移入提示不会触发父卡片离开，且仍能超出正文区域显示。普通页面 Tooltip 沿用默认 Portal。
 
+2026-11-05：共享 Sonner 默认启用 `richColors`，调用方按结果选择 `toast.success`、`toast.error`、`toast.warning` 或 `toast.info`，使用原生图标、动画与通知生命周期。错误通知参考 ReUI `@reui/c-alert-8` 的浅色底和边框，通过 `destructive` 映射；成功、警告、信息分别使用 `success`、`warning`、`primary` 语义色，普通通知沿用 `popover`。关闭按钮默认中文可访问名称。笔录表单提交错误使用浮动通知，不在编辑区域增加占位错误条；具体错误由业务请求提供，不把不同类型通知统一为错误 Alert。
+
 全局 Tooltip 允许鼠标移入 Popup，保留 Base UI 的悬停路径和 Escape 关闭行为。原生 `title` 说明统一改用 `TooltipText`，复用原文字、表格单元格或链接节点，无额外布局包装。案件菜单使用 `TooltipPortalScope`，移入伸出菜单的气泡仍视为处于菜单内。会自动折叠的工具栏通过 `TooltipOpenScope` 汇总提示打开状态；原生 G6 项的外部锚点额外处理按钮与气泡之间的离开宽限，并在定时关闭前核验真实悬停命中，避免原生 leave 与 Portal enter 事件先后顺序导致误关。
 
 2026-10-08：`TooltipText` 仅在实际文字节点的 `scrollWidth > clientWidth` 时打开完整内容提示，链接内优先测量 `.truncate` 文字，不把图标或留白作为锚点。气泡与文字起点对齐，继续由 Base UI 处理屏幕边缘避让；打开时测量，并仅为当前打开的文字监听尺寸与字体变化，恢复完整显示时关闭提示。复制操作提示及图标说明沿用各自的 Tooltip，不受文字截断规则限制。银行流水的名称与摘要采用自然文字宽度及既有最大宽度，空白不再成为悬停范围。
@@ -127,4 +133,23 @@ G6 的原生项通过共享 Tooltip 的 `anchor` 接口复用提示外观，不�
 
 2026-11-04：固定二级菜单支持 ReUI 分隔条调整宽度。共享 `--workspace-menu-default-size` 为 15rem，`--spacing-workspace-menu` 引用它供浮窗和其他默认菜单使用；固定菜单的 min/max 分别由 `--workspace-menu-min-size`（12rem）及 `--workspace-menu-max-size`（28rem）定义，正文最小宽度使用 `--workspace-content-min-size`（20rem）。尺寸只在 globals.css 定义，布局读取带单位的值传给 ReUI。用户宽度以 rem 保存，窗口空间不足时由官方约束临时收窄，不覆盖原偏好。
 
-`.workspace-menu-resize-handle` 保留 `c-resizable-5` 的原版伪元素：默认高 1.5rem、宽 0.25rem，悬停高 2rem，按下高 3rem、宽 0.375rem；颜色使用 muted-foreground/primary，共享 focus ring 保留键盘可见焦点。手柄仅在实际停靠时显示；窄窗继续使用现有浮窗及其边距，不提供拖宽控件。
+2026-11-05：按界面要求移除二级菜单分隔线上的胶囊标记及 `.workspace-menu-resize-handle` 样式，继续使用 ReUI `ResizableHandle` 的拖拽、键盘和焦点行为。分隔线仅在实际停靠时可用；窄窗继续使用现有浮窗及其边距，不提供拖宽控件。
+
+
+## 滚动区域与禁用反馈
+
+2026-11-05：从 shadcn base-mira 引入共享 `ScrollArea`，使用 Base UI 的 Viewport、Content、Scrollbar、Thumb 和 Corner。所有新增的可溢出区域必须使用它，外框负责高度约束，`contentClassName` 负责内部布局和留白；虚拟列表的 ref、onScroll 和键盘滚动目标通过 `viewportProps` 绑定实际 Viewport，不能绑定外框。双向滚动条采用语义色，悬停或滚动时可见，滚轮、触控、键盘和拖动逻辑由官方组件处理。
+
+已接入主导航、二级菜单、笔录三栏与窄窗页签内容、常用询问人、文书及人员列表、文书编辑与预览、主题面板、资金详情/筛选/目录/记录列表及共享 Table。长 Dialog、Popover 使用 `scrollable` 和 `scrollContentClassName` 组合相同滚动组件。Word iframe 按实际纸张高度展开，由外部 Scroll Area 滚动，隔离文书样式的方式保留。Select、Command、ReUI TimePicker 保留官方键盘定位与滚动指示逻辑并隐藏系统滚动条；G6 插件拥有的 DOM 工具栏保留原尺寸计算与滚动逻辑，不显示系统滚动条。
+
+共享 Button 的禁用状态保留指针事件以显示 `not-allowed` 光标，不再用 pointer-events:none 跳过按钮；Base UI 仍负责阻止激活。`disabledReason` 提供中文原因 Tooltip，并允许键盘聚焦读取；已带 Tooltip 的图标按钮直接在原气泡中切换原因。禁用按钮的捕获阶段阻止父行导航和表单提交，悬停不呈现可执行状态。删除操作统一显式使用 `destructive` 变体，禁用时保留危险色并降低透明度；不根据中文文案或图标名称推断业务行为。
+
+### 二级菜单名称与轻量操作（2026-11-05）
+
+二级菜单名称统一使用 MenuLabel：实际溢出时以渐变遮罩消失，行悬停或键盘聚焦后滚动展示全文，不使用省略号或名称 Tooltip。ResizeObserver 在内容、字体和面板宽度变化时重测；减少动态效果时停止自动动画。目录 ScrollArea 内容显式限制为视口宽度，覆盖底层 fit-content 最小宽度，避免名称撑开目录。
+
+笔录目录行移除删除入口及对应确认弹窗；文件夹仅保留小尺寸 ghost icon 操作。改名使用共享 info（信息蓝）令牌，归档/恢复使用 warning 令牌，默认透明、悬停显示淡色背景。操作区始终占据固定宽度，以 visibility 控制显示，避免悬停挤压文字或移动按钮。浮动菜单使用标准 rounded-xl、border-border、bg-popover 与 shadow-xl，跟随全局主题及圆角，不再直接引用不可用的派生圆角变量。
+
+验证：浏览器检查浅色/深色及大小圆角联动、透明信息/警告色按钮、窄窗口名称溢出遮罩与动画、名称无 Tooltip。未改动现有业务数据。
+
+2026-11-05：共享 Button 的 info、success、warning、destructive 统一为语义色 ghost 外观：默认背景透明，悬停可用按钮时显示同色 10% 背景；禁用状态不显示悬停背景。编辑询问人使用 info，删除入口和删除确认沿用 destructive，深色模式同样不常驻背景色。

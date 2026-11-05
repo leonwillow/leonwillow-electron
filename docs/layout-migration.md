@@ -1,6 +1,6 @@
 # 布局与框架适配
 
-维护日期：2026-10-13。原项目只读：`/Users/leonwillow/Downloads/shadcn-nextjs-aidesk-app-template-1.0.0`。
+维护日期：2026-11-05。原项目只读：`/Users/leonwillow/Downloads/shadcn-nextjs-aidesk-app-template-1.0.0`。
 
 | 来源 | 当前实现 | 必要适配 |
 | --- | --- | --- |
@@ -60,8 +60,19 @@ Web 默认资源 base 为 `/`。子路径构建使用 Vite `--base=/desk/`，Rou
 
 2026-11-04：固定二级菜单与正文接入 ReUI `@reui/c-resizable-5`。`WorkspacePanels` 组合官方 `ResizablePanelGroup`、`ResizablePanel` 和 `ResizableHandle`，使用原版胶囊手柄的悬停、按下尺寸与 300ms 缓动；未自行实现拖拽、命中范围或键盘算法。共享组件通过 shadcn CLI 读取官方 registry，依赖为 `react-resizable-panels` 4.18.0；仅适配共享 cn、类型导出和仓库注释。
 
-两个 Panel 保持挂载。停靠时菜单填满左 Panel，分隔条取代原右边框；浮动或进入无菜单模块时，左 Panel 的最小/最大宽度归零、分隔条隐藏并禁用，菜单使用原浮窗定位，正文占满余下空间。左 Panel 内层允许溢出，浮窗仍相对整个 Group 定位，不受零宽占位裁剪。固定状态切换和视口断点变化不重建右侧编辑器。
+2026-11-05：移除菜单边界的可见胶囊标记，保留 ReUI 分隔线调整宽度、键盘操作和统一宽度持久化。笔录内部两侧折叠面板收起时不占宽度及边框，恢复入口向问答区内侧偏移；按最新要求移除折叠内容的 HoverCard；侧栏可通过分隔线调宽，具体交互见[笔录功能](./inquiries-migration.md)。
+
+两个 Panel 保持挂载。停靠时菜单填满左 Panel，分隔条取代原右边框；浮动或进入无菜单模块时，左 Panel 的最小/最大宽度归零、分隔条隐藏并禁用，浮动菜单通过 HoverCard Portal 定位，正文占满余下空间，卡片不受零宽占位裁剪。固定状态切换和视口断点变化不重建右侧编辑器。
 
 宽度由同一个工作台 Provider 持有，按用户保存到 `workspace-menu-width:v1:<userId>`，与固定开关键分离。以 rem 保存，三个模块共用；只在 ReUI `onLayoutChanged` 确认用户拖动/键盘操作结束后写入。回调使用官方提交的布局比例换算宽度，避免键盘回调先于 DOM 更新时保存旧尺寸。窗口缩窄、取消固定和程序性布局恢复不写入偏好；恢复大窗口时重新应用原宽度。存储不可用时本次调整仍有效，其他窗口通过 storage 事件同步。
 
 分栏验证：Lint、类型检查、88 项 UI 测试、生产构建和差异检查通过，构建仍有既有大分包提醒。浏览器确认鼠标拖动、方向键及 Home/End 调整、刷新恢复、资金/文书/笔录共用宽度与跨窗口同步正常；固定切换保留编辑器展开状态。800px 窗口暂时约束菜单宽度，390px 窗口恢复浮层并隐藏分隔条，均无横向溢出，回到大窗口恢复原宽度；明暗主题及小档/特大档 rem 缩放已核对。截图：`apps/web/.impeccable/review/workspace-menu-resizable.png`。
+
+
+2026-11-05：浮动二级菜单改用共享 HoverCard。ReUI registry 的 hover-card 指向 shadcn/ui；项目复用 Base UI PreviewCard 实现，保留固定模式的内联菜单。共享 handle 关联三个主导航触发器，延迟打开、移入卡片、移出关闭及边界避让交由组件处理，删除原来的关闭计时器和透明伪元素通道。固定时悬停不切换，点击仍切换内容；键盘右方向键进入搜索、Escape 返回入口。
+
+刷新只恢复固定偏好和路由对应内容，临时 open 始终为 false；路由更新本身不打开浮窗。增加回归测试覆盖未固定刷新、固定偏好、跨窗口取消固定及显式导航后再关闭。三个二级菜单列表和主图标栏使用共享 Scroll Area，长内容独立滚动，不显示系统滚动条。
+
+2026-11-05：AppLogo 统一由外层语义背景、主题圆角及 overflow-hidden 控制边缘，移除内部 SVG 的第二层圆角背景；路径使用 currentColor 跟随 primary-foreground。明暗模式、不同缩放及圆角均已在浏览器验证。
+
+2026-11-05：按当前使用范围暂时隐藏侧栏的收件箱、工单、联系人、知识库、AI 助手和报表六个入口。`assets/data/navigation.ts` 的 `hiddenSidebarModuleIds` 集中控制隐藏，侧栏使用 `sidebarNav`；完整 `primaryNav`、搜索入口、已有路由与权限配置保留，恢复时移除对应隐藏项即可。

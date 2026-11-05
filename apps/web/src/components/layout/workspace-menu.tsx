@@ -1,12 +1,13 @@
 /**
  * @file 工作台二级菜单的共享外框、标题和工具栏。
- * 创建时间：2026-11-04；修改时间：2026-11-04。
+ * 创建时间：2026-11-04；修改时间：2026-11-05。
  * 版本作用：只挂载一个菜单框，切换业务内容时复用同一个顶栏、固定按钮及面板节点。
  * 被调用：WorkspaceSecondaryMenu；内容来自资金、文书与笔录菜单 Hook。
- * 调用：useWorkspaceMenu 导航契约、共享 Button、Tooltip 及工作区尺寸令牌。
+ * 调用：useWorkspaceMenu 导航契约、共享 Button、HoverCard、Tooltip 及工作区尺寸令牌。
  * 功能与预期结果：标题居左，固定按钮始终排在工具栏末尾；浮动时留出边距，停靠时衔接工作区。
  */
 import { Button } from "@leonwillow-electron/ui/components/button";
+import { HoverCardContent } from "@leonwillow-electron/ui/components/hover-card";
 import {
 	Tooltip,
 	TooltipContent,
@@ -43,7 +44,7 @@ export default function WorkspaceMenu({
 }: WorkspaceMenuProps) {
 	if (!navigation.visible) return null;
 	const pinLabel = navigation.pinned ? "取消固定二级菜单" : "固定二级菜单";
-	return (
+	const content = (
 		<aside
 			id="workspace-menu"
 			data-slot="workspace-menu"
@@ -51,15 +52,11 @@ export default function WorkspaceMenu({
 			data-mode={navigation.docked ? "docked" : "floating"}
 			ref={navigation.panelRef}
 			aria-label={label}
-			onPointerEnter={() => navigation.show()}
-			onPointerLeave={navigation.scheduleClose}
-			onFocusCapture={() => navigation.show()}
-			onBlurCapture={navigation.scheduleClose}
 			className={cn(
-				"flex max-w-full shrink-0 flex-col bg-sidebar",
+				"flex h-full min-h-0 w-full flex-col",
 				navigation.docked
-					? "relative h-full w-full"
-					: "workspace-menu-floating absolute inset-y-0 left-0 z-40 w-workspace-menu rounded-xl border shadow-xl",
+					? "bg-sidebar text-sidebar-foreground"
+					: "bg-popover text-popover-foreground",
 			)}
 		>
 			<TooltipPortalScope>
@@ -99,5 +96,21 @@ export default function WorkspaceMenu({
 				{children}
 			</TooltipPortalScope>
 		</aside>
+	);
+	if (navigation.docked) return content;
+	return (
+		<HoverCardContent
+			side="right"
+			align="start"
+			anchor={navigation.navigationRef}
+			sideOffset={() =>
+				Number.parseFloat(getComputedStyle(document.documentElement).fontSize) *
+				0.75
+			}
+			collisionPadding={12}
+			className="workspace-menu-hover-card rounded-xl border border-border bg-popover text-popover-foreground shadow-xl ring-0"
+		>
+			{content}
+		</HoverCardContent>
 	);
 }

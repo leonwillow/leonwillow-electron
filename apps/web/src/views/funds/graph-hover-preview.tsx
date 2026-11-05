@@ -1,17 +1,17 @@
 /**
  * @file 可停靠、可折叠的画布悬停速览。
  * 创建时间：2026-10-07
- * 修改时间：2026-10-07
+ * 修改时间：2026-11-05
  * 版本作用：独立于 G6 绘制生命周期，仅消费已加载数据；鼠标交互不重绘图谱。
  * 被调用：GraphCanvas 通过 ref.show 转交图元进入事件。
  * 功能：按帧合并目标、缓存本地摘要、点击切换展开与折叠、独立保存布局。
  * 预期结果：无悬停请求；换图拒绝旧目标，折叠仍是同一个面板，退出时清理调度。
  */
+
 import { Button } from "@leonwillow-electron/ui/components/button";
 import {
 	Card,
 	CardAction,
-	CardContent,
 	CardHeader,
 	CardTitle,
 } from "@leonwillow-electron/ui/components/card";
@@ -20,6 +20,7 @@ import {
 	CollapsibleContent,
 	CollapsibleTrigger,
 } from "@leonwillow-electron/ui/components/collapsible";
+import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
 import {
 	Tooltip,
 	TooltipContent,
@@ -202,7 +203,7 @@ export default function GraphHoverPreview({
 						</Tooltip>
 					</CardAction>
 				</CardHeader>
-				<CardContent className="funds-graph-preview-content px-3 pb-3">
+				<ScrollArea className="min-h-0" contentClassName="px-3 pb-3">
 					{preview ? (
 						<GraphPreviewContent
 							preview={preview}
@@ -230,7 +231,7 @@ export default function GraphHoverPreview({
 							{storageError}
 						</p>
 					)}
-				</CardContent>
+				</ScrollArea>
 			</CollapsibleContent>
 		</Collapsible>
 	);

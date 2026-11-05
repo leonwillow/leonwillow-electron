@@ -1,16 +1,15 @@
 /**
  * @file 笔录领域和 API 测试使用的虚构资料。
- * 创建时间：2026-11-04；修改时间：2026-11-04。
+ * 创建时间：2026-11-04；修改时间：2026-11-05。
  * 版本作用：提供独立 UUID 的完整有效输入，不读取任何真实案件。
  * 被调用：inquiries 测试；调用：笔录契约类型。
  * 预期结果：用例之间不共享可变问答和询问人。
  */
-import type { InquiryDraft } from "../src/modules/inquiries/model";
+import type { InquiryDocument } from "../src/modules/inquiries/model";
 
-export function inquiryFixture(): InquiryDraft {
+export function inquiryFixture(): InquiryDocument {
 	return {
 		title: "测试询问笔录",
-		status: "draft",
 		content: {
 			inquiryStartAt: "2026-11-04T09:00",
 			inquiryEndAt: "2026-11-04T10:00",

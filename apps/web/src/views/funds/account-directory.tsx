@@ -1,12 +1,13 @@
 /**
  * @file 当前案件账户/主体目录、搜索、筛选与虚拟滚动。
  * 创建时间：2026-10-07
- * 修改时间：2026-10-08
+ * 修改时间：2026-11-05
  * 版本作用：完整目录可浏览，DOM 只保留可见条目与键盘焦点条目。
  * 被调用：AnalysisPanel；调用：TanStack Virtual、AccountDirectoryRow、目录筛选。
  * 功能：宽屏以共享菜单宽度固定目录和分隔线；列表独立滚动，键盘翻阅全部账户。
  * 预期结果：不截断账户，不改变图谱分析范围，悬停和筛选不追加网络请求。
  */
+
 import {
 	createHoverCardHandle,
 	HoverCard,
@@ -18,6 +19,7 @@ import {
 	InputGroupButton,
 	InputGroupInput,
 } from "@leonwillow-electron/ui/components/input-group";
+import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
 import {
 	Tooltip,
 	TooltipContent,
@@ -94,12 +96,11 @@ function DirectoryList({
 	}, [virtualRows]);
 	return (
 		<>
-			<div
-				ref={scroll}
-				className="max-h-64 min-h-0 overflow-auto overscroll-contain rounded-lg border xl:max-h-none xl:flex-1"
+			<ScrollArea
 				style={{ height: virtualizer.getTotalSize() }}
 				data-slot="account-directory-scroll"
-				onScroll={dismissPreview}
+				className="max-h-64 min-h-0 overscroll-contain rounded-lg border xl:max-h-none xl:flex-1"
+				viewportProps={{ ref: scroll, onScroll: dismissPreview }}
 			>
 				<ul
 					aria-label="账户列表"
@@ -191,7 +192,7 @@ function DirectoryList({
 						);
 					})}
 				</ul>
-			</div>
+			</ScrollArea>
 			<HoverCard
 				handle={preview}
 				onOpenChange={(open, details) => {
@@ -213,7 +214,10 @@ function DirectoryList({
 						className="w-80 p-0"
 						aria-label="账户速览"
 					>
-						<div className="max-h-(--available-height) overflow-y-auto rounded-lg p-4">
+						<ScrollArea
+							className="max-h-(--available-height) rounded-lg"
+							contentClassName="p-4"
+						>
 							{payload && (
 								<AccountPreview
 									node={payload}
@@ -222,7 +226,7 @@ function DirectoryList({
 									presentation={actions.appearances[payload.id]}
 								/>
 							)}
-						</div>
+						</ScrollArea>
 					</HoverCardContent>
 				)}
 			</HoverCard>

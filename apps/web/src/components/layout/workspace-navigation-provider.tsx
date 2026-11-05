@@ -1,12 +1,16 @@
 /**
  * @file 工作台单个二级菜单框的导航上下文。
- * 创建时间：2026-11-04；修改时间：2026-11-04。
+ * 创建时间：2026-11-04；修改时间：2026-11-05。
  * 版本作用：在布局中唯一创建菜单状态，模块适配只绑定内容 ID，不创建独立状态。
  * 被调用：WorkspaceLayout、AppSidebar、业务导航与 WorkspaceSecondaryMenu。
  * 调用：useWorkspaceMenu；预期结果：任意模块固定/取消固定后，整个菜单框同步生效。
  */
+import { HoverCard } from "@leonwillow-electron/ui/components/hover-card";
 import { createContext, type ReactNode, useContext } from "react";
-import type { WorkspaceMenuId } from "@/lib/workspace-menu-state";
+import {
+	isWorkspaceMenuId,
+	type WorkspaceMenuId,
+} from "@/lib/workspace-menu-state";
 import {
 	useWorkspaceMenu,
 	type WorkspaceMenuNavigation,
@@ -24,7 +28,63 @@ export function WorkspaceNavigationProvider({
 	children: ReactNode;
 }) {
 	const navigation = useWorkspaceMenu({ userId, enabledMenus });
-	return <Context value={navigation}>{children}</Context>;
+	return (
+		<Context value={navigation}>
+			<HoverCard
+				handle={navigation.hoverHandle}
+				open={navigation.visible && !navigation.docked}
+				triggerId={
+					navigation.activeMenu
+						? `workspace-trigger-${navigation.activeMenu}`
+						: null
+				}
+				onOpenChange={(open, details) => {
+					if (navigation.docked) {
+						details.cancel();
+						return;
+					}
+					if (open) {
+						const menuId = details.trigger?.getAttribute("data-menu-trigger");
+						if (
+							!menuId ||
+							!isWorkspaceMenuId(menuId) ||
+							navigation.pinned ||
+							(details.reason === "trigger-hover" &&
+								!details.trigger?.matches(":hover")) ||
+							(details.reason === "trigger-focus" &&
+								!details.trigger?.matches(":focus-visible"))
+						) {
+							details.cancel();
+							return;
+						}
+						navigation.preview(menuId);
+					} else {
+						if (
+							navigation.dragging.current ||
+							(details.reason === "trigger-hover" &&
+								navigation.panelRef.current?.contains(document.activeElement) &&
+								document.activeElement?.matches(
+									":focus-visible, input, textarea",
+								))
+						) {
+							details.cancel();
+							return;
+						}
+						if (
+							details.reason === "escape-key" &&
+							navigation.panelRef.current?.contains(document.activeElement)
+						) {
+							if (navigation.activeMenu)
+								navigation.triggerRefs[navigation.activeMenu].current?.focus();
+						}
+						navigation.dismiss();
+					}
+				}}
+			>
+				{children}
+			</HoverCard>
+		</Context>
+	);
 }
 
 export function useWorkspaceNavigation() {

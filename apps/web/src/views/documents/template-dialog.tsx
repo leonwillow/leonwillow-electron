@@ -1,6 +1,6 @@
 /**
  * @file 管理员导入模板、配置字段及年度序号的弹窗。
- * 创建时间：2026-10-10；修改时间：2026-10-10。
+ * 创建时间：2026-10-10；修改时间：2026-11-05。
  * 版本作用：沿用原 collection-dialog 的共享 Dialog 与表单结构，适配真实 API。
  * 被调用：template-panel；调用：共享 UI、文书客户端。
  * 功能与预期结果：上传只接收 DOCX，已有模板设置带版本校验，取号起点可向前调整。
@@ -138,7 +138,9 @@ export default function TemplateDialog({
 			}}
 		>
 			<DialogContent
-				className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-2xl"
+				scrollable
+				className="max-h-[calc(100dvh-2rem)] sm:max-w-2xl"
+				scrollContentClassName=""
 				showCloseButton={!busy}
 			>
 				<DialogHeader>

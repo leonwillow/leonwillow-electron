@@ -1,10 +1,11 @@
 /**
  * @file 当前人员的常用询问人管理。
- * 创建时间：2026-11-04；修改时间：2026-11-04。
+ * 创建时间：2026-11-04；修改时间：2026-11-05。
  * 版本作用：沿用 haoji 姓名和检查证号目录，编辑时可直接填入。
- * 被调用：笔录工作区；调用：Eden、共享表格/表单/弹窗。
+ * 被调用：笔录工作区；调用：Eden、Sonner、共享表格/表单/弹窗。
  * 预期结果：支持新增、修改、删除和搜索，历史笔录中的人员快照不受影响。
  */
+
 import { Button } from "@leonwillow-electron/ui/components/button";
 import {
 	Dialog,
@@ -20,6 +21,7 @@ import {
 	FieldLabel,
 } from "@leonwillow-electron/ui/components/field";
 import { Input } from "@leonwillow-electron/ui/components/input";
+import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
 import {
 	Table,
 	TableBody,
@@ -30,6 +32,7 @@ import {
 } from "@leonwillow-electron/ui/components/table";
 import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { useRef, useState } from "react";
+import { toast } from "sonner";
 import {
 	deleteInquiryInquirer,
 	type FrequentInquirer,
@@ -53,18 +56,16 @@ function InquirerDialog({
 	const [badgeNumber, setBadgeNumber] = useState(row?.badgeNumber ?? "");
 	const [busy, setBusy] = useState(false);
 	const lock = useRef(false);
-	const [error, setError] = useState("");
 	const save = async () => {
 		if (lock.current) return;
 		lock.current = true;
 		setBusy(true);
-		setError("");
 		try {
 			await saveInquiryInquirer({ name, badgeNumber }, row);
 			onSaved();
 			onClose();
 		} catch (cause) {
-			setError(inquiryError(cause));
+			toast.error(inquiryError(cause));
 		} finally {
 			lock.current = false;
 			setBusy(false);
@@ -116,11 +117,6 @@ function InquirerDialog({
 							/>
 						</Field>
 					</FieldGroup>
-					{error && (
-						<p role="alert" className="text-destructive text-sm">
-							{error}
-						</p>
-					)}
 					<DialogFooter>
 						<Button
 							type="button"
@@ -170,7 +166,10 @@ export default function InquiryInquirers() {
 		}
 	};
 	return (
-		<div className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto p-workspace-gutter">
+		<ScrollArea
+			className="min-h-0 flex-1"
+			contentClassName="flex flex-col gap-4 p-workspace-gutter"
+		>
 			<div className="flex flex-wrap items-center justify-between gap-3">
 				<h2 className="font-semibold text-base">常用询问人</h2>
 				<Button onClick={() => setEditing("new")}>
@@ -206,12 +205,14 @@ export default function InquiryInquirers() {
 							<TableCell>
 								<InquiryIconButton
 									label={`编辑询问人 ${r.name}`}
+									variant="info"
 									onClick={() => setEditing(r)}
 								>
 									<PencilIcon />
 								</InquiryIconButton>
 								<InquiryIconButton
 									label={`删除询问人 ${r.name}`}
+									variant="destructive"
 									onClick={() => {
 										setError("");
 										setRemoving(r);
@@ -248,6 +249,6 @@ export default function InquiryInquirers() {
 			>
 				从常用名单中移除“{removing?.name}”。已有笔录中的姓名和检查证号会保留。
 			</InquiryConfirm>
-		</div>
+		</ScrollArea>
 	);
 }

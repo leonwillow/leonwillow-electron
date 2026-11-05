@@ -1,10 +1,11 @@
 /**
  * @file 同窗 Word 文书预览与页面适宽。
- * 创建时间：2026-10-10；修改时间：2026-10-11。
+ * 创建时间：2026-10-10；修改时间：2026-11-05。
  * 版本作用：按需加载 docx-preview，在无脚本的独立 iframe 内保留文书排版。
  * 被调用：document-editor；调用：docx-preview、浏览器 ResizeObserver。
  * 功能与预期结果：模板样式不污染应用，切换内容不会显示过期结果，窄窗适宽。
  */
+import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
 import { cn } from "@leonwillow-electron/ui/lib/utils";
 import { useEffect, useRef, useState } from "react";
 import { documentError } from "@/lib/documents";
@@ -13,6 +14,7 @@ export default function DocumentPreview({ blob }: { blob: Blob | null }) {
 	const frameRef = useRef<HTMLIFrameElement>(null);
 	const [status, setStatus] = useState("正在准备文书预览…");
 	const [ready, setReady] = useState(false);
+	const [frameHeight, setFrameHeight] = useState(0);
 	useEffect(() => {
 		if (!blob) {
 			setStatus("正在准备文书预览…");
@@ -43,6 +45,7 @@ export default function DocumentPreview({ blob }: { blob: Blob | null }) {
 			doc.head.replaceChildren(styles);
 			doc.body.replaceChildren(body);
 			doc.body.style.margin = "0";
+			doc.documentElement.style.overflow = "hidden";
 			doc.body.style.background = "white";
 			// 预览使用 Word 自带字号；这里只缩放整张纸，不改变 UI 的 rem 令牌。
 			const wrapper = body.querySelector<HTMLElement>(".docx-wrapper");
@@ -62,6 +65,7 @@ export default function DocumentPreview({ blob }: { blob: Blob | null }) {
 				);
 				body.style.transform = `scale(${scale})`;
 				doc.body.style.height = `${height * scale}px`;
+				setFrameHeight(Math.ceil(height * scale));
 			};
 			observer = new ResizeObserver(fit);
 			observer.observe(frame);
@@ -93,13 +97,16 @@ export default function DocumentPreview({ blob }: { blob: Blob | null }) {
 					{status}
 				</p>
 			)}
-			<iframe
-				ref={frameRef}
-				title="Word 文书预览"
-				sandbox="allow-same-origin"
-				className="min-h-80 w-full flex-1 border-0 bg-background lg:min-h-0"
-				hidden={!ready}
-			/>
+			<ScrollArea className="min-h-0 flex-1">
+				<iframe
+					ref={frameRef}
+					title="Word 文书预览"
+					sandbox="allow-same-origin"
+					className="min-h-80 w-full border-0 bg-background lg:min-h-0"
+					style={{ height: frameHeight || undefined }}
+					hidden={!ready}
+				/>
+			</ScrollArea>
 		</div>
 	);
 }

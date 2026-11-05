@@ -1,6 +1,6 @@
 /**
  * @file 按当前人员隔离的笔录事务服务。
- * 创建时间：2026-11-04；修改时间：2026-11-04。
+ * 创建时间：2026-11-04；修改时间：2026-11-05。
  * 版本作用：案件行锁协调归档与写入，修订号检查防止多窗口覆盖。
  * 被调用：inquiries 路由；调用：共用数据库、Drizzle、领域校验。
  * 功能与预期结果：只有所有者能访问案件/笔录/常用询问人，删除保留笔录原行。
@@ -27,7 +27,7 @@ import { getServerResources } from "../../server-resources";
 import { AccessError, type AccessSession } from "../access/service";
 import type {
 	InquiryDirectoryQuery,
-	InquiryDraft,
+	InquiryDocument,
 	InquiryListQuery,
 } from "./model";
 import { validateInquiry } from "./validation";
@@ -94,8 +94,8 @@ async function lockCase(
 	return row;
 }
 /**
- * 返回当前人员的目录摘要；q 匹配文件夹名、笔录标题或被询问人，status 限定同一份匹配笔录。
- * 文件夹名匹配时允许该文件夹内所有符合状态的笔录；空文件夹仅在没有状态筛选时保留。
+ * 返回当前人员的目录摘要；q 匹配文件夹名、笔录标题或被询问人。
+ * 文件夹名匹配时保留该文件夹；子笔录标题和被询问人匹配时返回所属目录。
  * 子查询覆盖全部有效笔录，不受目录展开或笔录分页影响，也不向客户端发送正文。
  */
 export async function listCases(
@@ -117,7 +117,6 @@ export async function listCases(
 				and(
 					eq(inquiryRecord.caseId, inquiryCase.id),
 					isNull(inquiryRecord.deletedAt),
-					query.status ? eq(inquiryRecord.status, query.status) : undefined,
 					search
 						? or(
 								nameMatches,
@@ -140,7 +139,6 @@ export async function listCases(
 			record: {
 				id: inquiryRecord.id,
 				title: inquiryRecord.title,
-				status: inquiryRecord.status,
 				revision: inquiryRecord.revision,
 				updatedAt: inquiryRecord.updatedAt,
 			},
@@ -167,9 +165,7 @@ export async function listCases(
 				eq(inquiryCase.ownerId, access.user.id),
 				isNull(inquiryCase.deletedAt),
 				or(eq(inquiryCase.kind, "folder"), isNotNull(inquiryRecord.id)),
-				search || query.status
-					? or(!query.status ? nameMatches : undefined, matchingRecord)
-					: undefined,
+				search ? or(nameMatches, matchingRecord) : undefined,
 			),
 		)
 		.orderBy(desc(inquiryCase.updatedAt), inquiryCase.id);
@@ -193,7 +189,7 @@ export async function createCase(access: AccessSession, name: string) {
  */
 export async function createStandalone(
 	access: AccessSession,
-	draft: InquiryDraft & { requestId: string },
+	draft: InquiryDocument & { requestId: string },
 ) {
 	validateInquiry(draft);
 	return db().transaction(async (tx) => {
@@ -215,7 +211,6 @@ export async function createStandalone(
 				caseId: folder.id,
 				title: draft.title.trim(),
 				content: draft.content,
-				status: draft.status,
 			})
 			.onConflictDoNothing()
 			.returning();
@@ -285,7 +280,6 @@ export async function listRecords(
 	const condition = and(
 		eq(inquiryRecord.caseId, caseId),
 		isNull(inquiryRecord.deletedAt),
-		query.status ? eq(inquiryRecord.status, query.status) : undefined,
 		search
 			? or(
 					ilike(inquiryRecord.title, `%${search}%`),
@@ -298,7 +292,6 @@ export async function listRecords(
 			.select({
 				id: inquiryRecord.id,
 				title: inquiryRecord.title,
-				status: inquiryRecord.status,
 				revision: inquiryRecord.revision,
 				updatedAt: inquiryRecord.updatedAt,
 				subjectName: sql<string>`${inquiryRecord.content}->>'subjectName'`,
@@ -329,7 +322,7 @@ export async function getRecord(
 export async function createRecord(
 	access: AccessSession,
 	caseId: string,
-	draft: InquiryDraft & { requestId: string },
+	draft: InquiryDocument & { requestId: string },
 ) {
 	validateInquiry(draft);
 	return db().transaction(async (tx) => {
@@ -347,7 +340,6 @@ export async function createRecord(
 				caseId,
 				title: draft.title.trim(),
 				content: draft.content,
-				status: draft.status,
 			})
 			.onConflictDoNothing()
 			.returning();
@@ -369,7 +361,7 @@ export async function updateRecord(
 	access: AccessSession,
 	caseId: string,
 	id: string,
-	draft: InquiryDraft & { revision: number },
+	draft: InquiryDocument & { revision: number },
 ) {
 	validateInquiry(draft);
 	return db().transaction(async (tx) => {
@@ -385,7 +377,7 @@ export async function updateRecord(
 			.set({
 				title: draft.title.trim(),
 				content: draft.content,
-				status: draft.status,
+
 				revision: row.revision + 1,
 				updatedAt: new Date(),
 			})

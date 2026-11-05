@@ -1,7 +1,7 @@
 /**
  * @file 人员创建、身份和功能授权弹窗。
  * 创建时间：2026-10-04
- * 修改时间：2026-10-04
+ * 修改时间：2026-11-05
  * 版本作用：适配原模板 teammate-form-dialog 的表单与弹窗结构。
  * 被调用：人员管理视图。
  * 调用：共享 UI、React Hook Form、Eden 管理客户端、person-schema。
@@ -125,7 +125,9 @@ export default function PersonDialog({
 			}}
 		>
 			<DialogContent
-				className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-md"
+				scrollable
+				className="max-h-[calc(100dvh-2rem)] sm:max-w-md"
+				scrollContentClassName=""
 				showCloseButton={!isSubmitting}
 			>
 				<DialogHeader>

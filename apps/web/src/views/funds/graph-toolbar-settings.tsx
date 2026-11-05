@@ -1,7 +1,7 @@
 /**
  * @file 图谱工具栏的位置、方向和折叠控件。
  * 创建时间：2026-10-07
- * 修改时间：2026-10-07
+ * 修改时间：2026-11-05
  * 版本作用：沿用共享 Popover、RadioGroup 和按钮，配置只改变工具栏。
  * 被调用：GraphCanvas；调用：GraphToolbarContext、位置约束与用户偏好保存。
  * 功能：八处停靠、角落横竖切换、受限方向说明、应用及重置。
@@ -151,7 +151,9 @@ export default function GraphToolbarSettings({
 				side={side}
 				sideOffset={10}
 				align="center"
-				className="max-h-(--available-height) w-64 max-w-[calc(100vw-2rem)] overflow-y-auto p-4"
+				scrollable
+				className="max-h-(--available-height) w-64 max-w-[calc(100vw-2rem)]"
+				scrollContentClassName="p-4"
 			>
 				<PopoverHeader>
 					<PopoverTitle>工具栏布局</PopoverTitle>

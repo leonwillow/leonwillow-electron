@@ -1,6 +1,6 @@
 /**
  * @file 笔录案件、询问内容与个人常用询问人的持久化定义。
- * 创建时间：2026-11-04；修改时间：2026-11-04。
+ * 创建时间：2026-11-04；修改时间：2026-11-05。
  * 版本作用：独立于资金案件；内容按案件所有者隔离，修订号防止覆盖。
  * 被调用：schema 出口、inquiries 服务、Drizzle 迁移；调用：pg-core、认证 user 表。
  * 功能与预期结果：kind 区分多笔录文件夹和独立笔录容器，归档和标记删除保留原资料。
@@ -76,10 +76,6 @@ export const inquiryRecord = pgTable(
 			.references(() => inquiryCase.id),
 		title: text("title").notNull(),
 		content: jsonb("content").$type<InquiryContent>().notNull(),
-		status: text("status")
-			.$type<"draft" | "final">()
-			.notNull()
-			.default("draft"),
 		revision: integer("revision").notNull().default(1),
 		createdAt: timestamp("created_at").notNull().defaultNow(),
 		updatedAt: timestamp("updated_at").notNull().defaultNow(),

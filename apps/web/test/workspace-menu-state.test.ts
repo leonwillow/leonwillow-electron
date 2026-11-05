@@ -1,12 +1,13 @@
 /**
  * @file 工作台二级菜单统一状态与旧偏好迁移的回归测试。
- * 创建时间：2026-11-04；修改时间：2026-11-04。
+ * 创建时间：2026-11-04；修改时间：2026-11-05。
  * 版本作用：覆盖固定后跨模块切换、统一取消固定、恢复和存储失败，不镜像界面结构。
  * 被调用：Bun test、test:ui；调用：workspace-menu-state。
  * 预期结果：任意内容切换都使用同一固定状态，用户及历史偏好不会互相覆盖。
  */
 import { expect, test } from "bun:test";
 import {
+	initialWorkspaceMenuState,
 	readWorkspaceMenuPinned,
 	type WorkspaceMenuState,
 	workspaceMenuForPath,
@@ -35,6 +36,39 @@ const initial: WorkspaceMenuState = {
 	open: true,
 	pinned: false,
 };
+
+test("刷新只恢复菜单内容，未固定浮窗必须保持关闭", () => {
+	for (const menuId of ["funds", "documents", "inquiries"] as const) {
+		const state = initialWorkspaceMenuState(menuId, false);
+		expect(state.activeMenu).toBe(menuId);
+		expect(workspaceMenuReducer(state, { type: "route", menuId }).open).toBe(
+			false,
+		);
+		expect(
+			workspaceMenuReducer(state, { type: "route", menuId: "documents" }).open,
+		).toBe(false);
+	}
+	const fixed = initialWorkspaceMenuState("inquiries", true);
+	expect(fixed.pinned).toBe(true);
+	expect(fixed.activeMenu).toBe("inquiries");
+	expect(
+		workspaceMenuReducer(fixed, { type: "sync-pinned", pinned: false }).open,
+	).toBe(false);
+});
+
+test("显式点击导航后路由变化保持打开，关闭后同路由更新不能再次弹出", () => {
+	let state = initialWorkspaceMenuState("funds", false);
+	state = workspaceMenuReducer(state, { type: "show", menuId: "inquiries" });
+	state = workspaceMenuReducer(state, { type: "route", menuId: "inquiries" });
+	expect(state.open).toBe(true);
+	state = workspaceMenuReducer(state, { type: "dismiss" });
+	expect(
+		workspaceMenuReducer(state, { type: "route", menuId: "inquiries" }).open,
+	).toBe(false);
+	expect(
+		workspaceMenuReducer(state, { type: "route", menuId: "documents" }).open,
+	).toBe(false);
+});
 
 test("资金固定后切换文书和笔录保持固定，在任一模块取消后所有模块共用未固定状态", () => {
 	let state = workspaceMenuReducer(initial, { type: "pin", pinned: true });

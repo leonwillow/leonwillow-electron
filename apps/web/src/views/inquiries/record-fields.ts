@@ -1,11 +1,11 @@
 /**
  * @file 新笔录的默认值与编辑纯函数。
- * 创建时间：2026-11-04；修改时间：2026-11-04。
+ * 创建时间：2026-11-04；修改时间：2026-11-05。
  * 版本作用：沿用 haoji 默认字段和独立问答/询问人标识。
- * 被调用：列表、编辑器、问答表单；调用：浏览器 UUID、Eden 类型。
- * 预期结果：首次创建真实草稿，时间使用本地日期，不生成假人员资料。
+ * 被调用：笔录创建、编辑器、问答表单；调用：浏览器 UUID、Eden 类型。
+ * 预期结果：首次创建已保存的笔录，时间使用本地日期，不生成假人员资料。
  */
-import type { InquiryDraft } from "@/lib/inquiries";
+import type { InquiryDocument } from "@/lib/inquiries";
 export const relationships = [
 	"法定代表人",
 	"实际控制人",
@@ -36,13 +36,12 @@ export const emptyQuestion = () => ({
 	question: "",
 	answer: "",
 });
-export function createInquiryDraft(): InquiryDraft {
+export function createInquiryDocument(): InquiryDocument {
 	const now = new Date();
 	const pad = (n: number) => String(n).padStart(2, "0");
 	const date = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 	return {
 		title: `询问笔录 ${date}`,
-		status: "draft",
 		content: {
 			inquiryStartAt: `${date}T${pad(now.getHours())}:${pad(now.getMinutes())}`,
 			inquiryEndAt: "",

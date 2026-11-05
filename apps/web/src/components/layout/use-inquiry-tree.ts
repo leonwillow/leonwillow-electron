@@ -1,6 +1,6 @@
 /**
  * @file 笔录目录的 Headless Tree 数据、分页和路由选中适配。
- * 创建时间：2026-11-04；修改时间：2026-11-04。
+ * 创建时间：2026-11-04；修改时间：2026-11-05。
  * 版本作用：持续挂载的菜单 Hook 持有目录页缓存，请求仅在文件夹展开后发起。
  * 被调用：useInquiryCaseMenu；调用：笔录导航上下文、Eden、Headless Tree。
  * 预期结果：浮窗关闭不丢失展开与分页，旧请求不能覆盖新版目录，点击叶子立即打开。
@@ -37,7 +37,7 @@ export type InquiryTreeNode = {
 	caseId?: string;
 	recordId?: string;
 	row?: InquiryCase;
-	record?: Pick<InquiryRow, "id" | "title" | "revision" | "status">;
+	record?: Pick<InquiryRow, "id" | "title" | "revision">;
 	disabled?: boolean;
 	error?: string;
 };
@@ -53,7 +53,6 @@ type InquiryTreeOptions = {
 	onCreateRecord: (caseId: string) => void;
 	creating?: boolean;
 	query?: string;
-	status?: "draft" | "final";
 };
 
 const rootId = "inquiry-root";
@@ -106,13 +105,12 @@ export function useInquiryTree(
 		onCreateRecord,
 		creating = false,
 		query = "",
-		status,
 	}: InquiryTreeOptions,
 ) {
 	const { expandedCases, setExpandedCases } = useInquiryNavigation();
 	const search = useSearch({ strict: false });
-	const filterKey = JSON.stringify([query, status]);
-	const filtered = !!query || !!status;
+	const filterKey = JSON.stringify([query]);
+	const filtered = !!query;
 	const activeFilterKey = useRef(filterKey);
 	activeFilterKey.current = filterKey;
 	const [collapsedMatches, setCollapsedMatches] = useState<{
@@ -186,7 +184,7 @@ export function useInquiryTree(
 					.includes(query.toLocaleLowerCase())
 					? undefined
 					: query;
-				const data = await listInquiryRecords(row.id, { offset, q, status });
+				const data = await listInquiryRecords(row.id, { offset, q });
 				if (
 					!mounted.current ||
 					activeFilterKey.current !== filterKey ||
@@ -218,7 +216,7 @@ export function useInquiryTree(
 					requests.current.delete(row.id);
 			}
 		},
-		[filterKey, query, status, setOffset],
+		[filterKey, query, setOffset],
 	);
 
 	useEffect(() => {

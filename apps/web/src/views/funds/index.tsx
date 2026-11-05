@@ -1,16 +1,18 @@
 /**
  * @file 当前案件的资金分析页面。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-08
+ * 修改时间：2026-11-05
  * 版本作用：资料管理独立后，仅组织资金图、交易明细与追踪。
  * 被调用：funds 路由；调用：AnalysisPanel、Eden、案件读取 Hook。
  * 功能：按 URL 案件加载分析；无资料或图未就绪时提供案件管理入口。
  * 预期结果：分析界面不显示选案、导入、清洗统计及后台任务控件。
  */
+
 import {
 	Button,
 	buttonVariants,
 } from "@leonwillow-electron/ui/components/button";
+import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
 import { cn } from "@leonwillow-electron/ui/lib/utils";
 import { getRouteApi, Link } from "@tanstack/react-router";
 import { useCallback, useEffect } from "react";
@@ -72,7 +74,10 @@ function CaseAnalysis({ caseId }: { caseId: string }) {
 		<div className="min-h-0 flex-1 overflow-hidden">
 			<div className="h-full min-h-0">
 				{!record.totals.sourceCount || waitingForGraph ? (
-					<div className="mx-auto flex h-full max-w-[110rem] flex-col items-start gap-3 overflow-auto px-4 py-8 sm:px-6">
+					<ScrollArea
+						className="mx-auto h-full max-w-[110rem]"
+						contentClassName="flex flex-col items-start gap-3 px-4 py-8 sm:px-6"
+					>
 						<h2 className="font-medium text-sm">
 							{waitingForGraph ? "案件资料正在处理" : "这个案件还没有流水"}
 						</h2>
@@ -88,7 +93,7 @@ function CaseAnalysis({ caseId }: { caseId: string }) {
 						>
 							{waitingForGraph ? "查看处理进度" : "前往案件管理"}
 						</Link>
-					</div>
+					</ScrollArea>
 				) : (
 					<AnalysisPanel key={`${caseId}:${record.revision}`} caseId={caseId} />
 				)}

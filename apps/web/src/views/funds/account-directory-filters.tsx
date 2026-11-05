@@ -1,7 +1,7 @@
 /**
  * @file 账户目录的高级筛选弹窗。
  * 创建时间：2026-10-07
- * 修改时间：2026-10-07
+ * 修改时间：2026-11-05
  * 版本作用：搜索栏旁按需展开条件，应用后只筛选目录。
  * 被调用：AccountDirectory；调用：共享 Popover、FilterSelect、目录校验。
  * 预期结果：保留草稿、组合查询、校验笔数区间，支持一键重置。
@@ -118,7 +118,9 @@ export default function AccountDirectoryFilters({
 			<PopoverContent
 				align="start"
 				sideOffset={8}
-				className="max-h-(--available-height) w-80 max-w-(--available-width) overflow-y-auto p-4"
+				scrollable
+				className="max-h-(--available-height) w-80 max-w-(--available-width)"
+				scrollContentClassName="p-4"
 			>
 				<PopoverHeader>
 					<PopoverTitle>筛选账户</PopoverTitle>

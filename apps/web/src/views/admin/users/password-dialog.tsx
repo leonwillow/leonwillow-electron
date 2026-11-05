@@ -1,7 +1,7 @@
 /**
  * @file 管理员重置人员密码的弹窗。
  * 创建时间：2026-10-04
- * 修改时间：2026-10-04
+ * 修改时间：2026-11-05
  * 版本作用：独立于资料编辑的凭据操作。
  * 被调用：人员管理视图。
  * 调用：共享 UI、React Hook Form、管理 API。
@@ -86,7 +86,9 @@ export default function PasswordDialog({
 			}}
 		>
 			<DialogContent
-				className="max-h-[calc(100dvh-2rem)] overflow-y-auto"
+				scrollable
+				className="max-h-[calc(100dvh-2rem)]"
+				scrollContentClassName=""
 				showCloseButton={!isSubmitting}
 			>
 				<DialogHeader>

@@ -1,7 +1,7 @@
 /**
  * @file 账户/主体与逐笔/汇总四种资金视图和时间顺序追踪。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-08
+ * 修改时间：2026-11-05
  * 版本作用：整案为入口，办案人员自行选择账户、双方或任意付款。
  * 被调用：funds 工作台；调用：Eden、G6 画布、共享 Tabs/Table/Input/Button。
  * 功能：图与流水页签共用筛选范围，保留分页、选择、账户搜索和证据查看。
@@ -17,6 +17,7 @@ import {
 	RadioGroup,
 	RadioGroupItem,
 } from "@leonwillow-electron/ui/components/radio-group";
+import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
 import {
 	Table,
 	TableBody,
@@ -422,7 +423,10 @@ export default function AnalysisPanel({ caseId }: { caseId: string }) {
 				}}
 				className="min-h-0 min-w-0 flex-1 gap-4 overflow-hidden p-workspace-gutter"
 			>
-				<div className="-mx-1 -mt-1 shrink-0 overflow-x-auto overscroll-x-contain p-1">
+				<ScrollArea
+					className="-mx-1 -mt-1 shrink-0 overscroll-x-contain"
+					contentClassName="p-1"
+				>
 					<fieldset
 						className="flex w-max min-w-full items-center gap-6"
 						aria-label="资金分析操作"
@@ -498,8 +502,11 @@ export default function AnalysisPanel({ caseId }: { caseId: string }) {
 							)}
 						</div>
 					</fieldset>
-				</div>
-				<div className="max-h-1/4 shrink-0 space-y-4 overflow-y-auto overscroll-contain">
+				</ScrollArea>
+				<ScrollArea
+					className="max-h-1/4 shrink-0 overscroll-contain"
+					contentClassName="space-y-4"
+				>
 					{account && (
 						<div className="flex flex-wrap items-start justify-between gap-3">
 							<div>
@@ -547,22 +554,24 @@ export default function AnalysisPanel({ caseId }: { caseId: string }) {
 							{traceError}
 						</p>
 					)}
-				</div>
+				</ScrollArea>
 				{result.loading && !traced ? (
-					<div
-						className="flex min-h-0 flex-1 items-center justify-center overflow-auto rounded-lg border text-muted-foreground text-sm"
+					<ScrollArea
 						role="status"
+						className="min-h-0 flex-1 rounded-lg border text-muted-foreground text-sm"
+						contentClassName="flex items-center justify-center"
 					>
 						正在读取资金关系…
-					</div>
+					</ScrollArea>
 				) : result.error && !traced ? (
-					<div
+					<ScrollArea
 						role="alert"
-						className="min-h-0 flex-1 space-y-3 overflow-auto rounded-lg border p-5"
+						className="min-h-0 flex-1 rounded-lg border"
+						contentClassName="space-y-3 p-5"
 					>
 						<p className="text-sm">{result.error}</p>
 						<Button onClick={() => void result.reload()}>重试查询</Button>
-					</div>
+					</ScrollArea>
 				) : (
 					<>
 						<TabsContent
@@ -570,7 +579,10 @@ export default function AnalysisPanel({ caseId }: { caseId: string }) {
 							keepMounted
 							className="flex min-h-0 flex-col gap-4 overflow-hidden data-[hidden]:hidden"
 						>
-							<div className="max-h-1/4 shrink-0 space-y-4 overflow-y-auto overscroll-contain">
+							<ScrollArea
+								className="max-h-1/4 shrink-0 overscroll-contain"
+								contentClassName="space-y-4"
+							>
 								<div className="flex shrink-0 flex-wrap items-center justify-between gap-2 text-muted-foreground text-xs">
 									<p>
 										单击节点查看详情，双击下钻，右键打开操作菜单。目录中可按
@@ -603,7 +615,10 @@ export default function AnalysisPanel({ caseId }: { caseId: string }) {
 										<summary className="cursor-pointer text-muted-foreground">
 											查看已隐藏节点
 										</summary>
-										<div className="mt-2 flex max-h-40 flex-wrap gap-2 overflow-y-auto">
+										<ScrollArea
+											className="mt-2 max-h-40"
+											contentClassName="flex flex-wrap gap-2"
+										>
 											{hiddenNodes.map((n) => (
 												<Button
 													key={n.id}
@@ -617,7 +632,7 @@ export default function AnalysisPanel({ caseId }: { caseId: string }) {
 														: ""}
 												</Button>
 											))}
-										</div>
+										</ScrollArea>
 									</details>
 								)}
 								{presentation.error && (
@@ -625,7 +640,7 @@ export default function AnalysisPanel({ caseId }: { caseId: string }) {
 										{presentation.error}
 									</p>
 								)}
-							</div>
+							</ScrollArea>
 							<GraphCanvas
 								userId={user.id}
 								viewKey={history.frame.id}
@@ -640,7 +655,10 @@ export default function AnalysisPanel({ caseId }: { caseId: string }) {
 								onNodeMenu={(id, x, y) => setNodeMenu({ id, x, y })}
 								onTransaction={inspectEdge}
 							/>
-							<div className="flex max-h-1/4 shrink-0 flex-wrap justify-between gap-2 overflow-y-auto overscroll-contain text-muted-foreground text-xs">
+							<ScrollArea
+								className="max-h-1/4 shrink-0 overscroll-contain text-muted-foreground text-xs"
+								contentClassName="flex flex-wrap justify-between gap-2"
+							>
 								<span>
 									默认实心：已有流水 · 默认空心：对方流水待补 · 箭头：资金方向 ·
 									标记后可点选查看覆盖情况
@@ -659,13 +677,16 @@ export default function AnalysisPanel({ caseId }: { caseId: string }) {
 										? ` · 画布隐藏 ${graph.nodes.filter((n) => appearances[n.id]?.hidden).length} 个节点，明细保持完整`
 										: ""}
 								</span>
-							</div>
+							</ScrollArea>
 						</TabsContent>
 						<TabsContent
 							value="transactions"
 							className="flex min-h-0 flex-col gap-4 overflow-hidden"
 						>
-							<div className="max-h-1/3 shrink-0 space-y-4 overflow-y-auto overscroll-contain">
+							<ScrollArea
+								className="max-h-1/3 shrink-0 overscroll-contain"
+								contentClassName="space-y-4"
+							>
 								<div className="flex flex-wrap items-center gap-3">
 									<h3 className="font-medium text-sm">
 										{flow
@@ -718,7 +739,7 @@ export default function AnalysisPanel({ caseId }: { caseId: string }) {
 										{flow.from === flow.to ? " · 主体内部划转" : ""}
 									</p>
 								)}
-							</div>
+							</ScrollArea>
 							{showingFlows ? (
 								<FlowTable
 									key={`${history.frame.id}:${flowId}:${offset}`}
@@ -735,8 +756,7 @@ export default function AnalysisPanel({ caseId }: { caseId: string }) {
 									<Table
 										key={`${history.frame.id}:${flowId}:${offset}`}
 										containerProps={{
-											className:
-												"h-full overflow-auto overscroll-contain focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+											className: "h-full",
 											role: "region",
 											"aria-label": "银行流水数据",
 											tabIndex: 0,

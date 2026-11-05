@@ -1,7 +1,7 @@
 /**
  * @file 工作台二级菜单与正文的 ReUI 分栏容器。
- * 创建时间：2026-11-04；修改时间：2026-11-04。
- * 版本作用：固定时提供官方胶囊分隔条，浮动时将菜单占位收为零。
+ * 创建时间：2026-11-04；修改时间：2026-11-05。
+ * 版本作用：固定时通过无胶囊标记的分隔线调整宽度，浮动时将菜单占位收为零。
  * 被调用：WorkspaceLayout；调用：共享 ReUI Resizable、菜单导航上下文及共享尺寸令牌。
  * 预期结果：切换固定状态不重建菜单或编辑器；拖动结束保存统一宽度，窄窗不覆盖宽度偏好。
  */
@@ -95,7 +95,7 @@ export default function WorkspacePanels({
 				elementRef={separatorElement}
 				aria-label="调整二级菜单宽度"
 				disabled={!docked}
-				className={cn("workspace-menu-resize-handle", !docked && "hidden")}
+				className={cn(!docked && "hidden")}
 			/>
 			<ResizablePanel
 				id="workspace-content-panel"

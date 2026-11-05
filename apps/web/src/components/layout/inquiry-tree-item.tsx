@@ -1,12 +1,12 @@
 /**
  * @file 笔录 ReUI 树的文件夹、笔录和加载操作行。
- * 创建时间：2026-11-04；修改时间：2026-11-04。
+ * 创建时间：2026-11-04；修改时间：2026-11-05。
  * 版本作用：在官方 TreeItem/TreeItemLabel 上组合业务图标和同行操作。
  * 被调用：useInquiryCaseMenu；调用：共享 Tree、Tooltip 和笔录操作按钮。
- * 预期结果：左侧箭头与文件图标对齐，行操作不触发展开或导航；名称截断后可查看全文。
+ * 预期结果：左侧箭头与文件图标对齐，行操作不触发展开或导航；名称渐隐并可悬停滚动，操作区预留位置。
  */
 import type { ItemInstance } from "@headless-tree/core";
-import { TooltipText } from "@leonwillow-electron/ui/components/tooltip";
+import { MenuLabel } from "@leonwillow-electron/ui/components/menu-label";
 import {
 	TreeItem,
 	TreeItemLabel,
@@ -23,7 +23,6 @@ import {
 	PencilIcon,
 	PlusIcon,
 	RotateCwIcon,
-	Trash2Icon,
 } from "lucide-react";
 import type { ComponentProps } from "react";
 import type { InquiryCase } from "@/lib/inquiries";
@@ -37,6 +36,7 @@ function RowAction({
 }: ComponentProps<typeof InquiryIconButton>) {
 	return (
 		<InquiryIconButton
+			size="icon-xs"
 			{...props}
 			onKeyDownCapture={(event) => event.stopPropagation()}
 			onClick={(event) => {
@@ -52,13 +52,11 @@ export default function InquiryTreeItem({
 	busy,
 	onRename,
 	onArchive,
-	onRemove,
 }: {
 	item: ItemInstance<InquiryTreeNode>;
 	busy: boolean;
 	onRename: (row: InquiryCase) => void;
 	onArchive: (row: InquiryCase) => void;
-	onRemove: (row: InquiryCase, record?: InquiryTreeNode["record"]) => void;
 }) {
 	const node = item.getItemData();
 	const label = node.error ? `${node.name}：${node.error}` : node.name;
@@ -86,6 +84,7 @@ export default function InquiryTreeItem({
 			item={item}
 			render={<div />}
 			className="group/entry"
+			data-menu-row
 			aria-label={label}
 			aria-disabled={node.disabled || undefined}
 			data-disabled={node.disabled || undefined}
@@ -98,46 +97,35 @@ export default function InquiryTreeItem({
 							: "text-muted-foreground"
 					}
 				/>
-				<TooltipText content={label}>
-					<span className="min-w-0 flex-1 truncate text-left">{label}</span>
-				</TooltipText>
-				{row && (node.kind === "folder" || node.kind === "record") && (
-					<span className="hidden shrink-0 items-center gap-1 group-focus-within/entry:flex group-hover/entry:flex [@media(hover:none)]:flex">
+				<MenuLabel>{label}</MenuLabel>
+				{row && node.kind === "folder" && (
+					<span className="invisible flex shrink-0 items-center gap-1 group-focus-within/entry:visible group-hover/entry:visible [@media(hover:none)]:visible">
 						{node.kind === "folder" && (
 							<>
 								<RowAction
 									label={`重命名 ${row.name}`}
+									variant="info"
 									disabled={busy}
+									disabledReason="正在处理目录操作，请稍候"
 									onClick={() => onRename(row)}
 								>
-									<PencilIcon />
+									<PencilIcon className="size-3" />
 								</RowAction>
 								<RowAction
 									label={`${row.archived ? "恢复" : "归档"} ${row.name}`}
+									variant="warning"
 									disabled={busy}
+									disabledReason="正在处理目录操作，请稍候"
 									onClick={() => onArchive(row)}
 								>
-									{row.archived ? <ArchiveRestoreIcon /> : <ArchiveIcon />}
+									{row.archived ? (
+										<ArchiveRestoreIcon className="size-3" />
+									) : (
+										<ArchiveIcon className="size-3" />
+									)}
 								</RowAction>
 							</>
 						)}
-						<RowAction
-							label={
-								node.kind === "record"
-									? row.archived
-										? "请先恢复案件再删除笔录"
-										: `删除笔录 ${node.name}`
-									: row.archived
-										? `删除 ${row.name}`
-										: "请先归档案件再删除"
-							}
-							disabled={
-								busy || (node.kind === "folder" ? !row.archived : row.archived)
-							}
-							onClick={() => onRemove(row, node.record)}
-						>
-							<Trash2Icon />
-						</RowAction>
 					</span>
 				)}
 			</TreeItemLabel>

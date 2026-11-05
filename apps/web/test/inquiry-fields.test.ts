@@ -1,16 +1,11 @@
 /**
  * @file 笔录日期时分、自动年龄与历史关系名称的回归测试。
- * 创建时间：2026-11-04；修改时间：2026-11-04。
+ * 创建时间：2026-11-04；修改时间：2026-11-05。
  * 版本作用：验证日期时间拆分与范围联动，保留旧笔录及自动年龄规则。
- * 被调用：Bun test；调用：笔录草稿、日期时间适配和年龄纯函数。
+ * 被调用：Bun test；调用：笔录字段默认值、日期时间适配和年龄纯函数。
  * 预期结果：清空、跨日和生日边界正确，旧关系值展示为法定代表人。
  */
 import { expect, test } from "bun:test";
-import {
-	createInquiryDraft,
-	inquiryRelationshipName,
-	relationships,
-} from "../src/views/inquiries/draft";
 import {
 	changeInquiryDate,
 	changeInquiryEndTime,
@@ -18,6 +13,11 @@ import {
 	minimumInquiryEndTime,
 	readInquirySchedule,
 } from "../src/views/inquiries/inquiry-schedule";
+import {
+	createInquiryDocument,
+	inquiryRelationshipName,
+	relationships,
+} from "../src/views/inquiries/record-fields";
 import { calculateSubjectAge } from "../src/views/inquiries/subject-age";
 
 test("身份证年龄以询问日期计算，生日及无效日期边界保持正确", () => {
@@ -33,7 +33,9 @@ test("身份证年龄以询问日期计算，生日及无效日期边界保持�
 });
 
 test("新笔录使用法定代表人，历史法人值仍匹配当前选项", () => {
-	expect(createInquiryDraft().content.subjectRelationship).toBe("法定代表人");
+	expect(createInquiryDocument().content.subjectRelationship).toBe(
+		"法定代表人",
+	);
 	expect(relationships).not.toContain("法人");
 	expect(inquiryRelationshipName("法人")).toBe("法定代表人");
 	expect(inquiryRelationshipName("法定代表人")).toBe("法定代表人");

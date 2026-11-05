@@ -1,0 +1,1 @@
+ALTER TABLE "inquiry_record" DROP COLUMN "status";

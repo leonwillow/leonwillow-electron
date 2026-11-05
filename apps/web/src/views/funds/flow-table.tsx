@@ -1,7 +1,7 @@
 /**
  * @file 有向资金汇总表及逐笔下钻入口。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-08
+ * 修改时间：2026-11-05
  * 版本作用：同一方向与币种展示总额、笔数及时间区间。
  * 被调用：analysis-panel；调用：共享 Table/Button 与金额显示函数。
  * 预期结果：往返分开，内部划转明确，点击展开真实交易而非伪造证据 ID。
@@ -30,8 +30,7 @@ export default function FlowTable({
 		<div className="min-h-0 flex-1 overflow-hidden rounded-lg border">
 			<Table
 				containerProps={{
-					className:
-						"h-full overflow-auto overscroll-contain focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+					className: "h-full",
 					role: "region",
 					"aria-label": "资金流向数据",
 					tabIndex: 0,

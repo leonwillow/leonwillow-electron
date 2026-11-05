@@ -1,8 +1,8 @@
 /**
  * @file 独立笔录与案件内笔录的共用创建流程。
- * 创建时间：2026-11-04；修改时间：2026-11-04。
+ * 创建时间：2026-11-04；修改时间：2026-11-05。
  * 版本作用：按目标文件夹保留创建请求 ID，切换目录后重试不产生重复笔录。
- * 被调用：笔录目录与未选择引导；调用：Eden、草稿工厂、导航上下文。
+ * 被调用：笔录目录与未选择引导；调用：Eden、笔录默认值工厂、导航上下文。
  * 预期结果：保存成功后刷新目录并打开编辑器，失败保留请求供重试。
  */
 import { useNavigate } from "@tanstack/react-router";
@@ -13,7 +13,7 @@ import {
 	createStandaloneInquiry,
 	inquiryError,
 } from "@/lib/inquiries";
-import { createInquiryDraft } from "./draft";
+import { createInquiryDocument } from "./record-fields";
 
 /** caseId 是默认目标，create 可指定其他文件夹；请求状态由调用方的挂载生命周期持有。 */
 export function useCreateInquiry(caseId?: string) {
@@ -25,7 +25,7 @@ export function useCreateInquiry(caseId?: string) {
 	const pending = useRef(
 		new Map<
 			string | undefined,
-			{ id: string; draft: ReturnType<typeof createInquiryDraft> }
+			{ id: string; draft: ReturnType<typeof createInquiryDocument> }
 		>(),
 	);
 	const create = async (targetCaseId = caseId) => {
@@ -37,7 +37,7 @@ export function useCreateInquiry(caseId?: string) {
 		if (!request) {
 			request = {
 				id: crypto.randomUUID(),
-				draft: createInquiryDraft(),
+				draft: createInquiryDocument(),
 			};
 			pending.current.set(targetCaseId, request);
 		}

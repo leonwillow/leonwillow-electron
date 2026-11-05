@@ -1,9 +1,9 @@
 /**
  * @file 悬停预览卡基础组件。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-07
+ * 修改时间：2026-11-05
  * 版本作用：适配 shadcn base-mira HoverCard，复用已安装的 Base UI PreviewCard。
- * 被调用：资金账户目录；调用：PreviewCard、共享 cn。
+ * 被调用：资金账户目录、工作台二级菜单；调用：PreviewCard、共享 cn。
  * 功能：提供延迟悬停、移入卡片及其提示保持打开、Escape 关闭与视口避让。
  * 预期结果：预览使用共享浮层样式，内容和数据由业务提供。
  */
@@ -33,14 +33,23 @@ function HoverCardContent({
 	alignOffset = 0,
 	children,
 	showArrow = false,
+	anchor,
+	collisionPadding,
 	...props
 }: PreviewCardPrimitive.Popup.Props & { showArrow?: boolean } & Pick<
 		PreviewCardPrimitive.Positioner.Props,
-		"align" | "alignOffset" | "side" | "sideOffset"
+		| "align"
+		| "alignOffset"
+		| "side"
+		| "sideOffset"
+		| "anchor"
+		| "collisionPadding"
 	>) {
 	return (
 		<PreviewCardPrimitive.Portal>
 			<PreviewCardPrimitive.Positioner
+				anchor={anchor}
+				collisionPadding={collisionPadding}
 				align={align}
 				alignOffset={alignOffset}
 				side={side}

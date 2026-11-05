@@ -1,7 +1,7 @@
 /**
  * @file 主题 CSS 的输入和错误反馈对话框。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-11-05
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/theme-editor/theme-control-panel.tsx。
  * 调用：ui 基础组件/样式、react。
@@ -72,7 +72,11 @@ const CssImportDialog = ({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-xl">
+			<DialogContent
+				scrollable
+				className="max-h-[90dvh] sm:max-w-xl"
+				scrollContentClassName=""
+			>
 				<DialogHeader>
 					<DialogTitle className="text-foreground">导入 CSS 主题</DialogTitle>
 					<DialogDescription>

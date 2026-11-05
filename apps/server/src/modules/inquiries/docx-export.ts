@@ -1,12 +1,12 @@
 /**
  * @file 使用现有 PizZip 生成可编辑的询问笔录 Word 文件。
- * 创建时间：2026-11-04；修改时间：2026-11-04。
+ * 创建时间：2026-11-04；修改时间：2026-11-05。
  * 版本作用：沿用 haoji 的 A4、仿宋、首续页、签字栏和动态页码规则。
  * 被调用：inquiries 下载接口、导出测试；调用：PizZip、笔录契约。
  * 预期结果：字段保持文本可编辑，用户文本只进入转义后的 XML，不执行表达式。
  */
 import PizZip from "pizzip";
-import type { InquiryDraft } from "./model";
+import type { InquiryDocument } from "./model";
 
 const W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
 const R = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
@@ -65,8 +65,8 @@ function upperNumber(value: number) {
 function metadataRow(cells: { label: string; value: string; width: number }[]) {
 	return `<w:tbl><w:tblPr><w:tblW w:w="9072" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblBorders>${["top", "left", "bottom", "right", "insideH", "insideV"].map((b) => `<w:${b} w:val="nil"/>`).join("")}</w:tblBorders></w:tblPr><w:tblGrid>${cells.map((c) => `<w:gridCol w:w="${c.width}"/>`).join("")}</w:tblGrid><w:tr><w:trPr><w:cantSplit/></w:trPr>${cells.map((c) => `<w:tc><w:tcPr><w:tcW w:w="${c.width}" w:type="dxa"/><w:tcMar><w:left w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/></w:tcMar></w:tcPr>${paragraph(c.label, c.value)}</w:tc>`).join("")}</w:tr></w:tbl>`;
 }
-/** 无文件系统或网络依赖；输入为已校验草稿，返回标准 DOCX ZIP 字节。 */
-export function createInquiryDocx(draft: InquiryDraft) {
+/** 无文件系统或网络依赖；输入为笔录内容，返回标准 DOCX ZIP 字节。 */
+export function createInquiryDocx(draft: InquiryDocument) {
 	const c = draft.content;
 	// 历史笔录使用“法人”存储时，导出仍勾选当前的“法定代表人”。
 	const relationship =

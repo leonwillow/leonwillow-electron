@@ -1,7 +1,7 @@
 /**
  * @file 笔录 API 的有界输入契约。
- * 创建时间：2026-11-04；修改时间：2026-11-04。
- * 版本作用：Eden 从 TypeBox 推导字段，草稿允许留空，完成规则由 service 校验。
+ * 创建时间：2026-11-04；修改时间：2026-11-05。
+ * 版本作用：Eden 从 TypeBox 推导字段，保存允许渐进填写，内容一致性由 service 校验。
  * 被调用：inquiries 路由；调用：Elysia TypeBox。
  * 预期结果：拒绝额外字段、无效 ID、超大问答和无效版本号，返回 422。
  */
@@ -49,7 +49,6 @@ const content = t.Object(
 const record = {
 	title: name,
 	content,
-	status: t.Union([t.Literal("draft"), t.Literal("final")]),
 };
 export const InquiriesModel = {
 	caseId: t.Object({ caseId: id }),
@@ -61,7 +60,7 @@ export const InquiriesModel = {
 		{ additionalProperties: false },
 	),
 	remove: t.Object({ revision }, { additionalProperties: false }),
-	draft: t.Object(record, { additionalProperties: false }),
+	document: t.Object(record, { additionalProperties: false }),
 	create: t.Object(
 		{ ...record, requestId: id },
 		{ additionalProperties: false },
@@ -69,11 +68,9 @@ export const InquiriesModel = {
 	update: t.Object({ ...record, revision }, { additionalProperties: false }),
 	directory: t.Object({
 		q: t.Optional(text(160)),
-		status: t.Optional(record.status),
 	}),
 	list: t.Object({
 		q: t.Optional(text(160)),
-		status: t.Optional(record.status),
 		offset: t.Optional(t.Numeric({ minimum: 0, maximum: 1_000_000 })),
 		limit: t.Optional(t.Numeric({ minimum: 1, maximum: 100 })),
 	}),
@@ -86,6 +83,6 @@ export const InquiriesModel = {
 		{ additionalProperties: false },
 	),
 };
-export type InquiryDraft = typeof InquiriesModel.draft.static;
+export type InquiryDocument = typeof InquiriesModel.document.static;
 export type InquiryDirectoryQuery = typeof InquiriesModel.directory.static;
 export type InquiryListQuery = typeof InquiriesModel.list.static;

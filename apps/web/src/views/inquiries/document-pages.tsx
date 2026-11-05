@@ -1,14 +1,14 @@
 /**
  * @file 询问笔录的实测分页、A4 预览和打印页面。
- * 创建时间：2026-11-04；修改时间：2026-11-04。
+ * 创建时间：2026-11-04；修改时间：2026-11-05。
  * 版本作用：沿用 haoji 的字形测量和二分拆段，所有文字通过 React/textContent 输出。
  * 被调用：RecordEditor、打印 Portal；调用：文书共享 CSS、中文数字、浏览器字体与尺寸 API。
  * 预期结果：长问答跨页不断字、不丢文；预览点击定位字段，打印保持物理纸张尺寸。
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { InquiryDraft } from "@/lib/inquiries";
+import type { InquiryDocument } from "@/lib/inquiries";
 import { toChineseUpperNumber } from "./chinese-number";
-import { inquiryRelationshipName, relationships } from "./draft";
+import { inquiryRelationshipName, relationships } from "./record-fields";
 
 type Fragment = {
 	key: string;
@@ -27,7 +27,7 @@ function dateText(value: string) {
 		? `${match[1]}年${match[2]}月${match[3]}日${match[4] ?? "　"}时${match[5] ?? "　"}分`
 		: "　年　月　日　时　分";
 }
-function fragments(c: InquiryDraft["content"]): Fragment[] {
+function fragments(c: InquiryDocument["content"]): Fragment[] {
 	const relationship = inquiryRelationshipName(c.subjectRelationship);
 	const person = (p: (typeof c.inquirers)[number]) =>
 		`${p.name}${p.badgeNumber ? `（${p.badgeNumber}）` : ""}`;
@@ -159,7 +159,7 @@ export default function InquiryDocumentPages({
 	onReady,
 	onError,
 }: {
-	draft: InquiryDraft;
+	draft: InquiryDocument;
 	preview?: boolean;
 	focus?: (id: string) => void;
 	onReady?: () => void;

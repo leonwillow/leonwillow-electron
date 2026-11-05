@@ -1,23 +1,24 @@
 /**
  * @file 笔录编辑历史、串行保存和离开保护。
- * 创建时间：2026-11-04；修改时间：2026-11-04。
- * 版本作用：每五秒保存脏草稿，只确认实际提交的快照；修订冲突停止自动重试。
- * 被调用：RecordEditor；调用：React、TanStack blocker、Eden、笔录目录资源与操作协调。
+ * 创建时间：2026-11-04；修改时间：2026-11-05。
+ * 版本作用：串行保存笔录，仅确认已提交快照；失败通过错误通知反馈，冲突停止自动重试。
+ * 被调用：RecordEditor；调用：React、TanStack blocker、Eden、Sonner、笔录目录资源与操作协调。
  * 预期结果：保存期间继续输入不会误标已保存，切换案件先保存；目录归档/删除先锁定并保存。
  */
 import { useBlocker } from "@tanstack/react-router";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { toast } from "sonner";
 import { useInquiryEditorActions } from "@/components/layout/inquiry-editor-actions";
 import { useInquiryNavigation } from "@/components/layout/inquiry-navigation-provider";
 import {
-	type InquiryDraft,
+	type InquiryDocument,
 	InquiryError,
 	type InquiryRecord,
 	inquiryError,
 	updateInquiryRecord,
 } from "@/lib/inquiries";
 
-type Editable = Pick<InquiryDraft, "title" | "content">;
+type Editable = Pick<InquiryDocument, "title" | "content">;
 type History = {
 	past: Editable[];
 	present: Editable;
@@ -63,6 +64,7 @@ function reducer(state: History, action: Action): History {
 		: state;
 }
 export function useInquiryEditor(record: InquiryRecord, readOnly: boolean) {
+	const errorToastId = `inquiry-save-error-${record.id}`;
 	const { cases } = useInquiryNavigation();
 	const { registerEditor } = useInquiryEditorActions();
 	const reloadCases = cases.reload;
@@ -88,25 +90,19 @@ export function useInquiryEditor(record: InquiryRecord, readOnly: boolean) {
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState("");
 	const [savedAt, setSavedAt] = useState(record.updatedAt);
-	const [savedStatus, setSavedStatus] = useState(record.status);
 	const dirty = JSON.stringify(history.present) !== saved.current;
-	const persistDraft = useCallback(
-		async (
-			status: InquiryDraft["status"] = "draft",
-			forMutation = false,
-		): Promise<InquiryRecord | null> => {
+	const persistSnapshot = useCallback(
+		async (forMutation = false): Promise<InquiryRecord | null> => {
 			while (pending.current) await pending.current;
 			if (mutationLock.current && !forMutation) return null;
 			if (readOnly) return lastRecord.current;
 			if (blocked.current) return null;
 			const snapshot = current.current;
 			const fingerprint = JSON.stringify(snapshot);
-			if (
-				fingerprint === saved.current &&
-				status === lastRecord.current.status
-			) {
+			if (fingerprint === saved.current) {
 				failedFingerprint.current = null;
 				setError("");
+				toast.dismiss(errorToastId);
 				return lastRecord.current;
 			}
 			setSaving(true);
@@ -116,17 +112,17 @@ export function useInquiryEditor(record: InquiryRecord, readOnly: boolean) {
 					const result = await updateInquiryRecord(
 						record.caseId,
 						record.id,
-						{ ...snapshot, status },
+						snapshot,
 						revision.current,
 					);
 					revision.current = result.revision;
 					lastRecord.current = result;
 					saved.current = fingerprint;
 					failedFingerprint.current = null;
+					toast.dismiss(errorToastId);
 					void reloadCases();
 					if (live.current) {
 						setSavedAt(result.updatedAt);
-						setSavedStatus(result.status);
 					}
 					return result;
 				} catch (cause) {
@@ -136,7 +132,19 @@ export function useInquiryEditor(record: InquiryRecord, readOnly: boolean) {
 						[401, 403, 404, 409].includes(cause.status)
 					)
 						blocked.current = true;
-					if (live.current) setError(inquiryError(cause));
+					if (live.current) {
+						const message = inquiryError(cause);
+						setError(message);
+						// 同一笔录复用通知 ID；自动保存仍跳过失败快照，避免连续弹错。
+						toast.error(message, {
+							id: errorToastId,
+							closeButton: true,
+							duration: blocked.current ? Number.POSITIVE_INFINITY : 6000,
+							description: blocked.current
+								? "请先复制需要保留的内容，再重新打开这份笔录。"
+								: undefined,
+						});
+					}
 					return null;
 				} finally {
 					pending.current = null;
@@ -146,12 +154,11 @@ export function useInquiryEditor(record: InquiryRecord, readOnly: boolean) {
 			pending.current = request;
 			return request;
 		},
-		[record.caseId, record.id, readOnly, reloadCases],
+		[record.caseId, record.id, readOnly, reloadCases, errorToastId],
 	);
 	const persist = useCallback(
-		(status: InquiryDraft["status"] = "draft") =>
-			mutationLock.current ? Promise.resolve(null) : persistDraft(status),
-		[persistDraft],
+		() => (mutationLock.current ? Promise.resolve(null) : persistSnapshot()),
+		[persistSnapshot],
 	);
 	const actionsRef = useRef({
 		prepare: async (): Promise<{ id: string; revision: number } | null> => null,
@@ -164,7 +171,7 @@ export function useInquiryEditor(record: InquiryRecord, readOnly: boolean) {
 			while (pending.current) await pending.current;
 			if (!live.current || blocked.current) return null;
 			while (!readOnly && JSON.stringify(current.current) !== saved.current) {
-				if (!(await persistDraft("draft", true))) return null;
+				if (!(await persistSnapshot(true))) return null;
 			}
 			if (!live.current) return null;
 			return { id: record.id, revision: revision.current };
@@ -201,8 +208,9 @@ export function useInquiryEditor(record: InquiryRecord, readOnly: boolean) {
 		return () => {
 			live.current = false;
 			clearInterval(timer);
+			toast.dismiss(errorToastId);
 		};
-	}, [persist, readOnly]);
+	}, [persist, readOnly, errorToastId]);
 	const blocker = useBlocker({
 		shouldBlockFn: async () => {
 			if (readOnly) return false;
@@ -220,10 +228,7 @@ export function useInquiryEditor(record: InquiryRecord, readOnly: boolean) {
 		withResolver: true,
 	});
 	return {
-		draft: {
-			...history.present,
-			status: dirty ? ("draft" as const) : savedStatus,
-		},
+		draft: history.present,
 		dirty,
 		saving,
 		mutating,

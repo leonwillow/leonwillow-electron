@@ -1,6 +1,6 @@
 /**
  * @file 笔录工作区共用的图标操作、确认和状态提示。
- * 创建时间：2026-11-04；修改时间：2026-11-04。
+ * 创建时间：2026-11-04；修改时间：2026-11-05。
  * 版本作用：组合现有 Base UI，保留中文名称、焦点和共享尺寸。
  * 被调用：笔录页面及案件侧栏；调用：共享 Button/Dialog/Tooltip。
  * 预期结果：异步失败可重试，删除明确确认且进行中不能重复提交。
@@ -24,6 +24,7 @@ import type { ComponentProps, ReactNode } from "react";
 export function InquiryIconButton({
 	label,
 	children,
+	disabledReason,
 	...props
 }: ComponentProps<typeof Button> & { label: string }) {
 	return (
@@ -31,6 +32,7 @@ export function InquiryIconButton({
 			<TooltipTrigger
 				render={
 					<Button
+						focusableWhenDisabled
 						type="button"
 						variant="ghost"
 						size="icon"
@@ -41,7 +43,9 @@ export function InquiryIconButton({
 			>
 				{children}
 			</TooltipTrigger>
-			<TooltipContent>{label}</TooltipContent>
+			<TooltipContent>
+				{props.disabled ? (disabledReason ?? "当前操作暂不可用") : label}
+			</TooltipContent>
 		</Tooltip>
 	);
 }

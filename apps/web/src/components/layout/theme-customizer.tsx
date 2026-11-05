@@ -1,7 +1,7 @@
 /**
  * @file 常用外观设置的轻量入口。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-08
+ * 修改时间：2026-11-05
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/layout/app-sidebar.tsx。
  * 调用：ui 基础组件/样式、lucide-react、next-themes、react、components/theme-editor/theme-preset-select、configs/fonts、configs/theme-settings、stores/theme-store、types/theme。
@@ -107,7 +107,9 @@ const ThemeCustomizer = () => {
 				aria-label="主题设置"
 				align="end"
 				sideOffset={8}
-				className="max-h-[calc(100vh-10rem)] w-72 gap-5 overflow-y-auto px-0 py-3 text-sm"
+				scrollable
+				className="max-h-[calc(100vh-10rem)] w-72 text-sm"
+				scrollContentClassName="gap-5 px-0 py-3"
 			>
 				<div className="flex flex-col gap-1 px-3">
 					<div className="flex items-center justify-between">

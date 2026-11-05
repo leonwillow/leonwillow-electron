@@ -1,7 +1,7 @@
 /**
  * @file 可复用的交易证据内容与异常原文核对弹窗。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-07
+ * 修改时间：2026-11-05
  * 版本作用：显示全部来源证据，不覆盖原始字段。
  * 被调用：连线详情/清洗核对面板；调用：Eden 和共享 Dialog。
  * 预期结果：可定位文件、表、行、哈希，加载/失败均可关闭。
@@ -116,7 +116,11 @@ export default function EvidenceDialog({
 				if (!open) onClose();
 			}}
 		>
-			<DialogContent className="max-h-[85dvh] overflow-auto sm:max-w-2xl">
+			<DialogContent
+				scrollable
+				className="max-h-[85dvh] sm:max-w-2xl"
+				scrollContentClassName=""
+			>
 				<DialogHeader>
 					<DialogTitle>来源核对</DialogTitle>
 					<DialogDescription>

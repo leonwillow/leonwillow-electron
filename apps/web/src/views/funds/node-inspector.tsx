@@ -1,14 +1,16 @@
 /**
  * @file 统一详情侧栏中的节点详情与标记内容。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-07
+ * 修改时间：2026-11-05
  * 版本作用：查看节点不改变当前分析范围，显式下钻才更新画布。
  * 被调用：GraphInspector；调用：Sheet 标题、CopyText、标记编辑器、整案统计。
  * 功能：显示账户归属、数据覆盖、整案收付与内部划转；支持标记与隐藏。
  * 预期结果：只更新节点内容，不重建外层侧栏；编辑状态不串到其他节点。
  */
+
 import { Button } from "@leonwillow-electron/ui/components/button";
 import { CopyText } from "@leonwillow-electron/ui/components/copy-text";
+import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
 import {
 	SheetDescription,
 	SheetHeader,
@@ -93,7 +95,7 @@ export default function NodeInspector({
 					)}
 				</SheetDescription>
 			</SheetHeader>
-			<div className="min-h-0 flex-1 overflow-y-auto p-4">
+			<ScrollArea className="min-h-0 flex-1" contentClassName="p-4">
 				{tab === "mark" ? (
 					<NodeMarkEditor
 						initial={
@@ -245,7 +247,7 @@ export default function NodeInspector({
 						</section>
 					</div>
 				)}
-			</div>
+			</ScrollArea>
 		</>
 	);
 }

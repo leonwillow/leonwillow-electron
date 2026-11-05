@@ -1,6 +1,6 @@
 /**
  * @file 单一文书类型的记录表格、新增入口和文书编辑容器。
- * 创建时间：2026-10-11；修改时间：2026-10-11。
+ * 创建时间：2026-10-11；修改时间：2026-11-05。
  * 版本作用：类型内检索和分页；新增、查看和编辑在弹窗完成，原列表和筛选保留。
  * 被调用：documents/index；调用：共享表格、document-editor、Eden 文书客户端。
  * 功能与预期结果：切换类型不混入旧记录；普通人员可查看全部、修改本人，管理员可删除。
@@ -284,7 +284,7 @@ export default function RecordsWorkspace({
 				) : (
 					<Table
 						aria-label={`${type.name}文书记录`}
-						containerProps={{ className: "h-full overflow-auto", tabIndex: 0 }}
+						containerProps={{ className: "h-full", tabIndex: 0 }}
 					>
 						<TableHeader className="sticky top-0 z-10 bg-background">
 							<TableRow>
@@ -333,7 +333,7 @@ export default function RecordsWorkspace({
 													<TooltipTrigger
 														render={
 															<Button
-																variant="ghost"
+																variant="destructive"
 																size="icon-sm"
 																aria-label={`删除${row.documentNumber}`}
 																onClick={() => {

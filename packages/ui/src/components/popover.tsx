@@ -1,7 +1,7 @@
 /**
  * @file 锚定触发器的弹出内容的基础组件。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-11-05
  * 版本作用：共享 UI 基础层，随工作区维护。
  * 被调用：components/layout/theme-customizer.tsx。
  * 调用：@base-ui/react、ui/lib/utils、react。
@@ -9,6 +9,7 @@
  * 预期结果：业务调用方负责内容与事件，基础层不依赖应用路由或账号接口。
  */
 import { Popover as PopoverPrimitive } from "@base-ui/react/popover";
+import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
 import { cn } from "@leonwillow-electron/ui/lib/utils";
 import type * as React from "react";
 
@@ -26,9 +27,14 @@ function PopoverContent({
 	alignOffset = 0,
 	side = "bottom",
 	sideOffset = 4,
+	children,
+	scrollable = false,
+	scrollContentClassName,
 	...props
-}: PopoverPrimitive.Popup.Props &
-	Pick<
+}: PopoverPrimitive.Popup.Props & {
+	scrollable?: boolean;
+	scrollContentClassName?: string;
+} & Pick<
 		PopoverPrimitive.Positioner.Props,
 		"align" | "alignOffset" | "side" | "sideOffset"
 	>) {
@@ -46,9 +52,24 @@ function PopoverContent({
 					className={cn(
 						"data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:fade-in-0 data-open:zoom-in-95 data-closed:fade-out-0 data-closed:zoom-out-95 z-50 flex w-72 origin-(--transform-origin) flex-col gap-4 rounded-lg bg-popover p-2.5 text-popover-foreground text-xs shadow-md outline-hidden ring-1 ring-foreground/10 duration-100 data-closed:animate-out data-open:animate-in",
 						className,
+						scrollable && "overflow-hidden p-0",
 					)}
 					{...props}
-				/>
+				>
+					{scrollable ? (
+						<ScrollArea
+							className="min-h-0"
+							contentClassName={cn(
+								"flex flex-col gap-4 p-2.5",
+								scrollContentClassName,
+							)}
+						>
+							{children}
+						</ScrollArea>
+					) : (
+						children
+					)}
+				</PopoverPrimitive.Popup>
 			</PopoverPrimitive.Positioner>
 		</PopoverPrimitive.Portal>
 	);

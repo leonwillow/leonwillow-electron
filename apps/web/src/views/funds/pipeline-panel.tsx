@@ -1,11 +1,12 @@
 /**
  * @file 案件原始流水上传与后台处理记录。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-06
+ * 修改时间：2026-11-05
  * 版本作用：AI 标准化是默认入口，已有模板可直接提交；结果可下载和核验。
  * 被调用：资金调查文件页签；调用：共享 UI、Eden 案件任务接口。
  * 预期结果：离开页面不停止任务，轮询不会把另一案件的结果带入当前页面。
  */
+
 import { Badge } from "@leonwillow-electron/ui/components/badge";
 import { Button } from "@leonwillow-electron/ui/components/button";
 import {
@@ -15,6 +16,7 @@ import {
 	FieldLabel,
 } from "@leonwillow-electron/ui/components/field";
 import { Input } from "@leonwillow-electron/ui/components/input";
+import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
 import {
 	Table,
 	TableBody,
@@ -203,13 +205,17 @@ export default function PipelinePanel({
 					</Field>
 				</FieldGroup>
 				{files.length > 0 ? (
-					<ul className="max-h-32 overflow-auto text-xs">
+					<ScrollArea
+						className="max-h-32 text-xs"
+						contentClassName=""
+						contentRender={<ul />}
+					>
 						{files.map((file, i) => (
 							<li key={`${i}:${file.name}`} className="break-all">
 								{file.name} · {(file.size / 1024).toFixed(1)} KB
 							</li>
 						))}
-					</ul>
+					</ScrollArea>
 				) : null}
 				<div className="flex flex-wrap items-center gap-3">
 					<Button
@@ -440,7 +446,11 @@ export default function PipelinePanel({
 								<summary className="cursor-pointer text-muted-foreground text-xs">
 									查看各阶段记录
 								</summary>
-								<ol className="mt-3 flex max-h-64 flex-col gap-2 overflow-auto text-xs">
+								<ScrollArea
+									className="mt-3 max-h-64 text-xs"
+									contentClassName="flex flex-col gap-2"
+									contentRender={<ol />}
+								>
 									{job.events.map((event, i) => (
 										<li key={`${event.at}:${i}`}>
 											<time className="mr-3 text-muted-foreground">
@@ -449,7 +459,7 @@ export default function PipelinePanel({
 											{event.message}
 										</li>
 									))}
-								</ol>
+								</ScrollArea>
 							</details>
 						</div>
 					</details>

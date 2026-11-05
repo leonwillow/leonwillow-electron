@@ -1,6 +1,6 @@
 /**
  * @file 笔录领域的 Eden 客户端。
- * 创建时间：2026-11-04；修改时间：2026-11-04。
+ * 创建时间：2026-11-04；修改时间：2026-11-05。
  * 版本作用：由服务端契约推导数据，不引入服务端运行时代码。
  * 被调用：笔录视图与案件导航；调用：共用 api。
  * 功能与预期结果：所有数据持久化到服务端，保留中文错误与修订号。
@@ -36,9 +36,7 @@ export class InquiryError extends Error {
 }
 export const inquiryError = (error: unknown) =>
 	error instanceof Error ? error.message : "无法连接笔录服务，请稍后重试。";
-export async function listInquiryCases(
-	query: { q?: string; status?: "draft" | "final" } = {},
-) {
+export async function listInquiryCases(query: { q?: string } = {}) {
 	return unwrap(await inquiries.cases.get({ query })).cases;
 }
 export type InquiryCase = Awaited<ReturnType<typeof listInquiryCases>>[number];
@@ -72,7 +70,7 @@ export async function deleteInquiryCase(
 }
 export async function listInquiryRecords(
 	caseId: string,
-	query: { q?: string; status?: "draft" | "final"; offset?: number } = {},
+	query: { q?: string; offset?: number } = {},
 ) {
 	return unwrap(
 		await inquiries
@@ -87,17 +85,17 @@ export async function getInquiryRecord(caseId: string, recordId: string) {
 	return unwrap(await inquiries.cases({ caseId }).records({ recordId }).get());
 }
 export type InquiryRecord = Awaited<ReturnType<typeof getInquiryRecord>>;
-export type InquiryDraft = Pick<InquiryRecord, "title" | "content" | "status">;
-export type InquiryContent = InquiryDraft["content"];
+export type InquiryDocument = Pick<InquiryRecord, "title" | "content">;
+export type InquiryContent = InquiryDocument["content"];
 export async function createStandaloneInquiry(
-	draft: InquiryDraft,
+	draft: InquiryDocument,
 	requestId: string,
 ) {
 	return unwrap(await inquiries.standalone.post({ ...draft, requestId }));
 }
 export async function createInquiryRecord(
 	caseId: string,
-	draft: InquiryDraft,
+	draft: InquiryDocument,
 	requestId: string,
 ) {
 	return unwrap(
@@ -107,7 +105,7 @@ export async function createInquiryRecord(
 export async function updateInquiryRecord(
 	caseId: string,
 	recordId: string,
-	draft: InquiryDraft,
+	draft: InquiryDocument,
 	revision: number,
 ) {
 	return unwrap(

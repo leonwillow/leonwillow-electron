@@ -1,14 +1,16 @@
 /**
  * @file 统一详情侧栏中的逐笔交易与有向汇总内容。
  * 创建时间：2026-10-07
- * 修改时间：2026-10-07
+ * 修改时间：2026-11-05
  * 版本作用：复用已加载的连线基础信息；只有选中逐笔交易才读取其来源证据。
  * 被调用：GraphInspector；调用：GraphPreviewContent、EvidenceContent、共享 Sheet 标题。
  * 功能：双方、金额、时间、核对状态和来源；汇总用本地交易列表分页。
  * 预期结果：汇总不冒用第一笔交易的证据或状态，切换交易后旧请求不覆盖新对象。
  */
+
 import { Button } from "@leonwillow-electron/ui/components/button";
 import { CopyText } from "@leonwillow-electron/ui/components/copy-text";
+import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
 import {
 	SheetDescription,
 	SheetHeader,
@@ -55,7 +57,10 @@ export default function EdgeInspector({
 						: "逐笔交易"}
 				</SheetDescription>
 			</SheetHeader>
-			<div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-4 text-xs">
+			<ScrollArea
+				className="min-h-0 flex-1 text-xs"
+				contentClassName="flex flex-col gap-5 p-4"
+			>
 				<GraphPreviewContent
 					preview={{ kind: "edge", edge, from, to }}
 					mode={mode}
@@ -140,7 +145,7 @@ export default function EdgeInspector({
 						<EvidenceContent key={edge.id} caseId={caseId} target={target} />
 					</section>
 				)}
-			</div>
+			</ScrollArea>
 		</>
 	);
 }

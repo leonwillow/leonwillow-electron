@@ -1,7 +1,7 @@
 /**
  * @file 下拉菜单、分组、子菜单与选择项的基础组件。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-06
+ * 修改时间：2026-11-05
  * 版本作用：共享 UI 基础层，随工作区维护。
  * 被调用：components/layout/profile-menu.tsx、components/layout/auth-links-menu.tsx。
  * 调用：@base-ui/react、ui/lib/utils、lucide-react、react。
@@ -9,6 +9,7 @@
  * 预期结果：业务调用方负责内容与事件，基础层不依赖应用路由或账号接口。
  */
 import { Menu as MenuPrimitive } from "@base-ui/react/menu";
+import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
 import { cn } from "@leonwillow-electron/ui/lib/utils";
 
 import { CheckIcon, ChevronRightIcon } from "lucide-react";
@@ -33,6 +34,7 @@ function DropdownMenuContent({
 	side = "bottom",
 	sideOffset = 4,
 	className,
+	children,
 	...props
 }: MenuPrimitive.Popup.Props &
 	Pick<
@@ -52,11 +54,15 @@ function DropdownMenuContent({
 				<MenuPrimitive.Popup
 					data-slot="dropdown-menu-content"
 					className={cn(
-						"data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:fade-in-0 data-open:zoom-in-95 data-closed:fade-out-0 data-closed:zoom-out-95 z-50 max-h-(--available-height) w-(--anchor-width) min-w-32 origin-(--transform-origin) overflow-y-auto overflow-x-hidden rounded-lg bg-popover p-1 text-popover-foreground shadow-md outline-none ring-1 ring-foreground/10 duration-100 data-closed:animate-out data-open:animate-in data-closed:overflow-hidden",
+						"data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:fade-in-0 data-open:zoom-in-95 data-closed:fade-out-0 data-closed:zoom-out-95 z-50 flex max-h-(--available-height) w-(--anchor-width) min-w-32 origin-(--transform-origin) flex-col overflow-hidden rounded-lg bg-popover p-0 text-popover-foreground shadow-md outline-none ring-1 ring-foreground/10 duration-100 data-closed:animate-out data-open:animate-in data-closed:overflow-hidden",
 						className,
 					)}
 					{...props}
-				/>
+				>
+					<ScrollArea className="min-h-0" contentClassName="p-1">
+						{children}
+					</ScrollArea>
+				</MenuPrimitive.Popup>
 			</MenuPrimitive.Positioner>
 		</MenuPrimitive.Portal>
 	);
@@ -149,7 +155,7 @@ function DropdownMenuSubContent({
 		<DropdownMenuContent
 			data-slot="dropdown-menu-sub-content"
 			className={cn(
-				"data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:fade-in-0 data-open:zoom-in-95 data-closed:fade-out-0 data-closed:zoom-out-95 w-auto min-w-32 rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 data-closed:animate-out data-open:animate-in",
+				"data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:fade-in-0 data-open:zoom-in-95 data-closed:fade-out-0 data-closed:zoom-out-95 w-auto min-w-32 rounded-lg bg-popover p-0 text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 data-closed:animate-out data-open:animate-in",
 				className,
 			)}
 			align={align}

@@ -1,8 +1,8 @@
 /**
  * @file 随主题变化的全局通知容器的基础组件。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-07
- * 版本作用：共享 UI 基础层，随工作区维护。
+ * 修改时间：2026-11-05
+ * 版本作用：按 Sonner 通知类型呈现成功、错误、警告和信息的语义配色。
  * 被调用：components/layout/root-layout.tsx。
  * 调用：next-themes、sonner。
  * 功能：组合底层控件和语义样式，透传对应属性并提供稳定 data-slot。
@@ -11,7 +11,7 @@
 import { useTheme } from "next-themes";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
 
-const Toaster = ({ ...props }: ToasterProps) => {
+const Toaster = ({ toastOptions, ...props }: ToasterProps) => {
 	const { theme = "system" } = useTheme();
 
 	return (
@@ -19,6 +19,8 @@ const Toaster = ({ ...props }: ToasterProps) => {
 			containerAriaLabel="通知"
 			theme={theme as ToasterProps["theme"]}
 			className="toaster group"
+			richColors
+			toastOptions={{ closeButtonAriaLabel: "关闭通知", ...toastOptions }}
 			style={
 				{
 					"--normal-bg": "var(--popover)",
@@ -29,6 +31,20 @@ const Toaster = ({ ...props }: ToasterProps) => {
 					"--success-text": "var(--success)",
 					"--success-border":
 						"color-mix(in oklab, var(--success) 25%, var(--border))",
+					"--error-bg":
+						"color-mix(in oklab, var(--destructive) 4%, var(--popover))",
+					"--error-text": "var(--destructive)",
+					"--error-border":
+						"color-mix(in oklab, var(--destructive) 30%, var(--border))",
+					"--warning-bg":
+						"color-mix(in oklab, var(--warning) 10%, var(--popover))",
+					"--warning-text": "var(--warning)",
+					"--warning-border":
+						"color-mix(in oklab, var(--warning) 25%, var(--border))",
+					"--info-bg": "color-mix(in oklab, var(--primary) 4%, var(--popover))",
+					"--info-text": "var(--primary)",
+					"--info-border":
+						"color-mix(in oklab, var(--primary) 25%, var(--border))",
 				} as React.CSSProperties
 			}
 			{...props}

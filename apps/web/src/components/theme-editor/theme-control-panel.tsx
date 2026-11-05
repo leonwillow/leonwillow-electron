@@ -1,13 +1,14 @@
 /**
  * @file 一次主题编辑会话的草稿与操作面板。
  * 创建时间：未记录（现有文件尚无 Git 创建记录）
- * 修改时间：2026-10-06
+ * 修改时间：2026-11-05
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/theme-editor/theme-editor.tsx。
  * 调用：ui 基础组件/样式、lucide-react、next-themes、react、sonner、configs/fonts、configs/theme-settings、stores/theme-store、lib/custom-themes、types/theme、utils/theme/color-converter、utils/theme/css-import、utils/theme/theme-draft、utils/theme/theme-style-generator、./css-import-dialog、./shadow-control、./slider-with-input、./theme-color-panel、./theme-preset-select。
  * 功能：管理基础主题、浅深色预览、保存、导入导出及删除确认。
  * 预期结果：保存成功才关闭；取消恢复已保存偏好，失败保留草稿。
  */
+
 import { Button } from "@leonwillow-electron/ui/components/button";
 import {
 	Dialog,
@@ -29,6 +30,7 @@ import {
 	RadioGroup,
 	RadioGroupItem,
 } from "@leonwillow-electron/ui/components/radio-group";
+import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
 import {
 	Select,
 	SelectContent,
@@ -180,7 +182,7 @@ export default function ThemeControlPanel({
 
 	return (
 		<>
-			<div className="min-h-0 flex-1 overflow-y-auto p-4">
+			<ScrollArea className="min-h-0 flex-1" contentClassName="p-4">
 				<div className="flex flex-col gap-5">
 					<div className="flex flex-wrap gap-2">
 						<Button
@@ -447,7 +449,7 @@ export default function ThemeControlPanel({
 						</TabsContent>
 					</Tabs>
 				</div>
-			</div>
+			</ScrollArea>
 			<div className="flex shrink-0 flex-col gap-2 border-t p-4">
 				{invalidFields.size > 0 && (
 					<p className="text-destructive text-xs" role="status">
@@ -499,7 +501,11 @@ export default function ThemeControlPanel({
 				}}
 			/>
 			<Dialog open={exportOpen} onOpenChange={setExportOpen}>
-				<DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-xl">
+				<DialogContent
+					scrollable
+					className="max-h-[90dvh] sm:max-w-xl"
+					scrollContentClassName=""
+				>
 					<DialogHeader>
 						<DialogTitle>导出 CSS 主题</DialogTitle>
 						<DialogDescription>

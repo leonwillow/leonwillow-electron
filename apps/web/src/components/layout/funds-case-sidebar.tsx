@@ -1,12 +1,13 @@
 /**
  * @file 资金案件菜单的内容、操作及弹窗。
  * 创建时间：2026-10-06
- * 修改时间：2026-11-04
+ * 修改时间：2026-11-05
  * 版本作用：为统一菜单框 组织案件菜单，保留置顶、归档、排序及标记删除。
  * 被调用：WorkspaceSecondaryMenu；调用：useFundsNavigation、Eden、共享 UI、FundsCaseRow。
  * 功能：显式搜索、创建、置顶、拖放排序、独立归档视图和删除确认。
  * 预期结果：无默认选案或关闭按钮；删除不清除原始资料；浮层关闭不丢失对话框状态。
  */
+
 import { Button } from "@leonwillow-electron/ui/components/button";
 import {
 	Dialog,
@@ -22,6 +23,7 @@ import {
 	InputGroupButton,
 	InputGroupInput,
 } from "@leonwillow-electron/ui/components/input-group";
+import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
 import {
 	Tooltip,
 	TooltipContent,
@@ -271,10 +273,12 @@ export default function useFundsCaseMenu(
 						{error}
 					</p>
 				)}
-				<nav
+				<ScrollArea
 					aria-label={archived ? "已归档案件列表" : "案件列表"}
 					aria-busy={busy || cases.loading}
-					className="min-h-0 flex-1 overflow-y-auto px-workspace-gutter pb-workspace-gutter"
+					className="min-h-0 flex-1"
+					contentClassName="w-full min-w-0! px-workspace-gutter pb-workspace-gutter"
+					render={<nav />}
 				>
 					{cases.loading && (
 						<p role="status" className="p-2 text-muted-foreground text-sm">
@@ -378,7 +382,7 @@ export default function useFundsCaseMenu(
 									: "还没有案件，点击上方加号创建。"}
 						</p>
 					)}
-				</nav>
+				</ScrollArea>
 			</>
 		),
 		dialogs: (

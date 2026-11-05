@@ -1,6 +1,6 @@
 /**
  * @file 笔录基础信息、被询问人和询问人表单。
- * 创建时间：2026-11-04；修改时间：2026-11-04。
+ * 创建时间：2026-11-04；修改时间：2026-11-05。
  * 版本作用：组合基础字段、同排姓名性别和分离的日期/时分控件。
  * 被调用：RecordEditor；调用：常用询问人接口、时间适配、年龄纯函数、共享控件。
  * 预期结果：日期与时分独立选择且保存完整时间，姓名带出证号，身份证年龄按询问日期计算。
@@ -35,18 +35,18 @@ import type { InquiryContent } from "@/lib/inquiries";
 import { listInquiryInquirers } from "@/lib/inquiries";
 import { InquiryIconButton, InquiryState } from "./controls";
 import {
-	emptyInquirer,
-	idTypes,
-	inquiryRelationshipName,
-	relationships,
-} from "./draft";
-import {
 	changeInquiryDate,
 	changeInquiryEndTime,
 	changeInquiryStartTime,
 	minimumInquiryEndTime,
 	readInquirySchedule,
 } from "./inquiry-schedule";
+import {
+	emptyInquirer,
+	idTypes,
+	inquiryRelationshipName,
+	relationships,
+} from "./record-fields";
 import { calculateSubjectAge } from "./subject-age";
 import { useInquiryResource } from "./use-inquiry-resource";
 
@@ -260,7 +260,13 @@ export default function InquiryBasicFields({
 								</Label>
 								<InquiryIconButton
 									label={`删除第 ${i + 1} 位询问人`}
+									variant="destructive"
 									disabled={readOnly || c.inquirers.length <= 2}
+									disabledReason={
+										readOnly
+											? "当前笔录不可编辑"
+											: "询问人至少保留两位，不能继续删除"
+									}
 									onClick={() =>
 										update(
 											"inquirers",
@@ -363,6 +369,9 @@ export default function InquiryBasicFields({
 				<Button
 					variant="outline"
 					disabled={readOnly || c.inquirers.length >= 20}
+					disabledReason={
+						readOnly ? "当前笔录不可编辑" : "询问人最多添加 20 位"
+					}
 					onClick={() => update("inquirers", [...c.inquirers, emptyInquirer()])}
 				>
 					<PlusIcon data-icon="inline-start" />

@@ -1,7 +1,7 @@
 /**
  * @file 笔录案件二级菜单的导航上下文。
- * 创建时间：2026-11-04；修改时间：2026-11-04。
- * 版本作用：持有目录查询、状态筛选、案件资源及展开集合，菜单框的固定、展开及焦点由工作台统一提供。
+ * 创建时间：2026-11-04；修改时间：2026-11-05。
+ * 版本作用：持有目录查询、案件资源及展开集合，菜单框的固定、展开及焦点由工作台统一提供。
  * 被调用：WorkspaceLayout、笔录视图和菜单内容。
  * 调用：WorkspaceNavigationProvider、笔录资源 Hook；预期结果：保存/归档后目录及时刷新。
  */
@@ -21,10 +21,8 @@ import { useWorkspaceMenuSection } from "./workspace-navigation-provider";
 
 type InquiryNavigation = ReturnType<typeof useWorkspaceMenuSection> & {
 	query: string;
-	status: "all" | "draft" | "final";
 	archived: boolean;
 	setQuery: (value: string) => void;
-	setStatus: (value: "all" | "draft" | "final") => void;
 	setArchived: (value: boolean) => void;
 	resetFilters: () => void;
 	expandedCases: ReadonlySet<string>;
@@ -44,21 +42,18 @@ export function InquiryNavigationProvider({
 }) {
 	const menu = useWorkspaceMenuSection("inquiries");
 	const [query, setQuery] = useState("");
-	const [status, setStatus] = useState<"all" | "draft" | "final">("all");
 	const [archived, setArchived] = useState(false);
 	const searchTerm = query.trim();
 	const loadCases = useCallback(
 		() =>
 			listInquiryCases({
 				q: searchTerm,
-				status: status === "all" ? undefined : status,
 			}),
-		[searchTerm, status],
+		[searchTerm],
 	);
 	const cases = useInquiryResource(enabled ? loadCases : null);
 	const resetFilters = useCallback(() => {
 		setQuery("");
-		setStatus("all");
 		setArchived(false);
 	}, []);
 	const { inquiryCaseId } = useSearch({ strict: false });
@@ -92,10 +87,8 @@ export function InquiryNavigationProvider({
 				...menu,
 				cases,
 				query,
-				status,
 				archived,
 				setQuery,
-				setStatus,
 				setArchived,
 				resetFilters,
 				expandedCases,

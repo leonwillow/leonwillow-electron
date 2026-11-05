@@ -1,13 +1,14 @@
 /**
  * @file 人员与权限管理页面。
  * 创建时间：2026-10-04
- * 修改时间：2026-10-04
+ * 修改时间：2026-11-05
  * 版本作用：复用原模板 teammates 的页头、表格和弹窗组织方式。
  * 被调用：admin.users 路由。
  * 调用：共享 UI、路由加载数据、人员编辑和密码弹窗。
  * 功能：管理真实账号、查看功能授权与最近管理操作。
  * 预期结果：管理员在同一工作台完成管理，普通人员没有该入口。
  */
+
 import { modules } from "@leonwillow-electron/access";
 import {
 	Avatar,
@@ -24,6 +25,7 @@ import {
 	DropdownMenuTrigger,
 } from "@leonwillow-electron/ui/components/dropdown-menu";
 import { Input } from "@leonwillow-electron/ui/components/input";
+import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
 import {
 	Table,
 	TableBody,
@@ -107,7 +109,7 @@ export default function UsersView() {
 					</Button>
 				</div>
 			</header>
-			<div className="flex-1 overflow-auto">
+			<ScrollArea className="flex-1" contentClassName="">
 				<div className="mx-auto max-w-6xl space-y-6 p-4 sm:p-6">
 					<section aria-label="人员列表" className="space-y-3">
 						<div className="flex flex-wrap items-center justify-between gap-3">
@@ -285,7 +287,7 @@ export default function UsersView() {
 						</Card>
 					</section>
 				</div>
-			</div>
+			</ScrollArea>
 			{dialog?.kind === "create" && (
 				<PersonDialog
 					currentUserId={user.id}

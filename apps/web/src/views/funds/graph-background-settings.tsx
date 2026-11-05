@@ -1,7 +1,7 @@
 /**
  * @file 画布背景颜色与纹理设置。
  * 创建时间：2026-10-07
- * 修改时间：2026-10-07
+ * 修改时间：2026-11-05
  * 版本作用：在本地草稿中预览，应用后更新画布外观；Escape 放弃草稿。
  * 被调用：GraphCanvas；调用：共享 Popover/RadioGroup、现有 ColorSwatch 和背景偏好规则。
  * 预期结果：预设与自定义颜色可组合纹理，支持恢复默认，不加载图片或请求接口。
@@ -94,7 +94,9 @@ export default function GraphBackgroundSettings({
 				side={side}
 				sideOffset={10}
 				align="center"
-				className="max-h-(--available-height) w-80 max-w-[calc(100vw-2rem)] overflow-y-auto p-4"
+				scrollable
+				className="max-h-(--available-height) w-80 max-w-[calc(100vw-2rem)]"
+				scrollContentClassName="p-4"
 			>
 				<PopoverHeader>
 					<PopoverTitle>画布背景</PopoverTitle>

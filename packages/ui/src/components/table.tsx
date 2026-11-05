@@ -1,7 +1,7 @@
 /**
  * @file 人员列表与资金明细使用的语义表格组件。
  * 创建时间：2026-10-04
- * 修改时间：2026-10-08
+ * 修改时间：2026-11-05
  * 版本作用：从原模板迁入共享 UI。
  * 被调用：Web 人员管理、资金明细与流向汇总。
  * 调用：React、共享样式工具。
@@ -9,6 +9,7 @@
  * 预期结果：业务层无需复制基础组件。
  */
 
+import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
 import { cn } from "@leonwillow-electron/ui/lib/utils";
 import type * as React from "react";
 
@@ -19,21 +20,20 @@ function Table({
 }: React.ComponentProps<"table"> & {
 	containerProps?: React.ComponentProps<"div">;
 }) {
+	const { className: containerClassName, ...viewportProps } =
+		containerProps ?? {};
 	return (
-		<div
-			{...containerProps}
+		<ScrollArea
 			data-slot="table-container"
-			className={cn(
-				"relative w-full overflow-x-auto",
-				containerProps?.className,
-			)}
+			className={cn("w-full", containerClassName)}
+			viewportProps={viewportProps}
 		>
 			<table
 				data-slot="table"
 				className={cn("w-full caption-bottom text-xs", className)}
 				{...props}
 			/>
-		</div>
+		</ScrollArea>
 	);
 }
 
