@@ -27,7 +27,6 @@ export type InquiryTreeNode = {
 		| "root"
 		| "folder"
 		| "record"
-		| "create"
 		| "loading"
 		| "error"
 		| "empty"
@@ -37,7 +36,7 @@ export type InquiryTreeNode = {
 	caseId?: string;
 	recordId?: string;
 	row?: InquiryCase;
-	record?: Pick<InquiryRow, "id" | "title" | "revision">;
+	record?: InquiryRow;
 	disabled?: boolean;
 	error?: string;
 };
@@ -50,8 +49,6 @@ type FolderPage = {
 };
 type InquiryTreeOptions = {
 	onOpenRecord: (caseId: string, recordId: string) => void;
-	onCreateRecord: (caseId: string) => void;
-	creating?: boolean;
 	query?: string;
 };
 
@@ -100,16 +97,11 @@ function activateFocusedItem(
  */
 export function useInquiryTree(
 	rows: InquiryCase[],
-	{
-		onOpenRecord,
-		onCreateRecord,
-		creating = false,
-		query = "",
-	}: InquiryTreeOptions,
+	{ onOpenRecord, query = "" }: InquiryTreeOptions,
 ) {
-	const { expandedCases, setExpandedCases } = useInquiryNavigation();
+	const { expandedCases, setExpandedCases, archived } = useInquiryNavigation();
 	const search = useSearch({ strict: false });
-	const filterKey = JSON.stringify([query]);
+	const filterKey = JSON.stringify([query, archived]);
 	const filtered = !!query;
 	const activeFilterKey = useRef(filterKey);
 	activeFilterKey.current = filterKey;
@@ -184,7 +176,7 @@ export function useInquiryTree(
 					.includes(query.toLocaleLowerCase())
 					? undefined
 					: query;
-				const data = await listInquiryRecords(row.id, { offset, q });
+				const data = await listInquiryRecords(row.id, { offset, q, archived });
 				if (
 					!mounted.current ||
 					activeFilterKey.current !== filterKey ||
@@ -216,7 +208,7 @@ export function useInquiryTree(
 					requests.current.delete(row.id);
 			}
 		},
-		[filterKey, query, setOffset],
+		[filterKey, query, setOffset, archived],
 	);
 
 	useEffect(() => {
@@ -303,10 +295,9 @@ export function useInquiryTree(
 				if (offset > 0) addAction("previous", "上一页");
 				if (offset + pageSize < page.data.total) addAction("next", "下一页");
 			}
-			if (!row.archived) addAction("create", "新建笔录", creating);
 		}
 		return { nodes, children };
-	}, [rows, pages, offsets, creating, filterKey, filtered]);
+	}, [rows, pages, offsets, filterKey, filtered]);
 	const previousNodes = useRef(model.nodes);
 	const expandedItems = useMemo(
 		() => [...visibleExpandedCases].map(folderId),
@@ -357,7 +348,6 @@ export function useInquiryTree(
 			if (node.disabled || !node.caseId) return;
 			if (node.kind === "record" && node.recordId)
 				onOpenRecord(node.caseId, node.recordId);
-			else if (node.kind === "create") onCreateRecord(node.caseId);
 			else if (node.row) {
 				const offset = pages.get(node.caseId)?.offset ?? 0;
 				if (node.kind === "error") void loadPage(node.row, offset);

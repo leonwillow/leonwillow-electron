@@ -1,12 +1,12 @@
 # 排版、控件与缩放规范
 
-维护日期：2026-11-05。以下尺寸约定沿用原迁移实现；持久化由 `stores/theme-store.ts` 负责，DOM 和窗口同步由 `components/layout/theme-effects.tsx` 连接。
+维护日期：2026-11-06。以下尺寸约定沿用原迁移实现；持久化由 `stores/theme-store.ts` 负责，DOM 和窗口同步由 `components/layout/theme-effects.tsx` 连接。
 
 原模板迁移时，原 `ThemeCustomizer` 中 Select 用 `h-8`，单选格用 `py-2` 加子文字 `text-sm leading-none` 撑高；它们的字号分别是 `text-xs` 和 `text-sm`。原全局缩放只改 `--text-sm/base/lg` 和 `--spacing`，遗漏小字、其他字号与临时 rem 字号，导致上下控件尺寸变化不一致。
 
-现在保留原主题预设、字体、语义色和交互逻辑，通过共享基础组件修正尺寸和排版。
+现在保留主题预设、字体和交互逻辑，通过共享基础组件修正尺寸和排版。默认色板在 2026-11-06 对齐 ReUI 当前 Neutral 配置，来源与历史见 [自定义主题迁移](./custom-theme-migration.md)。Dialog 和模态 Sheet 共用 `overlay` 色及 `backdrop-blur-xs`，默认 10% 黑色、4px 模糊，不在业务页单独加深。扩展语义色使用 ReUI 配对令牌：背景/高亮用 `info`、`success`、`warning`，文字与图标用对应 `*-foreground`，ghost 按钮仅悬停时显示背景。
 
-笔录编辑控件和案件菜单继续使用共享语义字号、控件及工作区令牌。A4 文书属于输出介质，纸张、仿宋、行距和页边距集中在 `globals.css` 的 `inquiry-document-*` 规则，以 mm/pt 保持实际打印尺寸；预览按容器等比缩小，不随界面缩放改变分页。文书使用白纸黑字，周围编辑器跟随明暗主题。来源和输出差异见 [笔录功能](./inquiries-migration.md)。
+笔录编辑控件和案件菜单继续使用共享语义字号、控件及工作区令牌。A4 文书属于输出介质，纸张、仿宋、行距和页边距集中在 `globals.css` 的 `inquiry-document-*` 规则，以 mm/pt 保持实际打印尺寸；预览默认按实际可视区域双向等比适宽，也可通过右下角工具栏手动缩放；文书比例不随界面缩放改变分页。文书使用白纸黑字，周围编辑器和固定工具栏跟随明暗主题。预览的边距、工具栏圆角和阴影使用共享令牌，图标按钮沿用 `icon-sm`；双向滚动通过共享 ScrollArea，纸张框裁切未缩放的物理尺寸，避免原始 A4 盒子产生伪溢出。来源和输出差异见 [笔录功能](./inquiries-migration.md)。
 
 ## 四档缩放
 
@@ -60,15 +60,19 @@
 
 ## 工作区顶栏
 
+2026-11-05：笔录、增值税/滞纳金计算器、文书取号、资金分析统一使用 `components/layout/workspace-header.tsx` 的 `WorkspaceHeader` / `WorkspaceTitle`。以笔录为准：标题 `text-base` / `font-semibold`、前景语义色，图标 `size-4`、图文间距 `gap-2`，容器共用最小高度、水平留白和纵向 `py-2`。文书不再使用独立的浅色图标和中等字重，资金补用现有 Waypoints 模块图标；业务工具、路径名和路由行为保留。窄窗口允许工具换行，不用固定高度裁切内容。
+
+2026-11-05：增值税与滞纳金计算器的共用 `ScenarioWorkspace` 顶栏采用与笔录相同的 `min-h-workspace-header`、`px-workspace-gutter` 和 `py-2`，不再用四向 `p-workspace-gutter` 撑高顶栏。宽屏底部分隔线与 Logo、固定二级菜单对齐；窄空间保留操作分组换行，避免控件被裁切。
+
 2026-11-04：笔录工具栏与模块标题共用一行，以 `min-h-workspace-header` 保持宽屏顶线对齐，窄空间允许操作分组换行。`CollapsibleSidePanel` 的中部折叠手柄由 `globals.css` 统一设置 rem 尺寸、语义色、方向反馈、焦点环及减少动态效果适配；折叠状态由 Base UI 管理，视图仅提供内容、边侧和展开状态。
 
-2026-11-05：笔录侧面板通过共享 ReUI Resizable 调宽，Base UI Collapsible 保留内容显隐及按钮语义。收起时面板宽度为零，相邻分隔线隐藏；展开由官方 API 恢复最近展开尺寸。折叠按钮绝对定位，竖条中线位于问答留白 `workspace-gutter` 的一半处，不额外占位。按最新要求删除折叠按钮的悬停预览及所有专用状态、内容副本和样式，悬停仅显示方向反馈。
+2026-11-05：笔录侧面板通过共享 ReUI Resizable 调宽，Base UI Collapsible 保留内容显隐及按钮语义。收起时面板宽度为零，相邻分隔线隐藏；展开由官方 `resize()` 恢复最近展开尺寸。面板不启用自动折叠，拖动和方向键调宽到达最小宽度后停止，只有边缘折叠按钮改变显隐状态。折叠按钮绝对定位，竖条中线位于问答留白 `workspace-gutter` 的一半处，不额外占位。按最新要求删除折叠按钮的悬停预览及所有专用状态、内容副本和样式，悬停仅显示方向反馈。
 
 笔录分栏尺寸统一在 `globals.css` 的 `--inquiry-*` 令牌中维护：基础信息默认 18rem、最小 12rem、最大 45%；文书预览默认 24rem、最小 14rem、最大 55%；问答最小 16rem。默认宽度延续已有页面，约束随 rem 缩放；尺寸计算和鼠标/键盘拖动交由已有 ReUI 实现，页面不另写拖动逻辑。
 
 `globals.css` 中的 `--spacing-workspace-header` 引用 `workspace-rail`（3rem），使顶部 Logo 四向留白一致，同时统一案件菜单顶部和资金页头；三处使用 `h-workspace-header` 与 `shrink-0`，使高度及底部分隔线随根 rem 一起对齐。详情面板页头和账户目录定位继续复用该高度。`packages/ui/src/lib/utils.ts` 已将这些工作区尺寸注册到 `tailwind-merge` 的 spacing 配置，避免共享尺寸类合并时产生歧义。
 
-案件菜单标题与资金模块标题沿用 `text-base` 并垂直居中，菜单顶部操作使用共享按钮 `size="icon"`。资金页头的模块名与案件名以箭头分层，长名截断并保留完整名称提示；窄窗口标题区改为两行但不增加顶栏高度。内部导航保持单行且不压缩，管理页统计仍可换行。此约定只统一当前三处工作区顶栏，不要求其他页面重写组件结构；实测记录见[资金界面 v7](./funds-ui.md#v7-顶栏对齐验证)。
+案件菜单标题与资金模块标题沿用 `text-base` 并垂直居中，菜单顶部操作使用共享按钮 `size="icon"`。资金页头的模块名与案件名以箭头分层，长名截断并保留完整名称提示；窄窗口保留标题与案件路径同行，内部导航整体换行且不压缩，管理页统计仍可换行。实测记录见[资金界面 v7](./funds-ui.md#v7-顶栏对齐验证)。
 
 2026-11-04：资金、文书和笔录在工作台中只挂载一个 `WorkspaceMenu`，共用固定和展开状态，并使用 `workspace-menu`、`workspace-header`、`workspace-gutter` 令牌呈现。标题在左侧占用剩余空间，过长时截断并提供完整文字提示；右侧工具栏不收缩，先显示模块操作，最右侧始终是共享的固定/取消固定按钮，保留中文可访问名称、`aria-pressed` 和 Tooltip。搜索、列表及底部内容按当前模块替换；切换内容不重建外框或固定按钮，固定/取消固定统一生效，刷新后恢复同一份用户偏好。标题/外框/固定入口的后续调整只维护共享组件。
 
@@ -78,7 +82,13 @@
 
 ## 持久化和检查
 
+2026-11-05：计算器菜单复用笔录的共享 Tree、TreeItem、TreeItemLabel，两项为可折叠分组，组内方案为导航叶子，保留 Calculator / CalendarClock 图标。行高、字重、缩进、选中底色和焦点环由共享组件决定；选中只来自当前路由，支持方向键、Enter 和空格。长名继续使用 MenuLabel 渐隐滚动，滚动继续由 ScrollArea 管理。
+
 2026-11-04：笔录目录迁入 ReUI Tree，使用 `control-md`、`text-control` 和语义色。`--spacing-tree-indent: 1.25rem` 统一每级缩进，节点的 `data-level` 和 `--tree-padding` 在共享样式中连接引导线；左侧展开箭头、文件夹/文件图标及同行操作一起随 rem 缩放。业务组件不覆盖控件尺寸或节点字号。
+
+2026-11-05：共享 Tree 的非根层叶子移除空箭头占位，由已有层级缩进承接箭头列，使文件夹/计算器分组与所属条目的图标对齐；根层独立条目仍保留箭头空位，与分组图标对齐。层级引导线、展开箭头、键盘行为和业务图标保持原样。
+
+目录不再以“新建笔录”或“新建方案”作为树叶子。新建入口统一为文件夹或计算器分组行右侧的加号，沿用 icon-xs ghost、贴右排列及仅悬停显示规则；点击加号不触发该行展开/折叠。笔录归档文件夹及归档视图不提供夹内新建。
 
 2026-11-04：共享 Calendar/DatePicker 迁入 shadcn base-mira 官方实现，使用 React DayPicker 和 date-fns，默认中文及年月下拉；日历单元引用 `control-md`，按钮与文字复用共享令牌。ReUI TimePicker 保留官方分列、键盘、清空及范围限制 API，中文标签与24小时格式默认可用；时间列行高和列表留白统一由 `globals.css` 的 `data-slot="time-picker-column"` 规则引用现有控件高度与基础间距。笔录通过 FieldGroup 组织日期和起止时间及姓名/性别同行，不在页面覆盖控件尺寸。
 
@@ -112,7 +122,7 @@ G6 的原生项通过共享 Tooltip 的 `anchor` 接口复用提示外观，不�
 
 2026-11-05：共享 Sonner 默认启用 `richColors`，调用方按结果选择 `toast.success`、`toast.error`、`toast.warning` 或 `toast.info`，使用原生图标、动画与通知生命周期。错误通知参考 ReUI `@reui/c-alert-8` 的浅色底和边框，通过 `destructive` 映射；成功、警告、信息分别使用 `success`、`warning`、`primary` 语义色，普通通知沿用 `popover`。关闭按钮默认中文可访问名称。笔录表单提交错误使用浮动通知，不在编辑区域增加占位错误条；具体错误由业务请求提供，不把不同类型通知统一为错误 Alert。
 
-全局 Tooltip 允许鼠标移入 Popup，保留 Base UI 的悬停路径和 Escape 关闭行为。原生 `title` 说明统一改用 `TooltipText`，复用原文字、表格单元格或链接节点，无额外布局包装。案件菜单使用 `TooltipPortalScope`，移入伸出菜单的气泡仍视为处于菜单内。会自动折叠的工具栏通过 `TooltipOpenScope` 汇总提示打开状态；原生 G6 项的外部锚点额外处理按钮与气泡之间的离开宽限，并在定时关闭前核验真实悬停命中，避免原生 leave 与 Portal enter 事件先后顺序导致误关。
+共享 Tooltip 默认允许鼠标移入 Popup，保留 Base UI 的悬停路径和 Escape 关闭行为；调用方可以通过 disableHoverablePopup 选择离开触发器即关闭。原生 `title` 说明统一改用 `TooltipText`，复用原文字、表格单元格或链接节点，无额外布局包装。案件菜单使用 `TooltipPortalScope`，移入伸出菜单的气泡仍视为处于菜单内。会自动折叠的工具栏通过 `TooltipOpenScope` 汇总提示打开状态；原生 G6 项的外部锚点额外处理按钮与气泡之间的离开宽限，并在定时关闭前核验真实悬停命中，避免原生 leave 与 Portal enter 事件先后顺序导致误关。
 
 2026-10-08：`TooltipText` 仅在实际文字节点的 `scrollWidth > clientWidth` 时打开完整内容提示，链接内优先测量 `.truncate` 文字，不把图标或留白作为锚点。气泡与文字起点对齐，继续由 Base UI 处理屏幕边缘避让；打开时测量，并仅为当前打开的文字监听尺寸与字体变化，恢复完整显示时关闭提示。复制操作提示及图标说明沿用各自的 Tooltip，不受文字截断规则限制。银行流水的名称与摘要采用自然文字宽度及既有最大宽度，空白不再成为悬停范围。
 
@@ -146,10 +156,40 @@ G6 的原生项通过共享 Tooltip 的 `anchor` 接口复用提示外观，不�
 
 ### 二级菜单名称与轻量操作（2026-11-05）
 
-二级菜单名称统一使用 MenuLabel：实际溢出时以渐变遮罩消失，行悬停或键盘聚焦后滚动展示全文，不使用省略号或名称 Tooltip。ResizeObserver 在内容、字体和面板宽度变化时重测；减少动态效果时停止自动动画。目录 ScrollArea 内容显式限制为视口宽度，覆盖底层 fit-content 最小宽度，避免名称撑开目录。
+二级菜单名称统一使用 MenuLabel：实际溢出时以渐变遮罩消失，行悬停或键盘可见焦点时滚动展示全文，鼠标点击留下的焦点不续播，不使用省略号或名称 Tooltip。ResizeObserver 在内容、字体和面板宽度变化时重测；减少动态效果时停止自动动画。目录 ScrollArea 内容显式限制为视口宽度，覆盖底层 fit-content 最小宽度，避免名称撑开目录。
 
-笔录目录行移除删除入口及对应确认弹窗；文件夹仅保留小尺寸 ghost icon 操作。改名使用共享 info（信息蓝）令牌，归档/恢复使用 warning 令牌，默认透明、悬停显示淡色背景。操作区始终占据固定宽度，以 visibility 控制显示，避免悬停挤压文字或移动按钮。浮动菜单使用标准 rounded-xl、border-border、bg-popover 与 shadow-xl，跟随全局主题及圆角，不再直接引用不可用的派生圆角变量。
+笔录目录行移除删除入口及对应确认弹窗；文件夹仅保留小尺寸 ghost icon 操作。改名使用共享 info（信息蓝）令牌，归档/恢复使用 warning 令牌，默认透明、悬停显示淡色背景。操作区仅在行悬停时占据宽度，按钮始终贴右排列；未悬停时名称使用整行，悬停时缩至按钮左侧并重测滚动距离。浮动菜单使用标准 rounded-xl、border-border、bg-popover 与 shadow-xl，跟随全局主题及圆角，不再直接引用不可用的派生圆角变量。
 
 验证：浏览器检查浅色/深色及大小圆角联动、透明信息/警告色按钮、窄窗口名称溢出遮罩与动画、名称无 Tooltip。未改动现有业务数据。
 
 2026-11-05：共享 Button 的 info、success、warning、destructive 统一为语义色 ghost 外观：默认背景透明，悬停可用按钮时显示同色 10% 背景；禁用状态不显示悬停背景。编辑询问人使用 info，删除入口和删除确认沿用 destructive，深色模式同样不常驻背景色。
+
+
+2026-11-05：头像上方新增全屏开关，沿用 icon-workspace、ghost、共享 Tooltip 和中文可访问名称。只由用户点击调用浏览器 Fullscreen API，fullscreenchange 同步按钮与 Escape 退出，不保存全屏偏好；受限时通过 Sonner 说明失败。问答移动高亮使用全局 info 令牌和共享 CSS，遵循 prefers-reduced-motion；目录单份笔录操作复用现有 info/warning 的 icon-xs ghost 语义。
+
+
+2026-11-05：笔录操作按钮统一设置 `disableHoverablePopup`。共享 Tooltip 不再强制覆盖这个官方属性；鼠标离开按钮时即开始关闭，移到气泡上不会续留，避免目录行的按钮已经隐藏而气泡仍悬浮。键盘焦点仍可读取操作说明及禁用原因，Escape 和焦点移出沿用 Base UI。
+
+本次验证：笔录目录“归档 123”提示打开后，指针移入原气泡伸出目录的区域，按钮变为 hidden 且 Tooltip 清空；键盘 Tab 仍能读取操作提示，Escape 和焦点离开后正常关闭。lint、类型检查、构建及 90 项 UI 测试通过。截图：`apps/web/.impeccable/review/inquiry-tooltip-dismiss.png`。
+
+2026-11-05：增值税测算表使用共享 Table/ScrollArea，固定月份列、分组表头与调整区使用语义背景。名称、月份输入、表格和导入预览的布局尺寸集中在 `globals.css` 的 `vat-*` 类；金额输入仍使用共享 Input 尺寸。错误通过 Sonner，计算状态使用可访问说明按钮；年度筛选、36行分页不改变完整合计。
+
+2026-11-05：滞纳金计算器沿用共享 Field、DatePicker、Select、Card 和 Table/ScrollArea。`late-fee-*` 布局类在全局样式定义自适应字段网格、缴款行和汇总区，语义 warning 色表示累计滞纳金。390px 下字段纵向重排，明细表只在自己的 ScrollArea 内横向滚动；错误详情通过 Sonner，删除按钮沿用 destructive ghost。
+
+2026-11-05：计算器目录扩展为分组/方案 Tree，同行操作使用 `icon-xs`，仅 hover 显示，显示时贴右排列。方案顶栏复用 WorkspaceHeader，名称 Input 使用集中在 globals.css 的 calculator-name-field 宽度，不显示额外字段标题；保存状态和操作按剩余空间换行。已归档方案的修改入口通过共享 disabledReason 给出恢复提示。
+
+2026-11-05：目录名称未悬停时使用整行可用宽度，只有实际溢出才在行尾渐隐；悬停后为贴右按钮让位，ResizeObserver 重测并保留原有滚动展示。DirectoryItemLabel 为笔录、计算器、文书类型和资金案件提供共享 HoverCard，展示完整名称、所属分类、状态和已有的更新时间/文号前缀，不额外请求正文。卡片锚定完整行并由 Base UI 避让视口，长内容使用 ScrollArea；仅真实悬停150ms后打开，离开100ms后关闭，可移入卡片查看，点击名称关闭且不会因保留焦点重新弹出。
+
+2026-11-05：全局 Select 按 ReUI `@reui/c-select-1` 的 Base UI 示例统一。弹层默认 alignItemWithTrigger=false，触发器使用主题背景、统一默认控件高度与箭头，项目调用方不再分别指定弹层对齐或大尺寸。选项采用 Group 留白并为勾选图标预留位置；长文本换行。Select.List 通过 render 接入共享 ScrollArea 的 Viewport，保留原生选项键盘定位并提供自定义滚动条。日历年月通过 DayPicker 官方 Dropdown 适配同一 Select，保留年份范围、禁用项与本地日期导航。导航菜单、日期网格和多选筛选保留自身语义。
+
+2026-11-05：Lattice Grid 的 `.lg-*` 样式集中在 globals.css，颜色、字号、行高和工具尺寸引用当前语义令牌；独立包源码纳入 Tailwind 扫描和 UI 规范检查。虚拟列表控制器使用 ScrollArea Viewport 实际滚动值，弹层使用共享 Popover/Select，避免另建主题与坐标定位。单元格编辑使用 Input/SelectTrigger 的 `variant="cell"`：字体、对齐和留白继承单元格，不叠加内框或圆角，整格使用 primary 焦点边框和 card 背景。普通表单继续使用默认变体。
+
+2026-11-06：网格分组标题使用 `.lg-group-label` 在所属组内横向停靠；`--lg-group-label-inset` 统一留白，`--lg-group-sticky-left` 由当前实际冻结列宽度提供。组边界离开时文字一起移走；冻结组维持原位置，分组底色、层级、纵向表头停靠及 ScrollArea 保持同一套样式。
+
+网格滚动口 `.lg-scroller` 使用 `overscroll-behavior: none` 禁止边界弹性回弹，防止 macOS 大幅滚动时出现空隙并露出背景焦点框。只调整网格的滚动边界策略，保留原焦点可见样式和 ScrollArea 自定义滚动条。
+
+共享 ScrollArea 的根与 Viewport 各自建立局部堆叠上下文，滚动条位于内容层之上；冻结列、吸顶表头与汇总行不能挡住滚动条。Lattice 外框统一裁剪内部内容到主题圆角，实际最后一行（含行号格）不画底边，当前最后一列的表头、分组、数据及汇总格不画右侧边界，避免与外框重复；中间分隔线保持原样。
+
+2026-11-06：网格只对 `store.isEditable()` 允许编辑的单元格显示交互边框、选中底色和 crosshair 光标。悬停/焦点的装饰层由 `.lg-cell-indicator` 统一使用 primary 边框，边框由四条固定厚度的边构成，切换目标仅通过 translate/scale 播放 220ms transform 过渡，不动画化 width/height；滚动或尺寸变化立即贴合，减少动态效果时关闭过渡。只读格维持普通外观，源选区包含只读格时隐藏填充柄。
+
+2026-11-06：Lattice 表头与分组行增加 compact/standard/comfortable 共享高度令牌；标题与数据行分别为 2/2.5/3rem，分组行为 1.75/2/2.5rem。筛选行至少 2.5rem，兼容默认输入框。标题操作透明、无按钮底色及阴影；拖拽柄固定占位，仅悬停、键盘聚焦或触摸环境可见。表头列设局部层级，冻结列覆盖滚动列的调宽柄；表头拖动使用现有 ReUI Sortable，减少动态效果时覆盖其内联 transition。列菜单使用共享 DropdownMenu 的小宽度、左对齐项目及组间分隔。

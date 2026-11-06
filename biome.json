@@ -80,7 +80,11 @@
 	},
 	"overrides": [
 		{
-			"includes": ["apps/web/src/**", "packages/ui/src/**"],
+			"includes": [
+				"apps/web/src/**",
+				"packages/ui/src/**",
+				"packages/lattice-grid/src/**"
+			],
 			"linter": {
 				"rules": {
 					"style": {

@@ -307,7 +307,7 @@ export default function ThemeControlPanel({
 												}));
 										}}
 									>
-										<SelectTrigger size="lg" className="w-full">
+										<SelectTrigger className="w-full">
 											<span
 												className="flex-1 text-left"
 												style={{
@@ -317,7 +317,7 @@ export default function ThemeControlPanel({
 												{FONT_CONFIG[draft.font].label}
 											</span>
 										</SelectTrigger>
-										<SelectContent alignItemWithTrigger={false}>
+										<SelectContent>
 											{FONT_GROUPS.map((group) => (
 												<SelectGroup key={group.key}>
 													<SelectLabel>{group.label}</SelectLabel>
@@ -387,7 +387,7 @@ export default function ThemeControlPanel({
 												}));
 										}}
 									>
-										<SelectTrigger size="lg" className="w-full">
+										<SelectTrigger className="w-full">
 											<span className="flex-1 text-left">
 												{
 													{ none: "无", sm: "小", md: "中", lg: "大" }[

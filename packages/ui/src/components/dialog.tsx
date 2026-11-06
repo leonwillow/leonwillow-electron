@@ -1,7 +1,7 @@
 /**
  * @file 模态对话框、标题、遮罩与关闭操作的基础组件。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-05
+ * 修改时间：2026-11-06
  * 版本作用：共享 UI 基础层，随工作区维护。
  * 被调用：components/command.tsx、components/floating-dialog.tsx、components/theme-editor/css-import-dialog.tsx、components/theme-editor/theme-editor.tsx、components/theme-editor/theme-control-panel.tsx。
  * 调用：@base-ui/react、ui 基础组件/样式、ui/lib/utils、lucide-react、react。
@@ -39,7 +39,7 @@ function DialogOverlay({
 		<DialogPrimitive.Backdrop
 			data-slot="dialog-overlay"
 			className={cn(
-				"data-open:fade-in-0 data-closed:fade-out-0 fixed inset-0 isolate z-50 bg-black/80 duration-100 data-closed:animate-out data-open:animate-in supports-backdrop-filter:backdrop-blur-xs",
+				"data-open:fade-in-0 data-closed:fade-out-0 fixed inset-0 isolate z-50 bg-overlay duration-100 data-closed:animate-out data-open:animate-in supports-backdrop-filter:backdrop-blur-xs",
 				className,
 			)}
 			{...props}

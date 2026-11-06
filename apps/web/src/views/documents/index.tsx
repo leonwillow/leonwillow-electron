@@ -1,6 +1,6 @@
 /**
  * @file 文书工作区：类型导航、类型内记录表格与模板管理。
- * 创建时间：2026-10-10；修改时间：2026-11-04。
+ * 创建时间：2026-10-10；修改时间：2026-11-05。
  * 版本作用：按类型组织文书，工具栏新增只使用当前类型，类型选择保留在 URL。
  * 被调用：documents 文件路由；调用：导航上下文、records-workspace、template-panel、Eden。
  * 功能与预期结果：切换类型隔离表格和编辑状态，停用类型的历史记录仍可进入。
@@ -11,6 +11,10 @@ import { getRouteApi, useNavigate } from "@tanstack/react-router";
 import { ChevronRightIcon, FileTextIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useDocumentNavigation } from "@/components/layout/document-navigation-provider";
+import {
+	WorkspaceHeader,
+	WorkspaceTitle,
+} from "@/components/layout/workspace-header";
 import { listDocumentCatalog, listDocumentTypes } from "@/lib/documents";
 import RecordsWorkspace from "./records-workspace";
 import TemplatePanel from "./template-panel";
@@ -45,10 +49,9 @@ export default function DocumentsView() {
 	return (
 		<div className="flex h-full min-h-0 min-w-0">
 			<div className="flex min-h-0 min-w-0 flex-1 flex-col">
-				<header className="flex h-workspace-header shrink-0 items-center gap-2 border-b px-workspace-gutter">
-					<FileTextIcon className="hidden size-4 shrink-0 text-muted-foreground sm:block" />
-					<h1 className="flex min-w-0 items-center gap-2 font-medium text-base">
-						<span className="shrink-0">文书取号</span>
+				<WorkspaceHeader>
+					<div className="flex min-w-0 flex-1 items-center gap-2">
+						<WorkspaceTitle icon={FileTextIcon}>文书取号</WorkspaceTitle>
 						{(managing || selected) && (
 							<>
 								<ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" />
@@ -61,8 +64,8 @@ export default function DocumentsView() {
 								</TooltipText>
 							</>
 						)}
-					</h1>
-				</header>
+					</div>
+				</WorkspaceHeader>
 				{managing && admin ? (
 					<TemplatePanel types={data.types} onSaved={reloadTypes} />
 				) : selected ? (

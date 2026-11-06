@@ -34,6 +34,7 @@ import ModeToggle from "@/components/layout/mode-toggle";
 import ProfileMenu from "@/components/layout/profile-menu";
 import ThemeCustomizer from "@/components/layout/theme-customizer";
 import { isWorkspaceMenuId } from "@/lib/workspace-menu-state";
+import FullscreenToggle from "./fullscreen-toggle";
 import { useWorkspaceNavigation } from "./workspace-navigation-provider";
 
 const isActive = (pathname: string, href: string) =>
@@ -180,6 +181,7 @@ const AppSidebar = () => {
 				</Tooltip>
 				<ThemeCustomizer />
 				<ModeToggle />
+				<FullscreenToggle />
 				<ProfileMenu />
 			</div>
 		</ScrollArea>

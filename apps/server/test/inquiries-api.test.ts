@@ -334,9 +334,92 @@ test("未填写完整的笔录可创建、保存和重开，接口不返回状�
 	expect(reopened.data?.title).toBe("补充后的笔录");
 	expect(reopened.data?.content).toEqual(document.content);
 	expect(reopened.data).not.toHaveProperty("status");
-	expect((await records.get(headers())).data?.records[0]).not.toHaveProperty(
-		"status",
-	);
+	const summary = (await records.get(headers())).data?.records[0];
+	expect(summary).not.toHaveProperty("status");
+	expect(summary).toMatchObject({
+		subjectName: "",
+		inquirerNames: [],
+		inquiryStartAt: "2026-11-05",
+		inquiryEndAt: "",
+	});
+}, 120_000);
+
+test("目录随标题提供最小笔录摘要，保存后刷新且不暴露证件、证号或问答", async () => {
+	const folder = await createCase("摘要预览文件夹");
+	for (const kind of ["folder", "standalone"] as const) {
+		const requestId = crypto.randomUUID();
+		const document = inquiryFixture();
+		const created =
+			kind === "folder"
+				? await api.api.inquiries
+						.cases({ caseId: folder.id })
+						.records.post({ ...document, requestId }, headers())
+				: await api.api.inquiries.standalone.post(
+						{ ...document, requestId },
+						headers(),
+					);
+		expect(created.status).toBe(200);
+		const caseId = kind === "folder" ? folder.id : requestId;
+		const records = api.api.inquiries.cases({ caseId }).records;
+		async function summary() {
+			if (kind === "folder") {
+				const list = await records.get(headers());
+				expect(list.status).toBe(200);
+				return list.data?.records.find((row) => row.id === requestId);
+			}
+			const list = await api.api.inquiries.cases.get(headers());
+			expect(list.status).toBe(200);
+			return list.data?.cases.find((row) => row.id === caseId)?.record;
+		}
+		const initial = await summary();
+		expect(initial).toMatchObject({
+			inquiryStartAt: document.content.inquiryStartAt,
+			inquiryEndAt: document.content.inquiryEndAt,
+			inquiryLocation: document.content.inquiryLocation,
+			subjectName: document.content.subjectName,
+			subjectOrg: document.content.subjectOrg,
+			inquirerNames: document.content.inquirers.map((person) => person.name),
+		});
+		for (const field of [
+			"content",
+			"qaItems",
+			"inquirers",
+			"subjectIdNumber",
+			"subjectAddress",
+			"subjectPhone",
+		])
+			expect(initial).not.toHaveProperty(field);
+		for (const value of [
+			"TEST-ID",
+			"TEST-001",
+			"TEST-002",
+			"测试问题？",
+			"测试回答。",
+		])
+			expect(JSON.stringify(initial)).not.toContain(value);
+		const content = {
+			...document.content,
+			subjectName: "更新后的被询问人",
+			inquiryStartAt: "2026-11-05T14:00",
+			inquiryEndAt: "2026-11-05T15:00",
+			inquirers: document.content.inquirers.map((person, index) => ({
+				...person,
+				name: index === 0 ? " 更新后的调查人 " : " ",
+			})),
+		};
+		const saved = await records({ recordId: requestId }).put(
+			{ ...document, content, revision: 1 },
+			headers(),
+		);
+		expect(saved.status).toBe(200);
+		expect(await summary()).toMatchObject({
+			revision: 2,
+			subjectName: content.subjectName,
+			inquiryStartAt: content.inquiryStartAt,
+			inquiryEndAt: content.inquiryEndAt,
+			inquirerNames: ["更新后的调查人"],
+		});
+	}
 }, 120_000);
 
 test("笔录重试幂等、保存冲突不覆盖、归档与删除隔离写入，Word 可下载", async () => {
@@ -493,8 +576,15 @@ test("独立笔录原子创建且并发重试幂等，摘要列表不暴露正�
 	expect(entry?.record?.id).toBe(requestId);
 	expect(entry?.record?.title).toBe(input.title);
 	expect(entry?.record && Object.keys(entry.record).sort()).toEqual([
+		"archived",
 		"id",
+		"inquirerNames",
+		"inquiryEndAt",
+		"inquiryLocation",
+		"inquiryStartAt",
 		"revision",
+		"subjectName",
+		"subjectOrg",
 		"title",
 		"updatedAt",
 	]);
@@ -593,3 +683,219 @@ test("独立笔录校验和 ID 冲突不会留下空容器或覆盖已有笔录"
 			.status,
 	).toBe(404);
 }, 120_000);
+
+function metadataResult<T>(result: { data: T | null }) {
+	if (!result.data) throw new Error("笔录元数据操作失败");
+	return result.data;
+}
+
+/** 单份元数据操作必须与正文保存共用修订，不影响相邻笔录或所属目录。 */
+test("单份笔录改名、独立归档与恢复保持正文并隔离兄弟记录", async () => {
+	const folder = await createCase("单份归档测试");
+	const records = api.api.inquiries.cases({ caseId: folder.id }).records;
+	const fixture = inquiryFixture();
+	const first = await records.post(
+		{ ...fixture, title: "归档目标", requestId: crypto.randomUUID() },
+		headers(),
+	);
+	const sibling = await records.post(
+		{ ...fixture, title: "保留目标", requestId: crypto.randomUUID() },
+		headers(),
+	);
+	if (!first.data || !sibling.data) throw new Error("创建测试笔录失败");
+	const target = records({ recordId: first.data.id });
+	const renamed = await target.patch(
+		{ title: "已修改名称", revision: first.data.revision },
+		headers(),
+	);
+	expect(renamed.status).toBe(200);
+	expect(renamed.data?.content).toEqual(first.data.content);
+	expect(renamed.data?.title).toBe("已修改名称");
+	expect(
+		(
+			await target.patch(
+				{ archived: true, revision: first.data.revision },
+				headers(),
+			)
+		).status,
+	).toBe(409);
+	const archived = await target.patch(
+		{ archived: true, revision: metadataResult(renamed).revision },
+		headers(),
+	);
+	expect(archived.data?.archived).toBe(true);
+	expect(
+		(
+			await target.put(
+				{ ...fixture, revision: metadataResult(archived).revision },
+				headers(),
+			)
+		).status,
+	).toBe(409);
+	const active = await records.get({
+		...headers(),
+		query: { archived: false },
+	});
+	const archive = await records.get({
+		...headers(),
+		query: { archived: true },
+	});
+	expect(active.data?.records.map((r) => r.id)).toEqual([sibling.data.id]);
+	expect(archive.data?.records.map((r) => r.id)).toEqual([first.data.id]);
+	expect(active.data?.folder.archived).toBe(false);
+	const directory = await api.api.inquiries.cases.get({
+		...headers(),
+		query: { archived: true, q: "已修改名称" },
+	});
+	expect(directory.data?.cases.map((r) => [r.id, r.recordCount])).toEqual([
+		[folder.id, 1],
+	]);
+	expect(
+		(
+			await api.api.inquiries.cases.get({
+				...headers(),
+				query: { archived: false, q: "已修改名称" },
+			})
+		).data?.cases,
+	).toEqual([]);
+	const other = await member("metadata-other");
+	expect(
+		(
+			await target.patch(
+				{ title: "越权修改", revision: metadataResult(archived).revision },
+				headers(other),
+			)
+		).status,
+	).toBe(404);
+	const restored = await target.patch(
+		{ archived: false, revision: metadataResult(archived).revision },
+		headers(),
+	);
+	expect(restored.data?.archived).toBe(false);
+	expect(
+		(await records.get({ ...headers(), query: { archived: true } })).data
+			?.total,
+	).toBe(0);
+	expect(
+		(
+			await target.put(
+				{
+					title: "已修改名称",
+					content: fixture.content,
+					revision: metadataResult(restored).revision,
+				},
+				headers(),
+			)
+		).status,
+	).toBe(200);
+});
+
+test("父文件夹归档与单份归档独立，恢复文件夹保留单份归档", async () => {
+	const folder = await createCase("归档层级测试");
+	const parent = api.api.inquiries.cases({ caseId: folder.id });
+	const fixture = inquiryFixture();
+	const one = await parent.records.post(
+		{ ...fixture, requestId: crypto.randomUUID() },
+		headers(),
+	);
+	const two = await parent.records.post(
+		{ ...fixture, requestId: crypto.randomUUID() },
+		headers(),
+	);
+	if (!one.data || !two.data) throw new Error("创建测试笔录失败");
+	const record = parent.records({ recordId: one.data.id });
+	const individual = await record.patch(
+		{ archived: true, revision: one.data.revision },
+		headers(),
+	);
+	const archived = await parent.patch(
+		{ name: folder.name, archived: true, revision: folder.revision },
+		headers(),
+	);
+	expect(
+		(await parent.records.get({ ...headers(), query: { archived: true } })).data
+			?.total,
+	).toBe(2);
+	expect(
+		(await parent.records.get({ ...headers(), query: { archived: false } }))
+			.data?.total,
+	).toBe(0);
+	expect(
+		(
+			await record.patch(
+				{ archived: false, revision: metadataResult(individual).revision },
+				headers(),
+			)
+		).status,
+	).toBe(409);
+	await parent.patch(
+		{
+			name: folder.name,
+			archived: false,
+			revision: metadataResult(archived).revision,
+		},
+		headers(),
+	);
+	expect(
+		(
+			await parent.records.get({ ...headers(), query: { archived: true } })
+		).data?.records.map((r) => r.id),
+	).toEqual([one.data.id]);
+	expect(
+		(
+			await parent.records.get({ ...headers(), query: { archived: false } })
+		).data?.records.map((r) => r.id),
+	).toEqual([two.data.id]);
+});
+
+test("独立笔录元数据支持归档筛选，已删除记录不可修改", async () => {
+	const created = await api.api.inquiries.standalone.post(
+		{
+			...inquiryFixture(),
+			title: "独立元数据测试",
+			requestId: crypto.randomUUID(),
+		},
+		headers(),
+	);
+	if (!created.data) throw new Error("创建测试笔录失败");
+	const record = api.api.inquiries
+		.cases({ caseId: created.data.caseId })
+		.records({ recordId: created.data.id });
+	const archived = await record.patch(
+		{ archived: true, revision: created.data.revision },
+		headers(),
+	);
+	const query = { q: "独立元数据测试" };
+	expect(
+		(
+			await api.api.inquiries.cases.get({
+				...headers(),
+				query: { ...query, archived: false },
+			})
+		).data?.cases,
+	).toEqual([]);
+	expect(
+		(
+			await api.api.inquiries.cases.get({
+				...headers(),
+				query: { ...query, archived: true },
+			})
+		).data?.cases.map((r) => [r.record?.id, r.recordCount]),
+	).toEqual([[created.data.id, 1]]);
+	expect(
+		(
+			await record.delete(
+				{ revision: metadataResult(archived).revision },
+				headers(),
+			)
+		).status,
+	).toBe(200);
+	expect(
+		(
+			await record.patch(
+				{ title: "不可复活", revision: metadataResult(archived).revision + 1 },
+				headers(),
+			)
+		).status,
+	).toBe(404);
+});

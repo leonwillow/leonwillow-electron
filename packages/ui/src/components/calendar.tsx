@@ -1,6 +1,6 @@
 /**
  * @file shadcn Calendar 的共享日历与日期按钮。
- * 创建时间：2026-11-04；修改时间：2026-11-04。
+ * 创建时间：2026-11-04；修改时间：2026-11-05。
  * 版本作用：沿用 base-mira 官方 DayPicker 组合，适配中文名称及共享控件令牌。
  * 被调用：DatePicker；调用：React DayPicker、date-fns、共享 Button。
  * 预期结果：支持年月下拉、单日或范围选择与键盘导航，尺寸随全局 rem 缩放。
@@ -21,10 +21,19 @@ import * as React from "react";
 import {
 	type DayButton,
 	DayPicker,
+	type DropdownProps,
 	getDefaultClassNames,
 	type Locale,
 } from "react-day-picker";
 import { zhCN } from "react-day-picker/locale";
+import {
+	Select,
+	SelectContent,
+	SelectGroup,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "./select";
 
 function Calendar({
 	className,
@@ -158,6 +167,7 @@ function Calendar({
 				...classNames,
 			}}
 			components={{
+				Dropdown: CalendarDropdown,
 				Root: ({ className, rootRef, ...props }) => {
 					return (
 						<div
@@ -207,6 +217,60 @@ function Calendar({
 			}}
 			{...props}
 		/>
+	);
+}
+
+/** DayPicker 官方 Dropdown 适配：保留月份范围、禁用选项及原 onChange 导航。 */
+function CalendarDropdown({
+	options = [],
+	value,
+	onChange,
+	disabled,
+	id,
+	name,
+	tabIndex,
+	"aria-label": ariaLabel,
+	"aria-labelledby": ariaLabelledBy,
+}: DropdownProps) {
+	const items = options.map((option) => ({
+		...option,
+		value: String(option.value),
+	}));
+	return (
+		<Select
+			items={items}
+			value={value?.toString() ?? null}
+			disabled={disabled}
+			name={name}
+			onValueChange={(next) => {
+				if (next !== null)
+					onChange?.({
+						target: { value: next },
+					} as React.ChangeEvent<HTMLSelectElement>);
+			}}
+		>
+			<SelectTrigger
+				id={id}
+				tabIndex={tabIndex}
+				aria-label={ariaLabel}
+				aria-labelledby={ariaLabelledBy}
+			>
+				<SelectValue />
+			</SelectTrigger>
+			<SelectContent>
+				<SelectGroup>
+					{items.map((option) => (
+						<SelectItem
+							key={option.value}
+							value={option.value}
+							disabled={option.disabled}
+						>
+							{option.label}
+						</SelectItem>
+					))}
+				</SelectGroup>
+			</SelectContent>
+		</Select>
 	);
 }
 

@@ -19,6 +19,7 @@ import { Input } from "@leonwillow-electron/ui/components/input";
 import {
 	Select,
 	SelectContent,
+	SelectGroup,
 	SelectItem,
 	SelectTrigger,
 	SelectValue,
@@ -211,11 +212,13 @@ export default function RecordsWorkspace({
 						<SelectValue />
 					</SelectTrigger>
 					<SelectContent>
-						{scopes.map((item) => (
-							<SelectItem key={item.value} value={item.value}>
-								{item.label}
-							</SelectItem>
-						))}
+						<SelectGroup>
+							{scopes.map((item) => (
+								<SelectItem key={item.value} value={item.value}>
+									{item.label}
+								</SelectItem>
+							))}
+						</SelectGroup>
 					</SelectContent>
 				</Select>
 				<Input

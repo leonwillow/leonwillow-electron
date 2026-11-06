@@ -1,6 +1,6 @@
 # 自定义主题迁移
 
-维护日期：2026-10-04。新增主题功能前的检查点为 `0813a43`；当前采用 Zustand 状态与浮动编辑面板。
+维护日期：2026-11-06。新增主题功能前的检查点为 `0813a43`；当前采用 Zustand 状态与浮动编辑面板。
 
 ## 来源
 
@@ -42,13 +42,21 @@
 
 2026-11-04：默认配色改为 [Shadcn Studio 官方生成器默认配置](https://github.com/shadcnstudio/shadcn-studio/blob/72a20331970218848103184b61e1efa9d0e08dea/src/config/theme.ts) 的 `defaultLightThemeStyles` / `defaultDarkThemeStyles`，采用其 Zinc 中性色、主色/前景配对、侧栏与图表色。来源为明确的默认主题对象，不使用营销站自身的基础 CSS 或其他命名预设。按 [官方主题生成器说明](https://shadcnstudio.com/docs/getting-started/theme-generator) 仅合并共享 `globals.css` 的 `:root` / `.dark` 颜色：浅色主色 `oklch(0.21 0.006 285.885)`，深色主色 `oklch(0.92 0.004 286.32)`。
 
-项目扩展的成功、警告、在线状态及危险操作前景色继续保留；字体、圆角、字号、缩放和布局尺寸不随配色变更。`initialSettings.themePreset` 仍为 `default`；`getPreset` 对它返回空覆盖，首屏与运行时的 `applyTheme` 清除旧颜色后使用共享 CSS，`createThemeDraft` 也读取这一份默认值。已有其他预设及用户保存的自定义色板不改写；当前选择“默认”时开发热更新或刷新即可采用新配色。
+该次变更保留了项目扩展的成功、警告、在线状态及危险操作前景色；字体、圆角、字号、缩放和布局尺寸不随配色变更。`initialSettings.themePreset` 仍为 `default`；`getPreset` 对它返回空覆盖，首屏与运行时的 `applyTheme` 清除旧颜色后使用共享 CSS，`createThemeDraft` 也读取这一份默认值。已有其他预设及用户保存的自定义色板不改写；当前选择“默认”时开发热更新或刷新即可采用新配色。
+
+2026-11-06：按最新要求，默认配色改为 [ReUI 当前组件预览](https://reui.io/components/dialog) 的 Neutral 色板。核对官网 `style-nova` / `base-color-neutral` 默认配置及其明暗 CSS：浅色主色 `oklch(0.205 0 0)`、深色主色 `oklch(0.922 0 0)`，基础界面、侧栏和图表令牌一并同步；两份 `components.json` 的 `baseColor` 同步为 `neutral`。仅适配颜色，保留现有 Base UI / base-mira 组件结构、尺寸及交互。
+
+成功、信息、警告、反色及其前景色采用 [ReUI Styling](https://reui.io/docs/styling) 的 Emerald、Violet、Yellow、Zinc 组合；危险操作前景采用 Red 800 / 600。共享 CSS 用对应 Tailwind OKLCH 显式值，保证主题编辑与导出能够读取。按钮仍为语义色 ghost，文字和图标使用配对的 foreground，悬停背景使用色彩令牌；通知和警告金额也使用同一组配对令牌。在线状态保留独立业务语义。主题存储格式、白名单和用户已保存色板不变，扩展色由共享 CSS 提供。
+
+本次还移除了 Dialog 的固定 `bg-black/80` 和 Sheet 的 `bg-black/50`。两者统一使用共享 `--overlay: oklch(0 0 0 / 10%)`，支持时启用 `backdrop-blur-xs`（4px），与 ReUI 默认 Nova 示例一致，明暗模式同样处理。非模态浮窗的 `showOverlay={false}` 保持原行为；不重置用户主题选择。
 
 `stores/theme-store.ts` 持有已保存偏好和主题库，临时 preview 不进入持久化快照。`theme-effects.tsx` 连接 DOM、storage、BroadcastChannel 与快捷键。`root-layout.tsx` 在 Outlet 外按需加载编辑器，跨路由保留编辑会话。
 
 快照格式仍为 version 2，旧 lg 到 xl 的迁移、损坏数据回退与主题 ID 校验由同一编解码入口处理。草稿归面板管理，保存通过 Store 提交；存储失败保留草稿。后续可以提取局部编辑会话，但这不属于本次工程修正。
 
 ## 验证
+
+2026-11-06：默认配色及遮罩调整通过 lint、check-types、build 和 100 项 UI 测试。浏览器核验默认浅深色的遮罩均为 10% 黑色、4px 模糊且只有一层；Tab、取消、Escape 及触发器焦点恢复正常。切换 Claude 预设仍使用自己的主色与统一遮罩；390×844、特大缩放下弹窗无横向溢出。恢复原浅色、默认预设、大档缩放后刷新，令牌及偏好正确，控制台无错误。
 
 以下浏览器结果为原迁移阶段记录，后续改动须按当前验证入口重新检查。
 

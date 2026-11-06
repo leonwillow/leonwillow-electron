@@ -2,7 +2,7 @@
  * @file 文书类型菜单的内容和模板入口。
  * 创建时间：2026-10-11；修改时间：2026-11-05。
  * 版本作用：为统一菜单框 提供文书类型标题、模板操作及类型列表。
- * 被调用：WorkspaceSecondaryMenu；调用：DocumentNavigationProvider、共享控件、路由。
+ * 被调用：WorkspaceSecondaryMenu；调用：DocumentNavigationProvider、目录摘要预览、共享控件、路由。
  * 功能与预期结果：未固定时选类型收起，固定偏好按用户保留，窄窗回到浮层。
  */
 
@@ -11,7 +11,6 @@ import {
 	buttonVariants,
 } from "@leonwillow-electron/ui/components/button";
 import { Input } from "@leonwillow-electron/ui/components/input";
-import { MenuLabel } from "@leonwillow-electron/ui/components/menu-label";
 import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
 import {
 	Tooltip,
@@ -22,6 +21,7 @@ import { cn } from "@leonwillow-electron/ui/lib/utils";
 import { getRouteApi, Link, useSearch } from "@tanstack/react-router";
 import { FileTextIcon, Settings2Icon } from "lucide-react";
 import { useState } from "react";
+import { DirectoryItemLabel } from "./directory-item-label";
 import { useDocumentNavigation } from "./document-navigation-provider";
 import type { WorkspaceMenuContent } from "./workspace-menu";
 
@@ -124,7 +124,19 @@ export default function useDocumentTypeMenu(): WorkspaceMenuContent {
 														)}
 													>
 														<FileTextIcon />
-														<MenuLabel>{type.name}</MenuLabel>
+														<DirectoryItemLabel
+															name={type.name}
+															icon={FileTextIcon}
+															category="文书取号"
+															status={
+																type.archived
+																	? "已停用 · 可查看历史文书"
+																	: "可取号"
+															}
+															details={[
+																{ label: "文号前缀", value: type.prefix },
+															]}
+														/>
 													</Link>
 												</li>
 											))}

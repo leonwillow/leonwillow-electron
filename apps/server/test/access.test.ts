@@ -1,7 +1,7 @@
 /**
  * @file 人员管理与越权防护的数据库集成测试。
  * 创建时间：2026-10-04
- * 修改时间：2026-11-04
+ * 修改时间：2026-11-05
  * 版本作用：验证权限真实边界和事务一致性。
  * 被调用：bun run test:api。
  * 调用：真实 PostgreSQL 独立 schema、Better Auth、Eden、应用工厂。
@@ -139,7 +139,8 @@ describe("统一工作台权限", () => {
 		expect(admin.data?.user.id).toBe(adminId);
 		expect(admin.data?.moduleIds).toContain("documents");
 		expect(admin.data?.moduleIds).toContain("inquiries");
-		expect(admin.data?.moduleIds).toHaveLength(9);
+		expect(admin.data?.moduleIds).toContain("calculators");
+		expect(admin.data?.moduleIds).toHaveLength(10);
 		expect(member.data?.user.id).toBe(person.id);
 		expect(member.data?.moduleIds).toEqual(["inbox"]);
 		expect(anonymous.status).toBe(401);
@@ -170,7 +171,8 @@ describe("统一工作台权限", () => {
 		expect((await api.api.admin.users.get()).status).toBe(401);
 		const admin = await api.api.access.get(adminHeaders());
 		expect(admin.data?.moduleIds).toContain("inquiries");
-		expect(admin.data?.moduleIds).toHaveLength(9);
+		expect(admin.data?.moduleIds).toContain("calculators");
+		expect(admin.data?.moduleIds).toHaveLength(10);
 		expect(admin.data).not.toHaveProperty("sessionId");
 		const { cookie } = await createPerson();
 		const memberAccess = await api.api.access.get({ headers: { cookie } });

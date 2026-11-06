@@ -46,14 +46,16 @@
 		"auth:schema": "bun run --cwd packages/auth schema:generate",
 		"check": "bun run verify",
 		"fix": "biome check --write .",
-		"verify": "bun run lint && bun run check-types && bun run test:ui && bun run test:architecture && bun run test:server && bun run build && bun run test:deploy",
+		"verify": "bun run lint && bun run check-types && bun run test:ui && bun run test:architecture && bun run test:server && bun run test:calculators && bun run test:lattice-grid && bun run build && bun run test:deploy",
 		"verify:all": "bun run verify && bun run test:api",
 		"test:server": "bun run --cwd apps/server test:unit",
 		"test:deploy": "bun scripts/check-web-deployment.ts",
 		"test:api": "bun run --cwd apps/server test",
 		"test:architecture": "bun test scripts/architecture.test.ts",
 		"lint": "biome check . && bun scripts/check-ui-styles.ts",
-		"test:ui": "bun test scripts/check-ui-styles.test.ts packages/ui/test && bun run --cwd apps/web test"
+		"test:ui": "bun test scripts/check-ui-styles.test.ts packages/ui/test && bun run --cwd apps/web test",
+		"test:calculators": "bun test packages/calculators/test",
+		"test:lattice-grid": "bun run --cwd packages/lattice-grid test"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.5.12",

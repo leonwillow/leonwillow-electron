@@ -29,6 +29,7 @@ import type {
 	InquiryDirectoryQuery,
 	InquiryDocument,
 	InquiryListQuery,
+	InquiryMetadata,
 } from "./model";
 import { validateInquiry } from "./validation";
 
@@ -93,6 +94,36 @@ async function lockCase(
 		);
 	return row;
 }
+/** 归档视图包含父文件夹归档和单份笔录归档；省略筛选时保留 API 的全量语义。 */
+const archiveCondition = (archived?: boolean) =>
+	archived === undefined
+		? undefined
+		: archived
+			? or(eq(inquiryCase.archived, true), eq(inquiryRecord.archived, true))
+			: and(eq(inquiryCase.archived, false), eq(inquiryRecord.archived, false));
+
+/** 目录共用的轻量投影；只提取预览字段，人员保留顺序和姓名，不传证号、联系方式或问答。 */
+const recordSummary = {
+	id: inquiryRecord.id,
+	title: inquiryRecord.title,
+	revision: inquiryRecord.revision,
+	archived: inquiryRecord.archived,
+	updatedAt: inquiryRecord.updatedAt,
+	subjectName: sql<string>`coalesce(${inquiryRecord.content}->>'subjectName', '')`,
+	subjectOrg: sql<string>`coalesce(${inquiryRecord.content}->>'subjectOrg', '')`,
+	inquiryStartAt: sql<string>`coalesce(${inquiryRecord.content}->>'inquiryStartAt', '')`,
+	inquiryEndAt: sql<string>`coalesce(${inquiryRecord.content}->>'inquiryEndAt', '')`,
+	inquiryLocation: sql<string>`coalesce(${inquiryRecord.content}->>'inquiryLocation', '')`,
+	inquirerNames: sql<string[]>`(
+		select coalesce(jsonb_agg(btrim(person->>'name') order by position), '[]'::jsonb)
+		from jsonb_array_elements(
+			case when jsonb_typeof(${inquiryRecord.content}->'inquirers') = 'array'
+				then ${inquiryRecord.content}->'inquirers' else '[]'::jsonb end
+		) with ordinality as people(person, position)
+		where nullif(btrim(person->>'name'), '') is not null
+	)`,
+};
+
 /**
  * 返回当前人员的目录摘要；q 匹配文件夹名、笔录标题或被询问人。
  * 文件夹名匹配时保留该文件夹；子笔录标题和被询问人匹配时返回所属目录。
@@ -117,6 +148,7 @@ export async function listCases(
 				and(
 					eq(inquiryRecord.caseId, inquiryCase.id),
 					isNull(inquiryRecord.deletedAt),
+					archiveCondition(query.archived),
 					search
 						? or(
 								nameMatches,
@@ -127,7 +159,7 @@ export async function listCases(
 				),
 			),
 	);
-	return db()
+	const rows = await db()
 		.select({
 			id: inquiryCase.id,
 			name: inquiryCase.name,
@@ -136,17 +168,13 @@ export async function listCases(
 			revision: inquiryCase.revision,
 			createdAt: inquiryCase.createdAt,
 			updatedAt: inquiryCase.updatedAt,
-			record: {
-				id: inquiryRecord.id,
-				title: inquiryRecord.title,
-				revision: inquiryRecord.revision,
-				updatedAt: inquiryRecord.updatedAt,
-			},
+			record: recordSummary,
 			recordCount: db().$count(
 				inquiryRecord,
 				and(
 					eq(inquiryRecord.caseId, inquiryCase.id),
 					isNull(inquiryRecord.deletedAt),
+					archiveCondition(query.archived),
 				),
 			),
 		})
@@ -165,10 +193,26 @@ export async function listCases(
 				eq(inquiryCase.ownerId, access.user.id),
 				isNull(inquiryCase.deletedAt),
 				or(eq(inquiryCase.kind, "folder"), isNotNull(inquiryRecord.id)),
+				query.archived === undefined
+					? undefined
+					: query.archived
+						? or(eq(inquiryCase.archived, true), matchingRecord)
+						: and(
+								eq(inquiryCase.archived, false),
+								or(
+									eq(inquiryCase.kind, "folder"),
+									eq(inquiryRecord.archived, false),
+								),
+							),
 				search ? or(nameMatches, matchingRecord) : undefined,
 			),
 		)
 		.orderBy(desc(inquiryCase.updatedAt), inquiryCase.id);
+	// LEFT JOIN 的 JSON 默认值不能把普通文件夹变成一份空笔录。
+	return rows.map((row) => ({
+		...row,
+		record: row.kind === "standalone" && row.record?.id ? row.record : null,
+	}));
 }
 export async function createCase(access: AccessSession, name: string) {
 	const [row] = await db()
@@ -280,6 +324,11 @@ export async function listRecords(
 	const condition = and(
 		eq(inquiryRecord.caseId, caseId),
 		isNull(inquiryRecord.deletedAt),
+		query.archived === undefined
+			? undefined
+			: folder.archived
+				? sql`${query.archived}`
+				: eq(inquiryRecord.archived, query.archived),
 		search
 			? or(
 					ilike(inquiryRecord.title, `%${search}%`),
@@ -289,14 +338,7 @@ export async function listRecords(
 	);
 	const [records, totals] = await Promise.all([
 		db()
-			.select({
-				id: inquiryRecord.id,
-				title: inquiryRecord.title,
-				revision: inquiryRecord.revision,
-				updatedAt: inquiryRecord.updatedAt,
-				subjectName: sql<string>`${inquiryRecord.content}->>'subjectName'`,
-				inquiryStartAt: sql<string>`${inquiryRecord.content}->>'inquiryStartAt'`,
-			})
+			.select(recordSummary)
 			.from(inquiryRecord)
 			.where(condition)
 			.orderBy(desc(inquiryRecord.updatedAt), inquiryRecord.id)
@@ -372,12 +414,54 @@ export async function updateRecord(
 			.where(recordWhere(caseId, id));
 		if (!row) return missing();
 		if (row.revision !== draft.revision) return conflict();
+		if (row.archived)
+			throw new AccessError(
+				409,
+				"INQUIRY_ARCHIVED",
+				"笔录已归档，请先恢复后再编辑。",
+			);
 		const [updated] = await tx
 			.update(inquiryRecord)
 			.set({
 				title: draft.title.trim(),
 				content: draft.content,
 
+				revision: row.revision + 1,
+				updatedAt: new Date(),
+			})
+			.where(eq(inquiryRecord.id, id))
+			.returning();
+		await tx
+			.update(inquiryCase)
+			.set({ updatedAt: new Date() })
+			.where(eq(inquiryCase.id, caseId));
+		return updated ?? missing();
+	});
+}
+/**
+ * 只修改标题或归档标记，不重写正文。父案件行锁协调内容保存及目录操作；
+ * 仅所有者可写，归档父文件夹、旧修订号及已删除记录分别返回 409/404。
+ */
+export async function updateRecordMetadata(
+	access: AccessSession,
+	caseId: string,
+	id: string,
+	patch: InquiryMetadata,
+) {
+	return db().transaction(async (tx) => {
+		await lockCase(tx, access, caseId);
+		const [row] = await tx
+			.select()
+			.from(inquiryRecord)
+			.where(recordWhere(caseId, id));
+		if (!row) return missing();
+		if (row.revision !== patch.revision) return conflict();
+		const [updated] = await tx
+			.update(inquiryRecord)
+			.set({
+				...("title" in patch
+					? { title: patch.title.trim() }
+					: { archived: patch.archived }),
 				revision: row.revision + 1,
 				updatedAt: new Date(),
 			})

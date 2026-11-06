@@ -1,18 +1,22 @@
 /**
  * @file 资金分析模块的共享页头与内部导航。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-08
+ * 修改时间：2026-11-05
  * 版本作用：顶栏与案件菜单共用高度，模块与案件名按路径层级排列。
- * 被调用：FundsView、CasesView；调用：共享按钮样式与 TanStack Link。
+ * 被调用：FundsView、CasesView；调用：共享工作区标题栏、按钮样式与 TanStack Link。
  * 功能：显示模块标题及可选案件名，切换内部页面时携带 caseId。
- * 预期结果：顶栏分隔线一致，长案件名不撑高页头，窄窗口保留内部导航。
+ * 预期结果：顶栏分隔线一致，长案件名不撑高页头，窄窗口允许导航换行。
  */
 
 import { buttonVariants } from "@leonwillow-electron/ui/components/button";
 import { TooltipText } from "@leonwillow-electron/ui/components/tooltip";
 import { cn } from "@leonwillow-electron/ui/lib/utils";
 import { Link, useLocation } from "@tanstack/react-router";
-import { ChevronRightIcon } from "lucide-react";
+import { ChevronRightIcon, WaypointsIcon } from "lucide-react";
+import {
+	WorkspaceHeader,
+	WorkspaceTitle,
+} from "@/components/layout/workspace-header";
 
 const sections = [
 	{ title: "分析", to: "/funds" },
@@ -28,22 +32,17 @@ export default function FundsHeader({
 }) {
 	const pathname = useLocation({ select: (location) => location.pathname });
 	return (
-		<header
-			data-slot="workspace-header"
-			className="flex h-workspace-header shrink-0 items-center justify-between gap-3 border-b px-workspace-gutter"
-		>
-			<div className="flex min-w-0 flex-1 flex-col justify-center sm:flex-row sm:items-center sm:justify-start sm:gap-3">
-				<h1 className="shrink-0 whitespace-nowrap font-semibold text-base">
-					资金分析
-				</h1>
+		<WorkspaceHeader className="justify-between">
+			<div className="flex min-w-0 flex-1 items-center gap-2">
+				<WorkspaceTitle icon={WaypointsIcon}>资金分析</WorkspaceTitle>
 				{caseName && (
 					<>
 						<ChevronRightIcon
 							aria-hidden="true"
-							className="hidden size-3.5 shrink-0 text-muted-foreground sm:block"
+							className="size-4 shrink-0 text-muted-foreground"
 						/>
 						<TooltipText content={caseName}>
-							<p className="min-w-0 truncate text-muted-foreground text-xs sm:text-sm">
+							<p className="min-w-0 truncate text-muted-foreground text-sm">
 								{caseName}
 							</p>
 						</TooltipText>
@@ -78,6 +77,6 @@ export default function FundsHeader({
 					))}
 				</nav>
 			)}
-		</header>
+		</WorkspaceHeader>
 	);
 }

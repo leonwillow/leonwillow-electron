@@ -24,6 +24,7 @@
         "@elysiajs/cors": "^1.4.2",
         "@leonwillow-electron/access": "workspace:*",
         "@leonwillow-electron/auth": "workspace:*",
+        "@leonwillow-electron/calculators": "workspace:*",
         "@leonwillow-electron/db": "workspace:*",
         "@xmldom/xmldom": "^0.9.12",
         "docxtemplater": "^3.71.0",
@@ -70,6 +71,8 @@
         "@headless-tree/react": "^1.8.0",
         "@hookform/resolvers": "5.4.0",
         "@leonwillow-electron/access": "workspace:*",
+        "@leonwillow-electron/calculators": "workspace:*",
+        "@leonwillow-electron/lattice-grid": "workspace:*",
         "@leonwillow-electron/ui": "workspace:*",
         "@tanstack/react-router": "^1.170.32",
         "@tanstack/react-virtual": "^3.14.13",
@@ -122,6 +125,14 @@
         "typescript": "catalog:",
       },
     },
+    "packages/calculators": {
+      "name": "@leonwillow-electron/calculators",
+      "devDependencies": {
+        "@leonwillow-electron/config": "workspace:*",
+        "@types/bun": "catalog:",
+        "typescript": "catalog:",
+      },
+    },
     "packages/config": {
       "name": "@leonwillow-electron/config",
       "version": "0.0.0",
@@ -129,6 +140,7 @@
     "packages/db": {
       "name": "@leonwillow-electron/db",
       "dependencies": {
+        "@leonwillow-electron/calculators": "workspace:*",
         "drizzle-orm": "catalog:",
         "pg": "^8.23.0",
       },
@@ -138,6 +150,25 @@
         "drizzle-kit": "1.0.0-rc.4",
         "typescript": "catalog:",
         "varlock": "catalog:",
+      },
+    },
+    "packages/lattice-grid": {
+      "name": "@leonwillow-electron/lattice-grid",
+      "version": "0.1.0",
+      "dependencies": {
+        "@leonwillow-electron/ui": "workspace:*",
+        "lucide-react": "catalog:",
+        "sonner": "catalog:",
+      },
+      "devDependencies": {
+        "@leonwillow-electron/config": "workspace:*",
+        "@types/react": "catalog:",
+        "@types/react-dom": "catalog:",
+        "typescript": "catalog:",
+      },
+      "peerDependencies": {
+        "react": "^19.2.0",
+        "react-dom": "^19.2.0",
       },
     },
     "packages/ui": {
@@ -578,9 +609,13 @@
 
     "@leonwillow-electron/auth": ["@leonwillow-electron/auth@workspace:packages/auth"],
 
+    "@leonwillow-electron/calculators": ["@leonwillow-electron/calculators@workspace:packages/calculators"],
+
     "@leonwillow-electron/config": ["@leonwillow-electron/config@workspace:packages/config"],
 
     "@leonwillow-electron/db": ["@leonwillow-electron/db@workspace:packages/db"],
+
+    "@leonwillow-electron/lattice-grid": ["@leonwillow-electron/lattice-grid@workspace:packages/lattice-grid"],
 
     "@leonwillow-electron/ui": ["@leonwillow-electron/ui@workspace:packages/ui"],
 

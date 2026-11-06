@@ -3,14 +3,13 @@
  * 创建时间：2026-10-06
  * 修改时间：2026-11-05
  * 版本作用：案件操作仅在悬停/键盘操作时显示，原生拖放调整分组内顺序。
- * 被调用：FundsCaseSidebar；调用：共享 Button/Tooltip、TanStack Router。
+ * 被调用：FundsCaseSidebar；调用：共享 Button/Tooltip、目录摘要预览、TanStack Router。
  * 预期结果：点击选择不留下操作图标；拖动不触发导航，键盘 Alt+方向键亦可排序。
  */
 import {
 	Button,
 	buttonVariants,
 } from "@leonwillow-electron/ui/components/button";
-import { MenuLabel } from "@leonwillow-electron/ui/components/menu-label";
 import {
 	Tooltip,
 	TooltipContent,
@@ -28,6 +27,7 @@ import {
 } from "lucide-react";
 import type { ComponentProps, DragEvent } from "react";
 import type { listFundsCases } from "@/lib/funds";
+import { DirectoryItemLabel } from "./directory-item-label";
 export type CaseRecord = Awaited<ReturnType<typeof listFundsCases>>[number];
 export type DropTarget = { id: string; placement: "before" | "after" };
 
@@ -135,11 +135,16 @@ export default function FundsCaseRow({
 				aria-describedby="case-sort-help"
 				className={cn(
 					buttonVariants({ variant: "ghost", size: "lg" }),
-					"min-w-0 flex-1 justify-start pr-16",
+					"min-w-0 flex-1 justify-start group-hover/case:pr-16 group-has-[:focus-visible]/case:pr-16 [@media(hover:none)]:pr-16",
 				)}
 			>
 				<FolderIcon />
-				<MenuLabel>{record.name}</MenuLabel>
+				<DirectoryItemLabel
+					name={record.name}
+					icon={FolderIcon}
+					category="资金分析案件"
+					status={archived ? "已归档" : record.pinned ? "已置顶" : "使用中"}
+				/>
 			</Link>
 
 			<div className="pointer-events-none absolute right-1 flex opacity-0 group-hover/case:pointer-events-auto group-hover/case:opacity-100 group-has-[:focus-visible]/case:pointer-events-auto group-has-[:focus-visible]/case:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:opacity-100">

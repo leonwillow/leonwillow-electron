@@ -1,7 +1,7 @@
 /**
  * @file 前端入口与路由权限策略的安全回归测试。
  * 创建时间：2026-10-04
- * 修改时间：2026-10-06
+ * 修改时间：2026-11-05
  * 版本作用：覆盖无授权、路径绕过和管理中心与个人设置隔离。
  * 被调用：bun run test:ui。
  * 调用：bun:test、共享权限目录、导航与搜索目录。
@@ -109,4 +109,21 @@ test("两种身份共享个人设置，管理菜单与搜索只向管理员开�
 	}
 	for (const path of ["/admin", "/admin/users-extra", "/admin/unknown"])
 		expect(canAccessPath(admin, path)).toBe(false);
+});
+
+test("两种计算器共用模块授权，只开放明确登记的子路由", () => {
+	const allowed = { role: "user" as const, moduleIds: ["calculators"] };
+	const denied = { role: "user" as const, moduleIds: ["inquiries"] };
+	for (const path of [
+		"/calculators",
+		"/calculators/late-fees",
+		"/calculators/late-fees/",
+	]) {
+		expect(canAccessPath(allowed, path)).toBe(true);
+		expect(canAccessPath(denied, path)).toBe(false);
+	}
+	expect(canAccessPath(allowed, "/calculators/late-fees-unknown")).toBe(false);
+	expect(
+		canAccessPath({ role: "admin", moduleIds: [] }, "/calculators/unknown"),
+	).toBe(false);
 });

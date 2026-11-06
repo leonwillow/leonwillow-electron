@@ -64,7 +64,7 @@ export default function ThemePresetSelect({
 				if (next) onValueChange(next as Settings["themePreset"]);
 			}}
 		>
-			<SelectTrigger size="lg" className="w-full">
+			<SelectTrigger className="w-full">
 				<span
 					className="size-2.5 shrink-0 rounded-full"
 					style={{
@@ -75,7 +75,7 @@ export default function ThemePresetSelect({
 					{current?.label ?? "默认"}
 				</span>
 			</SelectTrigger>
-			<SelectContent alignItemWithTrigger={false}>
+			<SelectContent>
 				<SelectGroup>
 					<SelectLabel>内置主题</SelectLabel>
 					<SelectItem value="default" className="[&>div]:items-center">

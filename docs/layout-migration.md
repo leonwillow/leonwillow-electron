@@ -76,3 +76,9 @@ Web 默认资源 base 为 `/`。子路径构建使用 Vite `--base=/desk/`，Rou
 2026-11-05：AppLogo 统一由外层语义背景、主题圆角及 overflow-hidden 控制边缘，移除内部 SVG 的第二层圆角背景；路径使用 currentColor 跟随 primary-foreground。明暗模式、不同缩放及圆角均已在浏览器验证。
 
 2026-11-05：按当前使用范围暂时隐藏侧栏的收件箱、工单、联系人、知识库、AI 助手和报表六个入口。`assets/data/navigation.ts` 的 `hiddenSidebarModuleIds` 集中控制隐藏，侧栏使用 `sidebarNav`；完整 `primaryNav`、搜索入口、已有路由与权限配置保留，恢复时移除对应隐藏项即可。
+
+2026-11-05：主导航新增“计算器”，二级项“增值税计算器”“滞纳金计算器”使用 `calculator-sidebar.tsx` 提供内容，仍由唯一 `WorkspaceMenu` 渲染。新增 `calculators` 授权；方案选择在二级目录内，`scenarioId` 为可刷新路由参数，业务实现见 [计算器适配](./calculators-migration.md)。
+
+2026-11-05：业务页头统一复用 `WorkspaceHeader` / `WorkspaceTitle`，笔录保留业务包装，其余计算器、文书和资金页沿用原工具及路径结构。字号、图标大小、颜色和间距以笔录为基准，宽屏共享顶栏分隔线，窄屏工具允许换行。计算器二级菜单使用现有 ReUI Tree 行，保留两个图标和路由入口，不添加业务层级。
+
+2026-11-05：计算器目录由 CalculatorNavigationProvider 持有两种方案摘要与保存协调，树按计算器分组，方案管理弹窗挂在唯一菜单外；不改变共享固定、宽度和浮动交互。顶栏改用编辑器持有的 ScenarioHeader，显示名称输入、保存状态及业务工具，移除重复方案下拉与新建入口。

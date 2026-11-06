@@ -5,7 +5,12 @@
  * 被调用：use-workspace-menu、workspace-menu-state.test；调用：浏览器偏好存储。
  * 功能与预期结果：固定时只响应显式切换，未固定时允许悬停预览；统一偏好兼容旧存储及写入失败。
  */
-export const workspaceMenuIds = ["funds", "documents", "inquiries"] as const;
+export const workspaceMenuIds = [
+	"funds",
+	"documents",
+	"inquiries",
+	"calculators",
+] as const;
 export type WorkspaceMenuId = (typeof workspaceMenuIds)[number];
 
 export function isWorkspaceMenuId(id: string): id is WorkspaceMenuId {

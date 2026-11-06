@@ -1,0 +1,19 @@
+{
+	"name": "@leonwillow-electron/calculators",
+	"private": true,
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts",
+		"./import": "./src/import.ts",
+		"./late-fees": "./src/late-fees.ts"
+	},
+	"scripts": {
+		"check-types": "tsc --noEmit",
+		"test": "bun test"
+	},
+	"devDependencies": {
+		"@leonwillow-electron/config": "workspace:*",
+		"typescript": "catalog:",
+		"@types/bun": "catalog:"
+	}
+}

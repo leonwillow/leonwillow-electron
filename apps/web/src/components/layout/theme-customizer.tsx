@@ -196,7 +196,7 @@ const ThemeCustomizer = () => {
 							updateSettings({ font: value as FontKey })
 						}
 					>
-						<SelectTrigger size="lg" className="w-full">
+						<SelectTrigger className="w-full">
 							<span
 								className="flex-1 text-left"
 								style={{
@@ -206,7 +206,7 @@ const ThemeCustomizer = () => {
 								{FONT_CONFIG[settings.font]?.label ?? "Public Sans"}
 							</span>
 						</SelectTrigger>
-						<SelectContent alignItemWithTrigger={false}>
+						<SelectContent>
 							{FONT_GROUPS.map(({ key: groupKey, label: groupLabel }) => {
 								const fonts = (
 									Object.entries(FONT_CONFIG) as [

@@ -1,0 +1,1 @@
+ALTER TABLE "inquiry_record" ADD COLUMN "archived" boolean DEFAULT false NOT NULL;

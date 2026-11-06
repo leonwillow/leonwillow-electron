@@ -47,10 +47,12 @@ export function useWorkspaceMenu({
 	const fundsTrigger = useRef<HTMLAnchorElement>(null);
 	const documentsTrigger = useRef<HTMLAnchorElement>(null);
 	const inquiriesTrigger = useRef<HTMLAnchorElement>(null);
+	const calculatorsTrigger = useRef<HTMLAnchorElement>(null);
 	const triggerRefs = {
 		funds: fundsTrigger,
 		documents: documentsTrigger,
 		inquiries: inquiriesTrigger,
+		calculators: calculatorsTrigger,
 	};
 	const navigationRef = useRef<HTMLElement>(null);
 	const panelRef = useRef<HTMLElement>(null);

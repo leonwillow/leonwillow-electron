@@ -27,8 +27,18 @@ type History = {
 };
 type Action =
 	| { type: "edit"; value: Editable; time: number }
-	| { type: "undo" | "redo" };
+	| { type: "undo" | "redo" }
+	| { type: "rename"; title: string };
 function reducer(state: History, action: Action): History {
+	if (action.type === "rename") {
+		const rename = (value: Editable) => ({ ...value, title: action.title });
+		return {
+			...state,
+			past: state.past.map(rename),
+			present: rename(state.present),
+			future: state.future.map(rename),
+		};
+	}
 	if (action.type === "edit") {
 		if (JSON.stringify(action.value) === JSON.stringify(state.present))
 			return state;
@@ -163,6 +173,7 @@ export function useInquiryEditor(record: InquiryRecord, readOnly: boolean) {
 	const actionsRef = useRef({
 		prepare: async (): Promise<{ id: string; revision: number } | null> => null,
 		finish: () => {},
+		accept: (_updated: InquiryRecord) => {},
 	});
 	actionsRef.current = {
 		prepare: async () => {
@@ -176,6 +187,15 @@ export function useInquiryEditor(record: InquiryRecord, readOnly: boolean) {
 			if (!live.current) return null;
 			return { id: record.id, revision: revision.current };
 		},
+		accept: (updated) => {
+			// 目录改名已在锁内保存正文；同步修订和历史标题，避免后续自动保存覆盖新名称。
+			revision.current = updated.revision;
+			lastRecord.current = updated;
+			current.current = { title: updated.title, content: updated.content };
+			saved.current = JSON.stringify(current.current);
+			setSavedAt(updated.updatedAt);
+			dispatch({ type: "rename", title: updated.title });
+		},
 		finish: () => {
 			mutationLock.current = false;
 			if (live.current) setMutating(false);
@@ -188,6 +208,7 @@ export function useInquiryEditor(record: InquiryRecord, readOnly: boolean) {
 				recordId: record.id,
 				prepare: () => actionsRef.current.prepare(),
 				finish: () => actionsRef.current.finish(),
+				accept: (updated) => actionsRef.current.accept(updated),
 			}),
 		[record.caseId, record.id, registerEditor],
 	);

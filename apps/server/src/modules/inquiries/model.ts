@@ -66,10 +66,19 @@ export const InquiriesModel = {
 		{ additionalProperties: false },
 	),
 	update: t.Object({ ...record, revision }, { additionalProperties: false }),
+	metadata: t.Union([
+		t.Object({ title: name, revision }, { additionalProperties: false }),
+		t.Object(
+			{ archived: t.Boolean(), revision },
+			{ additionalProperties: false },
+		),
+	]),
 	directory: t.Object({
+		archived: t.Optional(t.BooleanString()),
 		q: t.Optional(text(160)),
 	}),
 	list: t.Object({
+		archived: t.Optional(t.BooleanString()),
 		q: t.Optional(text(160)),
 		offset: t.Optional(t.Numeric({ minimum: 0, maximum: 1_000_000 })),
 		limit: t.Optional(t.Numeric({ minimum: 1, maximum: 100 })),
@@ -86,3 +95,5 @@ export const InquiriesModel = {
 export type InquiryDocument = typeof InquiriesModel.document.static;
 export type InquiryDirectoryQuery = typeof InquiriesModel.directory.static;
 export type InquiryListQuery = typeof InquiriesModel.list.static;
+
+export type InquiryMetadata = typeof InquiriesModel.metadata.static;

@@ -1,7 +1,7 @@
 /**
  * @file 数据库表与关系的公开出口。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-04
+ * 修改时间：2026-11-05
  * 版本作用：服务端数据基础层，随工作区维护。
  * 被调用：packages/auth/src/index.ts、packages/auth/src/bootstrap.ts、packages/db/src/index.ts、apps/server/test/auth.test.ts。
  * 调用：./auth、../relations。
@@ -12,6 +12,7 @@
 export { authRelations } from "../relations";
 export * from "./access";
 export * from "./auth";
+export * from "./calculators";
 export * from "./documents";
 export * from "./funds";
 export * from "./inquiries";

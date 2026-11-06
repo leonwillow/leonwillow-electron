@@ -1,6 +1,6 @@
 /**
  * @file 笔录文件夹、独立笔录、常用询问人及 Word 导出的受保护 HTTP 边界。
- * 创建时间：2026-11-04；修改时间：2026-11-04。
+ * 创建时间：2026-11-04；修改时间：2026-11-05。
  * 版本作用：提供当前 SPA 和未来桌面端共用的 Eden 契约。
  * 被调用：createApp、Web 笔录客户端；调用：权限插件、模型、事务服务、Word 生成器。
  * 预期结果：无登录 401、无模块权限 403、资源不可见 404、旧版本/归档 409、坏输入 400/422。
@@ -68,6 +68,17 @@ export const inquiriesModule = new Elysia({
 		({ access, params }) =>
 			service.getRecord(access, params.caseId, params.recordId),
 		{ params: M.recordId },
+	)
+	.patch(
+		"/cases/:caseId/records/:recordId",
+		({ access, params, body }) =>
+			service.updateRecordMetadata(
+				access,
+				params.caseId,
+				params.recordId,
+				body,
+			),
+		{ params: M.recordId, body: M.metadata },
 	)
 	.put(
 		"/cases/:caseId/records/:recordId",

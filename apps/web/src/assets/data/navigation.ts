@@ -14,6 +14,7 @@ import type { LinkProps } from "@tanstack/react-router";
 import {
 	BarChart3Icon,
 	BookOpenIcon,
+	CalculatorIcon,
 	FileTextIcon,
 	InboxIcon,
 	type LucideIcon,
@@ -34,6 +35,7 @@ const moduleIcons: Record<ModuleId, LucideIcon> = {
 	funds: WaypointsIcon,
 	documents: FileTextIcon,
 	inquiries: NotebookPenIcon,
+	calculators: CalculatorIcon,
 	inbox: InboxIcon,
 	tickets: TicketIcon,
 	contacts: UsersIcon,

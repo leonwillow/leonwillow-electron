@@ -1,7 +1,7 @@
 /**
  * @file 已登录工作台的展示容器。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-04
+ * 修改时间：2026-11-05
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：routes/_workspace/route.tsx。
  * 调用：共享 UI、主图标栏、唯一菜单导航 Provider、文书/笔录资源 Provider 及菜单内容。
@@ -14,6 +14,7 @@ import { getRouteApi } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import AppSidebar from "@/components/layout/app-sidebar";
 import { workspaceMenuIds } from "@/lib/workspace-menu-state";
+import { CalculatorNavigationProvider } from "./calculator-navigation-provider";
 import { DocumentNavigationProvider } from "./document-navigation-provider";
 import { InquiryNavigationProvider } from "./inquiry-navigation-provider";
 import { WorkspaceNavigationProvider } from "./workspace-navigation-provider";
@@ -38,14 +39,18 @@ export default function WorkspaceLayout({ children }: { children: ReactNode }) {
 					<InquiryNavigationProvider
 						enabled={enabledMenus.includes("inquiries")}
 					>
-						<div className="flex h-dvh w-full min-w-0 overflow-hidden">
-							<AppSidebar />
-							<WorkspacePanels
-								menu={<WorkspaceSecondaryMenu enabledMenus={enabledMenus} />}
-							>
-								{children}
-							</WorkspacePanels>
-						</div>
+						<CalculatorNavigationProvider
+							enabled={enabledMenus.includes("calculators")}
+						>
+							<div className="flex h-dvh w-full min-w-0 overflow-hidden">
+								<AppSidebar />
+								<WorkspacePanels
+									menu={<WorkspaceSecondaryMenu enabledMenus={enabledMenus} />}
+								>
+									{children}
+								</WorkspacePanels>
+							</div>
+						</CalculatorNavigationProvider>
 					</InquiryNavigationProvider>
 				</DocumentNavigationProvider>
 			</WorkspaceNavigationProvider>

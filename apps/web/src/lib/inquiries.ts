@@ -36,7 +36,9 @@ export class InquiryError extends Error {
 }
 export const inquiryError = (error: unknown) =>
 	error instanceof Error ? error.message : "无法连接笔录服务，请稍后重试。";
-export async function listInquiryCases(query: { q?: string } = {}) {
+export async function listInquiryCases(
+	query: { q?: string; archived?: boolean } = {},
+) {
 	return unwrap(await inquiries.cases.get({ query })).cases;
 }
 export type InquiryCase = Awaited<ReturnType<typeof listInquiryCases>>[number];
@@ -70,7 +72,7 @@ export async function deleteInquiryCase(
 }
 export async function listInquiryRecords(
 	caseId: string,
-	query: { q?: string; offset?: number } = {},
+	query: { q?: string; offset?: number; archived?: boolean } = {},
 ) {
 	return unwrap(
 		await inquiries
@@ -113,6 +115,19 @@ export async function updateInquiryRecord(
 			.cases({ caseId })
 			.records({ recordId })
 			.put({ ...draft, revision }),
+	);
+}
+export async function updateInquiryRecordMetadata(
+	caseId: string,
+	recordId: string,
+	revision: number,
+	patch: { title: string } | { archived: boolean },
+) {
+	return unwrap(
+		await inquiries
+			.cases({ caseId })
+			.records({ recordId })
+			.patch({ ...patch, revision }),
 	);
 }
 export async function deleteInquiryRecord(

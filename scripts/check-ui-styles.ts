@@ -95,7 +95,11 @@ export function checkUIStyleSource(source: string, filename: string): string[] {
 if (import.meta.main) {
 	const root = resolve(import.meta.dir, "..");
 	const errors: string[] = [];
-	for (const directory of ["apps/web/src", "packages/ui/src"]) {
+	for (const directory of [
+		"apps/web/src",
+		"packages/ui/src",
+		"packages/lattice-grid/src",
+	]) {
 		for (const filename of new Bun.Glob("**/*.{ts,tsx,css}").scanSync({
 			cwd: resolve(root, directory),
 			absolute: true,

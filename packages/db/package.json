@@ -20,7 +20,8 @@
 	},
 	"dependencies": {
 		"drizzle-orm": "catalog:",
-		"pg": "^8.23.0"
+		"pg": "^8.23.0",
+		"@leonwillow-electron/calculators": "workspace:*"
 	},
 	"devDependencies": {
 		"@leonwillow-electron/config": "workspace:*",

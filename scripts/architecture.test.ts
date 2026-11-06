@@ -1,7 +1,7 @@
 /**
  * @file 工作区导入边界与包出口的回归测试。
  * 创建时间：未记录（现有文件尚无 Git 创建记录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-11-05
  * 版本作用：当前行为的回归约束，不进入产品构建。
  * 被调用：Bun 测试命令。
  * 调用：bun:test、node:fs、node:path、server、@elysiajs/eden、next-themes、@leonwillow-electron/auth、@leonwillow-electron/db、../../../server/src/app、../../../../packages/auth/src/config、../../../../packages/db/src/env、electron、next。
@@ -78,6 +78,7 @@ for (const source of [
 		for (const file of [
 			"apps/web/src/boundary-fixture.ts",
 			"packages/ui/src/boundary-fixture.ts",
+			"packages/lattice-grid/src/boundary-fixture.ts",
 		]) {
 			const result = lintImport(source, file);
 			expect(result.code).toBe(1);

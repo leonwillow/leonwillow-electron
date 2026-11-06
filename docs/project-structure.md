@@ -66,3 +66,9 @@ UI 包的源码由 Vite 消费；内部包无需为形式统一各自创建 dist
 认证会话/令牌的撤销与过期清理、临时对象 URL、请求头等运行时清理不属于业务资料删除，沿用原生命周期。Neo4j 为当前有效规范数据的可重建分析投影，资料变更的投影重建仍可替换节点/边；案件删除本身不触发图重建或物理清理。测试仅在独立随机 schema、案件 ID 与对象桶中做测试资源清理，不清理用户案件。
 
 2026-11-04：共享二级菜单分栏位于 `components/layout/workspace-panels.tsx`，基础 ReUI 组件位于 `packages/ui/src/components/resizable.tsx`；宽度偏好的校验读写位于 `lib/workspace-menu-width.ts`，持续状态与跨窗口同步由 `use-workspace-menu-width.ts` 提供，并只在统一菜单控制器创建一次。
+
+2026-11-05：`packages/calculators` 存放前后端共用、无DOM/数据库依赖的整数计税和导入规则；数据库只以类型引用领域结构。计算器 API 在 `modules/calculators`，页面在 `views/calculators`，导航在布局目录；详见 [计算器适配](./calculators-migration.md)。
+
+2026-11-05：`packages/lattice-grid` 封装泛型网格内核及 ReUI React 视图，依赖共享 UI，供页面组合；业务字段与提交逻辑留在页面。首个消费者为增值税月度表，见 [Lattice Grid 适配](./lattice-grid-migration.md)。
+
+2026-11-06：移除未接入 Bun 工作区的 `apps/server-java`，包括 Spring Boot 源码、Maven 模块配置、专属 IDE 配置和本地编译产物。应用后端统一由 `apps/server` 的 Bun/Elysia 服务承担。

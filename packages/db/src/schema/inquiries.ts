@@ -75,6 +75,7 @@ export const inquiryRecord = pgTable(
 			.notNull()
 			.references(() => inquiryCase.id),
 		title: text("title").notNull(),
+		archived: boolean("archived").notNull().default(false),
 		content: jsonb("content").$type<InquiryContent>().notNull(),
 		revision: integer("revision").notNull().default(1),
 		createdAt: timestamp("created_at").notNull().defaultNow(),

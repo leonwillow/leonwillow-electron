@@ -1,7 +1,7 @@
 /**
  * @file 随主题变化的全局通知容器的基础组件。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-05
+ * 修改时间：2026-11-06
  * 版本作用：按 Sonner 通知类型呈现成功、错误、警告和信息的语义配色。
  * 被调用：components/layout/root-layout.tsx。
  * 调用：next-themes、sonner。
@@ -28,7 +28,7 @@ const Toaster = ({ toastOptions, ...props }: ToasterProps) => {
 					"--normal-border": "var(--border)",
 					"--success-bg":
 						"color-mix(in oklab, var(--success) 10%, var(--popover))",
-					"--success-text": "var(--success)",
+					"--success-text": "var(--success-foreground)",
 					"--success-border":
 						"color-mix(in oklab, var(--success) 25%, var(--border))",
 					"--error-bg":
@@ -38,13 +38,13 @@ const Toaster = ({ toastOptions, ...props }: ToasterProps) => {
 						"color-mix(in oklab, var(--destructive) 30%, var(--border))",
 					"--warning-bg":
 						"color-mix(in oklab, var(--warning) 10%, var(--popover))",
-					"--warning-text": "var(--warning)",
+					"--warning-text": "var(--warning-foreground)",
 					"--warning-border":
 						"color-mix(in oklab, var(--warning) 25%, var(--border))",
-					"--info-bg": "color-mix(in oklab, var(--primary) 4%, var(--popover))",
-					"--info-text": "var(--primary)",
+					"--info-bg": "color-mix(in oklab, var(--info) 10%, var(--popover))",
+					"--info-text": "var(--info-foreground)",
 					"--info-border":
-						"color-mix(in oklab, var(--primary) 25%, var(--border))",
+						"color-mix(in oklab, var(--info) 25%, var(--border))",
 				} as React.CSSProperties
 			}
 			{...props}

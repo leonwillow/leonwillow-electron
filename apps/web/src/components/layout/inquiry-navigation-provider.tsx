@@ -48,8 +48,9 @@ export function InquiryNavigationProvider({
 		() =>
 			listInquiryCases({
 				q: searchTerm,
+				archived,
 			}),
-		[searchTerm],
+		[searchTerm, archived],
 	);
 	const cases = useInquiryResource(enabled ? loadCases : null);
 	const resetFilters = useCallback(() => {

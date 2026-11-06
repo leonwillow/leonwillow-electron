@@ -2,7 +2,7 @@
  * @file 询问笔录的实测分页、A4 预览和打印页面。
  * 创建时间：2026-11-04；修改时间：2026-11-05。
  * 版本作用：沿用 haoji 的字形测量和二分拆段，所有文字通过 React/textContent 输出。
- * 被调用：RecordEditor、打印 Portal；调用：文书共享 CSS、中文数字、浏览器字体与尺寸 API。
+ * 被调用：InquiryDocumentPreview、RecordEditor 打印 Portal；调用：文书共享 CSS、中文数字、浏览器字体与尺寸 API。
  * 预期结果：长问答跨页不断字、不丢文；预览点击定位字段，打印保持物理纸张尺寸。
  */
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -19,7 +19,7 @@ type Fragment = {
 	continued?: boolean;
 };
 type Page = { key: string; fragments: Fragment[] };
-const WIDTH = 793.7008;
+export const INQUIRY_PAGE_WIDTH = 793.7008;
 const HEIGHT = 1122.5197;
 function dateText(value: string) {
 	const match = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?$/.exec(value);
@@ -155,19 +155,19 @@ function FragmentLine({
 export default function InquiryDocumentPages({
 	draft,
 	preview = true,
+	scale = 1,
 	focus,
 	onReady,
 	onError,
 }: {
 	draft: InquiryDocument;
 	preview?: boolean;
+	scale?: number;
 	focus?: (id: string) => void;
 	onReady?: () => void;
 	onError?: (message: string) => void;
 }) {
-	const host = useRef<HTMLDivElement>(null);
 	const measure = useRef<HTMLDivElement>(null);
-	const [scale, setScale] = useState(1);
 	const [pages, setPages] = useState<Page[]>([]);
 	const [paginating, setPaginating] = useState(true);
 	const [error, setError] = useState("");
@@ -176,16 +176,6 @@ export default function InquiryDocumentPages({
 	readyRef.current = onReady;
 	const errorRef = useRef(onError);
 	errorRef.current = onError;
-	useEffect(() => {
-		if (!preview || !host.current) return;
-		const element = host.current;
-		const resize = () =>
-			setScale(Math.min(1, Math.max(0.1, element.clientWidth / WIDTH)));
-		const observer = new ResizeObserver(resize);
-		observer.observe(element);
-		resize();
-		return () => observer.disconnect();
-	}, [preview]);
 	useEffect(() => {
 		let cancelled = false;
 		setPaginating(true);
@@ -309,24 +299,27 @@ export default function InquiryDocumentPages({
 	}, [paginating, pages, error]);
 	const c = draft.content;
 	return (
-		<div ref={host} className="inquiry-document-pages">
+		<div className="inquiry-document-pages">
 			{preview && (
 				<p className="mb-2 text-muted-foreground text-xs" role="status">
 					{error ||
 						(paginating
 							? "正在分页…"
-							: `A4 文书 · 共 ${pages.length} 页 · 点击内容可定位编辑`)}
+							: `A4 文书 · 共 ${pages.length} 页 · 拖动查看 · 点击内容定位编辑`)}
 				</p>
 			)}
 			{!preview && error && <p role="alert">{error}</p>}
-			<div className="inquiry-document-stage">
+			<div
+				className="inquiry-document-stage"
+				style={preview ? { minWidth: INQUIRY_PAGE_WIDTH * scale } : undefined}
+			>
 				{pages.map((page, index) => (
 					<div
 						key={page.key}
 						className="inquiry-document-page-frame"
 						style={
 							preview
-								? { width: WIDTH * scale, height: HEIGHT * scale }
+								? { width: INQUIRY_PAGE_WIDTH * scale, height: HEIGHT * scale }
 								: undefined
 						}
 					>

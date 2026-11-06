@@ -1,11 +1,11 @@
 /**
  * @file 触发器的提示说明的基础组件。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-04
+ * 修改时间：2026-11-05
  * 版本作用：共享 UI 基础层，随工作区维护。
  * 被调用：布局图标、主题设置、资金图谱原生工具栏与分析操作。
  * 调用：@base-ui/react、ui/lib/utils。
- * 功能：支持外部 DOM 锚点、截断文字和 Portal 归属；锚点失效时统一隐藏并关闭提示。
+ * 功能：支持外部 DOM 锚点、截断文字和 Portal 归属；锚点失效时关闭提示，悬停策略由调用方指定。
  * 预期结果：气泡只依附可见锚点，退场动画不漂移；保留父浮层与受控打开状态的协作。
  */
 import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip";
@@ -109,7 +109,6 @@ function Tooltip({
 				{...props}
 				actionsRef={actions}
 				disabled={disabled}
-				disableHoverablePopup={false}
 				onOpenChange={(next, details) => {
 					onOpenChange?.(next, details);
 					if (!details.isCanceled) setUncontrolledOpen(next);

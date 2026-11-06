@@ -1,0 +1,64 @@
+# Lattice Grid 工作区包
+
+基于本地 Lattice Grid 0.1.0-beta.1 的 React 版本适配，供当前 SPA 和未来 Electron renderer 共用。MIT 来源及许可见 LICENSE、NOTICE.md。
+
+```tsx
+import { useState } from "react";
+import { DataGrid, type Column } from "@leonwillow-electron/lattice-grid";
+
+type Item = { id: string; name: string; quantity: number };
+const columns: Column<Item>[] = [
+  { id: "name", field: "name", header: "名称", pinned: true, required: true },
+  { id: "quantity", field: "quantity", header: "数量", type: "number", min: 0, integer: true, aggregate: "sum" },
+];
+const getRowId = (row: Item) => row.id;
+
+export function Inventory() {
+  const [rows, setRows] = useState<readonly Item[]>([]);
+  return <DataGrid rows={rows} columns={columns} getRowId={getRowId}
+    label="库存明细" onRowsChange={setRows} />;
+}
+```
+
+在当前应用无需单独导入样式：`@leonwillow-electron/ui/globals.css` 已包含网格主题规则和 Tailwind 源码扫描。包通过 `workspace:*` 引用源码，无需单独启动示例服务或生成 dist。
+
+## 边界
+
+- `src/core` 保留泛型数据处理、稳定行 ID、选择、筛选、排序、原子编辑/粘贴、校验、事务、撤销重做和安全 CSV 导出。
+- React 视图使用共享 ReUI/Base UI 控件，主题、字号、行高、弹层和滚动由当前 UI 体系管理。
+- 业务列定义、货币精度、权限、保存与服务端冲突处理由调用页面负责，包不导入应用路由、Eden、数据库或税务算法。
+- 默认中文；提供 `renderCell`、`renderEditor`、`renderToolbar`、`renderEmpty` 扩展，以及 `apiRef` 获取实例。未接管的单元格从 `renderCell` 返回 `undefined`，交给默认显示。
+- `toolbarContent?: ReactNode` 用于宿主筛选和业务操作，显示在行数之后、右侧内置工具之前，空间不足时自动换行。原 `renderToolbar(store)` 仍追加在内置工具之后；`toolbar={false}` 会隐藏整条工具栏及两个插槽。
+- 列宽 `width/minWidth/maxWidth` 是 CSS 像素，行高和工具控件跟随应用 rem 主题。可指定 `height`，默认使用响应式高度。
+
+## 接入约定
+
+使用稳定 `getRowId`，不要用数组序号作为业务 ID。将列定义保持在模块作用域或 useMemo 中。传入不可变 rows；整批修改通过一个 `onRowsChange(rows, transaction)` 回调确认，避免逐格 setState 覆盖同批修改。
+
+远程原子保存可用 `onCommit(transaction, { signal })`：成功后提交本地结果，抛错则保留原值；服务端仍须校验权限、修订号和数据。取消过期操作时尊重 signal。也可让宿主接管 `onRowsChange` 后统一自动保存，增值税页采用此方式。
+
+`readOnly` 禁止修改；删除仅在显式 `allowDelete` 时提供。`state/onStateChange` 支持受控视图；默认不读写 localStorage。`mode="server"` 只处理传入的当前页，宿主根据筛选/排序状态请求数据，摘要和导出不会自动读取未加载页。
+
+当宿主根据编辑重新计算只读列时，可设置 `reconcileRows="editable"`：同序行 ID 和可编辑值未发生额外变化时，保留撤销历史；真正的外部修改会清除旧历史并取消正在输入的旧草稿。普通页面保持默认行为即可。`loading`、`error` 或 `readOnly` 激活时会取消尚未完成的编辑。
+
+双击或 Enter/F2 打开编辑时保留当前值，直接键入则替换原文本。Enter/Tab 提交并移动选区，校验失败保留编辑以便修正；Esc/取消放弃本次改动。点击或聚焦外部会立即关闭编辑，有效改动提交，无效改动保留原值并显示错误通知；异步保存结束不会抢回焦点。未改文本时不提交，不增加撤销记录。
+
+列的 `formatEdit(value, row)` 可返回可被 `parse` 接受的编辑文本，例如将未录入金额呈现为 `0.00`；仅打开并离开不会改变原始空值。`align` 统一显示与编辑的文本对齐，`inputMode` 控制输入键盘；两者均不改变底层数据类型。默认编辑器使用 Input/SelectTrigger 的 `cell` 变体，继承单元格字体与留白，焦点边框由整个单元格呈现。
+
+自定义 `renderEditor` 通过 `onValueChange` 同步草稿，以支持离开时保存；`commit`/`cancel` 仍可显式结束编辑。Portal 弹层根节点应标记 `data-lg-edit-scope={editScope}`，避免点击内部选项被认为离开；编辑已结束时不应让弹层恢复到旧触发器的焦点。
+
+只读单元格保留键盘导航、范围选择和复制语义，但点击时不显示选中边框、选中底色或填充柄。可编辑格使用十字光标，悬停与切换焦点共用一个平滑移动的边框；滚动、列宽及窗口变化立即对齐，不播放追赶动画。边框在冻结列和表头边界内裁剪，并遵守 `prefers-reduced-motion`。仅源选区全部可编辑时提供填充柄，开始拖动时再次检查权限。
+
+复制与数字筛选使用列的 `getValue` 返回值，不使用格式化显示字符串；返回值的单位应与输入单位一致。VAT 适配层以元字符串对接网格，内部计算继续使用整数分。只读金额、币种或单位不同的列不要直接混用通用选区求和，可通过 `statusBar={false}` 隐藏。`exportable={false}` 可关闭网格 CSV 导出，交由宿主提供完整业务导出。
+
+窄窗口不足以同时显示冻结列和可滚动区域时，暂时让冻结列随内容滚动；恢复宽度后自动恢复冻结，列配置不会被改写。主题跟随全局共享 UI，不支持单独指定一套网格主题。
+
+列的 `group` 标题默认在横向滚动时停靠于冻结列（或行号列）之后，直到所属分组右边界将文字带走。停靠范围仅限当前分组；列宽、隐藏、冻结和窗口变化会重新采用实际布局，不需要业务页面监听滚动或单独配置。
+
+列标题悬停时显示 ReUI Sortable 手柄，支持鼠标拖动、Space/方向键排序与 Escape 取消。冻结列与普通列分别排序；窄窗临时取消视觉冻结不改变所属区域。`reorderVisibleColumns(ids, pinned)` 接收该区域全部可见列 ID 的新排列，验证失败返回 false，隐藏列及另一组保持不变。`canMoveColumn(id, direction)` 与 `moveColumn(id, direction)` 同样限制组内移动，视图保存继续沿用 `saveView/restoreView`。
+
+密度同时影响分组行、标题行和数据行；筛选输入保留足够高度。标题点击排序保留键盘操作，但不绘制按钮背景；列菜单使用共享 DropdownMenu。
+
+当前保留固定行高和行虚拟化；不承诺可变行高、右冻结、树形透视、公式、XLSX 或所有浏览器/辅助技术认证。这里的列分组是表头展示，不是数据透视分组。
+
+`summary` 默认启用底部汇总行，`summary={false}` 可关闭。列的 `aggregate` 计算当前筛选后的全部行，`formatAggregate` 控制展示；`aggregateLabel` 可自定义前缀（例如“期末”），设为空字符串可只显示结果。金额等精确计算由业务自定义聚合函数，余额应按业务时间边界取值，不依赖当前视觉排序。

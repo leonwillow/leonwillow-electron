@@ -30,7 +30,8 @@
 		"neo4j-driver": "^6.2.0",
 		"pizzip": "^3.3.0",
 		"varlock": "catalog:",
-		"xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+		"xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
+		"@leonwillow-electron/calculators": "workspace:*"
 	},
 	"devDependencies": {
 		"@elysiajs/eden": "^1.4.9",

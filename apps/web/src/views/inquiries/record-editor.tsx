@@ -51,6 +51,7 @@ import {
 import InquiryBasicFields from "./basic-fields";
 import { InquiryIconButton } from "./controls";
 import InquiryDocumentPages from "./document-pages";
+import InquiryDocumentPreview from "./document-preview";
 import InquiryQuestionFields from "./question-fields";
 import { useInquiryEditor } from "./use-inquiry-editor";
 import InquiryWorkspaceHeader from "./workspace-header";
@@ -192,7 +193,7 @@ export default function InquiryRecordEditor({
 			readOnly={editingDisabled}
 		/>
 	);
-	const preview = <InquiryDocumentPages draft={draft} focus={focus} />;
+	const preview = <InquiryDocumentPreview draft={draft} focus={focus} />;
 	return (
 		<div ref={root} className="flex min-h-0 min-w-0 flex-1 flex-col">
 			<InquiryWorkspaceHeader>
@@ -219,7 +220,7 @@ export default function InquiryRecordEditor({
 						{editor.mutating
 							? "正在处理目录操作…"
 							: readOnly
-								? "案件已归档，只读"
+								? "已归档，只读"
 								: editor.saving
 									? "正在保存…"
 									: editor.error
@@ -354,6 +355,7 @@ export default function InquiryRecordEditor({
 						minSize={panelSizes.previewMin}
 						maxSize={panelSizes.previewMax}
 						className="bg-muted/20"
+						scrollable={false}
 					>
 						{preview}
 					</CollapsibleSidePanel>
@@ -374,24 +376,23 @@ export default function InquiryRecordEditor({
 							</TabsTrigger>
 						</TabsList>
 					</Tabs>
-					<ScrollArea
-						aria-label={
-							tab === "basic"
-								? "笔录基础信息"
-								: tab === "questions"
-									? "笔录问答编辑"
-									: "笔录文书预览"
-						}
-						className="min-h-0 min-w-0 flex-1"
-						contentClassName="p-workspace-gutter"
-						render={<section />}
-					>
-						{tab === "basic"
-							? basic
-							: tab === "questions"
-								? questions
-								: preview}
-					</ScrollArea>
+					{tab === "preview" ? (
+						<section
+							aria-label="笔录文书预览"
+							className="flex min-h-0 min-w-0 flex-1 flex-col"
+						>
+							{preview}
+						</section>
+					) : (
+						<ScrollArea
+							aria-label={tab === "basic" ? "笔录基础信息" : "笔录问答编辑"}
+							className="min-h-0 min-w-0 flex-1"
+							contentClassName="p-workspace-gutter"
+							render={<section />}
+						>
+							{tab === "basic" ? basic : questions}
+						</ScrollArea>
+					)}
 				</>
 			)}
 			<Dialog

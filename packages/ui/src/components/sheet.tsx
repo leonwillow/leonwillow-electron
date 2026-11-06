@@ -1,7 +1,7 @@
 /**
  * @file 从原模板迁入的侧边详情窗口。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-06
+ * 修改时间：2026-11-06
  * 版本作用：共享 Base UI Sheet，支持不遮挡画布的非模态用法。
  * 被调用：资金节点详情；调用：Base UI Dialog、Button 与共享令牌。
  * 功能：侧边进出、标题、关闭和焦点管理；业务方控制内容与打开状态。
@@ -35,7 +35,7 @@ function SheetOverlay({ className, ...props }: SheetPrimitive.Backdrop.Props) {
 		<SheetPrimitive.Backdrop
 			data-slot="sheet-overlay"
 			className={cn(
-				"data-open:fade-in-0 data-closed:fade-out-0 fixed inset-0 z-50 bg-black/50 duration-200 data-closed:animate-out data-open:animate-in",
+				"data-open:fade-in-0 data-closed:fade-out-0 fixed inset-0 isolate z-50 bg-overlay duration-200 data-closed:animate-out data-open:animate-in supports-backdrop-filter:backdrop-blur-xs",
 				className,
 			)}
 			{...props}

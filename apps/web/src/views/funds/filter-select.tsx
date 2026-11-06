@@ -43,7 +43,7 @@ export default function FilterSelect({
 				<SelectTrigger id={id} className="w-full">
 					<SelectValue />
 				</SelectTrigger>
-				<SelectContent alignItemWithTrigger={false}>
+				<SelectContent>
 					<SelectGroup>
 						{options.map((o) => (
 							<SelectItem key={o.value} value={o.value}>

@@ -25,7 +25,7 @@ import {
 	PlusIcon,
 	Trash2Icon,
 } from "lucide-react";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import type { InquiryContent } from "@/lib/inquiries";
 import { InquiryIconButton } from "./controls";
 import { emptyQuestion } from "./record-fields";
@@ -40,6 +40,11 @@ export default function InquiryQuestionFields({
 	readOnly: boolean;
 }) {
 	const host = useRef<HTMLDivElement>(null);
+	const [moveFeedback, setMoveFeedback] = useState<{
+		id: string;
+		sequence: number;
+		position: number;
+	} | null>(null);
 	const insert = (index: number) => {
 		if (items.length >= 200) return;
 		const item = emptyQuestion();
@@ -56,6 +61,20 @@ export default function InquiryQuestionFields({
 		const next = items.filter((item) => item.id !== id);
 		next.splice(index, 0, source);
 		onChange(next);
+		setMoveFeedback((previous) => ({
+			id,
+			sequence: (previous?.sequence ?? 0) + 1,
+			position: index + 1,
+		}));
+		requestAnimationFrame(() =>
+			host.current
+				?.querySelector(`[data-question-id="${id}"]`)
+				?.scrollIntoView({
+					block: "nearest",
+					inline: "nearest",
+					behavior: "instant",
+				}),
+		);
 	};
 	return (
 		<div ref={host} className="flex min-w-0 flex-col gap-4">
@@ -71,6 +90,9 @@ export default function InquiryQuestionFields({
 					末尾添加
 				</Button>
 			</div>
+			<span className="sr-only" role="status" aria-live="polite">
+				{moveFeedback ? `问答已移动到第 ${moveFeedback.position} 组` : ""}
+			</span>
 			<Sortable
 				value={items}
 				onValueChange={onChange}
@@ -84,8 +106,16 @@ export default function InquiryQuestionFields({
 						value={item.id}
 						disabled={readOnly}
 						aria-label={`第 ${index + 1} 组问答`}
-						className="flex flex-col gap-3 rounded-lg border bg-card p-4"
+						data-question-id={item.id}
+						className="relative flex flex-col gap-3 rounded-lg border bg-card p-4"
 					>
+						{moveFeedback?.id === item.id && (
+							<span
+								key={moveFeedback.sequence}
+								className="inquiry-question-move-glow"
+								aria-hidden="true"
+							/>
+						)}
 						<div className="flex flex-wrap items-center gap-1">
 							<SortableItemHandle
 								render={

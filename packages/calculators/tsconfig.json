@@ -1,0 +1,5 @@
+{
+	"extends": "@leonwillow-electron/config/tsconfig.base.json",
+	"compilerOptions": { "noEmit": true },
+	"include": ["src", "test"]
+}

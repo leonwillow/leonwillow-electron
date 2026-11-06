@@ -3,7 +3,7 @@
  * 创建时间：2026-11-04；修改时间：2026-11-05。
  * 版本作用：组合现有 Base UI，保留中文名称、焦点和共享尺寸。
  * 被调用：笔录页面及案件侧栏；调用：共享 Button/Dialog/Tooltip。
- * 预期结果：异步失败可重试，删除明确确认且进行中不能重复提交。
+ * 预期结果：操作提示在离开按钮时关闭；异步失败可重试，删除明确确认且进行中不能重复提交。
  */
 import { Button } from "@leonwillow-electron/ui/components/button";
 import {
@@ -28,7 +28,7 @@ export function InquiryIconButton({
 	...props
 }: ComponentProps<typeof Button> & { label: string }) {
 	return (
-		<Tooltip>
+		<Tooltip disableHoverablePopup>
 			<TooltipTrigger
 				render={
 					<Button
