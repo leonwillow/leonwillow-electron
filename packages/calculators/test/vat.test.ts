@@ -94,7 +94,7 @@ test("正负销项调整和剩余留抵均进入金额平衡", () => {
 test("缺月、历史口径和负期初分别阻断计算；补齐后恢复", () => {
 	const source = history();
 	const gap = calculate([source[0], source[2]] as HistoryRow[], {});
-	expect(gap.rows.map((r) => r.status)).toEqual(["ready", "gap", "blocked"]);
+	expect(gap.rows.map((r) => r.status)).toEqual(["ready", "gap"]);
 	expect(gap.totals.newTax).toBeNull();
 	expect(() => resultCsv(gap)).toThrow();
 	const mismatch = calculate(
@@ -141,9 +141,18 @@ test("历史冲突原子失败，重复跳过，空方案和跨度有界", () =>
 	expect(() =>
 		mergeHistory(
 			[],
-			[row("1900-01", "0", "0", "0", "0"), row("2000-01", "0", "0", "0", "0")],
+			Array.from({ length: 1201 }, (_, n) => ({
+				id: `blank-${n}`,
+				periodStart: "",
+				periodEnd: "",
+				x: "0",
+				i: "0",
+				t: "0",
+				tax: "0",
+				end: "0",
+			})),
 		),
-	).toThrow("跨度");
+	).toThrow("最多支持");
 	expect(calculate([], {}).allReady).toBe(false);
 	expect(() =>
 		readBackup({
@@ -158,7 +167,9 @@ test("CSV 引号、表头别名、小规模与合计排除", () => {
 		'\ufeff月份,销项税额（元）,进项税额,进项转出,应纳税额合计,期末留抵税额,申报类型\r\n2025-01,"1,000.00",500,0,500,0,一般纳税人\r\n2025-02,1,0,0,1,0,小规模纳税人\r\n合计,1001,500,0,501,0,\r\n';
 	expect(gridToHistory(parseDelimited(text))).toMatchObject({
 		excluded: 1,
-		rows: [{ month: "2025-01", x: "1000.00" }],
+		rows: [
+			{ periodStart: "2025-01-01", periodEnd: "2025-01-31", x: "1000.00" },
+		],
 	});
 	expect(parseDelimited('a,b\n"a""b","line\n2"')[1]).toEqual([
 		'a"b',
@@ -166,13 +177,25 @@ test("CSV 引号、表头别名、小规模与合计排除", () => {
 	]);
 	expect(() => parseDelimited('a,"b')).toThrow("引号");
 });
-test("所属期必须为完整自然月，支持闰年和中文日期", () => {
-	expect(parsePeriod("2024-02-01 至 2024-02-29")).toBe("2024-02");
-	expect(parsePeriod("2025年1月1日", "2025年1月31日")).toBe("2025-01");
-	expect(parsePeriod("2025/1")).toBe("2025-01");
+test("所属期保留实际起止日期，支持季度、闰年和中文日期", () => {
+	expect(parsePeriod("2024-02-01 至 2024-02-29")).toEqual({
+		periodStart: "2024-02-01",
+		periodEnd: "2024-02-29",
+	});
+	expect(parsePeriod("2025年1月1日", "2025年1月31日")).toEqual({
+		periodStart: "2025-01-01",
+		periodEnd: "2025-01-31",
+	});
+	expect(parsePeriod("2025/1")).toEqual({
+		periodStart: "2025-01-01",
+		periodEnd: "2025-01-31",
+	});
+	expect(parsePeriod("2025-01-01至2025-03-31")).toEqual({
+		periodStart: "2025-01-01",
+		periodEnd: "2025-03-31",
+	});
 	for (const s of [
 		"2025-01-02",
-		"2025-01-01至2025-03-31",
 		"2025-13",
 		"2025-01junk",
 		"2023-02-01至2023-02-29",
@@ -202,10 +225,10 @@ test("四项金额分别保存计算，抵消仍标记调整并完整导出", ()
 	expect(result.audit).toBe(true);
 	expect(JSON.stringify(adjustment)).toBe(before);
 	const csv = parseDelimited(resultCsv(result));
-	expect(csv[0]?.slice(6, 10)).toEqual(
+	expect(csv[0]?.slice(7, 11)).toEqual(
 		adjustmentFields.map((key) => adjustmentLabels[key]),
 	);
-	expect(csv[1]?.slice(6, 10)).toEqual(["60.00", "10.00", "20.00", "5.00"]);
+	expect(csv[1]?.slice(7, 11)).toEqual(["60.00", "10.00", "20.00", "5.00"]);
 	const cancelled = calculate(history(), {
 		"2025-01": {
 			outputIncrease: "10",
@@ -320,4 +343,25 @@ test("备份未知金额字段原子拒绝，空调整与已知坏原文仍可�
 			history(),
 		)["2025-01"]?.outputIncrease,
 	).toBe("bad");
+});
+
+test("保存及手工录入允许原始申报校正，文件导入仍提示冲突，失败不修改旧对象", () => {
+	const original = history();
+	const before = JSON.stringify(original);
+	const correction = { ...original[0], x: "120.00" };
+	const merged = mergeHistory(original, [correction], true);
+	expect(merged.updated).toBe(1);
+	expect(merged.rows[0]?.x).toBe("120.00");
+	expect(merged.rows.slice(1)).toEqual(original.slice(1));
+	expect(JSON.stringify(original)).toBe(before);
+	expect(() => mergeHistory(original, [correction])).toThrow(
+		"可在表格中手工修正",
+	);
+	expect(() => mergeHistory(original, [correction, correction], true)).toThrow(
+		"重复申报记录",
+	);
+	expect(() =>
+		mergeHistory(original, [correction, { ...original[1], tax: "-1" }], true),
+	).toThrow("不能为负数");
+	expect(JSON.stringify(original)).toBe(before);
 });

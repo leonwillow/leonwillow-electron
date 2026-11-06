@@ -1,5 +1,5 @@
 /**
- * @file 增值税历史导入、手工补月及新旧方案备份恢复弹窗。
+ * @file 增值税历史导入、新旧方案备份恢复弹窗。
  * 创建时间：2026-11-05；修改时间：2026-11-06。
  * 版本作用：共享组件承载读取、预览、确认三步；导入 HTML 只读取文本。
  * 被调用：VatEditor；调用：共享领域解析、Dialog/Tabs/Table/ScrollArea 与 Sonner。
@@ -10,7 +10,6 @@ import {
 	fields,
 	labels,
 	mergeHistory,
-	normalizeHistoryRow,
 	readBackup,
 	type VatData,
 } from "@leonwillow-electron/calculators";
@@ -52,6 +51,7 @@ import { calculatorError } from "@/lib/calculators";
 type Preview = {
 	data: VatData;
 	added: number;
+	updated: number;
 	skipped: number;
 	excluded: number;
 	issues: number;
@@ -89,26 +89,16 @@ function parseText(text: string) {
 }
 export default function ImportDialog({
 	data,
-	month,
 	onClose,
 	onApply,
 }: {
 	data: VatData;
-	month?: string;
 	onClose: () => void;
 	onApply: (data: VatData) => Promise<boolean>;
 }) {
-	const [tab, setTab] = useState(month ? "manual" : "file");
+	const [tab, setTab] = useState("file");
 	const [text, setText] = useState("");
 	const [file, setFile] = useState<File | null>(null);
-	const [manual, setManual] = useState({
-		month: month ?? "",
-		x: "",
-		i: "",
-		t: "",
-		tax: "",
-		end: "",
-	});
 	const [preview, setPreview] = useState<Preview | null>(null);
 	const [busy, setBusy] = useState(false);
 	const generation = useRef(0);
@@ -124,13 +114,7 @@ export default function ImportDialog({
 			let incoming: VatData;
 			let excluded = 0;
 			let restore = false;
-			if (tab === "manual")
-				incoming = {
-					history: [normalizeHistoryRow(manual)],
-					adjustments: data.adjustments,
-					source: "手工录入",
-				};
-			else {
+			{
 				if (tab === "file" && !file)
 					throw Error("请先选择历史表或方案备份文件");
 				const content = tab === "file" && file ? await fileText(file) : text;
@@ -148,8 +132,27 @@ export default function ImportDialog({
 					};
 				}
 			}
-			const merged = mergeHistory(data.history, incoming.history);
-			const next = { ...incoming, history: merged.rows };
+			const merged = mergeHistory(
+				data.history,
+				incoming.history,
+				false,
+				restore,
+			);
+			const adjustments = restore
+				? ({} as VatData["adjustments"])
+				: { ...data.adjustments };
+			for (const imported of incoming.history) {
+				const target = merged.rows.find(
+					(row) =>
+						row.id === imported.id ||
+						(row.periodStart &&
+							row.periodStart === imported.periodStart &&
+							row.periodEnd === imported.periodEnd),
+				);
+				const adjustment = incoming.adjustments[imported.id];
+				if (target && adjustment) adjustments[target.id] = adjustment;
+			}
+			const next = { ...incoming, history: merged.rows, adjustments };
 			const issues = calculate(next.history, next.adjustments).rows.filter(
 				(r) => r.status === "gap" || r.status === "error",
 			).length;
@@ -157,6 +160,7 @@ export default function ImportDialog({
 				setPreview({
 					data: next,
 					added: merged.added,
+					updated: merged.updated,
 					skipped: merged.skipped,
 					excluded,
 					issues,
@@ -186,7 +190,7 @@ export default function ImportDialog({
 				<DialogHeader>
 					<DialogTitle>导入历史 / 恢复方案</DialogTitle>
 					<DialogDescription>
-						历史金额保存后只读；同月相同数据跳过，冲突数据不会覆盖。
+						保留申报表中的所属期起止日期；重复期间金额冲突或期间重叠时暂停导入。
 					</DialogDescription>
 				</DialogHeader>
 				<Tabs
@@ -199,7 +203,6 @@ export default function ImportDialog({
 					<TabsList>
 						<TabsTrigger value="file">选择文件</TabsTrigger>
 						<TabsTrigger value="paste">粘贴表格</TabsTrigger>
-						<TabsTrigger value="manual">手工录入</TabsTrigger>
 					</TabsList>
 					<TabsContent value="file" className="flex flex-col gap-3 pt-3">
 						<Label htmlFor="vat-import-file">历史表或方案备份（兼容 V5）</Label>
@@ -226,7 +229,7 @@ export default function ImportDialog({
 						>
 							<Textarea
 								id="vat-paste"
-								placeholder="月份、销项税额、进项税额、进项税额转出、应纳税额、期末留抵"
+								placeholder="所属期起、所属期止、销项税额、进项税额、进项税额转出、应纳税额、期末留抵"
 								value={text}
 								disabled={busy}
 								onChange={(e) => {
@@ -236,30 +239,6 @@ export default function ImportDialog({
 							/>
 						</ScrollArea>
 					</TabsContent>
-					<TabsContent
-						value="manual"
-						className="grid grid-cols-1 gap-3 pt-3 sm:grid-cols-2"
-					>
-						{(["month", ...fields] as const).map((key) => (
-							<div key={key} className="flex flex-col gap-2">
-								<Label htmlFor={`vat-history-${key}`}>
-									{key === "month" ? "所属月份" : labels[key]}
-								</Label>
-								<Input
-									id={`vat-history-${key}`}
-									type={key === "month" ? "month" : "text"}
-									inputMode={key === "month" ? undefined : "decimal"}
-									placeholder={key === "month" ? "YYYY-MM" : "0.00"}
-									value={manual[key]}
-									disabled={busy}
-									onChange={(e) => {
-										setManual({ ...manual, [key]: e.target.value });
-										invalidate();
-									}}
-								/>
-							</div>
-						))}
-					</TabsContent>
 				</Tabs>
 				<Button variant="outline" disabled={busy} onClick={() => void read()}>
 					{busy ? "正在处理…" : "读取并预览"}
@@ -267,24 +246,25 @@ export default function ImportDialog({
 				{preview && (
 					<div className="flex flex-col gap-3">
 						<p role="status" className="text-sm">
-							新增 {preview.added} 个月 · 相同记录跳过 {preview.skipped} 条 ·
-							排除小规模 {preview.excluded} 条
+							新增 {preview.added} 期 · 更新 {preview.updated} 期 · 相同记录跳过{" "}
+							{preview.skipped} 条 · 排除小规模 {preview.excluded} 条
 						</p>
 						{preview.issues > 0 && (
 							<p className="text-warning-foreground text-xs">
 								有 {preview.issues}{" "}
-								处缺月或核对问题。历史将原样保留，相应月份计算暂停。
+								处期间断档或核对问题。历史将原样保留，相应所属期计算暂停。
 							</p>
 						)}
 						{preview.restore && (
 							<p className="text-sm text-warning-foreground">
-								确认后将用备份中的调整替换当前全部调整，额外的历史月份仍会保留。
+								确认后将用备份中的调整替换当前全部调整，额外的历史所属期仍会保留。
 							</p>
 						)}
 						<Table containerProps={{ className: "vat-import-preview" }}>
 							<TableHeader>
 								<TableRow>
-									<TableHead>月份</TableHead>
+									<TableHead>所属期起</TableHead>
+									<TableHead>所属期止</TableHead>
 									{fields.map((key) => (
 										<TableHead key={key}>{labels[key]}</TableHead>
 									))}
@@ -292,8 +272,9 @@ export default function ImportDialog({
 							</TableHeader>
 							<TableBody>
 								{preview.data.history.slice(0, 12).map((row) => (
-									<TableRow key={row.month}>
-										<TableCell>{row.month}</TableCell>
+									<TableRow key={row.id}>
+										<TableCell>{row.periodStart || "未填写"}</TableCell>
+										<TableCell>{row.periodEnd || "未填写"}</TableCell>
 										{fields.map((key) => (
 											<TableCell key={key}>{row[key]}</TableCell>
 										))}
@@ -302,7 +283,7 @@ export default function ImportDialog({
 							</TableBody>
 						</Table>
 						<p className="text-muted-foreground text-xs">
-							合并后共 {preview.data.history.length} 个月，预览前12个月。
+							合并后共 {preview.data.history.length} 期，预览前12期。
 						</p>
 					</div>
 				)}
@@ -312,18 +293,18 @@ export default function ImportDialog({
 					</Button>
 					<Button
 						disabled={
-							busy || !preview || (!preview.restore && preview.added === 0)
+							busy ||
+							!preview ||
+							(!preview.restore && preview.added + preview.updated === 0)
 						}
-						disabledReason="请先读取并核对新增记录"
+						disabledReason="请先读取并核对新增或更新的记录"
 						onClick={async () => {
 							if (!preview) return;
 							setBusy(true);
 							try {
 								if (await onApply(preview.data)) {
 									toast.success(
-										preview.restore
-											? "方案已恢复并保存"
-											: "历史数据已保存并锁定",
+										preview.restore ? "方案已恢复并保存" : "原始申报已保存",
 									);
 									onClose();
 								}
@@ -332,7 +313,7 @@ export default function ImportDialog({
 							}
 						}}
 					>
-						{preview?.restore ? "确认恢复并保存" : "确认导入并锁定"}
+						{preview?.restore ? "确认恢复并保存" : "确认录入并保存"}
 					</Button>
 				</DialogFooter>
 			</DialogContent>

@@ -1,14 +1,16 @@
 /**
  * @file 按所有者隔离的增值税方案事务服务。
  * 创建时间：2026-11-05；修改时间：2026-11-06。
- * 版本作用：历史追加、调整独立保存，服务端重算并持久化带规则版本的结果。
+ * 版本作用：原始申报追加或校正、调整独立保存，服务端重算并持久化带规则版本的结果。
  * 被调用：计算器 API；调用：Drizzle、资源工厂、共享计算规则。
  * 预期结果：旧修订返回409、他人资源404、坏历史400；失败事务不改变任何历史。
  */
 import {
 	calculate,
+	type HistoryRow,
 	mergeHistory,
 	normalizeAdjustments,
+	normalizeHistory,
 	RULES_VERSION,
 } from "@leonwillow-electron/calculators";
 import { vatScenario } from "@leonwillow-electron/db/schema";
@@ -43,12 +45,14 @@ export async function list(access: AccessSession) {
 export async function get(access: AccessSession, id: string) {
 	const [row] = await db().select().from(vatScenario).where(owned(access, id));
 	if (!row) return missing();
-	// 读取旧 JSON 仅在内存转换并重算，不更新版本、修订或时间；保存才写入 v2。
-	const adjustments = normalizeAdjustments(row.adjustments, row.history);
+	// 读取旧 JSON 仅在内存转换并重算，不更新版本、修订或时间；保存才写入 v3。
+	const history = normalizeHistory(row.history);
+	const adjustments = normalizeAdjustments(row.adjustments, history);
 	return {
 		...row,
+		history,
 		adjustments,
-		result: calculate(row.history, adjustments),
+		result: calculate(history, adjustments),
 		rulesVersion: RULES_VERSION,
 	};
 }
@@ -93,11 +97,11 @@ export async function save(access: AccessSession, id: string, input: VatSave) {
 				"VAT_CONFLICT",
 				"方案已在其他窗口更新。请先导出当前方案备份，再重新打开。",
 			);
-		let history: typeof row.history;
+		let history: HistoryRow[];
 		let adjustments: typeof row.adjustments;
 		let result: typeof row.result;
 		try {
-			history = mergeHistory(row.history, input.history).rows;
+			history = mergeHistory(row.history, input.history, true).rows;
 			adjustments = normalizeAdjustments(input.adjustments, history);
 			result = calculate(history, adjustments);
 		} catch (error) {
@@ -122,6 +126,6 @@ export async function save(access: AccessSession, id: string, input: VatSave) {
 			.where(eq(vatScenario.id, id))
 			.returning();
 		if (!updated) return missing();
-		return updated;
+		return { ...updated, history };
 	});
 }

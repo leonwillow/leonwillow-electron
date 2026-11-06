@@ -12,7 +12,11 @@ import {
 	calculate,
 	changed,
 	emptyAdjustment,
+	fields,
 	type HistoryRow,
+	insertVatRows,
+	legacyPeriod,
+	type VatData,
 } from "@leonwillow-electron/calculators";
 import {
 	aggregate,
@@ -22,6 +26,7 @@ import {
 import {
 	applyVatGridChanges,
 	parseVatAdjustment,
+	parseVatHistory,
 	type VatGridRow,
 	vatAdjustmentGridFields,
 	vatGridChanges,
@@ -31,7 +36,8 @@ import {
 } from "../src/views/calculators/vat-grid-model";
 
 const month = (date: string): HistoryRow => ({
-	month: date,
+	id: date,
+	...legacyPeriod(date),
 	x: "200.00",
 	i: "100.00",
 	t: "0.00",
@@ -43,6 +49,55 @@ const adjustment = (
 ): Adjustments[string] => ({ ...emptyAdjustment(), ...values });
 const rowsFor = (history: HistoryRow[], adjustments: Adjustments = {}) =>
 	vatGridRows(calculate(history, adjustments).rows, adjustments);
+
+test("所属期双列整批提交与撤销重做保留行身份，重叠和倒置不部分提交", async () => {
+	let data = insertVatRows(
+		{ source: "日期事务测试", history: [month("2026-01")], adjustments: {} },
+		"2026-01",
+		"below",
+		["blank"],
+	);
+	const options = (): GridOptions<VatGridRow> => ({
+		rows: rowsFor(data.history, data.adjustments),
+		columns: vatGridColumns,
+		getRowId: vatGridRowId,
+		reconcileRows: "editable",
+		onCommit: (transaction) => {
+			applyVatGridChanges(
+				data,
+				vatGridChanges(transaction.previousRows, transaction.rows),
+			);
+		},
+		onRowsChange: (next, transaction) => {
+			data = applyVatGridChanges(
+				data,
+				vatGridChanges(transaction.previousRows, next),
+			);
+		},
+	});
+	const grid = createGrid(options());
+	grid.select({ rowId: "blank", columnId: "periodStart" });
+	expect((await grid.paste([["2026-02-01", "2026-04-30"]])).ok).toBe(true);
+	expect(data.history[1]).toMatchObject({
+		id: "blank",
+		periodStart: "2026-02-01",
+		periodEnd: "2026-04-30",
+	});
+	grid.updateOptions(options());
+	expect((await grid.undo()).ok).toBe(true);
+	expect(data.history[1]).toMatchObject({
+		id: "blank",
+		periodStart: "",
+		periodEnd: "",
+	});
+	grid.updateOptions(options());
+	expect((await grid.redo()).ok).toBe(true);
+	grid.updateOptions(options());
+	const before = JSON.stringify(data);
+	expect((await grid.paste([["2026-01-31", "2026-04-30"]])).ok).toBe(false);
+	expect((await grid.paste([["2026-05-01", "2026-04-30"]])).ok).toBe(false);
+	expect(JSON.stringify(data)).toBe(before);
+});
 function summary(columnId: string, rows: readonly VatGridRow[]) {
 	const column = vatGridColumns.find((candidate) => candidate.id === columnId);
 	if (!column) throw Error(`缺少汇总列 ${columnId}`);
@@ -59,24 +114,24 @@ test("四项调整分别保留整数分精度，拒绝任何负数或第三位�
 	}
 });
 
-test("只有四项调整列可编辑，缺月、原历史和联动结果只读", () => {
+test("所属期起止与原始申报可编辑，联动结果只读", () => {
 	const rows = rowsFor([month("2026-01"), month("2026-03")]);
 	const editable = vatGridColumns.filter((column) => column.editable !== false);
-	expect(editable.map((column) => column.id)).toEqual([...adjustmentFields]);
-	expect(editable.map((column) => column.group)).toEqual([
-		"销项调整",
-		"销项调整",
-		"进项调整",
-		"进项调整",
+	expect(editable.map((column) => column.id)).toEqual([
+		"periodStart",
+		"periodEnd",
+		...fields.map((key) => `history-${key}`),
+		...adjustmentFields,
 	]);
-	const [existing, gap] = rows;
-	if (!existing || !gap) throw Error("测试月份缺失");
-	for (const column of editable) {
-		if (typeof column.editable !== "function")
-			throw Error("调整列必须按行判断");
-		expect(column.editable(existing)).toBe(true);
-		expect(column.editable(gap)).toBe(false);
-	}
+	const [existing] = rows;
+	if (!existing) throw Error("缺少测试行");
+	for (const column of editable)
+		expect(
+			typeof column.editable === "function"
+				? column.editable(existing)
+				: column.editable,
+		).toBe(true);
+	expect(rows).toHaveLength(2);
 });
 
 test("批量修改保留同月其他三项和其他月份，反向快照恢复四项原值", () => {
@@ -92,7 +147,7 @@ test("批量修改保留同月其他三项和其他月份，反向快照恢复�
 	};
 	const previous = rowsFor([month("2026-01"), month("2026-02")], adjustments);
 	const next = previous.map((row) =>
-		row.month === "2026-01"
+		row.id === "2026-01"
 			? {
 					...row,
 					adjustmentOutputIncrease: "10.00",
@@ -102,7 +157,13 @@ test("批量修改保留同月其他三项和其他月份，反向快照恢复�
 	);
 	const changes = vatGridChanges(previous, next);
 	expect(changes).toHaveLength(3);
-	const applied = applyVatGridChanges(adjustments, changes);
+	const data = {
+		source: "合成测试",
+		history: [month("2026-01"), month("2026-02"), month("2026-03")],
+		adjustments,
+	};
+	const appliedData = applyVatGridChanges(data, changes);
+	const applied = appliedData.adjustments;
 	expect(applied).toEqual({
 		"2026-01": adjustment({
 			outputIncrease: "10.00",
@@ -118,9 +179,10 @@ test("批量修改保留同月其他三项和其他月份，反向快照恢复�
 		"2026-03": adjustments["2026-03"],
 	});
 	expect(adjustments["2026-01"].outputIncrease).toBe("5.00");
-	expect(applyVatGridChanges(applied, vatGridChanges(next, previous))).toEqual(
-		adjustments,
-	);
+	expect(
+		applyVatGridChanges(appliedData, vatGridChanges(next, previous))
+			.adjustments,
+	).toEqual(adjustments);
 });
 
 test("派生结果重算和缺月数据不会回写四项调整", () => {
@@ -145,9 +207,9 @@ test("两个月四列粘贴每批只更新一次方案，联动重算后撤销�
 		onRowsChange: (next, transaction) => {
 			changes++;
 			adjustments = applyVatGridChanges(
-				adjustments,
+				{ source: "合成测试", history, adjustments },
 				vatGridChanges(transaction.previousRows, next),
-			);
+			).adjustments;
 		},
 	});
 	const grid = createGrid(options());
@@ -197,7 +259,7 @@ test("两个月四列粘贴每批只更新一次方案，联动重算后撤销�
 	expect(summary("result-tax", grid.getSnapshot().viewRows)).toBe(24000);
 });
 
-test("任一调增或调减为负数时整批拒绝，缺月同样不允许部分粘贴", async () => {
+test("任一调增或调减为负数时整批拒绝，不写入部分结果", async () => {
 	let changes = 0;
 	const grid = createGrid({
 		rows: rowsFor([month("2026-01"), month("2026-03")]),
@@ -218,7 +280,6 @@ test("任一调增或调减为负数时整批拒绝，缺月同样不允许部�
 				])
 			).ok,
 		).toBe(false);
-	expect((await grid.paste([["50.00"], ["10.00"]])).ok).toBe(false);
 	expect(changes).toBe(0);
 	for (const key of adjustmentFields)
 		expect(grid.getSnapshot().rows[0]?.[vatAdjustmentGridFields[key]]).toBe("");
@@ -299,7 +360,7 @@ test("四项调整均按数值排序与元值筛选，空调整视为零", () =>
 	for (const key of adjustmentFields) {
 		const adjustments = Object.fromEntries(
 			history.map((row, index) => [
-				row.month,
+				row.id,
 				adjustment({ [key]: amounts[index] ?? "" }),
 			]),
 		);
@@ -365,7 +426,8 @@ test("汇总金额超过单笔录入上限仍可完整格式化", () => {
 test("留抵余额按月份首末取值，不累加且不受行排序影响", () => {
 	const history: HistoryRow[] = [
 		{
-			month: "2026-01",
+			id: "2026-01",
+			...legacyPeriod("2026-01"),
 			x: "100.00",
 			i: "150.00",
 			t: "0.00",
@@ -373,7 +435,8 @@ test("留抵余额按月份首末取值，不累加且不受行排序影响", ()
 			end: "80.00",
 		},
 		{
-			month: "2026-02",
+			id: "2026-02",
+			...legacyPeriod("2026-02"),
 			x: "120.00",
 			i: "100.00",
 			t: "0.00",
@@ -381,7 +444,8 @@ test("留抵余额按月份首末取值，不累加且不受行排序影响", ()
 			end: "60.00",
 		},
 		{
-			month: "2026-03",
+			id: "2026-03",
+			...legacyPeriod("2026-03"),
 			x: "150.00",
 			i: "100.00",
 			t: "0.00",
@@ -417,33 +481,27 @@ test("汇总覆盖筛选后的全部月份，不依赖虚拟窗口或排序", ()
 	});
 	expect(grid.getSnapshot().viewRows).toHaveLength(60);
 	expect(summary("history-x", grid.getSnapshot().viewRows)).toBe(1200000);
-	grid.setState({ filters: { month: "2026" } });
+	grid.setState({ filters: { periodStart: "2026" } });
 	expect(grid.getSnapshot().viewRows).toHaveLength(12);
 	expect(summary("history-x", grid.getSnapshot().viewRows)).toBe(240000);
 	expect(summary("history-x", grid.getSnapshot().viewRows)).not.toBe(
 		summary("history-x", grid.getSnapshot().viewRows.slice(0, 3)),
 	);
-	grid.sort("month", false, "desc");
+	grid.sort("periodStart", false, "desc");
 	expect(summary("history-x", grid.getSnapshot().viewRows)).toBe(240000);
 	grid.setState({ filters: {} });
 	expect(summary("history-x", grid.getSnapshot().viewRows)).toBe(1200000);
 });
 
 test("空结果和缺历史不显示部分合计，余额只检查边界月", () => {
-	for (const column of vatGridColumns.filter((column) => column.id !== "month"))
+	for (const column of vatGridColumns.filter(
+		(column) => !column.id.startsWith("period"),
+	))
 		expect(summary(column.id, [])).toBe("—");
 	const rows = rowsFor([month("2026-01"), month("2026-03")]);
-	for (const id of [
-		"history-x",
-		"history-i",
-		"history-t",
-		"history-tax",
-		...adjustmentFields,
-		"result-x",
-		"result-i",
-		"result-tax",
-		"delta",
-	])
+	expect(summary("history-x", rows)).toBe(40000);
+	expect(summary("history-tax", rows)).toBe(20000);
+	for (const id of ["result-x", "result-i", "result-tax", "delta"])
 		expect(summary(id, rows)).toBe("—");
 	expect(summary("history-end", rows)).toBe(0);
 	expect(summary("result-b", rows)).toBe(0);
@@ -479,7 +537,7 @@ test("恢复的非法原值排序稳定且不参与数值筛选，清除筛选�
 	for (const key of adjustmentFields) {
 		const adjustments = Object.fromEntries(
 			history.map((row, index) => [
-				row.month,
+				row.id,
 				adjustment({ [key]: amounts[index] ?? "" }),
 			]),
 		);
@@ -508,4 +566,85 @@ test("恢复的非法原值排序稳定且不参与数值筛选，清除筛选�
 		grid.setState({ filters: { [key]: ">= 0" } });
 		expect(values()).toEqual(["2.00", "1.00", "0.01", ""]);
 	}
+});
+
+test("原始申报编辑遵循导入金额规则，清空为零且应纳留抵不能为负", () => {
+	for (const key of fields) {
+		expect(parseVatHistory("1,234.56", key)).toBe("1234.56");
+		expect(parseVatHistory("", key)).toBe("0.00");
+		expect(() => parseVatHistory("0.001", key)).toThrow("最多两位小数");
+		expect(() => parseVatHistory("10000000000", key)).toThrow("超出");
+	}
+	for (const key of ["tax", "end"] as const)
+		expect(() => parseVatHistory("-0.01", key)).toThrow("不能为负数");
+	expect(parseVatHistory("-10", "x")).toBe("-10.00");
+});
+
+test("混合原始申报和调整的粘贴只回写一次，重算后仍可整批撤销重做", async () => {
+	const original: VatData = {
+		source: "合成测试",
+		history: [month("2026-01"), month("2026-02"), month("2026-03")],
+		adjustments: {},
+	};
+	let data = original;
+	let commits = 0;
+	const options = (): GridOptions<VatGridRow> => ({
+		rows: rowsFor(data.history.slice(0, 2), data.adjustments),
+		columns: vatGridColumns,
+		getRowId: vatGridRowId,
+		reconcileRows: "editable",
+		onRowsChange: (next, transaction) => {
+			commits++;
+			data = applyVatGridChanges(
+				data,
+				vatGridChanges(transaction.previousRows, next),
+			);
+		},
+	});
+	const grid = createGrid(options());
+	grid.select({ rowId: "2026-01", columnId: "history-x" });
+	expect(
+		(
+			await grid.paste([
+				["250", "150", "0", "100", "0", "50", "10", "30", "5"],
+				["300", "200", "0", "100", "0", "20", "0", "0", "0"],
+			])
+		).ok,
+	).toBe(true);
+	expect(commits).toBe(1);
+	expect(data.history[0]?.x).toBe("250.00");
+	expect(data.history[1]?.i).toBe("200.00");
+	expect(data.history[2]).toEqual(original.history[2]);
+	expect(original.history[0]?.x).toBe("200.00");
+	const entered = data;
+	grid.updateOptions(options());
+	expect(grid.getSnapshot().canUndo).toBe(true);
+	expect(summary("history-x", grid.getSnapshot().viewRows)).toBe(55000);
+	expect(summary("result-tax", grid.getSnapshot().viewRows)).toBe(23500);
+	expect((await grid.undo()).ok).toBe(true);
+	expect(commits).toBe(2);
+	expect(data.history).toEqual(original.history);
+	grid.updateOptions(options());
+	expect(summary("result-tax", grid.getSnapshot().viewRows)).toBe(20000);
+	expect((await grid.redo()).ok).toBe(true);
+	expect(commits).toBe(3);
+	expect(data).toEqual(entered);
+});
+
+test("无效原始金额拒绝整批修改，归档和计算结果仍禁止编辑", async () => {
+	const options = {
+		rows: rowsFor([month("2026-01")]),
+		columns: vatGridColumns,
+		getRowId: vatGridRowId,
+	};
+	const grid = createGrid(options);
+	grid.select({ rowId: "2026-01", columnId: "history-x" });
+	expect((await grid.paste([["250", "150", "0", "-1", "0"]])).ok).toBe(false);
+	expect(grid.getSnapshot().rows[0]?.h?.x).toBe("200.00");
+	expect(grid.getSnapshot().canUndo).toBe(false);
+	const archived = createGrid({ ...options, readOnly: true });
+	archived.select({ rowId: "2026-01", columnId: "history-x" });
+	expect((await archived.paste([["250"]])).ok).toBe(false);
+	grid.select({ rowId: "2026-01", columnId: "result-tax" });
+	expect((await grid.paste([["250"]])).ok).toBe(false);
 });

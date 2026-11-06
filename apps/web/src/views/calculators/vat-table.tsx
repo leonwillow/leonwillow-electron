@@ -1,38 +1,83 @@
 /**
- * @file 以共享 Lattice Grid 呈现增值税逐月历史、调整及联动结果。
+ * @file 以共享 Lattice Grid 呈现增值税所属期申报、调整及联动结果。
  * 创建时间：2026-11-05；修改时间：2026-11-06。
  * 版本作用：税务表格作为可复用 Grid 的业务消费者，保留分组、状态和补录入口。
  * 被调用：VatEditor；调用：lattice-grid、VAT 列适配、共享按钮与 Tooltip。
- * 预期结果：只改调整列，批量粘贴、撤销与重做通过同一次保存快照联动重算。
+ * 预期结果：原始申报与调整均可修改，批量粘贴、撤销与重做通过同一方案快照联动重算。
  */
 import {
 	type Adjustments,
 	adjustmentFields,
 	type CalculationRow,
+	periodLabel,
+	type VatData,
 } from "@leonwillow-electron/calculators";
-import { DataGrid, getCellValue } from "@leonwillow-electron/lattice-grid";
+import {
+	DataGrid,
+	type EditorContext,
+	type GridStore,
+	getCellValue,
+	type InsertRowsRequest,
+} from "@leonwillow-electron/lattice-grid";
 import { Button } from "@leonwillow-electron/ui/components/button";
+import { DatePicker } from "@leonwillow-electron/ui/components/date-picker";
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipTrigger,
 } from "@leonwillow-electron/ui/components/tooltip";
 import { InfoIcon } from "lucide-react";
-import { type ReactNode, useMemo } from "react";
+import { type ReactNode, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import {
+	applyVatGridChanges,
 	type VatGridChange,
+	type VatGridRow,
 	vatGridChanges,
 	vatGridColumns,
 	vatGridRowId,
 	vatGridRows,
 } from "./vat-grid-model";
 
+function PeriodEditor({ context }: { context: EditorContext<VatGridRow> }) {
+	const selected = useRef(false);
+	const adjacentDate =
+		context.column.id === "periodEnd"
+			? context.row.periodStart
+			: context.row.periodEnd;
+	return (
+		<DatePicker
+			defaultOpen
+			data-lg-editor
+			value={context.initialValue}
+			defaultMonth={
+				adjacentDate ? new Date(`${adjacentDate}T12:00:00`) : undefined
+			}
+			endMonth={new Date(2199, 11)}
+			displayFormat="yyyy-MM-dd"
+			className="lg-date-editor"
+			editScope={context.editScope}
+			aria-label={`选择${context.column.header}`}
+			onValueChange={(value) => {
+				selected.current = true;
+				void context.commit(value).then((ok) => {
+					if (!ok) selected.current = false;
+				});
+			}}
+			onOpenChange={(open) => {
+				if (!open && !selected.current) context.cancel();
+			}}
+		/>
+	);
+}
+
 export default function VatTable({
 	rows,
 	adjustments,
 	change,
-	addMonth,
+	data: source,
+	insert,
+	revealRowId,
 	readOnly = false,
 	toolbarContent,
 	emptyContent,
@@ -40,18 +85,36 @@ export default function VatTable({
 	rows: CalculationRow[];
 	adjustments: Adjustments;
 	change: (changes: readonly VatGridChange[]) => void;
-	addMonth: (month: string) => void;
+	data: VatData;
+	insert: (request: InsertRowsRequest<VatGridRow>) => void | Promise<void>;
+	revealRowId?: string;
 	readOnly?: boolean;
 	toolbarContent?: ReactNode;
 	emptyContent?: ReactNode;
 }) {
+	const grid = useRef<GridStore<VatGridRow>>(null);
+	const revealCell = useMemo(
+		() =>
+			revealRowId ? { rowId: revealRowId, columnId: "periodStart" } : null,
+		[revealRowId],
+	);
+	useEffect(() => {
+		if (revealRowId)
+			grid.current?.setState(
+				{ search: "", filters: {}, sorting: [] },
+				"insert",
+			);
+	}, [revealRowId]);
 	const data = useMemo(
 		() => vatGridRows(rows, adjustments),
 		[rows, adjustments],
 	);
 	return (
 		<DataGrid
-			label="增值税逐月测算"
+			apiRef={grid}
+			revealCell={revealCell}
+			label="增值税所属期测算"
+			fillHeight
 			rows={data}
 			columns={vatGridColumns}
 			getRowId={vatGridRowId}
@@ -61,43 +124,43 @@ export default function VatTable({
 			statusBar={false}
 			toolbarContent={toolbarContent}
 			renderEmpty={emptyContent ? () => emptyContent : undefined}
+			onInsertRows={insert}
+			onCommit={(transaction) => {
+				applyVatGridChanges(
+					source,
+					vatGridChanges(transaction.previousRows, transaction.rows),
+				);
+			}}
+			renderEditor={(context) =>
+				context.column.id === "periodStart" ||
+				context.column.id === "periodEnd" ? (
+					<PeriodEditor context={context} />
+				) : undefined
+			}
 			onRowsChange={(next, transaction) => {
 				const changes = vatGridChanges(transaction.previousRows, next);
 				if (changes.length) change(changes);
 			}}
 			renderCell={({ row, column }) => {
 				const value = getCellValue(row, column);
-				if (column.id === "month")
+				if (column.id === "periodStart" || column.id === "periodEnd")
 					return (
-						<div className="flex min-w-0 items-center gap-2">
-							<span className="shrink-0">{row.month}</span>
-							{!row.h && (
-								<Button
-									size="sm"
-									variant="outline"
-									disabled={readOnly}
-									disabledReason="当前方案不可编辑"
-									onClick={(event) => {
-										event.stopPropagation();
-										addMonth(row.month);
-									}}
-								>
-									补录
-								</Button>
-							)}
-							{row.error && (
+						<div className="flex w-full min-w-0 items-center gap-2">
+							<span className={!value ? "text-muted-foreground" : undefined}>
+								{String(value || "选择日期")}
+							</span>
+							{column.id === "periodEnd" && row.error && (
 								<Tooltip disableHoverablePopup>
 									<TooltipTrigger
 										render={
 											<Button
 												variant="warning"
+												className="ml-auto"
 												size="icon-xs"
-												aria-label={`${row.month} 计算说明`}
+												aria-label={`${periodLabel(row)} 计算说明`}
 												onClick={(event) => {
 													event.stopPropagation();
-													toast.warning(`${row.month} 计算暂停`, {
-														description: row.error,
-													});
+													toast.warning("计算暂停", { description: row.error });
 												}}
 											/>
 										}
@@ -107,25 +170,6 @@ export default function VatTable({
 									<TooltipContent>{row.error}</TooltipContent>
 								</Tooltip>
 							)}
-							<span
-								className={
-									row.h
-										? "min-w-0 truncate text-muted-foreground text-xs"
-										: "sr-only"
-								}
-							>
-								{row.status === "gap"
-									? "缺少历史"
-									: row.status === "error"
-										? "需要核对"
-										: row.status === "blocked"
-											? "等待前月"
-											: adjustmentFields.some((key) => row[key] !== 0)
-												? "已调整"
-												: row.delta || row.carryDelta
-													? "留抵联动"
-													: "已锁定"}
-							</span>
 						</div>
 					);
 				if (!row.h) return <span className="text-muted-foreground">—</span>;
@@ -136,11 +180,7 @@ export default function VatTable({
 						</span>
 					);
 				if (column.id.startsWith("history-"))
-					return (
-						<span className="text-muted-foreground">
-							{column.format?.(value, row, "zh-CN")}
-						</span>
-					);
+					return <span>{column.format?.(value, row, "zh-CN")}</span>;
 				if (column.id === "delta")
 					return (
 						<span

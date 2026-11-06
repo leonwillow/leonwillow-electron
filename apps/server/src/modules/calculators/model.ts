@@ -3,7 +3,7 @@
  * 创建时间：2026-11-05；修改时间：2026-11-06。
  * 版本作用：Eden 推导契约；历史数值由共享领域规则再校验。
  * 被调用：计算器路由与服务；调用：Elysia TypeBox。
- * 预期结果：限制月份数量、字符串长度和请求形状，拒绝客户端提供计算结果。
+ * 预期结果：限制所属期数量、字符串长度和请求形状，拒绝客户端提供计算结果。
  */
 import {
 	MAX_LIABILITIES,
@@ -63,21 +63,40 @@ export const CalculatorsModel = {
 			revision: t.Integer({ minimum: 1 }),
 			source: t.String({ maxLength: 200 }),
 			history: t.Array(
-				t.Object(
-					{
-						month: t.String({ maxLength: 7 }),
-						x: amount,
-						i: amount,
-						t: amount,
-						tax: amount,
-						end: amount,
-					},
-					{ additionalProperties: false },
-				),
+				t.Union([
+					t.Object(
+						{
+							id: t.String({
+								minLength: 1,
+								maxLength: 80,
+								pattern: "^[a-zA-Z0-9_-]+$",
+							}),
+							periodStart: t.String({ maxLength: 10 }),
+							periodEnd: t.String({ maxLength: 10 }),
+							x: amount,
+							i: amount,
+							t: amount,
+							tax: amount,
+							end: amount,
+						},
+						{ additionalProperties: false },
+					),
+					t.Object(
+						{
+							month: t.String({ maxLength: 7 }),
+							x: amount,
+							i: amount,
+							t: amount,
+							tax: amount,
+							end: amount,
+						},
+						{ additionalProperties: false },
+					),
+				]),
 				{ maxItems: 1200 },
 			),
 			adjustments: t.Record(
-				t.String({ pattern: "^\\d{4}-(0[1-9]|1[0-2])$" }),
+				t.String({ minLength: 1, maxLength: 80, pattern: "^[a-zA-Z0-9_-]+$" }),
 				adjustment,
 				{ maxProperties: 1200 },
 			),

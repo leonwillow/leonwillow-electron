@@ -1,6 +1,6 @@
 /**
  * @file 笔录 ReUI 树的文件夹、笔录和加载操作行。
- * 创建时间：2026-11-04；修改时间：2026-11-05。
+ * 创建时间：2026-11-04；修改时间：2026-11-06。
  * 版本作用：在官方 TreeItem/TreeItemLabel 上组合业务图标及同行新建、改名和归档。
  * 被调用：useInquiryCaseMenu；调用：共享 Tree、目录摘要预览和笔录操作按钮。
  * 预期结果：文件图标对齐，名称使用可用宽度；悬停时同行操作贴右显示且不触发展开或导航。
@@ -174,7 +174,7 @@ export default function InquiryTreeItem({
 								node.record ? onRenameRecord(row, node.record) : onRename(row)
 							}
 						>
-							<PencilIcon className="size-3" />
+							<PencilIcon />
 						</RowAction>
 						<RowAction
 							label={`${row.archived || node.record?.archived ? "恢复" : "归档"} ${node.name}`}
@@ -188,9 +188,9 @@ export default function InquiryTreeItem({
 							}
 						>
 							{row.archived || node.record?.archived ? (
-								<ArchiveRestoreIcon className="size-3" />
+								<ArchiveRestoreIcon />
 							) : (
-								<ArchiveIcon className="size-3" />
+								<ArchiveIcon />
 							)}
 						</RowAction>
 					</span>

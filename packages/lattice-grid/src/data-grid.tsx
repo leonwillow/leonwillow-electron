@@ -5,7 +5,7 @@
  * 创建时间：2026-11-05；修改时间：2026-11-06。
  * 版本作用：保留原引擎与选择、编辑、虚拟化控制器，使用当前共享控件与主题呈现。
  * 被调用：业务页面；调用：GridStore、GridView、共享 Base UI 控件与 Sonner。
- * 预期结果：稳定行 ID、受控数据和提交回调与业务解耦，滚动节点供控制器准确测量。
+ * 预期结果：稳定行 ID、受控数据和提交回调与业务解耦；可填满父级剩余高度，汇总始终位于滚动口底部。
  */
 import { Button } from "@leonwillow-electron/ui/components/button";
 import { Checkbox } from "@leonwillow-electron/ui/components/checkbox";
@@ -70,12 +70,15 @@ import {
 	useEffect,
 	useId,
 	useImperativeHandle,
+	useRef,
 	useState,
 	useSyncExternalStore,
 } from "react";
 import { toast } from "sonner";
+import { CellContextMenu, type InsertRowsRequest } from "./cell-context-menu";
 import { CellIndicator } from "./cell-indicator";
 import { ColumnMenu } from "./column-menu";
+import { useColumnDrag } from "./use-column-drag";
 
 const horizontalDrag: NonNullable<SortableRootProps<unknown>["modifiers"]> = [
 	({ transform }) => ({ ...transform, y: 0 }),
@@ -89,7 +92,7 @@ import {
 } from "./core/data";
 import { formatGridError, zhCN } from "./core/messages";
 import { GridStore } from "./core/store";
-import type { Column, GridOptions } from "./core/types";
+import type { CellPosition, Column, GridOptions } from "./core/types";
 import {
 	type CellContext,
 	type EditorContext,
@@ -103,7 +106,12 @@ export type DataGridProps<T> = GridOptions<T> &
 		"id" | "renderCell" | "renderEditor" | "renderToolbar" | "renderEmpty"
 	> & {
 		id?: string;
+		onInsertRows?: (request: InsertRowsRequest<T>) => void | Promise<void>;
 		apiRef?: Ref<GridStore<T>>;
+		/** 新请求对象出现时定位一次；等待宿主行数据就绪，不因后续保存抢回焦点。 */
+		revealCell?: CellPosition | null;
+		/** 填满有界纵向 flex 父级的剩余高度，启用时优先于固定 height。 */
+		fillHeight?: boolean;
 		/** 宿主筛选/操作插槽，位于行数之后、内置工具之前；隐藏 toolbar 时一并隐藏。 */
 		toolbarContent?: ReactNode;
 		renderCell?: (context: CellContext<T>) => ReactNode;
@@ -437,6 +445,19 @@ export function DataGrid<T>(props: DataGridProps<T>) {
 	useEffect(() => view.mount(), [view]);
 	useEffect(() => () => store.cancelPending(), [store]);
 	useImperativeHandle(props.apiRef, () => store, [store]);
+	const revealed = useRef<CellPosition | null>(null);
+	useEffect(() => {
+		const request = props.revealCell;
+		if (!request || revealed.current === request) return;
+		const rowIndex = s.viewRows.findIndex(
+			(row) => store.getOptions().getRowId(row) === request.rowId,
+		);
+		const columnIndex = s.columns.findIndex((c) => c.id === request.columnId);
+		if (rowIndex < 0 || columnIndex < 0) return;
+		revealed.current = request;
+		view.ensureVisible(rowIndex, columnIndex);
+		view.select(request);
+	}, [props.revealCell, s.viewRows, s.columns, store, view]);
 	useEffect(() => {
 		if (s.error && !props.onError)
 			toast.error(formatError(s.error), {
@@ -462,6 +483,7 @@ export function DataGrid<T>(props: DataGridProps<T>) {
 		},
 		[view],
 	);
+	const drag = useColumnDrag(view);
 	const m = view.messages();
 	const layout = view.layout();
 	const rh = view.rowHeight();
@@ -527,689 +549,742 @@ export function DataGrid<T>(props: DataGridProps<T>) {
 			});
 	}
 	return (
-		<div
-			ref={rootRef}
-			id={id}
-			className={cn("lg-root", props.className)}
-			style={
-				{
-					...props.style,
-					"--lg-header-height": `${view.headerHeight()}px`,
-					"--lg-filter-height": `${view.filterHeight()}px`,
-					"--lg-frozen-edge": `${groupStickyLeft}px`,
-				} as CSSProperties
-			}
-			data-density={s.state.density}
-		>
-			{props.toolbar !== false && (
-				<div className="lg-toolbar">
-					{selected.size ? (
-						<div className="lg-bulk">
-							<IconButton
-								label={m.clearSelection}
-								onClick={() =>
-									store.setState({ selectedRows: [] }, "selectedRows")
-								}
-							>
-								<XIcon />
-							</IconButton>
-							<span>
-								{selected.size} {m.selected}
-							</span>
-							{props.allowDelete && (
-								<IconButton
-									label={m.delete}
-									variant="destructive"
-									disabled={props.readOnly || busy}
-									onClick={() => void store.deleteRows()}
-								>
-									<Trash2Icon />
-								</IconButton>
-							)}
-						</div>
-					) : (
-						<InputGroup className="lg-search">
-							<InputGroupInput
-								type="search"
-								aria-label={m.search}
-								placeholder={m.search}
-								value={s.state.search}
-								onChange={(e) => {
-									store.setState({ search: e.target.value }, "search");
-									if (view.scroller) view.scroller.scrollTop = 0;
-								}}
-							/>
-							<InputGroupAddon>
-								<SearchIcon aria-hidden />
-							</InputGroupAddon>
-						</InputGroup>
-					)}
-					<span className="lg-count">
-						{nf.format(
-							props.mode === "server"
-								? (props.totalRows ?? s.rows.length)
-								: s.viewRows.length,
-						)}{" "}
-						{m.rows}
-						{props.mode === "server" ? ` · ${s.rows.length} ${m.loaded}` : ""}
-					</span>
-					{props.toolbarContent != null && (
-						<div className="lg-toolbar-content">{props.toolbarContent}</div>
-					)}
-					<div className="lg-actions">
-						<IconButton
-							label={m.copy}
-							disabled={!bounds}
-							onClick={() => void view.copy()}
-						>
-							<CopyIcon />
-						</IconButton>
-						{v.editing ? (
-							<>
-								<IconButton
-									label={m.save}
-									data-lg-edit-scope={id}
-									disabled={busy}
-									onClick={() => void view.commitEdit()}
-								>
-									<CheckIcon />
-								</IconButton>
-								<IconButton
-									label={m.cancel}
-									data-lg-edit-scope={id}
-									disabled={s.pending}
-									onClick={() => view.cancelEdit()}
-								>
-									<XIcon />
-								</IconButton>
-							</>
-						) : (
-							<>
-								<IconButton
-									label={m.undo}
-									disabled={!s.canUndo || busy}
-									onClick={() => void store.undo()}
-								>
-									<Undo2Icon />
-								</IconButton>
-								<IconButton
-									label={m.redo}
-									disabled={!s.canRedo || busy}
-									onClick={() => void store.redo()}
-								>
-									<Redo2Icon />
-								</IconButton>
-							</>
-						)}
-						<IconButton
-							label={m.filter}
-							aria-pressed={v.showFilters}
-							onClick={() => {
-								view.set({ showFilters: !v.showFilters });
-								view.measure();
-							}}
-						>
-							<FilterIcon />
-						</IconButton>
-						<GridPopover label={m.columns} trigger={<Columns3Icon />}>
-							{props.columns.map((column) => (
-								<ColumnSettings key={column.id} store={store} column={column} />
-							))}
-							<Button variant="ghost" onClick={() => store.resetView()}>
-								<RotateCcwIcon />
-								{m.resetView}
-							</Button>
-						</GridPopover>
-						<Select
-							items={(["compact", "standard", "comfortable"] as const).map(
-								(value) => ({ value, label: m[value] }),
-							)}
-							value={s.state.density}
-							onValueChange={(value) => {
-								if (value) store.setState({ density: value }, "density");
-							}}
-						>
-							<SelectTrigger aria-label={m.density}>
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectGroup>
-									{(["compact", "standard", "comfortable"] as const).map(
-										(value) => (
-											<SelectItem key={value} value={value}>
-												{m[value]}
-											</SelectItem>
-										),
-									)}
-								</SelectGroup>
-							</SelectContent>
-						</Select>
-						{props.exportable !== false && (
-							<IconButton
-								label={m.export}
-								disabled={!s.columns.length}
-								onClick={() => view.export()}
-							>
-								<DownloadIcon />
-							</IconButton>
-						)}
-					</div>
-					{props.renderToolbar?.(store)}
-				</div>
-			)}
-			<p id={`${id}-help`} className="sr-only">
-				{m.keyboardHelp}
-			</p>
-			<ScrollArea
-				className="lg-scroll-area"
-				data-frozen-shadow={frozenShadow || undefined}
-				style={props.height ? { height: props.height } : undefined}
-				contentClassName="min-h-full"
-				viewportProps={{
-					ref: viewportRef,
-					className: "lg-scroller",
-					role: "grid",
-					tabIndex: 0,
-					"aria-label": props.label ?? "数据表格",
-					"aria-describedby": `${id}-help`,
-					"aria-rowcount":
-						s.viewRows.length + headerRows + (props.summary === false ? 0 : 1),
-					"aria-colcount": s.columns.length + 1,
-					"aria-multiselectable": true,
-					"aria-readonly": !!props.readOnly,
-					"aria-busy": busy,
-					"aria-activedescendant":
-						active && activeInView
-							? cellId(active.rowId, active.columnId)
-							: undefined,
-					onScroll: view.onScroll,
-					onKeyDown: (e) => {
-						if (
-							e.shiftKey &&
-							e.key === " " &&
-							active &&
-							e.target === e.currentTarget
-						) {
-							e.preventDefault();
-							store.toggleRow(active.rowId);
-						} else view.onKeyDown(e.nativeEvent);
-					},
-					onCopy: (e) => view.onCopy(e.nativeEvent),
-					onPaste: (e) => view.onPaste(e.nativeEvent),
-				}}
-			>
-				<div className="lg-sheet" style={{ width: total, minWidth: "100%" }}>
-					<div
-						className="lg-head"
-						role="rowgroup"
-						style={{ height: view.headHeight() }}
-					>
-						{grouped && (
-							<div
-								role="row"
-								aria-rowindex={1}
-								className="lg-group-row"
-								style={
-									{
-										height: view.groupHeaderHeight(),
-										"--lg-group-sticky-left": `${groupStickyLeft}px`,
-									} as CSSProperties
-								}
-							>
-								<div role="columnheader" className="lg-gutter" />
-								{groups.map((group) => (
-									<div
-										key={group.key}
-										role="columnheader"
-										aria-colspan={group.count}
-										className="lg-group-heading"
-										data-pinned={group.pinned || undefined}
-										style={{
-											width: group.width,
-											minWidth: group.width,
-											...(group.pinned
-												? { position: "sticky", left: group.left }
-												: {}),
-										}}
-									>
-										<span className="lg-group-label">{group.label}</span>
-									</div>
-								))}
-							</div>
-						)}
-						<div
-							role="row"
-							aria-rowindex={headerRows}
-							className="lg-column-row"
-						>
-							<div role="columnheader" className="lg-gutter lg-corner">
-								<Checkbox
-									aria-label={m.selectAll}
-									checked={
-										!!s.viewRows.length && visibleSelected === s.viewRows.length
-									}
-									indeterminate={
-										visibleSelected > 0 && visibleSelected < s.viewRows.length
-									}
-									disabled={!s.viewRows.length}
-									onCheckedChange={() => store.toggleAll()}
-								/>
-							</div>
-							{[true, false].map((pinned) => {
-								const columns = layout.filter(
-									(c) =>
-										!!s.state.columns.find((item) => item.id === c.column.id)
-											?.pinned === pinned,
-								);
-								return (
-									<Sortable
-										key={String(pinned)}
-										className="lg-column-sortable"
-										strategy="horizontal"
-										modifiers={horizontalDrag}
-										value={columns}
-										getItemValue={(c) => c.column.id}
-										onValueChange={(next) =>
-											store.reorderVisibleColumns(
-												next.map((c) => c.column.id),
-												pinned,
-											)
+		<CellContextMenu view={view} onInsertRows={props.onInsertRows}>
+			{(contextTrigger) => (
+				<div
+					ref={rootRef}
+					id={id}
+					className={cn("lg-root", props.className)}
+					style={
+						{
+							...props.style,
+							"--lg-header-height": `${view.headerHeight()}px`,
+							"--lg-filter-height": `${view.filterHeight()}px`,
+							"--lg-frozen-edge": `${groupStickyLeft}px`,
+						} as CSSProperties
+					}
+					data-density={s.state.density}
+					data-fill-height={props.fillHeight || undefined}
+				>
+					{props.toolbar !== false && (
+						<div className="lg-toolbar">
+							{selected.size ? (
+								<div className="lg-bulk">
+									<IconButton
+										label={m.clearSelection}
+										onClick={() =>
+											store.setState({ selectedRows: [] }, "selectedRows")
 										}
-										accessibility={{
-											screenReaderInstructions: {
-												draggable:
-													"按空格键开始调整列顺序，左右方向键移动，再按空格键确认，Escape 取消。只能在同一固定区域内移动。",
-											},
+									>
+										<XIcon />
+									</IconButton>
+									<span>
+										{selected.size} {m.selected}
+									</span>
+									{props.allowDelete && (
+										<IconButton
+											label={m.delete}
+											variant="destructive"
+											disabled={props.readOnly || busy}
+											onClick={() => void store.deleteRows()}
+										>
+											<Trash2Icon />
+										</IconButton>
+									)}
+								</div>
+							) : (
+								<InputGroup className="lg-search">
+									<InputGroupInput
+										type="search"
+										aria-label={m.search}
+										placeholder={m.search}
+										value={s.state.search}
+										onChange={(e) => {
+											store.setState({ search: e.target.value }, "search");
+											if (view.scroller) view.scroller.scrollTop = 0;
 										}}
-									>
-										{columns.map((c) => {
-											const col = c.column;
-											const sort = s.state.sorting.find(
-												(item) => item.id === col.id,
-											);
-											return (
-												<SortableItem
-													value={col.id}
-													tabIndex={-1}
-													data-last-column={
-														col.id === layout.at(-1)?.column.id || undefined
-													}
-													key={col.id}
-													role="columnheader"
-													aria-colindex={s.columns.indexOf(col) + 2}
-													aria-sort={
-														sort
-															? sort.direction === "asc"
-																? "ascending"
-																: "descending"
-															: "none"
-													}
-													className={cn("lg-header", c.pinned && "lg-pinned")}
-													style={
-														{
-															width: c.width,
-															minWidth: c.width,
-															height:
-																view.headHeight() - view.groupHeaderHeight(),
-															"--lg-header-height": `${view.headerHeight()}px`,
-															"--lg-filter-height": `${view.filterHeight()}px`,
-															"--lg-pin-left": `${c.pinLeft}px`,
-														} as CSSProperties
-													}
-												>
-													<div className="lg-heading">
-														<SortableItemHandle
-															render={
-																<button
-																	type="button"
-																	aria-label={`拖动排列 ${col.header}`}
-																/>
-															}
-															className="lg-drag-handle"
-														>
-															<GripVerticalIcon className="lg-header-icon" />
-														</SortableItemHandle>
-														<button
-															type="button"
-															className="lg-sort"
-															disabled={col.sortable === false}
-															onClick={(e) => store.sort(col.id, e.shiftKey)}
-														>
-															{col.header}
-															{sort &&
-																(sort.direction === "asc" ? (
-																	<ArrowUpIcon className="lg-header-icon" />
-																) : (
-																	<ArrowDownIcon className="lg-header-icon" />
-																))}
-														</button>
-														<ColumnMenu
-															store={store}
-															column={col}
-															view={view}
-														/>
-													</div>
-													{v.showFilters && (
-														<div className="lg-filter">
-															{col.filterable !== false && (
-																<ColumnFilter view={view} column={col} />
-															)}
-														</div>
-													)}
-													<div
-														role="separator"
-														tabIndex={0}
-														aria-label={`${m.resize} ${col.header}`}
-														aria-orientation="vertical"
-														aria-valuenow={c.width}
-														aria-valuemin={col.minWidth ?? 64}
-														aria-valuemax={col.maxWidth ?? 800}
-														className="lg-resizer"
-														onPointerDown={(e) =>
-															view.startResize(e.nativeEvent, col.id)
-														}
-														onKeyDown={(e) => {
-															if (
-																e.key === "ArrowLeft" ||
-																e.key === "ArrowRight"
-															) {
-																e.preventDefault();
-																e.stopPropagation();
-																store.setColumn(col.id, {
-																	width:
-																		c.width + (e.key === "ArrowLeft" ? -8 : 8),
-																});
-															}
-														}}
-														onDoubleClick={() =>
-															store.setColumn(col.id, {
-																width: Math.min(
-																	480,
-																	Math.max(
-																		col.header.length * 8 + 56,
-																		...s.viewRows
-																			.slice(0, 300)
-																			.map(
-																				(row) =>
-																					formatValue(row, col, options.locale)
-																						.length *
-																						7.6 +
-																					26,
-																			),
-																	),
-																),
-															})
-														}
-													/>
-												</SortableItem>
-											);
-										})}
-									</Sortable>
-								);
-							})}
-						</div>
-					</div>
-					<div
-						className="lg-body"
-						role="rowgroup"
-						style={{
-							height:
-								props.loading ||
-								props.error ||
-								!s.columns.length ||
-								!s.viewRows.length
-									? rh * 4
-									: s.viewRows.length * rh,
-						}}
-					>
-						{!(props.loading || props.error) &&
-							s.columns.length > 0 &&
-							s.viewRows.slice(v.start, v.end).map((row, index) => {
-								const r = index + v.start;
-								const rowId = props.getRowId(row);
-								return (
-									<div
-										key={rowId}
-										role="row"
-										aria-rowindex={r + headerRows + 1}
-										aria-selected={selected.has(rowId)}
-										className="lg-row"
-										data-last-row={r === s.viewRows.length - 1 || undefined}
-										style={{ top: r * rh, height: rh }}
-										data-checked={selected.has(rowId) || undefined}
-									>
-										<div
-											role="rowheader"
-											aria-colindex={1}
-											className="lg-gutter"
-										>
-											<span className="lg-row-number">{r + 1}</span>
-											<Checkbox
-												className="lg-row-check"
-												tabIndex={-1}
-												aria-label={`${m.selectRow} ${r + 1}`}
-												checked={selected.has(rowId)}
-												onCheckedChange={() => store.toggleRow(rowId)}
-											/>
-										</div>
-										{layout.map((c, ci) => {
-											const col = c.column;
-											const editable = store.isEditable(row, col);
-											const isSelected =
-												!!bounds &&
-												r >= bounds.r0 &&
-												r <= bounds.r1 &&
-												ci >= bounds.c0 &&
-												ci <= bounds.c1;
-											const isActive =
-												active?.rowId === rowId && active.columnId === col.id;
-											const editing =
-												v.editing?.rowId === rowId &&
-												v.editing.columnId === col.id;
-											const context: CellContext<T> = {
-												row,
-												column: col,
-												value: getCellValue(row, col),
-												rowIndex: r,
-												selected: isSelected,
-											};
-											const editorContext: EditorContext<T> = {
-												...context,
-												initialValue: v.draft,
-												onValueChange: (value) => view.set({ draft: value }),
-												editScope: id,
-												commit: (value) => view.commitEdit(value),
-												cancel: () => view.cancelEdit(),
-											};
-											return (
-												<div
-													key={col.id}
-													id={cellId(rowId, col.id)}
-													role="gridcell"
-													aria-colindex={ci + 2}
-													aria-selected={isSelected}
-													aria-readonly={!editable}
-													className={cn(
-														"lg-cell",
-														c.pinned && "lg-pinned",
-														editable && isSelected && "lg-selected",
-														editable && isActive && "lg-active",
-														editing && "lg-editing",
-													)}
-													data-lg-cell
-													data-row={r}
-													data-col={col.id}
-													data-align={
-														col.align ??
-														(col.type === "number" ? "end" : "start")
-													}
-													data-filling={
-														editable &&
-														v.fillRow != null &&
-														bounds &&
-														r > bounds.r1 &&
-														r <= v.fillRow &&
-														ci >= bounds.c0 &&
-														ci <= bounds.c1
-															? true
-															: undefined
-													}
-													style={style(c)}
-													onPointerDown={(e) =>
-														view.startSelection(e.nativeEvent, {
-															rowId,
-															columnId: col.id,
-														})
-													}
-													onDoubleClick={(event) => {
-														if (
-															!(event.target as HTMLElement).closest(
-																"button,input,select,a,[data-lg-interactive]",
-															)
-														)
-															view.startEdit({ rowId, columnId: col.id });
-													}}
-												>
-													{editing ? (
-														(props.renderEditor?.(editorContext) ?? (
-															<DefaultEditor view={view} column={col} />
-														))
-													) : (
-														<div className="lg-cell-value">
-															{props.renderCell?.(context) ??
-																formatValue(row, col, options.locale)}
-														</div>
-													)}
-													{!editing &&
-														canFill &&
-														bounds &&
-														r === bounds.r1 &&
-														ci === bounds.c1 && (
-															<span
-																aria-hidden
-																className="lg-fill-handle"
-																onPointerDown={(e) => {
-																	e.stopPropagation();
-																	view.startFill(e.nativeEvent);
-																}}
-															/>
-														)}
-												</div>
-											);
-										})}
-									</div>
-								);
-							})}
-						<CellIndicator view={view} />
-						{(props.loading ||
-							props.error ||
-							!s.viewRows.length ||
-							!s.columns.length) && (
-							<div className="lg-empty" style={{ width: v.width }}>
-								{props.loading ? (
-									m.loading
-								) : props.error ? (
+									/>
+									<InputGroupAddon>
+										<SearchIcon aria-hidden />
+									</InputGroupAddon>
+								</InputGroup>
+							)}
+							<span className="lg-count">
+								{nf.format(
+									props.mode === "server"
+										? (props.totalRows ?? s.rows.length)
+										: s.viewRows.length,
+								)}{" "}
+								{m.rows}
+								{props.mode === "server"
+									? ` · ${s.rows.length} ${m.loaded}`
+									: ""}
+							</span>
+							{props.toolbarContent != null && (
+								<div className="lg-toolbar-content">{props.toolbarContent}</div>
+							)}
+							<div className="lg-actions">
+								<IconButton
+									label={m.copy}
+									disabled={!bounds}
+									onClick={() => void view.copy()}
+								>
+									<CopyIcon />
+								</IconButton>
+								{v.editing ? (
 									<>
-										<span role="alert">{props.error}</span>
-										{props.onRetry && (
-											<Button variant="outline" onClick={props.onRetry}>
-												{m.retry}
-											</Button>
-										)}
-									</>
-								) : !s.columns.length ? (
-									<>
-										<p>{m.allColumnsHidden}</p>
-										<Button
-											variant="outline"
-											onClick={() =>
-												store.setState(
-													{
-														columns: s.state.columns.map((c) => ({
-															...c,
-															hidden: false,
-														})),
-													},
-													"columns",
-												)
-											}
+										<IconButton
+											label={m.save}
+											data-lg-edit-scope={id}
+											disabled={busy}
+											onClick={() => void view.commitEdit()}
 										>
-											{m.showAll}
-										</Button>
+											<CheckIcon />
+										</IconButton>
+										<IconButton
+											label={m.cancel}
+											data-lg-edit-scope={id}
+											disabled={s.pending}
+											onClick={() => view.cancelEdit()}
+										>
+											<XIcon />
+										</IconButton>
 									</>
 								) : (
-									(props.renderEmpty?.() ??
-									(s.rows.length ? m.noResults : m.empty))
+									<>
+										<IconButton
+											label={m.undo}
+											disabled={!s.canUndo || busy}
+											onClick={() => void store.undo()}
+										>
+											<Undo2Icon />
+										</IconButton>
+										<IconButton
+											label={m.redo}
+											disabled={!s.canRedo || busy}
+											onClick={() => void store.redo()}
+										>
+											<Redo2Icon />
+										</IconButton>
+									</>
+								)}
+								<IconButton
+									label={m.filter}
+									aria-pressed={v.showFilters}
+									onClick={() => {
+										view.set({ showFilters: !v.showFilters });
+										view.measure();
+									}}
+								>
+									<FilterIcon />
+								</IconButton>
+								<GridPopover label={m.columns} trigger={<Columns3Icon />}>
+									{props.columns.map((column) => (
+										<ColumnSettings
+											key={column.id}
+											store={store}
+											column={column}
+										/>
+									))}
+									<Button variant="ghost" onClick={() => store.resetView()}>
+										<RotateCcwIcon />
+										{m.resetView}
+									</Button>
+								</GridPopover>
+								<Select
+									items={(["compact", "standard", "comfortable"] as const).map(
+										(value) => ({ value, label: m[value] }),
+									)}
+									value={s.state.density}
+									onValueChange={(value) => {
+										if (value) store.setState({ density: value }, "density");
+									}}
+								>
+									<SelectTrigger aria-label={m.density}>
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectGroup>
+											{(["compact", "standard", "comfortable"] as const).map(
+												(value) => (
+													<SelectItem key={value} value={value}>
+														{m[value]}
+													</SelectItem>
+												),
+											)}
+										</SelectGroup>
+									</SelectContent>
+								</Select>
+								{props.exportable !== false && (
+									<IconButton
+										label={m.export}
+										disabled={!s.columns.length}
+										onClick={() => view.export()}
+									>
+										<DownloadIcon />
+									</IconButton>
 								)}
 							</div>
-						)}
-					</div>
-					{props.summary !== false && (
+							{props.renderToolbar?.(store)}
+						</div>
+					)}
+					<p id={`${id}-help`} className="sr-only">
+						{m.keyboardHelp}
+					</p>
+					<ScrollArea
+						className="lg-scroll-area"
+						data-frozen-shadow={frozenShadow || undefined}
+						style={
+							props.height && !props.fillHeight
+								? { height: props.height }
+								: undefined
+						}
+						contentClassName="grid min-h-full"
+						viewportProps={{
+							render: contextTrigger,
+							ref: viewportRef,
+							className: "lg-scroller",
+							role: "grid",
+							tabIndex: 0,
+							"aria-label": props.label ?? "数据表格",
+							"aria-describedby": `${id}-help`,
+							"aria-rowcount":
+								s.viewRows.length +
+								headerRows +
+								(props.summary === false ? 0 : 1),
+							"aria-colcount": s.columns.length + 1,
+							"aria-multiselectable": true,
+							"aria-readonly": !!props.readOnly,
+							"aria-busy": busy,
+							"aria-activedescendant":
+								active && activeInView
+									? cellId(active.rowId, active.columnId)
+									: undefined,
+							onScroll: view.onScroll,
+							onKeyDown: (e) => {
+								if (
+									e.shiftKey &&
+									e.key === " " &&
+									active &&
+									e.target === e.currentTarget
+								) {
+									e.preventDefault();
+									store.toggleRow(active.rowId);
+								} else view.onKeyDown(e.nativeEvent);
+							},
+							onCopy: (e) => view.onCopy(e.nativeEvent),
+							onPaste: (e) => view.onPaste(e.nativeEvent),
+						}}
+					>
 						<div
-							role="row"
-							aria-rowindex={s.viewRows.length + headerRows + 1}
-							className="lg-summary"
-							aria-label="汇总"
+							className="lg-sheet"
+							style={{ width: total, minWidth: "100%" }}
 						>
-							<div role="gridcell" className="lg-gutter" />
-							{layout.map((c, i) => {
-								const value = c.column.aggregate ? view.total(c.column) : null;
-								const label =
-									c.column.aggregateLabel ??
-									(c.column.aggregate === "avg"
-										? m.avg
-										: c.column.aggregate === "count"
-											? m.count
-											: m.sum);
-								return (
+							<div
+								className="lg-head"
+								role="rowgroup"
+								style={{ height: view.headHeight() }}
+							>
+								{grouped && (
 									<div
-										key={c.column.id}
-										role="gridcell"
-										className={cn("lg-summary-cell", c.pinned && "lg-pinned")}
-										style={style(c)}
+										role="row"
+										aria-rowindex={1}
+										className="lg-group-row"
+										style={
+											{
+												height: view.groupHeaderHeight(),
+												"--lg-group-sticky-left": `${groupStickyLeft}px`,
+											} as CSSProperties
+										}
 									>
-										{value != null ? (
-											<>
-												{label && <span>{label}</span>}
-												<strong>
-													{c.column.formatAggregate
-														? c.column.formatAggregate(value, options.locale)
-														: typeof value === "number"
-															? nf.format(value)
-															: String(value)}
-												</strong>
-											</>
-										) : i === 0 ? (
-											`${s.viewRows.length} ${m.rows}`
-										) : null}
+										<div role="columnheader" className="lg-gutter" />
+										{groups.map((group) => (
+											<div
+												key={group.key}
+												role="columnheader"
+												aria-colspan={group.count}
+												className="lg-group-heading"
+												data-pinned={group.pinned || undefined}
+												style={{
+													width: group.width,
+													minWidth: group.width,
+													...(group.pinned
+														? { position: "sticky", left: group.left }
+														: {}),
+												}}
+											>
+												<span className="lg-group-label">{group.label}</span>
+											</div>
+										))}
 									</div>
-								);
-							})}
+								)}
+								<div
+									role="row"
+									aria-rowindex={headerRows}
+									className="lg-column-row"
+								>
+									<div role="columnheader" className="lg-gutter lg-corner">
+										<Checkbox
+											aria-label={m.selectAll}
+											checked={
+												!!s.viewRows.length &&
+												visibleSelected === s.viewRows.length
+											}
+											indeterminate={
+												visibleSelected > 0 &&
+												visibleSelected < s.viewRows.length
+											}
+											disabled={!s.viewRows.length}
+											onCheckedChange={() => store.toggleAll()}
+										/>
+									</div>
+									{[true, false].map((pinned) => {
+										const columns = layout.filter(
+											(c) =>
+												!!s.state.columns.find(
+													(item) => item.id === c.column.id,
+												)?.pinned === pinned,
+										);
+										return (
+											<Sortable
+												key={String(pinned)}
+												className="lg-column-sortable"
+												strategy="horizontal"
+												autoScroll={false}
+												onDragStart={drag.start}
+												onDragEnd={drag.end}
+												onDragCancel={drag.end}
+												onValueCommit={(_value, meta) =>
+													drag.highlight(String(meta.event.active.id))
+												}
+												modifiers={horizontalDrag}
+												value={columns}
+												getItemValue={(c) => c.column.id}
+												onValueChange={(next) =>
+													store.reorderVisibleColumns(
+														next.map((c) => c.column.id),
+														pinned,
+													)
+												}
+												accessibility={{
+													screenReaderInstructions: {
+														draggable:
+															"按空格键开始调整列顺序，左右方向键移动，再按空格键确认，Escape 取消。只能在同一固定区域内移动。",
+													},
+												}}
+											>
+												{columns.map((c) => {
+													const col = c.column;
+													const sort = s.state.sorting.find(
+														(item) => item.id === col.id,
+													);
+													return (
+														<SortableItem
+															value={col.id}
+															data-column-moved={drag.marker(col.id)}
+															tabIndex={-1}
+															data-last-column={
+																col.id === layout.at(-1)?.column.id || undefined
+															}
+															key={col.id}
+															role="columnheader"
+															aria-colindex={s.columns.indexOf(col) + 2}
+															aria-sort={
+																sort
+																	? sort.direction === "asc"
+																		? "ascending"
+																		: "descending"
+																	: "none"
+															}
+															className={cn(
+																"lg-header",
+																c.pinned && "lg-pinned",
+															)}
+															style={
+																{
+																	width: c.width,
+																	minWidth: c.width,
+																	height:
+																		view.headHeight() -
+																		view.groupHeaderHeight(),
+																	"--lg-header-height": `${view.headerHeight()}px`,
+																	"--lg-filter-height": `${view.filterHeight()}px`,
+																	"--lg-pin-left": `${c.pinLeft}px`,
+																} as CSSProperties
+															}
+														>
+															<div className="lg-heading">
+																<SortableItemHandle
+																	render={
+																		<button
+																			type="button"
+																			aria-label={`拖动排列 ${col.header}`}
+																		/>
+																	}
+																	className="lg-drag-handle"
+																>
+																	<GripVerticalIcon className="lg-header-icon" />
+																</SortableItemHandle>
+																<button
+																	type="button"
+																	className="lg-sort"
+																	disabled={col.sortable === false}
+																	onClick={(e) =>
+																		store.sort(col.id, e.shiftKey)
+																	}
+																>
+																	{col.header}
+																	{sort &&
+																		(sort.direction === "asc" ? (
+																			<ArrowUpIcon className="lg-header-icon" />
+																		) : (
+																			<ArrowDownIcon className="lg-header-icon" />
+																		))}
+																</button>
+																<ColumnMenu
+																	store={store}
+																	column={col}
+																	view={view}
+																/>
+															</div>
+															{v.showFilters && (
+																<div className="lg-filter">
+																	{col.filterable !== false && (
+																		<ColumnFilter view={view} column={col} />
+																	)}
+																</div>
+															)}
+															<div
+																role="separator"
+																tabIndex={0}
+																aria-label={`${m.resize} ${col.header}`}
+																aria-orientation="vertical"
+																aria-valuenow={c.width}
+																aria-valuemin={col.minWidth ?? 64}
+																aria-valuemax={col.maxWidth ?? 800}
+																className="lg-resizer"
+																onPointerDown={(e) =>
+																	view.startResize(e.nativeEvent, col.id)
+																}
+																onKeyDown={(e) => {
+																	if (
+																		e.key === "ArrowLeft" ||
+																		e.key === "ArrowRight"
+																	) {
+																		e.preventDefault();
+																		e.stopPropagation();
+																		store.setColumn(col.id, {
+																			width:
+																				c.width +
+																				(e.key === "ArrowLeft" ? -8 : 8),
+																		});
+																	}
+																}}
+																onDoubleClick={() =>
+																	store.setColumn(col.id, {
+																		width: Math.min(
+																			480,
+																			Math.max(
+																				col.header.length * 8 + 56,
+																				...s.viewRows
+																					.slice(0, 300)
+																					.map(
+																						(row) =>
+																							formatValue(
+																								row,
+																								col,
+																								options.locale,
+																							).length *
+																								7.6 +
+																							26,
+																					),
+																			),
+																		),
+																	})
+																}
+															/>
+														</SortableItem>
+													);
+												})}
+											</Sortable>
+										);
+									})}
+								</div>
+							</div>
+							<div
+								className="lg-body"
+								role="rowgroup"
+								style={{
+									height:
+										props.loading ||
+										props.error ||
+										!s.columns.length ||
+										!s.viewRows.length
+											? rh * 4
+											: s.viewRows.length * rh,
+								}}
+							>
+								{!(props.loading || props.error) &&
+									s.columns.length > 0 &&
+									s.viewRows.slice(v.start, v.end).map((row, index) => {
+										const r = index + v.start;
+										const rowId = props.getRowId(row);
+										return (
+											<div
+												key={rowId}
+												role="row"
+												aria-rowindex={r + headerRows + 1}
+												aria-selected={selected.has(rowId)}
+												className="lg-row"
+												data-last-row={r === s.viewRows.length - 1 || undefined}
+												style={{ top: r * rh, height: rh }}
+												data-checked={selected.has(rowId) || undefined}
+											>
+												<div
+													role="rowheader"
+													aria-colindex={1}
+													className="lg-gutter"
+												>
+													<span className="lg-row-number">{r + 1}</span>
+													<Checkbox
+														className="lg-row-check"
+														tabIndex={-1}
+														aria-label={`${m.selectRow} ${r + 1}`}
+														checked={selected.has(rowId)}
+														onCheckedChange={() => store.toggleRow(rowId)}
+													/>
+												</div>
+												{layout.map((c, ci) => {
+													const col = c.column;
+													const editable = store.isEditable(row, col);
+													const isSelected =
+														!!bounds &&
+														r >= bounds.r0 &&
+														r <= bounds.r1 &&
+														ci >= bounds.c0 &&
+														ci <= bounds.c1;
+													const isActive =
+														active?.rowId === rowId &&
+														active.columnId === col.id;
+													const editing =
+														v.editing?.rowId === rowId &&
+														v.editing.columnId === col.id;
+													const context: CellContext<T> = {
+														row,
+														column: col,
+														value: getCellValue(row, col),
+														rowIndex: r,
+														selected: isSelected,
+													};
+													const editorContext: EditorContext<T> = {
+														...context,
+														initialValue: v.draft,
+														onValueChange: (value) =>
+															view.set({ draft: value }),
+														editScope: id,
+														commit: (value) => view.commitEdit(value),
+														cancel: () => view.cancelEdit(),
+													};
+													return (
+														<div
+															key={col.id}
+															id={cellId(rowId, col.id)}
+															role="gridcell"
+															aria-colindex={ci + 2}
+															aria-selected={isSelected}
+															aria-readonly={!editable}
+															className={cn(
+																"lg-cell",
+																c.pinned && "lg-pinned",
+																editable && isSelected && "lg-selected",
+																editable && isActive && "lg-active",
+																editing && "lg-editing",
+															)}
+															data-column-moved={drag.marker(col.id)}
+															data-lg-cell
+															data-row={r}
+															data-col={col.id}
+															data-align={
+																col.align ??
+																(col.type === "number" ? "end" : "start")
+															}
+															data-filling={
+																editable &&
+																v.fillRow != null &&
+																bounds &&
+																r > bounds.r1 &&
+																r <= v.fillRow &&
+																ci >= bounds.c0 &&
+																ci <= bounds.c1
+																	? true
+																	: undefined
+															}
+															style={style(c)}
+															onPointerDown={(e) =>
+																view.startSelection(e.nativeEvent, {
+																	rowId,
+																	columnId: col.id,
+																})
+															}
+															onDoubleClick={(event) => {
+																if (
+																	!(event.target as HTMLElement).closest(
+																		"button,input,select,a,[data-lg-interactive]",
+																	)
+																)
+																	view.startEdit({ rowId, columnId: col.id });
+															}}
+														>
+															{editing ? (
+																(props.renderEditor?.(editorContext) ?? (
+																	<DefaultEditor view={view} column={col} />
+																))
+															) : (
+																<div className="lg-cell-value">
+																	{props.renderCell?.(context) ??
+																		formatValue(row, col, options.locale)}
+																</div>
+															)}
+															{!editing &&
+																canFill &&
+																bounds &&
+																r === bounds.r1 &&
+																ci === bounds.c1 && (
+																	<span
+																		aria-hidden
+																		className="lg-fill-handle"
+																		onPointerDown={(e) => {
+																			e.stopPropagation();
+																			view.startFill(e.nativeEvent);
+																		}}
+																	/>
+																)}
+														</div>
+													);
+												})}
+											</div>
+										);
+									})}
+								<CellIndicator view={view} />
+								{(props.loading ||
+									props.error ||
+									!s.viewRows.length ||
+									!s.columns.length) && (
+									<div className="lg-empty" style={{ width: v.width }}>
+										{props.loading ? (
+											m.loading
+										) : props.error ? (
+											<>
+												<span role="alert">{props.error}</span>
+												{props.onRetry && (
+													<Button variant="outline" onClick={props.onRetry}>
+														{m.retry}
+													</Button>
+												)}
+											</>
+										) : !s.columns.length ? (
+											<>
+												<p>{m.allColumnsHidden}</p>
+												<Button
+													variant="outline"
+													onClick={() =>
+														store.setState(
+															{
+																columns: s.state.columns.map((c) => ({
+																	...c,
+																	hidden: false,
+																})),
+															},
+															"columns",
+														)
+													}
+												>
+													{m.showAll}
+												</Button>
+											</>
+										) : (
+											(props.renderEmpty?.() ??
+											(s.rows.length ? m.noResults : m.empty))
+										)}
+									</div>
+								)}
+							</div>
+							{props.summary !== false && (
+								<div
+									role="row"
+									aria-rowindex={s.viewRows.length + headerRows + 1}
+									className="lg-summary"
+									aria-label="汇总"
+								>
+									<div role="gridcell" className="lg-gutter" />
+									{layout.map((c, i) => {
+										const value = c.column.aggregate
+											? view.total(c.column)
+											: null;
+										const label =
+											c.column.aggregateLabel ??
+											(c.column.aggregate === "avg"
+												? m.avg
+												: c.column.aggregate === "count"
+													? m.count
+													: m.sum);
+										return (
+											<div
+												key={c.column.id}
+												role="gridcell"
+												className={cn(
+													"lg-summary-cell",
+													c.pinned && "lg-pinned",
+												)}
+												style={style(c)}
+											>
+												{value != null ? (
+													<>
+														{label && <span>{label}</span>}
+														<strong>
+															{c.column.formatAggregate
+																? c.column.formatAggregate(
+																		value,
+																		options.locale,
+																	)
+																: typeof value === "number"
+																	? nf.format(value)
+																	: String(value)}
+														</strong>
+													</>
+												) : i === 0 ? (
+													`${s.viewRows.length} ${m.rows}`
+												) : null}
+											</div>
+										);
+									})}
+								</div>
+							)}
+						</div>
+					</ScrollArea>
+					{props.statusBar !== false && (
+						<div className="lg-status">
+							<strong>{view.address()}</strong>
+							{stats.count > 0 && (
+								<span>
+									{m.count} {nf.format(stats.count)}
+								</span>
+							)}
+							{stats.numericCount > 0 && (
+								<span>
+									{m.sum} {nf.format(stats.sum)} · {m.avg}{" "}
+									{nf.format(stats.sum / stats.numericCount)}
+								</span>
+							)}
+							<span className="lg-status-message" role="status">
+								{s.pending
+									? m.saving
+									: v.notice || (props.readOnly ? m.readOnly : "")}
+							</span>
 						</div>
 					)}
 				</div>
-			</ScrollArea>
-			{props.statusBar !== false && (
-				<div className="lg-status">
-					<strong>{view.address()}</strong>
-					{stats.count > 0 && (
-						<span>
-							{m.count} {nf.format(stats.count)}
-						</span>
-					)}
-					{stats.numericCount > 0 && (
-						<span>
-							{m.sum} {nf.format(stats.sum)} · {m.avg}{" "}
-							{nf.format(stats.sum / stats.numericCount)}
-						</span>
-					)}
-					<span className="lg-status-message" role="status">
-						{s.pending
-							? m.saving
-							: v.notice || (props.readOnly ? m.readOnly : "")}
-					</span>
-				</div>
 			)}
-		</div>
+		</CellContextMenu>
 	);
 }

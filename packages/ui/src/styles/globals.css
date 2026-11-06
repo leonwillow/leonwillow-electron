@@ -1292,6 +1292,11 @@ input[type="number"]::-webkit-outer-spin-button {
 	align-items: center;
 	gap: var(--spacing);
 }
+/* 目录操作沿用笔录的图标规格，隔离 Tree 对节点图标的默认尺寸。 */
+.menu-row-actions :where(button > svg) {
+	width: calc(var(--spacing) * 3);
+	height: calc(var(--spacing) * 3);
+}
 [data-menu-row]:hover .menu-row-actions {
 	display: flex;
 }
@@ -1396,6 +1401,31 @@ input[type="number"]::-webkit-outer-spin-button {
 	max-width: 100%;
 }
 
+/* 说明入口继承模块标题，小问号靠文字右上方，不改变标题基线。 */
+.calculator-help-trigger {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--spacing);
+	border-radius: var(--radius-sm);
+	font: inherit;
+	color: inherit;
+	cursor: help;
+}
+.calculator-help-icon {
+	width: calc(var(--spacing) * 3);
+	height: calc(var(--spacing) * 3);
+	flex-shrink: 0;
+	align-self: flex-start;
+	color: var(--muted-foreground);
+}
+.calculator-help-trigger:focus-visible {
+	outline: 2px solid var(--ring);
+	outline-offset: 2px;
+}
+.calculator-help-card {
+	width: 28rem;
+}
+
 /* 滞纳金录入随可用宽度重排，日期、金额保持共享控件尺寸。 */
 .late-fee-plan-fields {
 	display: grid;
@@ -1466,16 +1496,17 @@ input[type="number"]::-webkit-outer-spin-button {
 	text-align: inherit;
 }
 .lg-root {
-	--lg-row-compact: 2rem;
-	--lg-row-standard: 2.5rem;
-	--lg-row-comfortable: 3rem;
+	/* 三类行沿用原分组高度，共用密度令牌，避免切换后再出现高低差。 */
+	--lg-row-compact: 1.75rem;
+	--lg-row-standard: 2rem;
+	--lg-row-comfortable: 2.5rem;
 	--lg-filter-min-height: 2.5rem;
-	--lg-header-compact: 2rem;
-	--lg-header-standard: 2.5rem;
-	--lg-header-comfortable: 3rem;
-	--lg-group-header-compact: 1.75rem;
-	--lg-group-header-standard: 2rem;
-	--lg-group-header-comfortable: 2.5rem;
+	--lg-header-compact: var(--lg-row-compact);
+	--lg-header-standard: var(--lg-row-standard);
+	--lg-header-comfortable: var(--lg-row-comfortable);
+	--lg-group-header-compact: var(--lg-row-compact);
+	--lg-group-header-standard: var(--lg-row-standard);
+	--lg-group-header-comfortable: var(--lg-row-comfortable);
 	--lg-group-label-inset: 0.75rem;
 	--lg-gutter-width: 3rem;
 	--lg-summary-height: 2.25rem;
@@ -1538,6 +1569,21 @@ input[type="number"]::-webkit-outer-spin-button {
 	height: min(32rem, 65vh);
 	min-height: 8rem;
 }
+/* 填充模式分配父级剩余高度；小窗口仍保留滚动口的最小可用高度。 */
+.lg-root[data-fill-height] {
+	display: flex;
+	flex: 1 0 auto;
+	flex-direction: column;
+}
+.lg-root[data-fill-height] > .lg-scroll-area {
+	flex: 1 0 auto;
+	height: 0;
+	min-height: 16rem;
+}
+.lg-toolbar,
+.lg-status {
+	flex-shrink: 0;
+}
 /* 同一装饰层贯穿表头、虚拟行和汇总；在 viewport 之上、滚动条之下。 */
 .lg-scroll-area::after {
 	content: "";
@@ -1568,14 +1614,18 @@ input[type="number"]::-webkit-outer-spin-button {
 	overscroll-behavior: none;
 	outline: none;
 }
-.lg-scroller:focus-visible {
-	box-shadow: inset 0 0 0 2px var(--ring);
+.lg-root:has(.lg-scroller:focus-visible) {
+	outline: 2px solid var(--ring);
+	outline-offset: 2px;
 }
 .lg-sheet {
 	position: relative;
+	display: flex;
+	flex-direction: column;
 	min-height: 100%;
 }
 .lg-head {
+	flex-shrink: 0;
 	position: sticky;
 	top: 0;
 	z-index: 4;
@@ -1733,6 +1783,7 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 .lg-body {
 	position: relative;
+	flex: 1 0 auto;
 }
 .lg-row {
 	position: absolute;
@@ -1782,7 +1833,7 @@ input[type="number"]::-webkit-outer-spin-button {
 	background: color-mix(in oklch, var(--primary) 10%, var(--card));
 }
 .lg-cell[aria-readonly="false"] {
-	cursor: crosshair;
+	cursor: text;
 }
 .lg-cell.lg-active {
 	z-index: 1;
@@ -1908,6 +1959,7 @@ input[type="number"]::-webkit-outer-spin-button {
 	color: var(--muted-foreground);
 }
 .lg-summary {
+	flex-shrink: 0;
 	position: sticky;
 	bottom: 0;
 	z-index: 3;
@@ -1974,4 +2026,53 @@ input[type="number"]::-webkit-outer-spin-button {
 	.lg-row-number {
 		display: none;
 	}
+}
+
+/* 列落位反馈只改变覆盖层透明度，不参与表格几何或命中测试。 */
+.lg-cell[data-column-moved]::after,
+.lg-header[data-column-moved]::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	background: color-mix(in oklch, var(--info) 22%, transparent);
+	box-shadow: inset 0 0 0 1px var(--info);
+	animation: lg-column-land-odd 1100ms ease-out both;
+}
+.lg-cell[data-column-moved="even"]::after,
+.lg-header[data-column-moved="even"]::after {
+	animation-name: lg-column-land-even;
+}
+@keyframes lg-column-land-odd {
+	0%,
+	22% {
+		opacity: 1;
+	}
+	100% {
+		opacity: 0;
+	}
+}
+@keyframes lg-column-land-even {
+	0%,
+	22% {
+		opacity: 1;
+	}
+	100% {
+		opacity: 0;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.lg-cell[data-column-moved]::after,
+	.lg-header[data-column-moved]::after {
+		animation: none;
+		opacity: 0.55;
+	}
+}
+.lg-date-editor {
+	width: 100%;
+	height: 100%;
+	border: 0;
+	border-radius: 0;
+	background: var(--card);
+	box-shadow: none;
 }

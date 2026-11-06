@@ -1,6 +1,6 @@
 /**
  * @file ReUI Sortable 共享拖拽排序组件。
- * 创建时间：2026-11-04；修改时间：2026-11-04。
+ * 创建时间：2026-11-04；修改时间：2026-11-06。
  * 版本作用：保留 ReUI 官方鼠标、触摸、键盘传感器、排序策略及拖动/落位动画。
  * 被调用：笔录问答编辑；调用：Base UI、dnd-kit、React Portal 与共享 cn。
  * 功能：按稳定 ID 排序，提供独立拖动手柄、拖动预览和排序提交接口。
@@ -151,6 +151,7 @@ export interface SortableRootProps<T>
 	onDragEnd?: (event: DragEndEvent) => void;
 	onDragCancel?: (event: DragCancelEvent) => void;
 	accessibility?: React.ComponentProps<typeof DndContext>["accessibility"];
+	autoScroll?: React.ComponentProps<typeof DndContext>["autoScroll"];
 	modifiers?: Modifiers;
 }
 
@@ -167,6 +168,7 @@ function Sortable<T>({
 	onDragEnd,
 	onDragCancel,
 	accessibility,
+	autoScroll,
 	modifiers,
 	children,
 	...props
@@ -288,6 +290,7 @@ function Sortable<T>({
 	return (
 		<SortableInternalContext.Provider value={contextValue}>
 			<DndContext
+				autoScroll={autoScroll}
 				sensors={sensors}
 				modifiers={modifiers}
 				accessibility={accessibility}

@@ -1,11 +1,17 @@
 /**
  * @file 税务导出表的纯文本解析，不执行导入内容。
- * 创建时间：2026-11-05；修改时间：2026-11-05。
- * 版本作用：保留 V5 的 CSV/TSV、标题别名和完整自然月规则。
+ * 创建时间：2026-11-05；修改时间：2026-11-06。
+ * 版本作用：保留 V5 的 CSV/TSV、标题别名和所属期起止规则。
  * 被调用：浏览器导入弹窗与测试；调用：共享历史校验。HTML DOM 提取留在客户端。
  * 预期结果：跳过小规模与汇总行，拒绝不完整期间和不明确的金额。
  */
-import { fields, type HistoryRow, monthIndex, normalizeHistoryRow } from ".";
+import {
+	fields,
+	type HistoryRow,
+	legacyPeriod,
+	normalizeHistoryRow,
+	periodDate,
+} from ".";
 export function parseDelimited(input: string): string[][] {
 	const text = input.replace(/^\ufeff/, "");
 	const delimiter = text
@@ -42,41 +48,41 @@ export function parseDelimited(input: string): string[][] {
 	if (row.some((value) => value.trim())) rows.push(row);
 	return rows;
 }
+/** 双列日期原样保留；旧 YYYY-MM 兼容为整月，不把季度或任意期间压成月份。 */
 export function parsePeriod(value: string, until = "") {
 	const s = value.trim();
-	const match = /^(\d{4})[-/年](\d{1,2})(?:[-/月](\d{1,2}))?/.exec(s);
-	if (!match) throw Error(`无法识别税款所属期“${s}”`);
-	const year = Number(match[1]);
-	const monthNumber = Number(match[2]);
-	const month = `${match[1]}-${match[2]?.padStart(2, "0")}`;
-	monthIndex(month);
-	if (match[3] && Number(match[3]) !== 1)
-		throw Error(`${month} 不是从月初开始的月度申报`);
-	const rest = s
-		.slice(match[0].length)
-		.replace(/^[日月]/, "")
-		.trim();
-	const range = /^(?:至|到|~|—|–|-)\s*(.+)$/.exec(rest);
-	if (rest && !range) throw Error(`${month} 所属期包含无法识别的内容`);
-	const end = until.trim() || range?.[1] || "";
-	if (end) {
-		const e = /^(\d{4})[-/年](\d{1,2})[-/月](\d{1,2})日?$/.exec(end.trim());
-		const lastDay = new Date(Date.UTC(year, monthNumber, 0)).getUTCDate();
-		if (
-			!e ||
-			Number(e[1]) !== year ||
-			Number(e[2]) !== monthNumber ||
-			Number(e[3]) !== lastDay
-		)
-			throw Error(`${month} 所属期不是一个完整自然月`);
+	if (/^\d{4}[-/年]\d{1,2}月?$/.test(s) && !until.trim()) {
+		const [year, month] = s.match(/\d+/g) as string[];
+		return legacyPeriod(`${year}-${month?.padStart(2, "0")}`);
 	}
-	return month;
+	const date = (text: string) => {
+		const match = /^(\d{4})[-/年](\d{1,2})[-/月](\d{1,2})日?$/.exec(
+			text.trim(),
+		);
+		if (!match) throw Error(`无法识别所属期日期“${text}”`);
+		return periodDate(
+			`${match[1]}-${match[2]?.padStart(2, "0")}-${match[3]?.padStart(2, "0")}`,
+		);
+	};
+	const range =
+		/^(\d{4}[-/年]\d{1,2}[-/月]\d{1,2}日?)\s*(?:至|到|~|—|–|-)\s*(.+)$/.exec(s);
+	const periodStart = date(range?.[1] ?? s);
+	const periodEnd = date(until.trim() || range?.[2] || "");
+	if (periodStart > periodEnd) throw Error("所属期起不能晚于所属期止");
+	return { periodStart, periodEnd };
 }
 const clean = (s = "") =>
 	s.replace(/[\s\uFEFF]/g, "").replace(/[（(](?:元|人民币元)[）)]/g, "");
 const aliases = {
-	month: ["税款所属期起", "税款所属期", "所属期", "月份", "税款所属月份"],
-	until: ["税款所属期止"],
+	month: [
+		"税款所属期起",
+		"所属期起",
+		"税款所属期",
+		"所属期",
+		"月份",
+		"税款所属月份",
+	],
+	until: ["税款所属期止", "所属期止"],
 	type: ["申报类型"],
 	x: ["销项税额"],
 	i: ["进项税额"],
@@ -103,7 +109,7 @@ export function gridToHistory(grid: string[][]) {
 	}
 	if (headerIndex < 0)
 		throw Error(
-			"未找到完整标题行。需要月份、销项税额、进项税额、进项税额转出、应纳税额、期末留抵六项。",
+			"未找到完整标题行。需要所属期起、所属期止、销项税额、进项税额、进项税额转出、应纳税额、期末留抵。",
 		);
 	const rows: HistoryRow[] = [];
 	let excluded = 0;
@@ -127,7 +133,7 @@ export function gridToHistory(grid: string[][]) {
 		try {
 			rows.push(
 				normalizeHistoryRow({
-					month: parsePeriod(cell("month"), cell("until")),
+					...parsePeriod(cell("month"), cell("until")),
 					...Object.fromEntries(fields.map((key) => [key, cell(key)])),
 				}),
 			);
@@ -137,6 +143,6 @@ export function gridToHistory(grid: string[][]) {
 			);
 		}
 	}
-	if (!rows.length) throw Error("表内没有可用的一般纳税人月度申报数据");
+	if (!rows.length) throw Error("表内没有可用的一般纳税人所属期申报数据");
 	return { rows, excluded };
 }

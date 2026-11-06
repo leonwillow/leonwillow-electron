@@ -1,7 +1,7 @@
 /**
  * @file 计算器 API 的真实 PostgreSQL 事务与权限回归。
  * 创建时间：2026-11-05；修改时间：2026-11-06。
- * 版本作用：独立随机 schema 跑生成迁移，验证整数结果落库和历史不可覆盖。
+ * 版本作用：独立随机 schema 跑生成迁移，验证整数结果落库、原始申报校正及并发保护。
  * 被调用：test:api；调用：Better Auth、Eden、Drizzle；结束仅清理本测试 schema。
  * 预期结果：权限、所有者、冲突、重试与失败原子性均得到验证。
  */
@@ -12,7 +12,9 @@ import { initializeAdmin } from "@leonwillow-electron/auth/bootstrap";
 import {
 	adjustmentFields,
 	emptyAdjustment,
+	insertVatRows,
 	LEGACY_RULES_VERSION,
+	normalizeHistory,
 	RULES_VERSION,
 } from "@leonwillow-electron/calculators";
 import { createDatabase } from "@leonwillow-electron/db";
@@ -130,6 +132,104 @@ async function create() {
 	if (!result.data) throw Error("创建失败");
 	return result.data;
 }
+
+test("空行按位置落库，所属期两端分步保存，季度计算与调整始终跟随行 ID", async () => {
+	const created = await create();
+	const route = api.api.calculators.vat({ id: created.id });
+	const base = {
+		source: "所属期合成测试",
+		history: normalizeHistory([
+			{
+				id: "q1",
+				periodStart: "2025-01-01",
+				periodEnd: "2025-03-31",
+				x: "100",
+				i: "50",
+				t: "0",
+				tax: "50",
+				end: "0",
+			},
+		]),
+		adjustments: { q1: { ...emptyAdjustment(), inputIncrease: "60" } },
+	};
+	const blank = insertVatRows(base, "q1", "below", ["new-row"]);
+	const saved = await route.put(
+		{ ...blank, name: "期间测试", revision: 1 },
+		headers(),
+	);
+	expect(saved.status).toBe(200);
+	expect(saved.data?.history.map((r) => r.id)).toEqual(["q1", "new-row"]);
+	expect(saved.data?.history[1]).toMatchObject({
+		periodStart: "",
+		periodEnd: "",
+	});
+	expect(saved.data?.result.allReady).toBe(false);
+	expect((await route.get(headers())).data?.history).toEqual(
+		saved.data?.history,
+	);
+	const withStart = {
+		...blank,
+		history: blank.history.map((r) =>
+			r.id === "new-row" ? { ...r, periodStart: "2025-04-01" } : r,
+		),
+	};
+	const partial = await route.put(
+		{ ...withStart, name: "期间测试", revision: 2 },
+		headers(),
+	);
+	expect(partial.status).toBe(200);
+	expect(partial.data?.history[1]?.periodEnd).toBe("");
+	const complete = {
+		...withStart,
+		history: withStart.history.map((r) =>
+			r.id === "new-row"
+				? { ...r, periodEnd: "2025-06-30", x: "100", i: "50", tax: "50" }
+				: r,
+		),
+	};
+	const final = await route.put(
+		{ ...complete, name: "期间测试", revision: 3 },
+		headers(),
+	);
+	expect(final.status).toBe(200);
+	expect(final.data?.result.rows.map((r) => r.n?.tax)).toEqual([0, 4000]);
+	expect(final.data?.result.audit).toBe(true);
+	expect(final.data?.adjustments).toEqual(base.adjustments);
+	expect(final.data?.history[1]?.id).toBe("new-row");
+	const stored = (
+		await database.pool.query(
+			"SELECT history, rules_version FROM vat_scenario WHERE id = $1",
+			[created.id],
+		)
+	).rows[0];
+	expect(stored.history).toEqual(final.data?.history);
+	expect(stored.rules_version).toBe(RULES_VERSION);
+
+	for (const dates of [
+		{ periodStart: "2025-03-31", periodEnd: "2025-06-30" },
+		{ periodStart: "2025-06-30", periodEnd: "2025-04-01" },
+		{ periodStart: "2025-02-29", periodEnd: "2025-06-30" },
+	]) {
+		const rejected = await route.put(
+			{
+				...complete,
+				name: "期间测试",
+				revision: 4,
+				history: complete.history.map((r) =>
+					r.id === "new-row" ? { ...r, ...dates } : r,
+				),
+			},
+			headers(),
+		);
+		expect(rejected.status).toBe(400);
+	}
+	expect((await route.get(headers())).data).toEqual(final.data);
+	expect(
+		(await route.put({ ...complete, name: "旧版本", revision: 3 }, headers()))
+			.status,
+	).toBe(409);
+});
+
 test("完整方案保存并服务端重算，重试创建不会重复或覆盖", async () => {
 	const created = await create();
 	const route = api.api.calculators.vat({ id: created.id });
@@ -239,6 +339,11 @@ test("旧数据库方案读取仅内存转换重算，坏原文保留且数据�
 	const read = await api.api.calculators.vat({ id: created.id }).get(headers());
 	expect(read.status).toBe(200);
 	expect(read.data?.rulesVersion).toBe(RULES_VERSION);
+	expect(read.data?.history[0]).toMatchObject({
+		id: "2025-01",
+		periodStart: "2025-01-01",
+		periodEnd: "2025-01-31",
+	});
 	expect(read.data?.adjustments["2025-01"]?.outputDecrease).toBe("10.00");
 	expect(read.data?.adjustments["2025-02"]?.outputIncrease).toBe("bad");
 	expect(read.data?.adjustments["2025-02"]?.inputIncrease).toBe("-1");
@@ -332,7 +437,7 @@ test("未知金额字段不能被接口清理后保存，原方案保持不变",
 	expect(after.data).toEqual(before.data);
 });
 
-test("旧修订、同月冲突、无效历史及未知月份调整均不覆盖原方案", async () => {
+test("旧修订、重复月份、无效历史及未知月份调整均不覆盖原方案", async () => {
 	const created = await create();
 	const route = api.api.calculators.vat({ id: created.id });
 	expect((await route.put({ ...input, revision: 1 }, headers())).status).toBe(
@@ -348,6 +453,14 @@ test("旧修订、同月冲突、无效历史及未知月份调整均不覆盖�
 					...input,
 					revision: 2,
 					history: [
+						{
+							month: "2025-01",
+							x: "100",
+							i: "150",
+							t: "0",
+							tax: "0",
+							end: "50",
+						},
 						{
 							...input.history[0],
 							month: "2025-01",
@@ -713,3 +826,56 @@ for (const kind of ["vat", "late-fees"] as const) {
 		});
 	});
 }
+
+test("原始申报可人工修改并落库重算，旧修订仍拒绝且遗漏月份保留", async () => {
+	const created = await create();
+	const route = api.api.calculators.vat({ id: created.id });
+	expect((await route.put({ ...input, revision: 1 }, headers())).status).toBe(
+		200,
+	);
+	const history = [
+		{ month: "2025-01", x: "120", i: "150", t: "0", tax: "0", end: "30" },
+		{ month: "2025-02", x: "100", i: "20", t: "0", tax: "50", end: "0" },
+	];
+	const corrected = await route.put(
+		{ ...input, history, revision: 2 },
+		headers(),
+	);
+	expect(corrected.status).toBe(200);
+	expect(corrected.data?.revision).toBe(3);
+	expect(corrected.data?.result.allReady).toBe(true);
+	expect(corrected.data?.result.totals.oldTax).toBe(5000);
+	expect(corrected.data?.result.totals.carryDelta).toBe(5000);
+	expect(corrected.data?.result.audit).toBe(true);
+	const read = await route.get(headers());
+	expect(read.data?.history[0]?.x).toBe("120.00");
+	expect(read.data?.history[1]?.tax).toBe("50.00");
+	expect(read.data?.adjustments).toEqual(corrected.data?.adjustments);
+	expect((await route.put({ ...input, revision: 2 }, headers())).status).toBe(
+		409,
+	);
+	expect((await route.get(headers())).data).toEqual(read.data);
+	const first = history[0];
+	if (!first) throw Error("fixture");
+	const invalid = await route.put(
+		{ ...input, revision: 3, history: [{ ...first, tax: "-1" }] },
+		headers(),
+	);
+	expect(invalid.status).toBe(400);
+	expect((await route.get(headers())).data).toEqual(read.data);
+	const partial = await route.put(
+		{ ...input, revision: 3, history: [{ ...first, x: "119" }] },
+		headers(),
+	);
+	expect(partial.status).toBe(200);
+	expect(partial.data?.history).toHaveLength(2);
+	expect(partial.data?.history[1]?.tax).toBe("50.00");
+	expect(partial.data?.result.rows[0]?.error).toContain("反推期初留抵为负");
+	expect(partial.data?.result.allReady).toBe(false);
+	const repaired = await route.put(
+		{ ...input, revision: 4, history },
+		headers(),
+	);
+	expect(repaired.status).toBe(200);
+	expect(repaired.data?.result.allReady).toBe(true);
+});

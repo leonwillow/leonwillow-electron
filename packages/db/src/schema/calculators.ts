@@ -1,14 +1,14 @@
 /**
  * @file 增值税与滞纳金方案及权威计算快照的持久化定义。
- * 创建时间：2026-11-05；修改时间：2026-11-05。
+ * 创建时间：2026-11-05；修改时间：2026-11-06。
  * 版本作用：方案按人员隔离，历史与调整分开存储，修订号阻止多窗口覆盖。
  * 被调用：Drizzle 迁移、计算器服务；调用：认证用户表、共享领域类型。
- * 预期结果：历史仅追加由事务服务保证，保留计算版本与软删除字段。
+ * 预期结果：原始申报追加和校正由事务服务校验，保留计算版本与软删除字段。
  */
 import type {
 	Adjustments,
 	Calculation,
-	HistoryRow,
+	HistoryInput,
 } from "@leonwillow-electron/calculators";
 import type {
 	LateFeeResult,
@@ -34,7 +34,7 @@ export const vatScenario = pgTable(
 		name: text("name").notNull(),
 		archived: boolean("archived").notNull().default(false),
 		source: text("source").notNull().default(""),
-		history: jsonb("history").$type<HistoryRow[]>().notNull(),
+		history: jsonb("history").$type<HistoryInput[]>().notNull(),
 		adjustments: jsonb("adjustments").$type<Adjustments>().notNull(),
 		result: jsonb("result").$type<Calculation>().notNull(),
 		rulesVersion: text("rules_version").notNull(),

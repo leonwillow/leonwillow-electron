@@ -29,7 +29,7 @@ export function Inventory() {
 - 业务列定义、货币精度、权限、保存与服务端冲突处理由调用页面负责，包不导入应用路由、Eden、数据库或税务算法。
 - 默认中文；提供 `renderCell`、`renderEditor`、`renderToolbar`、`renderEmpty` 扩展，以及 `apiRef` 获取实例。未接管的单元格从 `renderCell` 返回 `undefined`，交给默认显示。
 - `toolbarContent?: ReactNode` 用于宿主筛选和业务操作，显示在行数之后、右侧内置工具之前，空间不足时自动换行。原 `renderToolbar(store)` 仍追加在内置工具之后；`toolbar={false}` 会隐藏整条工具栏及两个插槽。
-- 列宽 `width/minWidth/maxWidth` 是 CSS 像素，行高和工具控件跟随应用 rem 主题。可指定 `height`，默认使用响应式高度。
+- 列宽 `width/minWidth/maxWidth` 是 CSS 像素，行高和工具控件跟随应用 rem 主题。可指定 `height`，默认使用响应式高度。`fillHeight` 可填满有界纵向 flex 父级的剩余高度，启用后优先于 `height`；工具栏和状态栏保留自身高度，滚动区分配剩余空间。小窗口保留最小可用高度，宿主可通过共享 ScrollArea 容纳溢出。
 
 ## 接入约定
 
@@ -47,7 +47,7 @@ export function Inventory() {
 
 自定义 `renderEditor` 通过 `onValueChange` 同步草稿，以支持离开时保存；`commit`/`cancel` 仍可显式结束编辑。Portal 弹层根节点应标记 `data-lg-edit-scope={editScope}`，避免点击内部选项被认为离开；编辑已结束时不应让弹层恢复到旧触发器的焦点。
 
-只读单元格保留键盘导航、范围选择和复制语义，但点击时不显示选中边框、选中底色或填充柄。可编辑格使用十字光标，悬停与切换焦点共用一个平滑移动的边框；滚动、列宽及窗口变化立即对齐，不播放追赶动画。边框在冻结列和表头边界内裁剪，并遵守 `prefers-reduced-motion`。仅源选区全部可编辑时提供填充柄，开始拖动时再次检查权限。
+只读单元格保留键盘导航、范围选择和复制语义，但点击时不显示选中边框、选中底色或填充柄。可编辑格悬停使用 I 形文本光标，悬停不显示或移动边框；点击或键盘切换选中格时，共用边框平滑移动。滚动、列宽及窗口变化立即对齐，不播放追赶动画。边框在冻结列和表头边界内裁剪，并遵守 `prefers-reduced-motion`。仅源选区全部可编辑时提供填充柄，开始拖动时再次检查权限；填充柄保留十字光标。
 
 复制与数字筛选使用列的 `getValue` 返回值，不使用格式化显示字符串；返回值的单位应与输入单位一致。VAT 适配层以元字符串对接网格，内部计算继续使用整数分。只读金额、币种或单位不同的列不要直接混用通用选区求和，可通过 `statusBar={false}` 隐藏。`exportable={false}` 可关闭网格 CSV 导出，交由宿主提供完整业务导出。
 
@@ -57,8 +57,15 @@ export function Inventory() {
 
 列标题悬停时显示 ReUI Sortable 手柄，支持鼠标拖动、Space/方向键排序与 Escape 取消。冻结列与普通列分别排序；窄窗临时取消视觉冻结不改变所属区域。`reorderVisibleColumns(ids, pinned)` 接收该区域全部可见列 ID 的新排列，验证失败返回 false，隐藏列及另一组保持不变。`canMoveColumn(id, direction)` 与 `moveColumn(id, direction)` 同样限制组内移动，视图保存继续沿用 `saveView/restoreView`。
 
-密度同时影响分组行、标题行和数据行；筛选输入保留足够高度。标题点击排序保留键盘操作，但不绘制按钮背景；列菜单使用共享 DropdownMenu。
+密度同时影响分组行、标题行和数据行，三者始终等高：紧凑 1.75rem、标准 2rem、宽松 2.5rem，沿用原分组行高度；筛选输入保留足够高度。标题点击排序保留键盘操作，但不绘制按钮背景；列菜单使用共享 DropdownMenu。
 
 当前保留固定行高和行虚拟化；不承诺可变行高、右冻结、树形透视、公式、XLSX 或所有浏览器/辅助技术认证。这里的列分组是表头展示，不是数据透视分组。
 
-`summary` 默认启用底部汇总行，`summary={false}` 可关闭。列的 `aggregate` 计算当前筛选后的全部行，`formatAggregate` 控制展示；`aggregateLabel` 可自定义前缀（例如“期末”），设为空字符串可只显示结果。金额等精确计算由业务自定义聚合函数，余额应按业务时间边界取值，不依赖当前视觉排序。
+`summary` 默认启用底部汇总行，`summary={false}` 可关闭。汇总始终停靠在网格滚动口底部；空结果或行数不足一屏时，正文补足空白，不把汇总留在页面中间。列的 `aggregate` 计算当前筛选后的全部行，`formatAggregate` 控制展示；`aggregateLabel` 可自定义前缀（例如“期末”），设为空字符串可只显示结果。金额等精确计算由业务自定义聚合函数，余额应按业务时间边界取值，不依赖当前视觉排序。
+
+
+右键菜单默认提供复制；可选 `onInsertRows({rowId,columnId,row,position,count})` 接管上下插入空行。回调抛错由菜单显示错误通知，失败时批量数量弹窗保留；只读、加载和提交中禁止插入。实际字段、持久化和行 ID 由业务页面负责。支持 Shift+F10/ContextMenu 键打开菜单，输入编辑期间使用原生文本菜单。
+
+`revealCell={{rowId,columnId}}` 使用稳定身份定位一次，等待异步行数据就绪后滚动并选中；需要再次定位时传入新请求对象。它不改变过滤器或排序，宿主可用 `apiRef.current.setState` 清除会隐藏新行的视图条件。
+
+小于等于 200 行时完整渲染；更大列表使用至少一屏的前后缓冲，快速滚动直接更新虚拟窗口。列排序关闭通用纵向自动滚动，鼠标拖动支持横向边缘滚动，落位短暂高亮对应列；冻结组边界及官方拖动/键盘行为保持一致。

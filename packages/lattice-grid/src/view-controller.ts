@@ -5,6 +5,7 @@
  * 被调用：React DataGrid；调用：泛型 GridStore、浏览器 DOM；仅 mount 后读取布局。
  * 预期结果：导航、填充与编辑定位始终使用相同几何数据，不介入业务持久化。
  */
+
 import {
 	aggregate,
 	columnAddress,
@@ -21,6 +22,7 @@ import type {
 	GridState,
 	Messages,
 } from "./core/types";
+import { virtualRange } from "./virtual-range";
 export interface CellContext<T> {
 	row: T;
 	column: Column<T>;
@@ -96,7 +98,6 @@ export class GridView<T> {
 	private resizeObserver?: ResizeObserver;
 	private themeObserver?: MutationObserver;
 	private geometry = "";
-	private frame = 0;
 	private timer: ReturnType<typeof setTimeout> | undefined;
 	private focusTimer: ReturnType<typeof setTimeout> | undefined;
 	private editExternalRevision = 0;
@@ -218,7 +219,7 @@ export class GridView<T> {
 		const density = this.store.getSnapshot().state.density;
 		return this.metric(
 			`--lg-row-${density}`,
-			{ compact: 32, standard: 40, comfortable: 48 }[density],
+			{ compact: 28, standard: 32, comfortable: 40 }[density],
 		);
 	}
 	gutterWidth() {
@@ -233,7 +234,7 @@ export class GridView<T> {
 		const density = this.store.getSnapshot().state.density;
 		return this.metric(
 			`--lg-header-${density}`,
-			{ compact: 32, standard: 40, comfortable: 48 }[density],
+			{ compact: 28, standard: 32, comfortable: 40 }[density],
 		);
 	}
 	groupHeaderHeight() {
@@ -296,7 +297,6 @@ export class GridView<T> {
 			doc.removeEventListener("pointermove", this.pointerMove);
 			doc.removeEventListener("pointerup", this.pointerUp);
 			doc.removeEventListener("pointercancel", this.pointerCancel);
-			win.cancelAnimationFrame(this.frame);
 			this.drag = null;
 		};
 	}
@@ -313,23 +313,15 @@ export class GridView<T> {
 				this.scroller.clientHeight,
 		);
 		if (this.scroller.scrollTop > max) this.scroller.scrollTop = max;
-		const start =
-			this.options.virtualize === false
-				? 0
-				: Math.max(
-						0,
-						Math.floor((this.scroller.scrollTop - this.headHeight()) / h) -
-							overscan,
-					);
-		const end =
-			this.options.virtualize === false
-				? count
-				: Math.min(
-						count,
-						Math.ceil(
-							(this.scroller.scrollTop + this.scroller.clientHeight) / h,
-						) + overscan,
-					);
+		const { start, end } = virtualRange(
+			count,
+			h,
+			this.scroller.scrollTop,
+			this.scroller.clientHeight - this.headHeight() - this.summaryHeight(),
+			this.snapshot,
+			overscan,
+			this.options.virtualize !== false,
+		);
 		const width = this.scroller.clientWidth || 940;
 		const scrollX = this.scroller.scrollLeft > 0;
 		const geometry = [
@@ -349,14 +341,8 @@ export class GridView<T> {
 			this.set({ start, end, width, scrollX });
 		}
 	};
-	onScroll = () => {
-		const win = this.root?.ownerDocument.defaultView;
-		if (!this.frame && win)
-			this.frame = win.requestAnimationFrame(() => {
-				this.frame = 0;
-				this.measure();
-			});
-	};
+	// 滚动事件中同步发布窗口，避免额外 rAF 延迟后 React 才开始渲染。
+	onScroll = () => this.measure();
 	announce(message: string) {
 		clearTimeout(this.timer);
 		this.set({ notice: message });

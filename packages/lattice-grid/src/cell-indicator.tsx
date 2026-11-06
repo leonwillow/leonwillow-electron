@@ -1,9 +1,9 @@
 /**
- * @file 可编辑网格单元格共用的悬停与焦点边框。
+ * @file 可编辑网格单元格共用的选中边框。
  * 创建时间：2026-11-06；修改时间：2026-11-06。
  * 版本作用：切换单元格时移动同一边框，滚动和布局变化时立即对齐实际单元格。
  * 被调用：DataGrid；调用：GridView 与已渲染的单元格 DOM，不修改数据或选区。
- * 预期结果：只读格无交互框，冻结边界正确裁剪，指针移动不触发表格重新渲染。
+ * 预期结果：点击或键盘选择后显示边框，悬停不改变选中框，只读格无交互框，冻结边界正确裁剪。
  */
 import { useEffect, useLayoutEffect, useRef } from "react";
 import type { GridView } from "./view-controller";
@@ -18,7 +18,6 @@ export function CellIndicator<T>({ view }: { view: GridView<T> }) {
 		const body = layer?.parentElement;
 		const viewport = view.scroller;
 		if (!layer || !border || !body || !viewport) return;
-		let hovered: HTMLElement | null = null;
 		let previousTarget = "";
 		let previousSelection = "";
 		let previousGeometry = "";
@@ -26,8 +25,7 @@ export function CellIndicator<T>({ view }: { view: GridView<T> }) {
 		let scrollTop = viewport.scrollTop;
 
 		const update = (animate: boolean, snap = false) => {
-			const active = body.querySelector<HTMLElement>(".lg-cell.lg-active");
-			const target = hovered?.isConnected ? hovered : active;
+			const target = body.querySelector<HTMLElement>(".lg-cell.lg-active");
 			if (
 				view.getSnapshot().editing ||
 				!target ||
@@ -80,22 +78,6 @@ export function CellIndicator<T>({ view }: { view: GridView<T> }) {
 			previousTarget = target.id;
 			previousGeometry = geometry;
 		};
-		const move = (event: PointerEvent) => {
-			if (event.pointerType === "touch" || event.buttons) return;
-			const element = event.target as HTMLElement;
-			const cell = element.closest<HTMLElement>("[data-lg-cell]");
-			const next =
-				cell && !element.closest("button,input,select,a,[data-lg-interactive]")
-					? cell
-					: null;
-			if (next === hovered) return;
-			hovered = next;
-			update(true);
-		};
-		const leave = () => {
-			hovered = null;
-			update(true);
-		};
 		const scroll = () => {
 			if (
 				viewport.scrollLeft === scrollLeft &&
@@ -104,15 +86,13 @@ export function CellIndicator<T>({ view }: { view: GridView<T> }) {
 				return;
 			scrollLeft = viewport.scrollLeft;
 			scrollTop = viewport.scrollTop;
-			// 滚动可能把原悬停格送出指针下方；恢复逻辑焦点且不播放位移动画。
-			hovered = null;
+			// 滚动只对齐当前选中格，不播放位移动画。
 			update(false, true);
 		};
 		refreshRef.current = () => {
 			const focus = view.store.getSnapshot().state.selection?.focus;
 			const selection = JSON.stringify(focus);
 			const changed = selection !== previousSelection;
-			if (changed) hovered = null;
 			previousSelection = selection;
 			update(changed);
 		};
@@ -120,14 +100,10 @@ export function CellIndicator<T>({ view }: { view: GridView<T> }) {
 		const resizeObserver = new ResizeObserver(() => update(false, true));
 		resizeObserver.observe(viewport);
 		resizeObserver.observe(body);
-		viewport.addEventListener("pointermove", move, { passive: true });
-		viewport.addEventListener("pointerleave", leave);
 		viewport.addEventListener("scroll", scroll, { passive: true });
 		return () => {
 			refreshRef.current = null;
 			resizeObserver.disconnect();
-			viewport.removeEventListener("pointermove", move);
-			viewport.removeEventListener("pointerleave", leave);
 			viewport.removeEventListener("scroll", scroll);
 		};
 	}, [view]);

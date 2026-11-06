@@ -60,6 +60,8 @@
 
 ## 工作区顶栏
 
+2026-11-06：计算器的可选说明入口继承 WorkspaceTitle 字体与基线，使用右上角的小圆问号提示可悬停；尺寸和焦点样式集中在 `calculator-help-*` 规则。说明通过共享 HoverCard/ScrollArea 展示，内容宽度受可用视口约束，不在正文底部重复占位。
+
 2026-11-05：笔录、增值税/滞纳金计算器、文书取号、资金分析统一使用 `components/layout/workspace-header.tsx` 的 `WorkspaceHeader` / `WorkspaceTitle`。以笔录为准：标题 `text-base` / `font-semibold`、前景语义色，图标 `size-4`、图文间距 `gap-2`，容器共用最小高度、水平留白和纵向 `py-2`。文书不再使用独立的浅色图标和中等字重，资金补用现有 Waypoints 模块图标；业务工具、路径名和路由行为保留。窄窗口允许工具换行，不用固定高度裁切内容。
 
 2026-11-05：增值税与滞纳金计算器的共用 `ScenarioWorkspace` 顶栏采用与笔录相同的 `min-h-workspace-header`、`px-workspace-gutter` 和 `py-2`，不再用四向 `p-workspace-gutter` 撑高顶栏。宽屏底部分隔线与 Logo、固定二级菜单对齐；窄空间保留操作分组换行，避免控件被裁切。
@@ -178,6 +180,8 @@ G6 的原生项通过共享 Tooltip 的 `anchor` 接口复用提示外观，不�
 
 2026-11-05：计算器目录扩展为分组/方案 Tree，同行操作使用 `icon-xs`，仅 hover 显示，显示时贴右排列。方案顶栏复用 WorkspaceHeader，名称 Input 使用集中在 globals.css 的 calculator-name-field 宽度，不显示额外字段标题；保存状态和操作按剩余空间换行。已归档方案的修改入口通过共享 disabledReason 给出恢复提示。
 
+2026-11-06：计算器与笔录目录的操作图标以笔录为准，统一由 `.menu-row-actions` 设置为共享间距的三倍（默认 0.75rem），保持 `icon-xs` 按钮外框及一份间距。改名、归档/恢复和新建均使用这份规则；移除笔录逐个图标的尺寸覆盖，防止 Tree 的节点图标样式把计算器操作图标放大。
+
 2026-11-05：目录名称未悬停时使用整行可用宽度，只有实际溢出才在行尾渐隐；悬停后为贴右按钮让位，ResizeObserver 重测并保留原有滚动展示。DirectoryItemLabel 为笔录、计算器、文书类型和资金案件提供共享 HoverCard，展示完整名称、所属分类、状态和已有的更新时间/文号前缀，不额外请求正文。卡片锚定完整行并由 Base UI 避让视口，长内容使用 ScrollArea；仅真实悬停150ms后打开，离开100ms后关闭，可移入卡片查看，点击名称关闭且不会因保留焦点重新弹出。
 
 2026-11-05：全局 Select 按 ReUI `@reui/c-select-1` 的 Base UI 示例统一。弹层默认 alignItemWithTrigger=false，触发器使用主题背景、统一默认控件高度与箭头，项目调用方不再分别指定弹层对齐或大尺寸。选项采用 Group 留白并为勾选图标预留位置；长文本换行。Select.List 通过 render 接入共享 ScrollArea 的 Viewport，保留原生选项键盘定位并提供自定义滚动条。日历年月通过 DayPicker 官方 Dropdown 适配同一 Select，保留年份范围、禁用项与本地日期导航。导航菜单、日期网格和多选筛选保留自身语义。
@@ -190,6 +194,11 @@ G6 的原生项通过共享 Tooltip 的 `anchor` 接口复用提示外观，不�
 
 共享 ScrollArea 的根与 Viewport 各自建立局部堆叠上下文，滚动条位于内容层之上；冻结列、吸顶表头与汇总行不能挡住滚动条。Lattice 外框统一裁剪内部内容到主题圆角，实际最后一行（含行号格）不画底边，当前最后一列的表头、分组、数据及汇总格不画右侧边界，避免与外框重复；中间分隔线保持原样。
 
-2026-11-06：网格只对 `store.isEditable()` 允许编辑的单元格显示交互边框、选中底色和 crosshair 光标。悬停/焦点的装饰层由 `.lg-cell-indicator` 统一使用 primary 边框，边框由四条固定厚度的边构成，切换目标仅通过 translate/scale 播放 220ms transform 过渡，不动画化 width/height；滚动或尺寸变化立即贴合，减少动态效果时关闭过渡。只读格维持普通外观，源选区包含只读格时隐藏填充柄。
+2026-11-06：网格只对 `store.isEditable()` 允许编辑的单元格显示选中边框、选中底色和 text 光标。悬停只呈现 I 形文本光标，不显示或移动边框；点击或键盘切换选中格后，`.lg-cell-indicator` 使用 primary 边框。边框由四条固定厚度的边构成，切换目标仅通过 translate/scale 播放 220ms transform 过渡，不动画化 width/height；滚动或尺寸变化立即贴合，减少动态效果时关闭过渡。只读格维持普通外观，源选区包含只读格时隐藏填充柄；填充柄继续使用 crosshair 光标。
 
-2026-11-06：Lattice 表头与分组行增加 compact/standard/comfortable 共享高度令牌；标题与数据行分别为 2/2.5/3rem，分组行为 1.75/2/2.5rem。筛选行至少 2.5rem，兼容默认输入框。标题操作透明、无按钮底色及阴影；拖拽柄固定占位，仅悬停、键盘聚焦或触摸环境可见。表头列设局部层级，冻结列覆盖滚动列的调宽柄；表头拖动使用现有 ReUI Sortable，减少动态效果时覆盖其内联 transition。列菜单使用共享 DropdownMenu 的小宽度、左对齐项目及组间分隔。
+2026-11-06：Lattice 分组、表头和数据行按原分组行高度统一：compact/standard/comfortable 分别为 1.75/2/2.5rem，表头和分组令牌引用数据行令牌，缩放及密度切换时保持等高。筛选行至少 2.5rem，兼容默认输入框。标题操作透明、无按钮底色及阴影；拖拽柄固定占位，仅悬停、键盘聚焦或触摸环境可见。表头列设局部层级，冻结列覆盖滚动列的调宽柄；表头拖动使用现有 ReUI Sortable，减少动态效果时覆盖其内联 transition。列菜单使用共享 DropdownMenu 的小宽度、左对齐项目及组间分隔。
+
+2026-11-06：Lattice Grid 的 `fillHeight` 模式由共享 CSS 分配剩余高度，滚动口保留 16rem 最小空间；小窗口由宿主 ScrollArea 承接外层滚动。sheet 使用纵向 flex，正文补足空白，表头和汇总不收缩，空数据和少量数据时汇总同样停靠底部。未启用该模式的网格保留原高度配置。
+
+
+2026-11-06：共享 ContextMenu 沿用 Base UI 官方 ContextMenu 原语、下拉菜单间距/图标及主题令牌，长菜单用 ScrollArea；同一菜单的 Root 和 Item 从同一原语入口导入。表格日期编辑复用 DatePicker，日历及年月 Select 的 Portal 均保留编辑作用域。列落位提示只动画覆盖层透明度，遵守 reduced-motion；网格键盘焦点提示不放在滚动内容的内侧。
