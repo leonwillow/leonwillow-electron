@@ -1,15 +1,16 @@
 /**
  * @file 共享主题状态与浏览器显示之间的生命周期连接。
  * 创建时间：2026-10-04
- * 修改时间：2026-10-04
+ * 修改时间：2026-11-06
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/layout/root-layout.tsx。
- * 调用：react、next-themes、stores/theme-store、utils/theme-script。
+ * 调用：react、next-themes、stores/theme-store、utils/theme-script、lib/theme-transition。
  * 功能：应用 CSS 变量、解析明暗模式，挂载快捷键和跨窗口同步。
  * 预期结果：预览即时生效，根布局卸载后不遗留全局监听。
  */
 import { useTheme } from "next-themes";
 import { useEffect, useEffectEvent } from "react";
+import { toggleThemeTransition } from "@/lib/theme-transition";
 import { connectThemeSync, useThemeStore } from "@/stores/theme-store";
 import { applyTheme } from "@/utils/theme-script";
 
@@ -42,7 +43,13 @@ export default function ThemeEffects() {
 		const { preview, updateSettings } = useThemeStore.getState();
 		// 编辑时由面板控制预览，快捷键不改动草稿背后的持久化偏好。
 		if (preview) return;
-		updateSettings({ mode: resolvedTheme === "dark" ? "light" : "dark" });
+		toggleThemeTransition(
+			resolvedTheme === "dark" ? "dark" : "light",
+			(mode) => {
+				updateSettings({ mode });
+				setTheme(mode);
+			},
+		);
 	});
 	useEffect(() => {
 		const onKeyDown = (event: KeyboardEvent) => {

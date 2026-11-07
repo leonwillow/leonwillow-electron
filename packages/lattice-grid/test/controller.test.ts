@@ -1,6 +1,6 @@
 /**
- * @file 编辑控制器的权限、填充选区和异步提交生命周期回归。
- * 创建时间：2026-11-05；修改时间：2026-11-06。
+ * @file 编辑控制器的权限、复制选区和异步提交生命周期回归。
+ * 创建时间：2026-11-05；修改时间：2026-11-07。
  * 被调用：bun test；调用：真实 GridStore 与 GridView 的无 DOM 数据订阅。
  * 预期结果：失效草稿及时退出，自己的提交和派生回写不中断编辑，新会话不被旧请求关闭。
  */
@@ -27,7 +27,7 @@ const columns: Column<Row>[] = [
 ];
 const position = { rowId: "a", columnId: "value" };
 
-describe("fill selection guard", () => {
+describe("selection without data changes", () => {
 	function fixture(overrides: Partial<GridOptions<Row>> = {}) {
 		const store = createGrid<Row>({
 			rows: [
@@ -38,84 +38,23 @@ describe("fill selection guard", () => {
 			getRowId: (row) => row.id,
 			...overrides,
 		});
-		return { store, view: new GridView(store, { id: "fill-grid" }) };
+		return { store, view: new GridView(store, { id: "selection-grid" }) };
 	}
 
-	function pointerDown() {
-		return new Event("pointerdown", { cancelable: true }) as PointerEvent;
-	}
-
-	it("does not begin filling without a selected source", () => {
-		const { view } = fixture();
-		const event = pointerDown();
-		expect(view.canFillSelection()).toBe(false);
-		view.startFill(event);
-		expect(event.defaultPrevented).toBe(false);
-	});
-
-	it("keeps readonly values selectable and copyable without a fill handle", () => {
+	it("keeps readonly values selectable and copyable", () => {
 		const { store, view } = fixture();
 		const source = { rowId: "a", columnId: "calculated" };
 		view.select(source);
 		expect(store.getSnapshot().state.selection?.focus).toEqual(source);
 		expect(store.copySelection()).toBe("10");
-		expect(view.canFillSelection()).toBe(false);
-		const event = pointerDown();
-		view.startFill(event);
-		expect(event.defaultPrevented).toBe(false);
+		expect(store.getSnapshot().rows.map((row) => row.value)).toEqual([1, 2]);
 	});
 
-	it("rejects a mixed source range even when its focus is editable", () => {
-		const { store, view } = fixture();
+	it("copies mixed ranges without changing their values", () => {
+		const { store } = fixture();
 		store.select({ rowId: "a", columnId: "calculated" });
 		store.select({ rowId: "b", columnId: "value" }, true);
-		expect(view.canFillSelection()).toBe(false);
 		expect(store.copySelection()).toBe("1\t10\r\n2\t20");
-		const event = pointerDown();
-		view.startFill(event);
-		expect(event.defaultPrevented).toBe(false);
-	});
-
-	it("checks row-level locks across the entire source range", () => {
-		const { store, view } = fixture({
-			rows: [
-				{ id: "a", value: 1, calculated: 10, locked: true },
-				{ id: "b", value: 2, calculated: 20, locked: false },
-			],
-		});
-		store.select(position);
-		store.select({ rowId: "b", columnId: "value" }, true);
-		expect(view.canFillSelection()).toBe(false);
-		const event = pointerDown();
-		view.startFill(event);
-		expect(event.defaultPrevented).toBe(false);
-	});
-
-	for (const patch of [
-		{ readOnly: true },
-		{ loading: true },
-		{ error: "加载失败" },
-	]) {
-		it(`rechecks availability before filling: ${Object.keys(patch)[0]}`, () => {
-			const { store, view } = fixture();
-			store.select(position);
-			expect(view.canFillSelection()).toBe(true);
-			store.updateOptions({ ...store.getOptions(), ...patch });
-			const event = pointerDown();
-			view.startFill(event);
-			expect(event.defaultPrevented).toBe(false);
-			expect(view.canFillSelection()).toBe(false);
-		});
-	}
-
-	it("starts filling when every source cell is editable", () => {
-		const { store, view } = fixture();
-		store.select(position);
-		store.select({ rowId: "b", columnId: "value" }, true);
-		expect(view.canFillSelection()).toBe(true);
-		const event = pointerDown();
-		view.startFill(event);
-		expect(event.defaultPrevented).toBe(true);
 		expect(store.getSnapshot().rows.map((row) => row.value)).toEqual([1, 2]);
 	});
 });

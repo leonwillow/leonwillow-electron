@@ -1,7 +1,7 @@
 /**
  * @file 页面搜索和快捷导航面板。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-08
+ * 修改时间：2026-11-06
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/layout/app-sidebar.tsx。
  * 调用：ui 基础组件/样式、@tanstack/react-router、lucide-react、react、assets/data/search。
@@ -21,6 +21,11 @@ import {
 	CommandList,
 	CommandSeparator,
 } from "@leonwillow-electron/ui/components/command";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@leonwillow-electron/ui/components/tooltip";
 import { getRouteApi, useNavigate, useSearch } from "@tanstack/react-router";
 import { SearchIcon } from "lucide-react";
 import { Fragment, useCallback, useEffect, useState } from "react";
@@ -72,15 +77,22 @@ const CommandMenu = () => {
 
 	return (
 		<>
-			<Button
-				className="hover:bg-primary/10 hover:text-primary"
-				variant="ghost"
-				size="icon-workspace"
-				aria-label="搜索"
-				onClick={() => setOpen(true)}
-			>
-				<SearchIcon />
-			</Button>
+			<Tooltip>
+				<TooltipTrigger
+					render={
+						<Button
+							className="workspace-nav-item"
+							variant="ghost"
+							size="icon-workspace"
+							aria-label="搜索"
+							onClick={() => setOpen(true)}
+						/>
+					}
+				>
+					<SearchIcon />
+				</TooltipTrigger>
+				<TooltipContent side="right">搜索</TooltipContent>
+			</Tooltip>
 			<CommandDialog
 				title="命令面板"
 				description="搜索并跳转到工作区页面。"

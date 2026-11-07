@@ -2,7 +2,7 @@
 // biome-ignore-all lint/a11y/useFocusableInteractive: The grid owns keyboard focus and exposes its active cell through aria-activedescendant; nested controls keep their own focus behavior.
 /**
  * @file Lattice Grid 的 React / ReUI 可复用表格视图。
- * 创建时间：2026-11-05；修改时间：2026-11-06。
+ * 创建时间：2026-11-05；修改时间：2026-11-07。
  * 版本作用：保留原引擎与选择、编辑、虚拟化控制器，使用当前共享控件与主题呈现。
  * 被调用：业务页面；调用：GridStore、GridView、共享 Base UI 控件与 Sonner。
  * 预期结果：稳定行 ID、受控数据和提交回调与业务解耦；可填满父级剩余高度，汇总始终位于滚动口底部。
@@ -500,7 +500,6 @@ export function DataGrid<T>(props: DataGridProps<T>) {
 		layout.some((column) => column.pinned) &&
 		layout.some((column) => !column.pinned);
 	const bounds = rangeBounds(s.state, s.viewRows, s.columns, props.getRowId);
-	const canFill = view.canFillSelection();
 	const selected = new Set(s.state.selectedRows);
 	const visibleSelected = s.viewRows.filter((row) =>
 		selected.has(props.getRowId(row)),
@@ -1108,17 +1107,6 @@ export function DataGrid<T>(props: DataGridProps<T>) {
 																col.align ??
 																(col.type === "number" ? "end" : "start")
 															}
-															data-filling={
-																editable &&
-																v.fillRow != null &&
-																bounds &&
-																r > bounds.r1 &&
-																r <= v.fillRow &&
-																ci >= bounds.c0 &&
-																ci <= bounds.c1
-																	? true
-																	: undefined
-															}
 															style={style(c)}
 															onPointerDown={(e) =>
 																view.startSelection(e.nativeEvent, {
@@ -1145,20 +1133,6 @@ export function DataGrid<T>(props: DataGridProps<T>) {
 																		formatValue(row, col, options.locale)}
 																</div>
 															)}
-															{!editing &&
-																canFill &&
-																bounds &&
-																r === bounds.r1 &&
-																ci === bounds.c1 && (
-																	<span
-																		aria-hidden
-																		className="lg-fill-handle"
-																		onPointerDown={(e) => {
-																			e.stopPropagation();
-																			view.startFill(e.nativeEvent);
-																		}}
-																	/>
-																)}
 														</div>
 													);
 												})}

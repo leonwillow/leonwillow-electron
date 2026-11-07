@@ -1,7 +1,7 @@
 /**
  * @file 常用外观设置的轻量入口。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-05
+ * 修改时间：2026-11-06
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/layout/app-sidebar.tsx。
  * 调用：ui 基础组件/样式、lucide-react、next-themes、react、components/theme-editor/theme-preset-select、configs/fonts、configs/theme-settings、stores/theme-store、types/theme。
@@ -89,19 +89,26 @@ const ThemeCustomizer = () => {
 
 	return (
 		<Popover open={open} onOpenChange={setOpen}>
-			<PopoverTrigger
-				render={
-					<Button
-						ref={themeEditorTrigger}
-						className="hover:bg-primary/10 hover:text-primary"
-						variant="ghost"
-						size="icon-workspace"
-					/>
-				}
-			>
-				<PaletteIcon />
-				<span className="sr-only">自定义主题</span>
-			</PopoverTrigger>
+			<Tooltip>
+				<TooltipTrigger
+					render={
+						<PopoverTrigger
+							render={
+								<Button
+									ref={themeEditorTrigger}
+									className="workspace-nav-item"
+									variant="ghost"
+									size="icon-workspace"
+									aria-label="自定义主题"
+								/>
+							}
+						/>
+					}
+				>
+					<PaletteIcon />
+				</TooltipTrigger>
+				<TooltipContent side="right">自定义主题</TooltipContent>
+			</Tooltip>
 
 			<PopoverContent
 				aria-label="主题设置"

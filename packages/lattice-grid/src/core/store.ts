@@ -1,6 +1,6 @@
 /**
  * @file Lattice Grid store：泛型表格数据与事务内核。
- * 创建时间：2026-11-05；修改时间：2026-11-06。
+ * 创建时间：2026-11-05；修改时间：2026-11-07。
  * 版本作用：适配 MIT Lattice Grid 0.1.0-beta.1，保留原始行标识、不可变事务与数据隔离。
  * 被调用：独立表格包的 React 视图；调用：包内核心模块，不依赖业务、数据库或路由。
  * 预期结果：多个表格实例独立工作，外部数据和提交由调用页面管理。
@@ -556,38 +556,6 @@ export class GridStore<T> {
 					value: column.type === "number" ? null : "",
 				});
 		return this.apply(patches, "clear");
-	}
-	async fillTo(rowIndex: number) {
-		const { state, viewRows, columns } = this.snapshot;
-		const b = rangeBounds(state, viewRows, columns, this.options.getRowId);
-		if (!b || rowIndex <= b.r1) return { ok: true };
-		const patches: Patch[] = [];
-		for (const column of columns.slice(b.c0, b.c1 + 1)) {
-			const values = viewRows
-				.slice(b.r0, b.r1 + 1)
-				.map((r) => getCellValue(r, column));
-			const numeric =
-				values.length > 1 && values.every((v) => typeof v === "number");
-			const step = numeric ? Number(values[1]) - Number(values[0]) : 0;
-			const sequence =
-				numeric &&
-				values.every(
-					(v, i) => Math.abs(Number(v) - (Number(values[0]) + i * step)) < 1e-9,
-				);
-			for (const [offset, row] of viewRows
-				.slice(b.r1 + 1, rowIndex + 1)
-				.entries()) {
-				const r = b.r1 + 1 + offset;
-				patches.push({
-					rowId: this.options.getRowId(row),
-					columnId: column.id,
-					value: sequence
-						? Number(values[0]) + (r - b.r0) * step
-						: values[(r - b.r0) % values.length],
-				});
-			}
-		}
-		return this.apply(patches, "fill");
 	}
 	/** Insert validated rows at an index in the underlying data, not in sorted view order. */
 	async insertRows(

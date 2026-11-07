@@ -1,7 +1,7 @@
 /**
  * @file 当前用户资料与账号操作菜单。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-08
+ * 修改时间：2026-11-06
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/layout/app-sidebar.tsx。
  * 调用：ui 基础组件/样式、@tanstack/react-router、lucide-react、react、sonner、assets/data/navigation、configs/app、lib/auth。
@@ -22,6 +22,11 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@leonwillow-electron/ui/components/dropdown-menu";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@leonwillow-electron/ui/components/tooltip";
 import { getRouteApi, Link, useRouter } from "@tanstack/react-router";
 import { LogOutIcon, UserIcon } from "lucide-react";
 import { useState } from "react";
@@ -53,22 +58,29 @@ const ProfileMenu = () => {
 
 	return (
 		<DropdownMenu>
-			<DropdownMenuTrigger
-				render={
-					<Button
-						variant="ghost"
-						size="icon-workspace"
-						className="relative rounded-full border-0"
-						aria-label="打开个人菜单"
-					/>
-				}
-			>
-				<Avatar className="size-full">
-					<AvatarImage src={user.image ?? undefined} alt={user.name} />
-					<AvatarFallback>{initials}</AvatarFallback>
-				</Avatar>
-				<span className="absolute right-0 bottom-0 size-2.5 rounded-full bg-presence-online ring-2 ring-sidebar" />
-			</DropdownMenuTrigger>
+			<Tooltip>
+				<TooltipTrigger
+					render={
+						<DropdownMenuTrigger
+							render={
+								<Button
+									variant="ghost"
+									size="icon-workspace"
+									className="workspace-nav-item rounded-full"
+									aria-label="打开个人菜单"
+								/>
+							}
+						/>
+					}
+				>
+					<Avatar className="size-full">
+						<AvatarImage src={user.image ?? undefined} alt={user.name} />
+						<AvatarFallback>{initials}</AvatarFallback>
+					</Avatar>
+					<span className="absolute right-0 bottom-0 size-2.5 rounded-full bg-presence-online ring-2 ring-sidebar" />
+				</TooltipTrigger>
+				<TooltipContent side="right">个人菜单</TooltipContent>
+			</Tooltip>
 			<DropdownMenuContent
 				side="right"
 				align="end"

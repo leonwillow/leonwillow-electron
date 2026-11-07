@@ -1,6 +1,6 @@
 /**
  * @file Lattice Grid 迁移的纯内核行为回归。
- * 创建时间：2026-11-05；修改时间：2026-11-06。
+ * 创建时间：2026-11-05；修改时间：2026-11-07。
  * 来源：MIT 原项目 core.test.ts；运行：bun test；使用独立虚构行，不访问业务数据。
  */
 import { describe, expect, it, mock } from "bun:test";
@@ -208,16 +208,12 @@ describe("atomic data changes", () => {
 		);
 		expect(frozen[0]?.amount).toBe(10);
 	});
-	it("fills numeric progressions and reverses deletion", async () => {
+	it("reverses deletion without changing remaining values", async () => {
 		const g = make({ allowDelete: true });
-		g.select({ rowId: "a", columnId: "amount" });
-		g.select({ rowId: "b", columnId: "amount" }, true);
-		await g.fillTo(2);
-		expect(g.getSnapshot().rows[2]?.amount).toBe(30);
 		await g.deleteRows(["b"]);
 		expect(g.getSnapshot().rows).toHaveLength(2);
 		await g.undo();
-		expect(g.getSnapshot().rows).toHaveLength(3);
+		expect(g.getSnapshot().rows).toEqual(rows);
 	});
 	it("enforces readOnly for API edits, deletion and history", async () => {
 		const g = make({ readOnly: true, allowDelete: true });

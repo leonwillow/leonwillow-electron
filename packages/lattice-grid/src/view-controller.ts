@@ -1,9 +1,9 @@
 /**
  * @file Lattice Grid 的虚拟行、键盘、选区与剪贴板控制器。
- * 创建时间：2026-11-05；修改时间：2026-11-06。
+ * 创建时间：2026-11-05；修改时间：2026-11-07。
  * 版本作用：保留原控制器契约，适配共享主题和 ScrollArea 的实际 viewport。
  * 被调用：React DataGrid；调用：泛型 GridStore、浏览器 DOM；仅 mount 后读取布局。
- * 预期结果：导航、填充与编辑定位始终使用相同几何数据，不介入业务持久化。
+ * 预期结果：导航、选区与编辑定位始终使用相同几何数据，不介入业务持久化。
  */
 
 import {
@@ -74,7 +74,6 @@ export interface ViewState {
 	editing: CellPosition | null;
 	draft: string;
 	notice: string;
-	fillRow: number | null;
 	scrollX: boolean;
 }
 export class GridView<T> {
@@ -91,7 +90,6 @@ export class GridView<T> {
 		editing: null,
 		draft: "",
 		notice: "",
-		fillRow: null,
 		scrollX: false,
 	};
 	private listeners = new Set<() => void>();
@@ -105,7 +103,7 @@ export class GridView<T> {
 	private editInitialDraft = "";
 	private popupTrigger: HTMLElement | null = null;
 	private drag:
-		| { type: "select" | "fill"; row?: number }
+		| { type: "select" }
 		| { type: "resize"; columnId: string; x: number; width: number }
 		| null = null;
 	private cleanStore?: () => void;
@@ -519,27 +517,6 @@ export class GridView<T> {
 			this.drag = { type: "select" };
 		}
 	}
-	/** 源选区必须全部可编辑；只读值仍可选择复制，但不提供会失败的填充操作。 */
-	canFillSelection() {
-		const { state, viewRows, columns } = this.store.getSnapshot();
-		const bounds = rangeBounds(
-			state,
-			viewRows,
-			columns,
-			this.store.getOptions().getRowId,
-		);
-		if (!bounds) return false;
-		for (const row of viewRows.slice(bounds.r0, bounds.r1 + 1))
-			for (const column of columns.slice(bounds.c0, bounds.c1 + 1))
-				if (!this.store.isEditable(row, column)) return false;
-		return true;
-	}
-	startFill(event: PointerEvent) {
-		if (!this.canFillSelection()) return;
-		event.preventDefault();
-		event.stopPropagation();
-		this.drag = { type: "fill" };
-	}
 	startResize(event: PointerEvent, id: string) {
 		event.preventDefault();
 		event.stopPropagation();
@@ -574,10 +551,7 @@ export class GridView<T> {
 		const col = el.dataset.col;
 		if (!col) return;
 		const rows = this.store.getSnapshot().viewRows;
-		if (this.drag.type === "fill") {
-			this.drag.row = row;
-			if (this.snapshot.fillRow !== row) this.set({ fillRow: row });
-		} else if (rows[row]) {
+		if (rows[row]) {
 			const pos = {
 				rowId: this.store.getOptions().getRowId(rows[row]),
 				columnId: col,
@@ -588,15 +562,10 @@ export class GridView<T> {
 		}
 	};
 	private pointerUp = () => {
-		const drag = this.drag;
 		this.drag = null;
-		if (drag?.type === "fill" && drag.row != null)
-			void this.store.fillTo(drag.row);
-		if (this.snapshot.fillRow != null) this.set({ fillRow: null });
 	};
 	private pointerCancel = () => {
 		this.drag = null;
-		if (this.snapshot.fillRow != null) this.set({ fillRow: null });
 	};
 	ensureVisible(rowIndex: number, columnIndex: number) {
 		if (!this.scroller) return;

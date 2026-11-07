@@ -1,17 +1,17 @@
 /**
  * @file 工作台浏览器全屏开关。
- * 创建时间：2026-11-05；修改时间：2026-11-05。
+ * 创建时间：2026-11-05；修改时间：2026-11-06。
  * 版本作用：头像上方提供全屏入口，监听真实浏览器状态以同步 Escape 退出。
- * 被调用：AppSidebar；调用：Fullscreen API、共享 Button/Tooltip、Sonner。
- * 预期结果：用户点击进入/退出全屏；不支持或拒绝时给出中文原因，不持久化全屏状态。
+ * 被调用：AppSidebar；调用：Fullscreen API、Arc FullscreenIcon、共享 Button/Tooltip、Sonner。
+ * 预期结果：全屏状态驱动四角连续形变和渐变；不支持或拒绝时给出中文原因。
  */
+import { FullscreenIcon } from "@leonwillow-electron/ui/components/arc/icon-morph/icon-morph";
 import { Button } from "@leonwillow-electron/ui/components/button";
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipTrigger,
 } from "@leonwillow-electron/ui/components/tooltip";
-import { MaximizeIcon, MinimizeIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 export default function FullscreenToggle() {
@@ -45,7 +45,7 @@ export default function FullscreenToggle() {
 					<Button
 						variant="ghost"
 						size="icon-workspace"
-						className="relative hover:bg-primary/10 hover:text-primary"
+						className="workspace-nav-item"
 						aria-label={label}
 						aria-pressed={fullscreen}
 						disabled={!supported}
@@ -54,7 +54,7 @@ export default function FullscreenToggle() {
 					/>
 				}
 			>
-				{fullscreen ? <MinimizeIcon /> : <MaximizeIcon />}
+				<FullscreenIcon state={fullscreen} />
 			</TooltipTrigger>
 			<TooltipContent side="right">{label}</TooltipContent>
 		</Tooltip>

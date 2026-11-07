@@ -20,5 +20,7 @@
 	},
 	"menuColor": "default",
 	"menuAccent": "subtle",
-	"registries": {}
+	"registries": {
+		"@uiarc": "https://uiarc.dev/r/{name}.json"
+	}
 }

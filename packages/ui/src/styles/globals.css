@@ -1,7 +1,7 @@
 /**
  * @file 全局语义色、排版与控件尺寸的唯一来源。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-06
+ * 修改时间：2026-11-07
  * 版本作用：共享 UI 基础层，随工作区维护。
  * 被调用：main.tsx、utils/theme/theme-draft.ts。
  * 调用：tailwindcss、tw-animate-css、shadcn。
@@ -17,6 +17,47 @@
 @source "../../../../apps/web/src";
 
 @custom-variant dark (&:is(.dark *));
+
+/* Arc ThemeSwitch 的页面快照接入；掩膜只控制透明度，不改变当前主题色。 */
+:root[data-theme-transition="sweep"]::view-transition {
+	pointer-events: none;
+}
+
+:root[data-theme-transition="sweep"]::view-transition-group(root) {
+	animation: none;
+}
+
+:root[data-theme-transition="sweep"]::view-transition-old(root),
+:root[data-theme-transition="sweep"]::view-transition-new(root) {
+	animation: none;
+	mix-blend-mode: normal;
+}
+
+:root[data-theme-transition="sweep"]::view-transition-new(root) {
+	/* 300% 掩膜的渐变边缘占视口 30%，匀速移动，让全程都有可见变化。 */
+	mask-image: linear-gradient(to right, #000 45%, transparent 55%);
+	mask-size: 300% 100%;
+	mask-repeat: no-repeat;
+	animation: theme-sweep 500ms linear both;
+}
+
+@keyframes theme-sweep {
+	/* 55% × 300% − 82.5% × 200% = 0：透明端恰好从左边界进入。 */
+	from {
+		mask-position: 82.5% 0;
+	}
+	/* 45% × 300% − 17.5% × 200% = 100%：不透明端在右边界结束。 */
+	to {
+		mask-position: 17.5% 0;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	:root[data-theme-transition="sweep"]::view-transition-new(root) {
+		animation: none;
+		mask-image: none;
+	}
+}
 
 @theme inline {
 	/* 顶部 Logo 四向留白一致，二级菜单和业务页头共用分隔线基线。 */
@@ -1784,6 +1825,8 @@ input[type="number"]::-webkit-outer-spin-button {
 .lg-body {
 	position: relative;
 	flex: 1 0 auto;
+	/* 正文的选中框不能覆盖吸附表头或汇总。 */
+	isolation: isolate;
 }
 .lg-row {
 	position: absolute;
@@ -1795,6 +1838,7 @@ input[type="number"]::-webkit-outer-spin-button {
 	align-items: center;
 	flex: none;
 	position: relative;
+	isolation: isolate;
 	padding: 0.25rem 0.5rem;
 	background: var(--card);
 	border-bottom: 1px solid var(--border);
@@ -1828,8 +1872,7 @@ input[type="number"]::-webkit-outer-spin-button {
 .lg-row[data-checked] > .lg-gutter {
 	background: color-mix(in oklch, var(--primary) 6%, var(--card));
 }
-.lg-cell.lg-selected,
-.lg-cell[data-filling] {
+.lg-cell.lg-selected {
 	background: color-mix(in oklch, var(--primary) 10%, var(--card));
 }
 .lg-cell[aria-readonly="false"] {
@@ -1838,62 +1881,61 @@ input[type="number"]::-webkit-outer-spin-button {
 .lg-cell.lg-active {
 	z-index: 1;
 }
-.lg-cell-indicator-clip {
-	position: absolute;
-	inset: 0;
-	z-index: 3;
-	pointer-events: none;
-}
 .lg-cell-indicator {
 	--lg-cell-indicator-thickness: 2px;
+	--lg-cell-indicator-duration: 160ms;
+	--lg-cell-indicator-easing: linear;
 	position: absolute;
-	top: 0;
-	left: 0;
-	width: 0;
-	height: 0;
+	inset: 0 -1px -1px 0;
+	z-index: 1;
+	pointer-events: none;
+}
+.lg-row[data-last-row] > .lg-cell > .lg-cell-indicator {
+	bottom: 0;
+}
+.lg-row > .lg-cell:last-child > .lg-cell-indicator {
+	right: 0;
+}
+/* 短暂的跨列切换过渡位于 viewport 上方、滚动条下方，正文范围外始终裁掉。 */
+.lg-cell-transition {
+	position: absolute;
+	z-index: 0;
+	overflow: clip;
+	pointer-events: none;
+}
+.lg-cell-transition-clip {
+	position: absolute;
+	inset: 0;
+	overflow: clip;
 }
 .lg-cell-indicator-edge {
 	position: absolute;
-	top: 0;
-	left: 0;
 	transform-origin: top left;
 	background: var(--primary);
 }
 .lg-cell-indicator-edge[data-edge="top"],
 .lg-cell-indicator-edge[data-edge="bottom"] {
-	width: 1px;
+	left: 0;
+	width: 100%;
 	height: var(--lg-cell-indicator-thickness);
-	transform: scaleX(var(--lg-cell-width));
+}
+.lg-cell-indicator-edge[data-edge="top"] {
+	top: 0;
 }
 .lg-cell-indicator-edge[data-edge="bottom"] {
-	transform: translateY(
-			calc(var(--lg-cell-height) * 1px - var(--lg-cell-indicator-thickness))
-		)
-		scaleX(var(--lg-cell-width));
+	bottom: 0;
 }
 .lg-cell-indicator-edge[data-edge="left"],
 .lg-cell-indicator-edge[data-edge="right"] {
+	top: 0;
 	width: var(--lg-cell-indicator-thickness);
-	height: 1px;
-	transform: scaleY(var(--lg-cell-height));
+	height: 100%;
+}
+.lg-cell-indicator-edge[data-edge="left"] {
+	left: 0;
 }
 .lg-cell-indicator-edge[data-edge="right"] {
-	transform: translateX(
-			calc(var(--lg-cell-width) * 1px - var(--lg-cell-indicator-thickness))
-		)
-		scaleY(var(--lg-cell-height));
-}
-.lg-cell-indicator[data-animate="true"],
-.lg-cell-indicator[data-animate="true"] > .lg-cell-indicator-edge {
-	transition-property: transform;
-	transition-duration: 220ms;
-	transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
-}
-@media (prefers-reduced-motion: reduce) {
-	.lg-cell-indicator[data-animate="true"],
-	.lg-cell-indicator[data-animate="true"] > .lg-cell-indicator-edge {
-		transition: none;
-	}
+	right: 0;
 }
 .lg-cell.lg-pinned,
 .lg-header.lg-pinned,
@@ -1920,6 +1962,9 @@ input[type="number"]::-webkit-outer-spin-button {
 .lg-row > .lg-cell.lg-editing {
 	background: var(--card);
 	box-shadow: inset 0 0 0 2px var(--primary);
+	z-index: 1;
+}
+.lg-row > .lg-cell.lg-pinned.lg-editing {
 	z-index: 3;
 }
 .lg-row-check {
@@ -1934,18 +1979,6 @@ input[type="number"]::-webkit-outer-spin-button {
 .lg-row[data-checked] .lg-row-number,
 .lg-row:focus-within .lg-row-number {
 	display: none;
-}
-.lg-fill-handle {
-	position: absolute;
-	right: -0.1875rem;
-	bottom: -0.1875rem;
-	width: 0.4375rem;
-	height: 0.4375rem;
-	z-index: 3;
-	border: 1px solid var(--card);
-	background: var(--primary);
-	cursor: crosshair;
-	touch-action: none;
 }
 .lg-empty {
 	position: sticky;
