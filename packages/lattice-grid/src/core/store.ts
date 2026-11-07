@@ -11,6 +11,7 @@ import {
 	getCellValue,
 	parseCell,
 	rangeBounds,
+	SearchTextCache,
 	stringifyDelimited,
 	validateCell,
 } from "./data";
@@ -67,6 +68,7 @@ export class GridStore<T> {
 	private revision = 0;
 	private externalRevision = 0;
 	private epoch = 0;
+	private searchCache = new SearchTextCache<T>();
 	private derivedCache?: {
 		rows: readonly T[];
 		columns: readonly Column<T>[];
@@ -141,7 +143,13 @@ export class GridStore<T> {
 			)
 				viewRows = cache.result;
 			else {
-				viewRows = deriveRows(this.rows, this.options.columns, state, locale);
+				viewRows = deriveRows(
+					this.rows,
+					this.options.columns,
+					state,
+					locale,
+					this.searchCache,
+				);
 				this.derivedCache = {
 					rows: this.rows,
 					columns: this.options.columns,

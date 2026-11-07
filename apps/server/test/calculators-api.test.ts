@@ -1,6 +1,6 @@
 /**
  * @file 计算器 API 的真实 PostgreSQL 事务与权限回归。
- * 创建时间：2026-11-05；修改时间：2026-11-06。
+ * 创建时间：2026-11-05；修改时间：2026-11-07。
  * 版本作用：独立随机 schema 跑生成迁移，验证整数结果落库、原始申报校正及并发保护。
  * 被调用：test:api；调用：Better Auth、Eden、Drizzle；结束仅清理本测试 schema。
  * 预期结果：权限、所有者、冲突、重试与失败原子性均得到验证。
@@ -132,6 +132,69 @@ async function create() {
 	if (!result.data) throw Error("创建失败");
 	return result.data;
 }
+
+test("完整快照删除申报与调整后重读不复活，支持恢复和清空，旧修订拒绝", async () => {
+	const created = await create();
+	const route = api.api.calculators.vat({ id: created.id });
+	const saved = await route.put({ ...input, revision: 1 }, headers());
+	expect(saved.status).toBe(200);
+	if (!saved.data) throw Error("保存失败");
+	const snapshot = {
+		name: saved.data.name,
+		source: saved.data.source,
+		history: saved.data.history,
+		adjustments: saved.data.adjustments,
+	};
+	const removed = await route.put(
+		{
+			...snapshot,
+			revision: 2,
+			replaceHistory: true,
+			history: snapshot.history.slice(1),
+			adjustments: {},
+		},
+		headers(),
+	);
+	expect(removed.status).toBe(200);
+	expect(
+		(await route.get(headers())).data?.history.map((row) => row.id),
+	).toEqual(["2025-02"]);
+	expect(removed.data?.adjustments).toEqual({});
+	expect(
+		(
+			await route.put(
+				{ ...snapshot, revision: 2, replaceHistory: true },
+				headers(),
+			)
+		).status,
+	).toBe(409);
+	const restored = await route.put(
+		{ ...snapshot, revision: 3, replaceHistory: true },
+		headers(),
+	);
+	expect(restored.status).toBe(200);
+	expect(restored.data?.history).toEqual(snapshot.history);
+	expect(restored.data?.adjustments).toEqual(snapshot.adjustments);
+	const invalid = await route.put(
+		{ ...snapshot, revision: 4, replaceHistory: true, history: [] },
+		headers(),
+	);
+	expect(invalid.status).toBe(400);
+	expect((await route.get(headers())).data?.revision).toBe(4);
+	const empty = await route.put(
+		{
+			...snapshot,
+			revision: 4,
+			replaceHistory: true,
+			history: [],
+			adjustments: {},
+		},
+		headers(),
+	);
+	expect(empty.status).toBe(200);
+	expect((await route.get(headers())).data?.history).toEqual([]);
+	expect(empty.data?.result.rows).toEqual([]);
+});
 
 test("空行按位置落库，所属期两端分步保存，季度计算与调整始终跟随行 ID", async () => {
 	const created = await create();

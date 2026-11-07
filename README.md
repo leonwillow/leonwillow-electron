@@ -15,7 +15,11 @@ bun run db:migrate
 bun run dev
 ```
 
-前端默认 <http://localhost:3001>，根路径进入 `/inbox`；未登录时转到 `/login`。端口占用时 Vite 会显示实际可用端口。服务端默认 <http://localhost:3000>，健康检查为 `/api/health`。
+前端默认 <http://localhost:3001>，未登录时转到 `/login`。开发服务器监听 `0.0.0.0:3001`，同一局域网可访问 `http://本机局域网IP:3001`；端口占用时直接报错，避免认证来源因自动换端口失效。服务端默认 <http://localhost:3000>，健康检查为 `/api/health`。
+
+开发网页的 `/api` 由 Vite 同源代理到 `apps/web/.env` 的 `VITE_SERVER_URL`，局域网设备无需直连 3000 端口。将实际网页来源（包括协议、IP 和端口）加入 `apps/server/.env` 的 `CORS_ORIGIN` 逗号列表并重启服务；保留原本地来源。2026-11-07 本机地址为 `http://192.168.5.225:3001`，更换网络/IP 后同步更新此项。登录使用已有账号；localhost 和局域网 IP 的会话分别保存。生产构建仍使用明确配置的 API 地址，此开发代理不替代部署配置。
+
+普通 HTTP 局域网下，新建 ID 使用 `getRandomValues` 兼容生成 UUID；复制按钮优先使用 Clipboard API，缺失时使用用户点击内的同步复制兼容路径，并恢复原焦点和选区。
 
 当前已接入账号密码认证，正常启动需要 PostgreSQL 和认证环境配置。普通启动不创建账号；管理员通过 `bun run auth:init` 和显式注入的初始密码创建，已有密码与角色不会被覆盖。环境配置、旧数据库迁移说明及测试要求见 [后端认证](./docs/auth-backend.md)。健康检查测试仍可独立运行，不要求数据库。
 

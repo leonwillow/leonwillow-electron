@@ -6,6 +6,7 @@
  * 预期结果：导航、选区与编辑定位始终使用相同几何数据，不介入业务持久化。
  */
 
+import { copyText } from "@leonwillow-electron/ui/lib/clipboard";
 import {
 	aggregate,
 	columnAddress,
@@ -76,6 +77,13 @@ export interface ViewState {
 	notice: string;
 	scrollX: boolean;
 }
+type ColumnLayout<T> = {
+	column: Column<T>;
+	width: number;
+	left: number;
+	pinned: boolean;
+	pinLeft: number;
+};
 export class GridView<T> {
 	store: GridStore<T>;
 	options: ViewOptions<T>;
@@ -92,6 +100,7 @@ export class GridView<T> {
 		notice: "",
 		scrollX: false,
 	};
+	private presentationSnapshot: Omit<ViewState, "draft"> = this.snapshot;
 	private listeners = new Set<() => void>();
 	private resizeObserver?: ResizeObserver;
 	private themeObserver?: MutationObserver;
@@ -114,6 +123,13 @@ export class GridView<T> {
 		stats: { count: number; sum: number; numericCount: number };
 	};
 	private rowIndexCache?: { rows: readonly T[]; index: Map<string, number> };
+	private layoutCache?: {
+		columns: readonly Column<T>[];
+		state: GridState["columns"];
+		width: number;
+		gutter: number;
+		result: ColumnLayout<T>[];
+	};
 	rowIndex(id: string) {
 		const rows = this.store.getSnapshot().viewRows;
 		if (this.rowIndexCache?.rows !== rows)
@@ -182,6 +198,9 @@ export class GridView<T> {
 		this.options = options;
 	}
 	getSnapshot = () => this.snapshot;
+	/** 编辑文本由当前编辑器订阅；正文和工具栏只订阅布局与编辑会话。 */
+	getPresentationSnapshot = () => this.presentationSnapshot;
+	getDraft = () => this.snapshot.draft;
 	subscribe = (fn: () => void) => {
 		this.listeners.add(fn);
 		return () => {
@@ -196,6 +215,9 @@ export class GridView<T> {
 	}
 	set(patch: Partial<ViewState>) {
 		this.snapshot = { ...this.snapshot, ...patch };
+		// measure 也用相同范围通知 rem/密度变化，不能仅按范围数值去重。
+		if (Object.keys(patch).some((key) => key !== "draft"))
+			this.presentationSnapshot = this.snapshot;
 		for (const fn of this.listeners) fn();
 	}
 	/** 共享 CSS 使用 rem；虚拟布局换算为当前根字号的实际像素。 */
@@ -784,9 +806,8 @@ export class GridView<T> {
 	};
 	async copy() {
 		try {
-			await this.root?.ownerDocument.defaultView?.navigator.clipboard.writeText(
-				this.store.copySelection(),
-			);
+			if (!this.root) return;
+			await copyText(this.store.copySelection(), this.root.ownerDocument);
 			this.announce(this.messages().copied);
 		} catch {
 			this.announce(this.messages().clipboardUnavailable);
@@ -814,9 +835,21 @@ export class GridView<T> {
 	}
 	layout() {
 		const { columns, state } = this.store.getSnapshot();
-		let left = this.gutterWidth();
-		let pinLeft = this.gutterWidth();
-		return columns.map((column) => {
+		const source = this.store.getOptions().columns;
+		const gutter = this.gutterWidth();
+		const width = this.snapshot.width;
+		const cache = this.layoutCache;
+		if (
+			cache &&
+			cache.columns === source &&
+			cache.state === state.columns &&
+			cache.width === width &&
+			cache.gutter === gutter
+		)
+			return cache.result;
+		let left = gutter;
+		let pinLeft = gutter;
+		const result = columns.map((column) => {
 			const cs = state.columns.find((c) => c.id === column.id);
 			const width = cs?.width ?? column.width ?? 160;
 			const pinned =
@@ -827,6 +860,14 @@ export class GridView<T> {
 			if (pinned) pinLeft += width;
 			return result;
 		});
+		this.layoutCache = {
+			columns: source,
+			state: state.columns,
+			width,
+			gutter,
+			result,
+		};
+		return result;
 	}
 	address() {
 		const { state, viewRows, columns } = this.store.getSnapshot();

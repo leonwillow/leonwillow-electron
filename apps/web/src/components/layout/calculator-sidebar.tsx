@@ -1,10 +1,11 @@
 /**
  * @file 计算器方案的树目录及新建、改名、归档与恢复操作。
- * 创建时间：2026-11-05；修改时间：2026-11-05。
+ * 创建时间：2026-11-05；修改时间：2026-11-07。
  * 版本作用：目录统一管理两类方案，弹窗独立于浮动菜单，写操作先协调当前编辑器。
  * 被调用：WorkspaceSecondaryMenu；调用：ReUI Tree、目录 Provider、Eden 和 Sonner。
  * 预期结果：路由决定选择，悬停显示同行操作；保存失败保留输入，停用方案通过归档管理。
  */
+
 import {
 	hotkeysCoreFeature,
 	syncDataLoaderFeature,
@@ -40,6 +41,7 @@ import {
 	calculatorKinds,
 } from "@/lib/calculator-directory";
 import { calculatorError } from "@/lib/calculators";
+import { randomUUID } from "@/lib/uuid";
 import { InquiryIconButton } from "@/views/inquiries/controls";
 import { useCalculatorNavigation } from "./calculator-navigation-provider";
 import CalculatorTreeItem, {
@@ -87,7 +89,7 @@ export default function useCalculatorMenu(): WorkspaceMenuContent {
 	const create = (kind: CalculatorKind) => {
 		if (!lock.current) {
 			setName("");
-			setEditing({ kind, requestId: crypto.randomUUID() });
+			setEditing({ kind, requestId: randomUUID() });
 		}
 	};
 	const rename = (kind: CalculatorKind, row: CalculatorSummary) => {

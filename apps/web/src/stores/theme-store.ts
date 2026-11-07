@@ -1,13 +1,14 @@
 /**
  * @file 应用共享的主题偏好与编辑器会话状态。
  * 创建时间：2026-10-04
- * 修改时间：2026-10-06
+ * 修改时间：2026-11-07
  * 版本作用：Zustand 状态入口，沿用主题快照 v2。
  * 被调用：main.tsx、components/layout、components/theme-editor、test/theme-store.test.ts。
  * 调用：zustand、React ref 类型、configs/theme-settings、lib/theme-settings、lib/custom-themes、types/theme、浏览器存储与消息 API。
  * 功能：更新偏好、保存主题库、发布预览及同步其他窗口的已保存选择。
  * 预期结果：组件按字段订阅；草稿预览与面板状态不写入存储或广播。
  */
+
 import type { RefObject } from "react";
 import { create } from "zustand";
 import { THEME_STORAGE_KEY } from "@/configs/theme-settings";
@@ -17,6 +18,7 @@ import {
 	encodeThemePreferences,
 	readThemePreferences,
 } from "@/lib/theme-settings";
+import { randomUUID } from "@/lib/uuid";
 import type {
 	CustomThemeId,
 	Settings,
@@ -91,7 +93,7 @@ export const useThemeStore = create<ThemeState>()((set, get) => {
 			});
 		},
 		setThemePreview: (preview) => set({ preview }),
-		saveTheme: (draft, id = `custom:${crypto.randomUUID()}`) => {
+		saveTheme: (draft, id = `custom:${randomUUID()}`) => {
 			persistPreferences(saveCustomTheme(get().preferences, draft, id), true);
 			set({ preview: null });
 		},

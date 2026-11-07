@@ -1,10 +1,11 @@
 /**
  * @file 增值税方案的汇总、筛选、录入与导出工作区。
- * 创建时间：2026-11-05；修改时间：2026-11-06。
+ * 创建时间：2026-11-05；修改时间：2026-11-07。
  * 版本作用：表格填满统计卡下方的剩余空间，全部所属期通过虚拟滚动展示，工具栏筛选不改变全期间计算结果。
  * 被调用：CalculatorsView；调用：共享算法、方案保存 Hook、导入弹窗、Lattice Grid 业务适配。
  * 预期结果：四项增减分别保存，清空调整需确认，新备份保留四项金额并兼容恢复旧 V5 数据。
  */
+
 import {
 	calculate,
 	changed,
@@ -48,11 +49,11 @@ import {
 	downloadCalculation,
 	type VatScenario,
 } from "@/lib/calculators";
+import { randomUUID } from "@/lib/uuid";
 import ImportDialog from "./import-dialog";
 import ScenarioHeader from "./scenario-header";
 import { useVatScenario } from "./use-vat-scenario";
 import VatCalculationNotes from "./vat-calculation-notes";
-import { applyVatGridChanges } from "./vat-grid-model";
 import VatTable from "./vat-table";
 
 export default function VatEditor({
@@ -83,14 +84,18 @@ export default function VatEditor({
 				.filter(Boolean),
 		),
 	].sort();
-	const visible = result.rows.filter(
-		(row) =>
-			(year === "all" ||
-				!row.periodStart ||
-				!row.periodEnd ||
-				(row.periodStart <= `${year}-12-31` &&
-					row.periodEnd >= `${year}-01-01`)) &&
-			(!changedOnly || changed(row)),
+	const visible = useMemo(
+		() =>
+			result.rows.filter(
+				(row) =>
+					(year === "all" ||
+						!row.periodStart ||
+						!row.periodEnd ||
+						(row.periodStart <= `${year}-12-31` &&
+							row.periodEnd >= `${year}-01-01`)) &&
+					(!changedOnly || changed(row)),
+			),
+		[result.rows, year, changedOnly],
 	);
 	const apply = async (data: VatData) => {
 		if (editor.readOnly) return false;
@@ -103,7 +108,7 @@ export default function VatEditor({
 		count = 1,
 	) => {
 		if (editor.readOnly) throw Error("当前方案不可编辑");
-		const ids = Array.from({ length: count }, () => crypto.randomUUID());
+		const ids = Array.from({ length: count }, () => randomUUID());
 		const next = insertVatRows(draft, anchorId, position, ids);
 		setYear("all");
 		setChangedOnly(false);
@@ -310,12 +315,7 @@ export default function VatEditor({
 						insert={({ rowId, position, count }) =>
 							insertRows(rowId, position, count)
 						}
-						change={(changes) =>
-							editor.change({
-								...draft,
-								...applyVatGridChanges(draft, changes),
-							})
-						}
+						change={(data) => editor.change({ ...draft, ...data })}
 					/>
 				</div>
 				{importing && (

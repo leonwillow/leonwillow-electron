@@ -1,11 +1,13 @@
 /**
  * @file 新笔录的默认值与编辑纯函数。
- * 创建时间：2026-11-04；修改时间：2026-11-05。
+ * 创建时间：2026-11-04；修改时间：2026-11-07。
  * 版本作用：沿用 haoji 默认字段和独立问答/询问人标识。
  * 被调用：笔录创建、编辑器、问答表单；调用：浏览器 UUID、Eden 类型。
  * 预期结果：首次创建已保存的笔录，时间使用本地日期，不生成假人员资料。
  */
+
 import type { InquiryDocument } from "@/lib/inquiries";
+import { randomUUID } from "@/lib/uuid";
 export const relationships = [
 	"法定代表人",
 	"实际控制人",
@@ -26,13 +28,13 @@ export const idTypes = [
 	"其他",
 ];
 export const emptyInquirer = () => ({
-	id: crypto.randomUUID(),
+	id: randomUUID(),
 	name: "",
 	badgeNumber: "",
 	isRecorder: false,
 });
 export const emptyQuestion = () => ({
-	id: crypto.randomUUID(),
+	id: randomUUID(),
 	question: "",
 	answer: "",
 });

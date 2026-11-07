@@ -1,9 +1,9 @@
 /**
  * @file 保留正文外观的点击复制文本。
  * 创建时间：2026-10-07
- * 修改时间：2026-10-07
+ * 修改时间：2026-11-07
  * 版本作用：名称、账号与金额共用复制提示和反馈，不改变所在文字层级。
- * 被调用：资金节点详情与账户速览；调用：Tooltip、Clipboard API、全局 Sonner。
+ * 被调用：正文复制入口；调用：Tooltip、共享 copyText、全局 Sonner。
  * 功能：悬停下划线和完整值提示；复制原始 value，成功后通知，失败显示手动复制提示。
  * 预期结果：单行截断保留下划线，鼠标和键盘均可复制；失败不会误报成功。
  */
@@ -12,6 +12,7 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@leonwillow-electron/ui/components/tooltip";
+import { copyText } from "@leonwillow-electron/ui/lib/clipboard";
 import { cn } from "@leonwillow-electron/ui/lib/utils";
 import { toast } from "sonner";
 
@@ -38,7 +39,7 @@ export function CopyText({
 						)}
 						onClick={async () => {
 							try {
-								await navigator.clipboard.writeText(value);
+								await copyText(value);
 								toast.success("复制成功", {
 									id: "copy-text",
 									duration: 1500,

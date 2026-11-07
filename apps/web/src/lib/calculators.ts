@@ -1,6 +1,6 @@
 /**
  * @file 增值税方案 Eden 客户端与下载边界。
- * 创建时间：2026-11-05；修改时间：2026-11-05。
+ * 创建时间：2026-11-05；修改时间：2026-11-07。
  * 版本作用：从服务端推导方案类型，浏览器不保存业务数据到 localStorage。
  * 被调用：计算器视图；调用：共享 api 与领域类型。
  * 预期结果：修订冲突保持当前输入，可导出备份；错误保留 HTTP 状态。
@@ -47,7 +47,7 @@ export const saveScenario = async (
 	id: string,
 	revision: number,
 	data: VatData & { name: string },
-) => unwrap(await vat({ id }).put({ ...data, revision }));
+) => unwrap(await vat({ id }).put({ ...data, revision, replaceHistory: true }));
 export type VatScenario = Awaited<ReturnType<typeof getScenario>>;
 export type ScenarioSummary = Awaited<ReturnType<typeof listScenarios>>[number];
 export function downloadCalculation(name: string, text: string, type: string) {

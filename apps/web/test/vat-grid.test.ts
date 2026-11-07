@@ -1,6 +1,6 @@
 /**
  * @file VAT 四项调整与通用 Grid 的金额、事务及汇总回归。
- * 创建时间：2026-11-05；修改时间：2026-11-06。
+ * 创建时间：2026-11-05；修改时间：2026-11-07。
  * 版本作用：验证调增/调减分别保留原值，批量编辑、筛选和汇总沿用整数分规则。
  * 被调用：Web Bun 测试；调用：VAT 列适配、共享表格内核和计税包。
  * 预期结果：四项非负输入原子提交，撤销后恢复完整原值，余额不重复累加。
@@ -25,6 +25,7 @@ import {
 } from "@leonwillow-electron/lattice-grid/core";
 import {
 	applyVatGridChanges,
+	applyVatGridTransaction,
 	parseVatAdjustment,
 	parseVatHistory,
 	type VatGridRow,
@@ -49,6 +50,60 @@ const adjustment = (
 ): Adjustments[string] => ({ ...emptyAdjustment(), ...values });
 const rowsFor = (history: HistoryRow[], adjustments: Adjustments = {}) =>
 	vatGridRows(calculate(history, adjustments).rows, adjustments);
+
+test("筛选中删除只移除勾选行，撤销恢复原位置和调整，重做可持久化完整快照", async () => {
+	const original: VatData = {
+		source: "删除回归",
+		history: [month("2025-12"), month("2026-01"), month("2026-02")],
+		adjustments: {
+			"2025-12": adjustment({ inputIncrease: "9" }),
+			"2026-01": adjustment({ outputIncrease: "5", inputDecrease: "3" }),
+		},
+	};
+	let data = original;
+	const options = (): GridOptions<VatGridRow> => ({
+		rows: vatGridRows(
+			calculate(data.history, data.adjustments).rows.filter(
+				(row) => row.id !== "2025-12",
+			),
+			data.adjustments,
+			data.history,
+		),
+		columns: vatGridColumns,
+		getRowId: vatGridRowId,
+		allowDelete: true,
+		reconcileRows: "editable",
+		onCommit: (tx) => {
+			applyVatGridTransaction(data, tx.previousRows, tx.rows);
+		},
+		onRowsChange: (next, tx) => {
+			data = applyVatGridTransaction(data, tx.previousRows, next);
+		},
+	});
+	const grid = createGrid(options());
+	grid.toggleRow("2026-01");
+	expect((await grid.deleteRows()).ok).toBe(true);
+	expect(data.history.map((row) => row.id)).toEqual(["2025-12", "2026-02"]);
+	expect(data.adjustments).toEqual({
+		"2025-12": adjustment({ inputIncrease: "9" }),
+	});
+	expect(original.history).toHaveLength(3);
+	grid.updateOptions(options());
+	expect((await grid.undo()).ok).toBe(true);
+	expect(data).toEqual(original);
+	grid.updateOptions(options());
+	expect((await grid.redo()).ok).toBe(true);
+	expect(data.history.map((row) => row.id)).toEqual(["2025-12", "2026-02"]);
+	grid.updateOptions(options());
+	await grid.undo();
+	grid.updateOptions(options());
+	grid.toggleAll();
+	await grid.deleteRows();
+	expect(data.history.map((row) => row.id)).toEqual(["2025-12"]);
+	grid.updateOptions(options());
+	await grid.undo();
+	expect(data).toEqual(original);
+});
 
 test("所属期双列整批提交与撤销重做保留行身份，重叠和倒置不部分提交", async () => {
 	let data = insertVatRows(

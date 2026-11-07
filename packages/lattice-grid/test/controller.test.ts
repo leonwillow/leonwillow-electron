@@ -355,3 +355,52 @@ describe("editor lifecycle", () => {
 		}
 	});
 });
+
+describe("局部渲染订阅与列布局缓存", () => {
+	it("输入只发布新草稿；编辑进入、取消和视口变化仍通知布局消费者", () => {
+		const { view, cleanup } = setup();
+		const before = view.getPresentationSnapshot();
+		let notifications = 0;
+		const unsubscribe = view.subscribe(() => notifications++);
+		view.set({ draft: "123.45" });
+		expect(view.getDraft()).toBe("123.45");
+		expect(view.getSnapshot().draft).toBe("123.45");
+		expect(view.getPresentationSnapshot()).toBe(before);
+		expect(notifications).toBe(1);
+		view.cancelEdit();
+		expect(view.getPresentationSnapshot().editing).toBeNull();
+		expect(view.getPresentationSnapshot()).not.toBe(before);
+		const closed = view.getPresentationSnapshot();
+		view.set({ width: 390 });
+		expect(view.getPresentationSnapshot()).not.toBe(closed);
+		const geometry = view.getPresentationSnapshot();
+		view.set({ width: 390 });
+		expect(view.getPresentationSnapshot()).not.toBe(geometry);
+		unsubscribe();
+		cleanup();
+	});
+	it("复用选中和草稿期间的布局，调宽、冻结、隐藏、排序和窄窗立即更新", () => {
+		const { view, store, update, cleanup } = setup();
+		const before = view.layout();
+		store.select({ rowId: "a", columnId: "calculated" });
+		view.set({ draft: "5" });
+		expect(view.layout()).toBe(before);
+		store.setColumn("value", { width: 300, pinned: true });
+		expect(view.layout()[0]).toMatchObject({
+			width: 300,
+			pinned: true,
+			pinLeft: 48,
+		});
+		view.set({ width: 390 });
+		expect(view.layout()[0]?.pinned).toBe(false);
+		view.set({ width: 940 });
+		expect(view.layout()[0]?.pinned).toBe(true);
+		store.setColumn("value", { hidden: true });
+		expect(view.layout().map((c) => c.column.id)).toEqual(["calculated"]);
+		update({
+			columns: columns.map((c) => ({ ...c, header: `新${c.header}` })),
+		});
+		expect(view.layout()[0]?.column.header).toBe("新计算结果");
+		cleanup();
+	});
+});

@@ -56,14 +56,12 @@ import {
 	Redo2Icon,
 	RotateCcwIcon,
 	SearchIcon,
-	Trash2Icon,
 	Undo2Icon,
 	XIcon,
 } from "lucide-react";
 import {
 	type ComponentProps,
 	type CSSProperties,
-	type KeyboardEvent,
 	type ReactNode,
 	type Ref,
 	useCallback,
@@ -78,18 +76,15 @@ import { toast } from "sonner";
 import { CellContextMenu, type InsertRowsRequest } from "./cell-context-menu";
 import { CellIndicator } from "./cell-indicator";
 import { ColumnMenu } from "./column-menu";
+import { DeleteRowsButton } from "./delete-rows-button";
+import { GridRow } from "./grid-row";
 import { useColumnDrag } from "./use-column-drag";
 
 const horizontalDrag: NonNullable<SortableRootProps<unknown>["modifiers"]> = [
 	({ transform }) => ({ ...transform, y: 0 }),
 ];
 
-import {
-	formatValue,
-	getCellValue,
-	numericFilter,
-	rangeBounds,
-} from "./core/data";
+import { formatValue, numericFilter, rangeBounds } from "./core/data";
 import { formatGridError, zhCN } from "./core/messages";
 import { GridStore } from "./core/store";
 import type { CellPosition, Column, GridOptions } from "./core/types";
@@ -309,96 +304,6 @@ function ColumnFilter<T>({
 		/>
 	);
 }
-function DefaultEditor<T>({
-	view,
-	column,
-}: {
-	view: GridView<T>;
-	column: Column<T>;
-}) {
-	const v = view.getSnapshot();
-	const s = view.store.getSnapshot();
-	const [selectOpen, setSelectOpen] = useState(false);
-	const onKeyDown = async (e: KeyboardEvent) => {
-		if (e.nativeEvent.isComposing) return;
-		if (e.key === "Escape") {
-			e.preventDefault();
-			e.stopPropagation();
-			view.cancelEdit();
-		} else if (e.key === "Enter" || e.key === "Tab") {
-			e.preventDefault();
-			e.stopPropagation();
-			if (await view.commitEdit())
-				view.move(
-					e.key === "Enter" ? (e.shiftKey ? -1 : 1) : 0,
-					e.key === "Tab" ? (e.shiftKey ? -1 : 1) : 0,
-				);
-		}
-	};
-	if (column.options || column.type === "boolean") {
-		const items = [
-			...(!column.required ? [{ label: "未填写", value: "" }] : []),
-			...(column.options ?? ["true", "false"]).map((value) => ({
-				label:
-					column.type === "boolean" ? (value === "true" ? "是" : "否") : value,
-				value,
-			})),
-		];
-		return (
-			<Select
-				items={items}
-				value={v.draft}
-				open={selectOpen}
-				onOpenChange={setSelectOpen}
-				disabled={s.pending}
-				onValueChange={(value) => {
-					if (value !== null) view.set({ draft: value });
-				}}
-			>
-				<SelectTrigger
-					data-lg-editor
-					variant="cell"
-					aria-label={column.header}
-					className="w-full"
-					onKeyDown={(event) => {
-						if (!selectOpen && (event.key === "Tab" || event.key === "Escape"))
-							void onKeyDown(event);
-					}}
-				>
-					<SelectValue />
-				</SelectTrigger>
-				<SelectContent
-					data-lg-edit-scope={view.options.id}
-					finalFocus={() => !!view.getSnapshot().editing}
-				>
-					<SelectGroup>
-						{items.map((item) => (
-							<SelectItem key={item.value} value={item.value}>
-								{item.label}
-							</SelectItem>
-						))}
-					</SelectGroup>
-				</SelectContent>
-			</Select>
-		);
-	}
-	return (
-		<Input
-			data-lg-editor
-			variant="cell"
-			aria-label={column.header}
-			aria-invalid={!!s.error}
-			value={v.draft}
-			type={column.type === "date" ? "date" : "text"}
-			inputMode={
-				column.inputMode ?? (column.type === "number" ? "decimal" : undefined)
-			}
-			disabled={s.pending}
-			onChange={(e) => view.set({ draft: e.target.value })}
-			onKeyDown={onKeyDown}
-		/>
-	);
-}
 
 /** 行数据由宿主提供；onCommit 可在本地提交前执行异步校验/保存，失败保留原值。 */
 export function DataGrid<T>(props: DataGridProps<T>) {
@@ -436,8 +341,8 @@ export function DataGrid<T>(props: DataGridProps<T>) {
 	);
 	const v = useSyncExternalStore(
 		view.subscribe,
-		view.getSnapshot,
-		view.getSnapshot,
+		view.getPresentationSnapshot,
+		view.getPresentationSnapshot,
 	);
 	useEffect(() => {
 		store.updateOptions(options);
@@ -486,6 +391,8 @@ export function DataGrid<T>(props: DataGridProps<T>) {
 	const drag = useColumnDrag(view);
 	const m = view.messages();
 	const layout = view.layout();
+	const movedColumn = layout.find((c) => drag.marker(c.column.id))?.column.id;
+	const moveMarker = movedColumn ? drag.marker(movedColumn) : undefined;
 	const rh = view.rowHeight();
 	const grouped = s.columns.some((c) => c.group);
 	const headerRows = grouped ? 2 : 1;
@@ -581,14 +488,10 @@ export function DataGrid<T>(props: DataGridProps<T>) {
 										{selected.size} {m.selected}
 									</span>
 									{props.allowDelete && (
-										<IconButton
-											label={m.delete}
-											variant="destructive"
-											disabled={props.readOnly || busy}
-											onClick={() => void store.deleteRows()}
-										>
-											<Trash2Icon />
-										</IconButton>
+										<DeleteRowsButton
+											view={view}
+											disabled={!!props.readOnly || busy}
+										/>
 									)}
 								</div>
 							) : (
@@ -1028,115 +931,47 @@ export function DataGrid<T>(props: DataGridProps<T>) {
 									s.viewRows.slice(v.start, v.end).map((row, index) => {
 										const r = index + v.start;
 										const rowId = props.getRowId(row);
+										const inRange =
+											!!bounds && r >= bounds.r0 && r <= bounds.r1;
+										const editing = v.editing?.rowId === rowId;
 										return (
-											<div
+											<GridRow
 												key={rowId}
-												role="row"
-												aria-rowindex={r + headerRows + 1}
-												aria-selected={selected.has(rowId)}
-												className="lg-row"
-												data-last-row={r === s.viewRows.length - 1 || undefined}
-												style={{ top: r * rh, height: rh }}
-												data-checked={selected.has(rowId) || undefined}
-											>
-												<div
-													role="rowheader"
-													aria-colindex={1}
-													className="lg-gutter"
-												>
-													<span className="lg-row-number">{r + 1}</span>
-													<Checkbox
-														className="lg-row-check"
-														tabIndex={-1}
-														aria-label={`${m.selectRow} ${r + 1}`}
-														checked={selected.has(rowId)}
-														onCheckedChange={() => store.toggleRow(rowId)}
-													/>
-												</div>
-												{layout.map((c, ci) => {
-													const col = c.column;
-													const editable = store.isEditable(row, col);
-													const isSelected =
-														!!bounds &&
-														r >= bounds.r0 &&
-														r <= bounds.r1 &&
-														ci >= bounds.c0 &&
-														ci <= bounds.c1;
-													const isActive =
-														active?.rowId === rowId &&
-														active.columnId === col.id;
-													const editing =
-														v.editing?.rowId === rowId &&
-														v.editing.columnId === col.id;
-													const context: CellContext<T> = {
-														row,
-														column: col,
-														value: getCellValue(row, col),
-														rowIndex: r,
-														selected: isSelected,
-													};
-													const editorContext: EditorContext<T> = {
-														...context,
-														initialValue: v.draft,
-														onValueChange: (value) =>
-															view.set({ draft: value }),
-														editScope: id,
-														commit: (value) => view.commitEdit(value),
-														cancel: () => view.cancelEdit(),
-													};
-													return (
-														<div
-															key={col.id}
-															id={cellId(rowId, col.id)}
-															role="gridcell"
-															aria-colindex={ci + 2}
-															aria-selected={isSelected}
-															aria-readonly={!editable}
-															className={cn(
-																"lg-cell",
-																c.pinned && "lg-pinned",
-																editable && isSelected && "lg-selected",
-																editable && isActive && "lg-active",
-																editing && "lg-editing",
-															)}
-															data-column-moved={drag.marker(col.id)}
-															data-lg-cell
-															data-row={r}
-															data-col={col.id}
-															data-align={
-																col.align ??
-																(col.type === "number" ? "end" : "start")
-															}
-															style={style(c)}
-															onPointerDown={(e) =>
-																view.startSelection(e.nativeEvent, {
-																	rowId,
-																	columnId: col.id,
-																})
-															}
-															onDoubleClick={(event) => {
-																if (
-																	!(event.target as HTMLElement).closest(
-																		"button,input,select,a,[data-lg-interactive]",
-																	)
-																)
-																	view.startEdit({ rowId, columnId: col.id });
-															}}
-														>
-															{editing ? (
-																(props.renderEditor?.(editorContext) ?? (
-																	<DefaultEditor view={view} column={col} />
-																))
-															) : (
-																<div className="lg-cell-value">
-																	{props.renderCell?.(context) ??
-																		formatValue(row, col, options.locale)}
-																</div>
-															)}
-														</div>
-													);
-												})}
-											</div>
+												id={id}
+												view={view}
+												row={row}
+												rowId={rowId}
+												rowIndex={r}
+												rowHeight={rh}
+												headerRows={headerRows}
+												last={r === s.viewRows.length - 1}
+												checked={selected.has(rowId)}
+												selectLabel={m.selectRow}
+												layout={layout}
+												selectionStart={inRange ? bounds.c0 : -1}
+												selectionEnd={inRange ? bounds.c1 : -1}
+												activeColumn={
+													active?.rowId === rowId ? active.columnId : undefined
+												}
+												editingColumn={
+													editing ? v.editing?.columnId : undefined
+												}
+												error={editing ? s.error : ""}
+												disabled={
+													!!(
+														store.getOptions().readOnly ||
+														store.getOptions().loading ||
+														store.getOptions().error ||
+														s.pending
+													)
+												}
+												pending={editing && s.pending}
+												movedColumn={movedColumn}
+												moveMarker={moveMarker}
+												locale={options.locale}
+												renderCell={props.renderCell}
+												renderEditor={props.renderEditor}
+											/>
 										);
 									})}
 								<CellIndicator view={view} />

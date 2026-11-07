@@ -1,7 +1,7 @@
 /**
  * @file 前端访问独立服务端的 Eden 入口。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-10
+ * 修改时间：2026-11-07
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：lib/auth.ts。
  * 调用：@elysiajs/eden、server、env。
@@ -12,8 +12,13 @@ import { treaty } from "@elysiajs/eden";
 import type { App } from "server/app";
 import { ENV } from "@/env";
 
-// 类型导入会在打包时移除；Web/Electron renderer 共用 Eden 客户端。
-export const api = treaty<App>(ENV.VITE_SERVER_URL, {
+// 开发网页通过同源代理访问 API，局域网设备不再请求自身的 localhost。
+// 生产构建与 file: renderer 继续使用明确配置的服务地址。
+const serverUrl =
+	import.meta.env.DEV && window.location.protocol !== "file:"
+		? window.location.origin
+		: ENV.VITE_SERVER_URL;
+export const api = treaty<App>(serverUrl, {
 	fetch: { credentials: "include" },
 	// 保留银行 ISO 时间与原文字段，避免客户端自动把日期字符串转成 Date。
 	parseDate: false,

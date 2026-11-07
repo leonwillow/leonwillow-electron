@@ -1,7 +1,7 @@
 /**
  * @file 按所有者隔离的增值税方案事务服务。
- * 创建时间：2026-11-05；修改时间：2026-11-06。
- * 版本作用：原始申报追加或校正、调整独立保存，服务端重算并持久化带规则版本的结果。
+ * 创建时间：2026-11-05；修改时间：2026-11-07。
+ * 版本作用：原始申报追加、校正或显式快照替换，服务端重算并持久化带规则版本的结果。
  * 被调用：计算器 API；调用：Drizzle、资源工厂、共享计算规则。
  * 预期结果：旧修订返回409、他人资源404、坏历史400；失败事务不改变任何历史。
  */
@@ -76,7 +76,7 @@ export async function create(
 		.onConflictDoNothing();
 	return get(access, requestId);
 }
-/** 父行锁与修订号共同保护完整快照；从不信任浏览器计算结果。 */
+/** 父行锁与修订号保护快照；replaceHistory 才允许移除遗漏行，失败整体回滚。 */
 export async function save(access: AccessSession, id: string, input: VatSave) {
 	return db().transaction(async (tx) => {
 		const [row] = await tx
@@ -101,7 +101,9 @@ export async function save(access: AccessSession, id: string, input: VatSave) {
 		let adjustments: typeof row.adjustments;
 		let result: typeof row.result;
 		try {
-			history = mergeHistory(row.history, input.history, true).rows;
+			history = input.replaceHistory
+				? normalizeHistory(input.history)
+				: mergeHistory(row.history, input.history, true).rows;
 			adjustments = normalizeAdjustments(input.adjustments, history);
 			result = calculate(history, adjustments);
 		} catch (error) {

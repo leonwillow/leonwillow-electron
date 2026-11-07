@@ -1,6 +1,6 @@
 /**
  * @file 文书弹窗中的精简表单、补充字段和自动 Word 预览。
- * 创建时间：2026-10-10；修改时间：2026-11-05。
+ * 创建时间：2026-10-10；修改时间：2026-11-07。
  * 版本作用：同一表单完成取号和补填，选填信息可折叠，预览随输入更新。
  * 被调用：documents/records-workspace；调用：字段控件、预览器、Eden 文书客户端。
  * 功能与预期结果：只填对象即可取号；失败保留草稿，历史号码固定，普通人员只修改本人。
@@ -39,6 +39,7 @@ import {
 	saveDocumentFile,
 	updateDocument,
 } from "@/lib/documents";
+import { randomUUID } from "@/lib/uuid";
 import DocumentPreview from "./document-preview";
 import FieldInput from "./field-input";
 import useDocumentPreview from "./use-document-preview";
@@ -83,7 +84,7 @@ export default function DocumentEditor({
 	const [error, setError] = useState("");
 	const [next, setNext] = useState<number | null>(null);
 	const [changed, setChanged] = useState(false);
-	const requestId = useRef(crypto.randomUUID());
+	const requestId = useRef(randomUUID());
 	const canEdit = !details || admin || details.record.ownerId === userId;
 	useEffect(() => {
 		onBusyChange(!!busy);

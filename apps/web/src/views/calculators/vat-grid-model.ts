@@ -1,6 +1,6 @@
 /**
  * @file 增值税领域数据与通用 Lattice Grid 的列及批量更新适配。
- * 创建时间：2026-11-05；修改时间：2026-11-06。
+ * 创建时间：2026-11-05；修改时间：2026-11-07。
  * 版本作用：隔离税务字段、整数金额规则与通用表格内核。
  * 被调用：VatTable、适配回归；调用：calculators 金额函数、Grid 类型。
  * 预期结果：原始申报与调整可编辑，一次粘贴/撤销只产生一次方案快照，联动结果只读。
@@ -35,8 +35,10 @@ export const vatAdjustmentGridFields = {
 	inputIncrease: "adjustmentInputIncrease",
 	inputDecrease: "adjustmentInputDecrease",
 } as const;
-export type VatGridRow = CalculationRow &
-	Record<(typeof vatAdjustmentGridFields)[AdjustmentField], string>;
+export type VatGridRow = CalculationRow & { historyIndex: number } & Record<
+		(typeof vatAdjustmentGridFields)[AdjustmentField],
+		string
+	>;
 export type VatGridChange = {
 	rowId: string;
 	key: AdjustmentField | HistoryField | "periodStart" | "periodEnd";
@@ -66,9 +68,12 @@ export function parseVatAdjustment(value: string, key: AdjustmentField) {
 export function vatGridRows(
 	rows: CalculationRow[],
 	adjustments: Adjustments,
+	history: readonly { id: string }[] = rows,
 ): VatGridRow[] {
+	const indices = new Map(history.map((row, index) => [row.id, index]));
 	return rows.map((row) => ({
 		...row,
+		historyIndex: indices.get(row.id) ?? history.length,
 		adjustmentOutputIncrease: adjustments[row.id]?.outputIncrease ?? "",
 		adjustmentOutputDecrease: adjustments[row.id]?.outputDecrease ?? "",
 		adjustmentInputIncrease: adjustments[row.id]?.inputIncrease ?? "",
@@ -130,6 +135,41 @@ export function applyVatGridChanges(
 	const rows = [...history.values()];
 	validatePeriods(rows);
 	return { ...data, history: rows, adjustments };
+}
+
+/**
+ * 将表格事务合并到完整方案：仅移除事务确实删除的 ID，保留筛选隐藏的行。
+ * 撤销删除按原始全表位置恢复申报与四项调整；正常编辑沿用字段级校验。
+ */
+export function applyVatGridTransaction(
+	data: VatData,
+	previous: readonly VatGridRow[],
+	next: readonly VatGridRow[],
+): VatData {
+	const beforeIds = new Set(previous.map((row) => row.id));
+	const nextIds = new Set(next.map((row) => row.id));
+	const removedIds = new Set([...beforeIds].filter((id) => !nextIds.has(id)));
+	const restored = next
+		.filter((row) => !beforeIds.has(row.id))
+		.toSorted((a, b) => a.historyIndex - b.historyIndex);
+	let base = data;
+	if (removedIds.size || restored.length) {
+		const history = data.history.filter((row) => !removedIds.has(row.id));
+		const adjustments = { ...data.adjustments };
+		for (const id of removedIds) delete adjustments[id];
+		for (const row of restored) {
+			if (!row.h || history.some((item) => item.id === row.id))
+				throw Error("申报行已变化，无法恢复，请重新打开方案");
+			history.splice(Math.min(row.historyIndex, history.length), 0, row.h);
+			const adjustment = emptyAdjustment();
+			for (const key of adjustmentFields)
+				adjustment[key] = row[vatAdjustmentGridFields[key]];
+			if (adjustmentFields.some((key) => adjustment[key] !== ""))
+				adjustments[row.id] = adjustment;
+		}
+		base = { ...data, history, adjustments };
+	}
+	return applyVatGridChanges(base, vatGridChanges(previous, next));
 }
 
 /** 汇总当前筛选范围的整数分；缺项、非法输入或溢出时不输出部分合计。 */

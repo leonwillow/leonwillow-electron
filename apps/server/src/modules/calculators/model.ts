@@ -1,6 +1,6 @@
 /**
  * @file 计算器方案 API 的有界输入模型。
- * 创建时间：2026-11-05；修改时间：2026-11-06。
+ * 创建时间：2026-11-05；修改时间：2026-11-07。
  * 版本作用：Eden 推导契约；历史数值由共享领域规则再校验。
  * 被调用：计算器路由与服务；调用：Elysia TypeBox。
  * 预期结果：限制所属期数量、字符串长度和请求形状，拒绝客户端提供计算结果。
@@ -61,6 +61,8 @@ export const CalculatorsModel = {
 		{
 			name,
 			revision: t.Integer({ minimum: 1 }),
+			// 完整工作区快照显式替换历史；旧客户端省略时仍保留遗漏行。
+			replaceHistory: t.Optional(t.Boolean()),
 			source: t.String({ maxLength: 200 }),
 			history: t.Array(
 				t.Union([

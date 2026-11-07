@@ -1,6 +1,6 @@
 /**
  * @file Lattice Grid data：泛型表格数据与事务内核。
- * 创建时间：2026-11-05；修改时间：2026-11-05。
+ * 创建时间：2026-11-05；修改时间：2026-11-07。
  * 版本作用：适配 MIT Lattice Grid 0.1.0-beta.1，保留原始行标识、不可变事务与数据隔离。
  * 被调用：独立表格包的 React 视图；调用：包内核心模块，不依赖业务、数据库或路由。
  * 预期结果：多个表格实例独立工作，外部数据和提交由调用页面管理。
@@ -46,12 +46,57 @@ export function numericFilter(query: string): ((n: number) => boolean) | null {
 			return (v) => v === n;
 	}
 }
+/**
+ * 每个 store 独占当前不可变数据版本的搜索文本；不保留历史版本或跨实例缓存。
+ * 惰性读取每格的显示文本和原值，继续按单格匹配，禁止跨格拼接造成误命中。
+ */
+export class SearchTextCache<T> {
+	private rows?: readonly T[];
+	private columns?: readonly Column<T>[];
+	private locale = "";
+	private values = new Map<T, { formatted: string[]; raw: string[] }>();
+	prepare(rows: readonly T[], columns: readonly Column<T>[], locale: string) {
+		if (
+			rows !== this.rows ||
+			columns !== this.columns ||
+			locale !== this.locale
+		) {
+			this.values.clear();
+			this.rows = rows;
+			this.columns = columns;
+			this.locale = locale;
+		}
+	}
+	matches(row: T, query: string) {
+		let text = this.values.get(row);
+		if (!text) {
+			text = { formatted: [], raw: [] };
+			this.values.set(row, text);
+		}
+		return (
+			this.columns?.some((column, index) => {
+				text.formatted[index] ??= formatValue(
+					row,
+					column,
+					this.locale,
+				).toLocaleLowerCase(this.locale);
+				if (text.formatted[index].includes(query)) return true;
+				text.raw[index] ??= String(
+					getCellValue(row, column) ?? "",
+				).toLocaleLowerCase(this.locale);
+				return text.raw[index].includes(query);
+			}) ?? false
+		);
+	}
+}
 export function deriveRows<T>(
 	rows: readonly T[],
 	columns: readonly Column<T>[],
 	state: GridState,
 	locale: string,
+	searchCache?: SearchTextCache<T>,
 ): readonly T[] {
+	searchCache?.prepare(rows, columns, locale);
 	const q = state.search.trim().toLocaleLowerCase(locale);
 	const byId = new Map(columns.map((c) => [c.id, c]));
 	const tests = Object.entries(state.filters).map(([id, filter]) => {
@@ -73,15 +118,17 @@ export function deriveRows<T>(
 	const result = rows.filter(
 		(row) =>
 			(!q ||
-				columns.some(
-					(col) =>
-						formatValue(row, col, locale)
-							.toLocaleLowerCase(locale)
-							.includes(q) ||
-						String(getCellValue(row, col) ?? "")
-							.toLocaleLowerCase(locale)
-							.includes(q),
-				)) &&
+				(searchCache
+					? searchCache.matches(row, q)
+					: columns.some(
+							(col) =>
+								formatValue(row, col, locale)
+									.toLocaleLowerCase(locale)
+									.includes(q) ||
+								String(getCellValue(row, col) ?? "")
+									.toLocaleLowerCase(locale)
+									.includes(q),
+						))) &&
 			tests.every((test) => test(row)),
 	);
 	if (!state.sorting.length) return result;

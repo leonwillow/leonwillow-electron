@@ -1,10 +1,11 @@
 /**
  * @file 滞纳金方案的录入、汇总、规则说明与保存工作区。
- * 创建时间：2026-11-05；修改时间：2026-11-06。
+ * 创建时间：2026-11-05；修改时间：2026-11-07。
  * 版本作用：共享保存队列保护切换与刷新；所有结果通过同一领域算法计算。
  * 被调用：LateFeesView；调用：LateFeeLiability、useScenario、共享控件与 Eden。
  * 预期结果：多税种、多次缴款可持久化，未完成录入不展示误导合计。
  */
+
 import { money } from "@leonwillow-electron/calculators";
 import {
 	calculateLateFees,
@@ -33,6 +34,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { downloadCalculation } from "@/lib/calculators";
 import { type LateFeeScenario, saveLateFee } from "@/lib/late-fees";
+import { randomUUID } from "@/lib/uuid";
 import LateFeeLiability, { firstDate, lastDate } from "./late-fee-liability";
 import ScenarioHeader from "./scenario-header";
 import { useScenario } from "./use-scenario";
@@ -91,7 +93,7 @@ export default function LateFeeEditor({
 	const add = () => {
 		if (draft.liabilities.length >= MAX_LIABILITIES) return;
 		const row: TaxLiability = {
-			id: crypto.randomUUID(),
+			id: randomUUID(),
 			taxType: "vat",
 			period: "",
 			principal: "",

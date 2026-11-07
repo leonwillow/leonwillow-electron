@@ -1,10 +1,11 @@
 /**
  * @file 单笔税款、分次缴纳及计费明细表单。
- * 创建时间：2026-11-05；修改时间：2026-11-06。
+ * 创建时间：2026-11-05；修改时间：2026-11-07。
  * 版本作用：稳定标识保持编辑焦点，使用共享日期选择与 ScrollArea 表格。
  * 被调用：LateFeeEditor；调用：领域类型、共享表单及卡片组件。
  * 预期结果：录入本金与确认期限，分段结果可核对；校验说明仅在 Sonner 弹出。
  */
+
 import { money } from "@leonwillow-electron/calculators";
 import {
 	type LateFeeResult,
@@ -52,6 +53,7 @@ import {
 } from "@leonwillow-electron/ui/components/tooltip";
 import { PlusIcon, Trash2Icon } from "lucide-react";
 import { toast } from "sonner";
+import { randomUUID } from "@/lib/uuid";
 export const firstDate = new Date(2001, 3, 30);
 export const lastDate = new Date(2199, 11, 31);
 export default function LateFeeLiability({
@@ -194,7 +196,7 @@ export default function LateFeeLiability({
 								patch({
 									payments: [
 										...row.payments,
-										{ id: crypto.randomUUID(), date: "", amount: "" },
+										{ id: randomUUID(), date: "", amount: "" },
 									],
 								})
 							}

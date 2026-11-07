@@ -1,7 +1,7 @@
 /**
  * @file 一次主题编辑会话的草稿与操作面板。
  * 创建时间：未记录（现有文件尚无 Git 创建记录）
- * 修改时间：2026-11-05
+ * 修改时间：2026-11-07
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/theme-editor/theme-editor.tsx。
  * 调用：ui 基础组件/样式、lucide-react、next-themes、react、sonner、configs/fonts、configs/theme-settings、stores/theme-store、lib/custom-themes、types/theme、utils/theme/color-converter、utils/theme/css-import、utils/theme/theme-draft、utils/theme/theme-style-generator、./css-import-dialog、./shadow-control、./slider-with-input、./theme-color-panel、./theme-preset-select。
@@ -46,6 +46,7 @@ import {
 	TabsTrigger,
 } from "@leonwillow-electron/ui/components/tabs";
 import { Textarea } from "@leonwillow-electron/ui/components/textarea";
+import { copyText } from "@leonwillow-electron/ui/lib/clipboard";
 import {
 	CopyIcon,
 	FileInputIcon,
@@ -553,7 +554,7 @@ export default function ThemeControlPanel({
 							size="lg"
 							onClick={async () => {
 								try {
-									await navigator.clipboard.writeText(exportCss);
+									await copyText(exportCss);
 									toast.success("主题 CSS 已复制。");
 								} catch {
 									toast.error("复制失败，请选择文本手动复制。");
