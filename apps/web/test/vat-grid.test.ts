@@ -1,6 +1,6 @@
 /**
  * @file VAT 四项调整与通用 Grid 的金额、事务及汇总回归。
- * 创建时间：2026-11-05；修改时间：2026-11-07。
+ * 创建时间：2026-11-05；修改时间：2026-11-08。
  * 版本作用：验证调增/调减分别保留原值，批量编辑、筛选和汇总沿用整数分规则。
  * 被调用：Web Bun 测试；调用：VAT 列适配、共享表格内核和计税包。
  * 预期结果：四项非负输入原子提交，撤销后恢复完整原值，余额不重复累加。
@@ -28,12 +28,14 @@ import {
 	applyVatGridTransaction,
 	parseVatAdjustment,
 	parseVatHistory,
+	parseVatPeriod,
 	type VatGridRow,
 	vatAdjustmentGridFields,
 	vatGridChanges,
 	vatGridColumns,
 	vatGridRowId,
 	vatGridRows,
+	vatPeriodValue,
 } from "../src/views/calculators/vat-grid-model";
 
 const month = (date: string): HistoryRow => ({
@@ -50,6 +52,34 @@ const adjustment = (
 ): Adjustments[string] => ({ ...emptyAdjustment(), ...values });
 const rowsFor = (history: HistoryRow[], adjustments: Adjustments = {}) =>
 	vatGridRows(calculate(history, adjustments).rows, adjustments);
+
+test("所属期复制和撤销保留标准月季及旧非标准范围，日期排序按真实起点", () => {
+	for (const dates of [
+		{ periodStart: "2024-02-01", periodEnd: "2024-02-29" },
+		{ periodStart: "2026-01-01", periodEnd: "2026-03-31" },
+		{ periodStart: "2026-01-15", periodEnd: "2026-03-31" },
+		{ periodStart: "2026-01-01", periodEnd: "" },
+		{ periodStart: "", periodEnd: "2026-01-31" },
+		{ periodStart: "", periodEnd: "" },
+	])
+		expect(parseVatPeriod(vatPeriodValue(dates))).toEqual(dates);
+	expect(() => parseVatPeriod("2026-03-01/2026-02-28")).toThrow("不能晚于");
+	const grid = createGrid({
+		rows: rowsFor([
+			{ ...month("2026-01"), id: "q1", ...parseVatPeriod("2026-Q1") },
+			month("2026-04"),
+		]),
+		columns: vatGridColumns,
+		getRowId: vatGridRowId,
+	});
+	grid.sort("period", false, "asc");
+	expect(grid.getSnapshot().viewRows.map((row) => row.id)).toEqual([
+		"q1",
+		"2026-04",
+	]);
+	grid.select({ rowId: "q1", columnId: "period" });
+	expect(grid.copySelection()).toBe("2026-Q1");
+});
 
 test("筛选中删除只移除勾选行，撤销恢复原位置和调整，重做可持久化完整快照", async () => {
 	const original: VatData = {
@@ -105,7 +135,7 @@ test("筛选中删除只移除勾选行，撤销恢复原位置和调整，重�
 	expect(data).toEqual(original);
 });
 
-test("所属期双列整批提交与撤销重做保留行身份，重叠和倒置不部分提交", async () => {
+test("所属期单列原子更新日期并保留行身份，撤销重做与跨月季重叠校验有效", async () => {
 	let data = insertVatRows(
 		{ source: "日期事务测试", history: [month("2026-01")], adjustments: {} },
 		"2026-01",
@@ -131,12 +161,12 @@ test("所属期双列整批提交与撤销重做保留行身份，重叠和倒�
 		},
 	});
 	const grid = createGrid(options());
-	grid.select({ rowId: "blank", columnId: "periodStart" });
-	expect((await grid.paste([["2026-02-01", "2026-04-30"]])).ok).toBe(true);
+	grid.select({ rowId: "blank", columnId: "period" });
+	expect((await grid.paste([["2026-Q2"]])).ok).toBe(true);
 	expect(data.history[1]).toMatchObject({
 		id: "blank",
-		periodStart: "2026-02-01",
-		periodEnd: "2026-04-30",
+		periodStart: "2026-04-01",
+		periodEnd: "2026-06-30",
 	});
 	grid.updateOptions(options());
 	expect((await grid.undo()).ok).toBe(true);
@@ -149,8 +179,8 @@ test("所属期双列整批提交与撤销重做保留行身份，重叠和倒�
 	expect((await grid.redo()).ok).toBe(true);
 	grid.updateOptions(options());
 	const before = JSON.stringify(data);
-	expect((await grid.paste([["2026-01-31", "2026-04-30"]])).ok).toBe(false);
-	expect((await grid.paste([["2026-05-01", "2026-04-30"]])).ok).toBe(false);
+	expect((await grid.paste([["2026-Q1"]])).ok).toBe(false);
+	expect((await grid.paste([["2026-Q5"]])).ok).toBe(false);
 	expect(JSON.stringify(data)).toBe(before);
 });
 function summary(columnId: string, rows: readonly VatGridRow[]) {
@@ -169,12 +199,11 @@ test("四项调整分别保留整数分精度，拒绝任何负数或第三位�
 	}
 });
 
-test("所属期起止与原始申报可编辑，联动结果只读", () => {
+test("所属期与原始申报可编辑，联动结果只读", () => {
 	const rows = rowsFor([month("2026-01"), month("2026-03")]);
 	const editable = vatGridColumns.filter((column) => column.editable !== false);
 	expect(editable.map((column) => column.id)).toEqual([
-		"periodStart",
-		"periodEnd",
+		"period",
 		...fields.map((key) => `history-${key}`),
 		...adjustmentFields,
 	]);
@@ -536,13 +565,13 @@ test("汇总覆盖筛选后的全部月份，不依赖虚拟窗口或排序", ()
 	});
 	expect(grid.getSnapshot().viewRows).toHaveLength(60);
 	expect(summary("history-x", grid.getSnapshot().viewRows)).toBe(1200000);
-	grid.setState({ filters: { periodStart: "2026" } });
+	grid.setState({ filters: { period: "2026" } });
 	expect(grid.getSnapshot().viewRows).toHaveLength(12);
 	expect(summary("history-x", grid.getSnapshot().viewRows)).toBe(240000);
 	expect(summary("history-x", grid.getSnapshot().viewRows)).not.toBe(
 		summary("history-x", grid.getSnapshot().viewRows.slice(0, 3)),
 	);
-	grid.sort("periodStart", false, "desc");
+	grid.sort("period", false, "desc");
 	expect(summary("history-x", grid.getSnapshot().viewRows)).toBe(240000);
 	grid.setState({ filters: {} });
 	expect(summary("history-x", grid.getSnapshot().viewRows)).toBe(1200000);

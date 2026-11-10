@@ -1,6 +1,6 @@
 /**
  * @file 计算器 API 的真实 PostgreSQL 事务与权限回归。
- * 创建时间：2026-11-05；修改时间：2026-11-07。
+ * 创建时间：2026-11-05；修改时间：2026-11-08。
  * 版本作用：独立随机 schema 跑生成迁移，验证整数结果落库、原始申报校正及并发保护。
  * 被调用：test:api；调用：Better Auth、Eden、Drizzle；结束仅清理本测试 schema。
  * 预期结果：权限、所有者、冲突、重试与失败原子性均得到验证。
@@ -16,6 +16,7 @@ import {
 	LEGACY_RULES_VERSION,
 	normalizeHistory,
 	RULES_VERSION,
+	reportingPeriodDates,
 } from "@leonwillow-electron/calculators";
 import { createDatabase } from "@leonwillow-electron/db";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
@@ -194,6 +195,61 @@ test("完整快照删除申报与调整后重读不复活，支持恢复和清�
 	expect(empty.status).toBe(200);
 	expect((await route.get(headers())).data?.history).toEqual([]);
 	expect(empty.data?.result.rows).toEqual([]);
+});
+
+test("月报季报衔接保存重读，交叉期间被服务端原子拒绝", async () => {
+	const created = await create();
+	const route = api.api.calculators.vat({ id: created.id });
+	const periods = [
+		{ cycle: "monthly", year: 2026, index: 1 },
+		{ cycle: "monthly", year: 2026, index: 2 },
+		{ cycle: "monthly", year: 2026, index: 3 },
+		{ cycle: "quarterly", year: 2026, index: 2 },
+	] as const;
+	const history = normalizeHistory(
+		periods.map((period, index) => ({
+			id: `period-${index}`,
+			...reportingPeriodDates(period),
+			x: "100",
+			i: "50",
+			t: "0",
+			tax: "50",
+			end: "0",
+		})),
+	);
+	const snapshot = {
+		name: "月季衔接",
+		source: "合成测试",
+		history,
+		adjustments: {},
+		replaceHistory: true,
+	};
+	const saved = await route.put({ ...snapshot, revision: 1 }, headers());
+	expect(saved.status).toBe(200);
+	expect(saved.data?.result.allReady).toBe(true);
+	expect(saved.data?.result.totals.newTax).toBe(20000);
+	expect((await route.get(headers())).data?.history).toEqual(history);
+	const overlap = await route.put(
+		{
+			...snapshot,
+			revision: 2,
+			history: history.map((row, index) =>
+				index === 3
+					? {
+							...row,
+							...reportingPeriodDates({
+								cycle: "quarterly",
+								year: 2026,
+								index: 1,
+							}),
+						}
+					: row,
+			),
+		},
+		headers(),
+	);
+	expect(overlap.status).toBe(400);
+	expect((await route.get(headers())).data).toEqual(saved.data);
 });
 
 test("空行按位置落库，所属期两端分步保存，季度计算与调整始终跟随行 ID", async () => {

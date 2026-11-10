@@ -1,6 +1,6 @@
 # 后端认证与部署
 
-维护日期：2026-11-03。Elysia 暴露受控接口，Eden 消费类型；Better Auth 管理密码哈希、会话和数据库限流。
+维护日期：2026-11-10。Elysia 暴露受控接口，Eden 消费类型；Better Auth 管理密码哈希、会话和数据库限流。
 
 ## 本地配置与数据库
 
@@ -8,7 +8,11 @@
 
 2026-11-03 已确认目标库为空，并执行仓库现有八份 Drizzle 迁移建立表结构，仅初始化管理员账号；没有从原数据库迁入账号、权限、文书或资金业务数据。案件原件的 S3 配置沿用现有值，历史 Neon 接入说明见 [Neon 测试环境](./neon-setup.md)。也可显式通过 `bun run db:start` 启动原 Compose 环境。`.env` 不入库，不把实际生产数据所在的数据库用作测试库。
 
-`CORS_ORIGIN` 是逗号分隔的明确前端 Origin；`BETTER_AUTH_URL` 是客户端实际访问的 API 地址；Web 的 `VITE_SERVER_URL` 是构建时公开地址。改端口或域名时同步配置。生产显式设置 `NODE_ENV=production`，通过 HTTPS 对外服务。当前 Cookie 使用 SameSite=Lax；生产拓扑以同站点部署为前提，独立站点和第三方 Cookie 场景尚未验证。
+`CORS_ORIGIN` 是逗号分隔的网站 Origin（协议、主机、端口），不登记登录用户的 IP 或账号。所有用户访问同一个配置的网站，都经过相同的正常认证流程。`BETTER_AUTH_URL` 配置认证服务地址；Web 使用同源 `/api`，开发时由 Vite 代理到 `VITE_SERVER_URL`，局域网浏览器不直接访问后端回环地址。
+
+仅 `NODE_ENV=development` 时，`auth-origins.ts` 从已配置的 localhost、127.0.0.1 或 IPv6 回环网站提取协议与端口，自动派生本机当前网卡 IPv4 对应的网站地址。CORS、应用写入保护和 Better Auth 共用该读取器，每次请求读取当前网卡；换网后新地址生效，自动派生的旧地址不再保留。它不信任请求自报的 Host/Origin，不开放整个局域网网段或任意端口，也不根据访问者的 IP 决定能否登录。
+
+生产显式设置 `NODE_ENV=production`，只接受 `CORS_ORIGIN` 配置的网站域名，不自动扩展本机地址；通过 HTTPS 对外服务。改端口或部署域名时同步配置。当前 Cookie 使用 SameSite=Lax；生产拓扑以同站点部署为前提，独立站点和第三方 Cookie 场景尚未验证。
 
 ```sh
 bun install --frozen-lockfile
@@ -19,6 +23,8 @@ bun run dev
 迁移脚本只在显式 `db:migrate` 时执行。已有数据库先备份并审查 `packages/db/src/migrations`；不要通过删除迁移记录、重建数据库或 `db:push` 强行覆盖历史差异。
 
 服务端开发使用 `bun run --watch`，修改文件后重新启动进程，让共用认证、数据库和信号处理器随进程重新初始化，避免软热更新残留旧连接。Web 继续使用 Vite 热更新。[Bun 官方说明](https://bun.sh/docs/runtime/watch-mode) 区分了 `--watch` 的进程重启和 `--hot` 的进程内重载。
+
+修改 `.env` 后停止并重新执行服务启动命令，避免 watch 进程沿用启动时的环境值。普通本机网络地址变化由来源读取器处理，无需修改环境文件或重启服务。
 
 `index.ts` 创建 auth/db 后统一绑定到 `server-resources.ts`，再调用无参 `createApp()`。业务模块直接注册 Elysia 实例，在需要时读取共享资源；不会逐层传递固定依赖。资源只能绑定一次，停止接收并排空请求后解绑、关闭 pool。用户、Cookie 和事务仅属于当前请求，不进入共享资源。
 
@@ -67,7 +73,7 @@ unset ADMIN_INITIAL_PASSWORD
 
 认证接口直接在 `modules/auth/index.ts` 调用 HTTP 与响应适配函数，登录、会话、退出不再经过 `authClient` 宏。真实客户端地址仍按受信代理规则解析；登录继续经过 Better Auth handler 的密码校验和数据库限流。
 
-管理写入必须来自白名单 Origin。账号创建、密码更新继续调用 Better Auth，认证适配器绑定当前 Drizzle 事务；账号、功能授权、会话撤销和 `access_audit` 一起提交或回滚。管理变更共用 PostgreSQL 事务锁，获得锁后重新验证操作人的会话和管理员身份。不能停用或降级当前管理员，至少保留一位有效管理员。没有人员删除接口。
+管理写入必须来自受信任的网站 Origin。账号创建、密码更新继续调用 Better Auth，认证适配器绑定当前 Drizzle 事务；账号、功能授权、会话撤销和 `access_audit` 一起提交或回滚。管理变更共用 PostgreSQL 事务锁，获得锁后重新验证操作人的会话和管理员身份。不能停用或降级当前管理员，至少保留一位有效管理员。没有人员删除接口。
 
 撤销功能后，旧 Cookie 的下一次相关 API 请求即被拒绝。停用账号、变更身份或重置密码撤销全部旧会话；重新启用不恢复旧会话。已加载内容不会远程消失，前端在导航、刷新及回到窗口时重读权限。业务 API 必须使用同一访问宏，并在业务查询中实现数据规则；当前尚无业务数据查询，本次未引入部门、租户、数据行策略或独立动作权限。
 
@@ -82,5 +88,9 @@ unset ADMIN_INITIAL_PASSWORD
 `bun run auth:schema` 使用锁定的 auth CLI，在临时目录生成表定义，经 AST 适配移除旧 `relations()`，再覆盖 `schema/auth.ts`。手写 Drizzle 1.0 关系位于 `packages/db/src/relations.ts`；发现生成器结构变化时中止，要求审查。命令不连接数据库、不执行迁移。
 
 `bun run test:api` 使用配置的 PostgreSQL，为每个用例创建随机 `auth_test_*` / `access_test_*` schema，单独执行迁移并清理。测试账号需 CREATE SCHEMA 权限。请使用专用测试数据库；不要给测试账户生产权限。`bun run test:server` 不需要数据库，覆盖健康、错误、代理地址和资源关闭。完整流程见 [工程验证](./engineering-verification.md)。
+
+`auth-origins.test.ts` 覆盖开发网卡变化、协议/端口限制、生产固定配置与配置隔离。`auth.test.ts` 使用合成账号验证换网后的登录、Cookie 会话、退出，以及旧来源和未知来源的拒绝路径；测试不修改实际管理员账号。
+
+2026-11-10 验证：lint、全工作区类型检查与构建通过，来源/健康/认证响应/代理地址单元测试 11 项、认证与权限集成测试 23 项通过。后端完整重启后，经开发 Web 的 `/api` 代理检查，本机当前局域网和 localhost 来源均进入账号密码校验，旧局域网网址与未知网站仍返回 `INVALID_ORIGIN`。浏览器已重新打开局域网登录页，未读取或重置实际管理员密码。
 
 2026-10-05 模块实例与职责整理验收：lint、全工作区类型检查与构建通过；API 测试 33 项、架构测试 13 项通过。覆盖共享插件下并发身份隔离、运行中拒绝替换资源、非法来源、撤权、停用、密码重置、审计回滚与代理限流；新增过期会话被权限服务拒绝时仍转交 Cookie 清除响应头的回归用例。开发服务加载新代码后，浏览器原有登录仍可读取人员和审计列表。

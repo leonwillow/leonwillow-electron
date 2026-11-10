@@ -1,6 +1,6 @@
 /**
  * @file 增值税 V5 普通计税规则与方案校验的无副作用共享实现。
- * 创建时间：2026-11-05；修改时间：2026-11-06。
+ * 创建时间：2026-11-05；修改时间：2026-11-08。
  * 版本作用：浏览器即时预览和服务端权威重算使用同一整数分算法。
  * 被调用：计算器 UI、API 和领域测试；不依赖 DOM、数据库或框架。
  * 预期结果：原始申报可校正，未填所属期、断档或错误阻断后续计算；金额和累计值均有界。
@@ -16,8 +16,13 @@ import {
 
 export {
 	legacyPeriod,
+	type PeriodDates,
 	periodDate,
 	periodLabel,
+	type ReportingPeriod,
+	reportingPeriod,
+	reportingPeriodDates,
+	reportingPeriodLabel,
 	validatePeriods,
 } from "./periods";
 export const LEGACY_RULES_VERSION = "vat-fixed-history-v1";
@@ -405,7 +410,7 @@ export function calculate(
 		rows.push(row);
 		if (!h.periodStart || !h.periodEnd) {
 			row.status = "gap";
-			row.error = "请选择所属期起、所属期止";
+			row.error = "请选择完整的所属期";
 			baselineBlocked = true;
 			newBlocked = true;
 			continue;

@@ -1,6 +1,6 @@
 /**
  * @file 搜索缓存的结果一致性、隔离与失效回归。
- * 创建时间：2026-11-07；修改时间：2026-11-07。
+ * 创建时间：2026-11-07；修改时间：2026-11-08。
  * 被调用：bun test；调用：真实 GridStore 与未缓存的 deriveRows。
  * 预期结果：缓存减少重复格式化，编辑、历史、外部替换、列和语言变化不会返回旧结果。
  */
@@ -56,6 +56,62 @@ it("保留原值/显示文本、隐藏列、语言和组合筛选排序的搜索
 			const snapshot = grid.getSnapshot();
 			expect(snapshot.viewRows).toEqual(
 				deriveRows(rows, columns, snapshot.state, locale),
+			);
+		}
+	}
+});
+
+it("数字与日期文本的快速路径保留各语言搜索语义", () => {
+	const values = [
+		"2019-05-01",
+		"-1,234.50",
+		"+1234.50",
+		"1\u00a0234,50",
+		"\t12\n34",
+		"1234 元",
+		"1.2E+10",
+		"İSTANBUL 1234",
+		"I\u0301 1234",
+		"Σ 1234",
+		"１２３４",
+		"",
+	];
+	const numericRows = values.map((value, index) => ({
+		id: String(index),
+		value,
+		amount: -1234.5,
+	}));
+	const schema: Column<(typeof numericRows)[number]>[] = [
+		{ id: "value", field: "value", header: "日期或文本" },
+		{
+			id: "amount",
+			field: "amount",
+			header: "金额",
+			type: "number",
+			format: () => "-1,234.50",
+		},
+	];
+	for (const locale of ["zh-CN", "en-US", "tr-TR", "lt-LT", "el-GR"]) {
+		const grid = createGrid({
+			rows: numericRows,
+			columns: schema,
+			getRowId: (row) => row.id,
+			locale,
+		});
+		for (const query of [
+			...values,
+			"05-01",
+			"-1234.5",
+			"istanbul",
+			"i\u0307\u0301",
+			"σ",
+			"e+10",
+			"不存在",
+		]) {
+			grid.setState({ search: query });
+			const snapshot = grid.getSnapshot();
+			expect(snapshot.viewRows).toEqual(
+				deriveRows(numericRows, schema, snapshot.state, locale),
 			);
 		}
 	}

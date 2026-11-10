@@ -1,6 +1,6 @@
 # 排版、控件与缩放规范
 
-维护日期：2026-11-06。以下尺寸约定沿用原迁移实现；持久化由 `stores/theme-store.ts` 负责，DOM 和窗口同步由 `components/layout/theme-effects.tsx` 连接。
+维护日期：2026-11-08。以下尺寸约定沿用原迁移实现；持久化由 `stores/theme-store.ts` 负责，DOM 和窗口同步由 `components/layout/theme-effects.tsx` 连接。
 
 原模板迁移时，原 `ThemeCustomizer` 中 Select 用 `h-8`，单选格用 `py-2` 加子文字 `text-sm leading-none` 撑高；它们的字号分别是 `text-xs` 和 `text-sm`。原全局缩放只改 `--text-sm/base/lg` 和 `--spacing`，遗漏小字、其他字号与临时 rem 字号，导致上下控件尺寸变化不一致。
 
@@ -204,3 +204,16 @@ G6 的原生项通过共享 Tooltip 的 `anchor` 接口复用提示外观，不�
 
 
 2026-11-06：共享 ContextMenu 沿用 Base UI 官方 ContextMenu 原语、下拉菜单间距/图标及主题令牌，长菜单用 ScrollArea；同一菜单的 Root 和 Item 从同一原语入口导入。表格日期编辑复用 DatePicker，日历及年月 Select 的 Portal 均保留编辑作用域。列落位提示只动画覆盖层透明度，遵守 reduced-motion；网格键盘焦点提示不放在滚动内容的内侧。
+
+2026-11-08：列拖动浮层与实际表头共用 `text-control` 和语义底色，避免 Portal 继承不同字号。浮层从拖动到落位均保留 `info` 高亮；标题以 transform 轻微放大 4%，320ms 缩回，整列高亮在落位后共同淡出。临时隐藏目标表头内容时保留背景和冻结遮挡，所有动效均不改变列宽、行高或实际 font-size。时长、缩放及颜色集中在共享 CSS；Lattice 使用 Sortable 的可选官方 dropAnimation 配置，其他调用方继续沿用原 ReUI 效果。减少动态效果时保留颜色反馈并跳过位移与缩放。
+
+
+2026-11-08：Lattice 工具栏按筛选、数据编辑、导出、视图设置排列；组内使用紧凑间距，组间使用更大留白及共享 Separator，不增加分组底色或新按钮规格。宿主通过 toolbarSlots 注入业务入口，DOM 与键盘顺序遵循同一排列；所有分组保持单行，窄容器使用共享 ScrollArea 横向滚动，所有操作仍可达。
+
+表格工具栏搜索框使用 12rem 紧凑宽度，不随剩余空间扩张，勾选行和窄窗口都不压缩搜索框或筛选控件。
+
+工具栏两侧按内容宽度排布：筛选组靠左，不分配固定 flex-basis、不受批量操作挤压；操作组通过自动左边距靠右，两侧垂直居中。勾选后也不换行，横向溢出只发生在工具栏自己的 ScrollArea 内，并给滚动条保留底部空间。增值税导出方案与导出明细合并为“导出”入口，复用 DropdownMenu 的 openOnHover；支持悬停、点击和键盘，明细不可用时保留禁用原因提示。
+
+工具栏不再显示总行数和复制按钮，行数信息由底部汇总呈现；批量操作保留已选计数，复制继续使用快捷键或单元格右键菜单。
+
+2026-11-08：增值税所属期使用共享Popover、Field和Select组合，申报周期、年份、月份/季度同排，卡片宽度及窄窗上限集中于 `.vat-period-picker` / `.vat-period-fields`。不展示日期日历，起止由选择自动生成；确认与取消沿用共享按钮规格，冲突使用Sonner。年份长列表使用Select已有的ScrollArea，表格编辑触发器沿用无内框的整格样式；所有弹层保留 `data-lg-edit-scope`，内部选项不会误结束编辑。

@@ -2,13 +2,14 @@
 // biome-ignore-all lint/a11y/useFocusableInteractive: The grid owns keyboard focus and exposes its active cell through aria-activedescendant.
 /**
  * @file 网格正文行的局部更新边界。
- * 创建时间：2026-11-07；修改时间：2026-11-07。
- * 版本作用：以稳定行、布局和该行选区隔离其他行的输入及选中变化。
+ * 创建时间：2026-11-07；修改时间：2026-11-08。
+ * 版本作用：以稳定行、布局和该行选区隔离更新，按横向窗口合并屏幕外列的等宽占位。
  * 被调用：DataGrid；调用：GridCell、共享 Checkbox 和 GridView。
  * 预期结果：保留稳定 DOM 身份、虚拟行位置及冻结样式，只更新受影响行和单元格。
  */
 import { Checkbox } from "@leonwillow-electron/ui/components/checkbox";
 import { memo, type ReactNode } from "react";
+import type { ColumnSlot } from "./column-window";
 import { GridCell } from "./grid-cell";
 import type { CellContext, EditorContext, GridView } from "./view-controller";
 
@@ -24,6 +25,7 @@ function GridRowView<T>({
 	checked,
 	selectLabel,
 	layout,
+	columnSlots,
 	selectionStart,
 	selectionEnd,
 	activeColumn,
@@ -48,6 +50,7 @@ function GridRowView<T>({
 	checked: boolean;
 	selectLabel: string;
 	layout: ReturnType<GridView<T>["layout"]>;
+	columnSlots: readonly ColumnSlot[];
 	selectionStart: number;
 	selectionEnd: number;
 	activeColumn?: string;
@@ -81,11 +84,23 @@ function GridRowView<T>({
 					onCheckedChange={() => view.store.toggleRow(rowId)}
 				/>
 			</div>
-			{layout.map((c, index) => {
+			{columnSlots.map((slot) => {
+				if (slot.kind === "spacer")
+					return (
+						<div
+							key={`spacer-${slot.index}`}
+							aria-hidden="true"
+							className="lg-cell"
+							style={{ width: slot.width, minWidth: slot.width }}
+						/>
+					);
+				const index = slot.index;
+				const c = layout[index];
+				if (!c) return null;
 				const editing = editingColumn === c.column.id;
 				return (
 					<GridCell
-						key={c.column.id}
+						key={`column-${c.column.id}`}
 						id={id}
 						view={view}
 						row={row}

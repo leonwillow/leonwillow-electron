@@ -2,7 +2,7 @@
 // biome-ignore-all lint/a11y/useFocusableInteractive: Keyboard focus remains on the grid via aria-activedescendant.
 /**
  * @file 按单元格隔离显示内容与编辑草稿的 React 渲染。
- * 创建时间：2026-11-07；修改时间：2026-11-07。
+ * 创建时间：2026-11-07；修改时间：2026-11-08。
  * 版本作用：浅比较真实显示依赖，避免选择或输入导致未变化的单元格重绘。
  * 被调用：GridRow；调用：GridView、共享 Input/Select 和列格式化函数。
  * 预期结果：沿用原 DOM、事件和编辑生命周期，渲染函数变化仍及时生效。
@@ -149,7 +149,7 @@ function CellEditor<T>({
 		onValueChange: (value) => view.set({ draft: value }),
 		editScope: id,
 		commit: (value) => view.commitEdit(value),
-		cancel: () => view.cancelEdit(),
+		cancel: (restoreFocus) => view.cancelEdit(restoreFocus),
 	};
 	return (
 		renderEditor?.(editorContext) ?? (
@@ -214,6 +214,7 @@ function GridCellView<T>({
 	};
 
 	return (
+		// biome-ignore lint/a11y/useKeyWithClickEvents: 网格根节点统一处理 Enter/F2 编辑，单元格通过 aria-activedescendant 接受键盘导航。
 		<div
 			id={`${id}-cell-${encodeURIComponent(rowId)}-${encodeURIComponent(column.id)}`}
 			role="gridcell"
@@ -240,6 +241,31 @@ function GridCellView<T>({
 			onPointerDown={(event) =>
 				view.startSelection(event.nativeEvent, { rowId, columnId: column.id })
 			}
+			onClick={(event) => {
+				if (
+					!column.editOnClick ||
+					editing ||
+					event.shiftKey ||
+					event.metaKey ||
+					event.ctrlKey ||
+					event.altKey
+				)
+					return;
+				if (
+					(event.target as HTMLElement).closest(
+						"button,input,select,a,[data-lg-interactive]",
+					)
+				)
+					return;
+				const selection = view.store.getSnapshot().state.selection;
+				if (
+					selection?.anchor.rowId === rowId &&
+					selection.anchor.columnId === column.id &&
+					selection.focus.rowId === rowId &&
+					selection.focus.columnId === column.id
+				)
+					view.startEdit({ rowId, columnId: column.id });
+			}}
 			onDoubleClick={(event) => {
 				if (
 					!(event.target as HTMLElement).closest(

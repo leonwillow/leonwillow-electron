@@ -1,7 +1,7 @@
 /**
  * @file 认证工作区的运行时工厂出口。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-11-10
  * 版本作用：服务端认证基础层，随工作区维护。
  * 被调用：scripts、packages/auth/src、apps/server/test、apps/server/src、apps/server/src/modules/auth。
  * 调用：@better-auth/drizzle-adapter、@leonwillow-electron/db、better-auth、./config。
@@ -16,14 +16,14 @@ import { authOptions } from "./config";
 
 /**
  * 将数据库和部署配置注入共用认证规则。
- * @param options db 由调用方持有；secret 用于签名，baseURL 为服务地址，trustedOrigins 为前端来源。
+ * @param options db 由调用方持有；secret 用于签名，baseURL 为服务地址，trustedOrigins 为网站来源或其读取函数。
  * @returns Better Auth 实例；不自行监听或初始化管理员。
  */
 export function createAuth(options: {
 	db: Database;
 	secret: string;
 	baseURL: string;
-	trustedOrigins: string[];
+	trustedOrigins: string[] | (() => string[]);
 }) {
 	return betterAuth({
 		...authOptions,

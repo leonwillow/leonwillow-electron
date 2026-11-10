@@ -28,7 +28,7 @@ export function Inventory() {
 - React 视图使用共享 ReUI/Base UI 控件，主题、字号、行高、弹层和滚动由当前 UI 体系管理。
 - 业务列定义、货币精度、权限、保存与服务端冲突处理由调用页面负责，包不导入应用路由、Eden、数据库或税务算法。
 - 默认中文；提供 `renderCell`、`renderEditor`、`renderToolbar`、`renderEmpty` 扩展，以及 `apiRef` 获取实例。未接管的单元格从 `renderCell` 返回 `undefined`，交给默认显示。
-- `toolbarContent?: ReactNode` 用于宿主筛选和业务操作，显示在行数之后、右侧内置工具之前，空间不足时自动换行。原 `renderToolbar(store)` 仍追加在内置工具之后；`toolbar={false}` 会隐藏整条工具栏及两个插槽。
+- `toolbarSlots` 按用途扩展工具栏：`filters` 与搜索、列筛选放一起；`actions` 放在撤销/重做之前，`actionsEnd` 放在其后；`exports` 与内置导出放一起；列设置和密度位于末尾。筛选靠左、操作靠右，组间以留白和共享 Separator 区分，始终保持一行；空间不足时由共享 ScrollArea 横向滚动。勾选计数与删除跟随编辑组，搜索始终可用；总行数由底部汇总呈现，工具栏不重复显示，也不提供复制按钮，复制仍可通过快捷键和单元格右键菜单使用。兼容原 `toolbarContent?: ReactNode`（搜索框之后）和 `renderToolbar(store)`（内置工具之后）；`toolbar={false}` 隐藏全部工具栏内容。
 - 列宽 `width/minWidth/maxWidth` 是 CSS 像素，行高和工具控件跟随应用 rem 主题。可指定 `height`，默认使用响应式高度。`fillHeight` 可填满有界纵向 flex 父级的剩余高度，启用后优先于 `height`；工具栏和状态栏保留自身高度，滚动区分配剩余空间。小窗口保留最小可用高度，宿主可通过共享 ScrollArea 容纳溢出。
 
 ## 接入约定
@@ -50,6 +50,8 @@ export function Inventory() {
 列的 `formatEdit(value, row)` 可返回可被 `parse` 接受的编辑文本，例如将未录入金额呈现为 `0.00`；仅打开并离开不会改变原始空值。`align` 统一显示与编辑的文本对齐，`inputMode` 控制输入键盘；两者均不改变底层数据类型。默认编辑器使用 Input/SelectTrigger 的 `cell` 变体，继承单元格字体与留白，焦点边框由整个单元格呈现。
 
 自定义 `renderEditor` 通过 `onValueChange` 同步草稿，以支持离开时保存；`commit`/`cancel` 仍可显式结束编辑。Portal 弹层根节点应标记 `data-lg-edit-scope={editScope}`，避免点击内部选项被认为离开；编辑已结束时不应让弹层恢复到旧触发器的焦点。
+
+选择型列可设置 `editOnClick: true`，单击单格直接打开编辑器；默认双击、Enter/F2、拖选及只读行为保留。需要明确确认的卡片可以在自身保存临时选择，确认时调用 `commit(value)`；`cancel(false)` 关闭时不抢回焦点，省略参数则恢复网格焦点。
 
 只读单元格保留键盘导航、范围选择和复制语义，但点击时不显示选中边框或选中底色。可编辑格悬停使用 I 形文本光标，悬停不显示或移动边框。选中边框挂在实际单元格内部，原生跟随滚动、冻结和尺寸变化，层级与单元格一致。仅点击或键盘切换时使用正文装饰层进行 160ms 匀速过渡；边框与裁剪边界同步移动，目标格部分被固定列遮挡时，动画终帧也与最终选中框一致。结束或开始滚动就移除装饰层，恢复单元格边框，不播放追赶动画。表头、汇总和视口边界正确遮挡，遵守 `prefers-reduced-motion`。不提供拖拽填充，右下角无填充点；拖动只扩展选区，不修改数据。
 

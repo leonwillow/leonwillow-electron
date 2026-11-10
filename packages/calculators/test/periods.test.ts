@@ -1,6 +1,6 @@
 /**
  * @file 所属期、空行插入与旧数据兼容的领域回归。
- * 创建时间：2026-11-06；修改时间：2026-11-06。
+ * 创建时间：2026-11-06；修改时间：2026-11-08。
  * 调用：真实计税和导入函数；合成数据验证稳定身份、期间边界及保存重读。
  */
 import { expect, test } from "bun:test";
@@ -13,9 +13,12 @@ import {
 	normalizeHistoryRow,
 	RULES_VERSION,
 	readBackup,
+	reportingPeriod,
+	reportingPeriodDates,
+	reportingPeriodLabel,
 	type VatData,
 } from "../src";
-import { gridToHistory } from "../src/import";
+import { gridToHistory, parsePeriod } from "../src/import";
 
 const period = (id: string, start: string, end: string) =>
 	normalizeHistoryRow({
@@ -28,6 +31,65 @@ const period = (id: string, start: string, end: string) =>
 		tax: "50",
 		end: "0",
 	});
+
+test("月季选择准确展开闰年、季度及年份边界，旧范围不冒充整月或整季", () => {
+	for (const [value, start, end] of [
+		["2024-02", "2024-02-01", "2024-02-29"],
+		["2026年2月", "2026-02-01", "2026-02-28"],
+		["2026-Q1", "2026-01-01", "2026-03-31"],
+		["2026年第二季度", "2026-04-01", "2026-06-30"],
+		["2026年第3季度", "2026-07-01", "2026-09-30"],
+		["2199-Q4", "2199-10-01", "2199-12-31"],
+	] as const) {
+		const dates = parsePeriod(value);
+		expect(dates).toEqual({ periodStart: start, periodEnd: end });
+		const selection = reportingPeriod(dates);
+		expect(selection).not.toBeNull();
+		if (selection) expect(reportingPeriodDates(selection)).toEqual(dates);
+	}
+	expect(reportingPeriodLabel(parsePeriod("2026-Q4"))).toBe("2026年第4季度");
+	expect(reportingPeriodLabel(parsePeriod("2024-02"))).toBe("2024年2月");
+	for (const dates of [
+		{ periodStart: "", periodEnd: "" },
+		{ periodStart: "2026-01-01", periodEnd: "" },
+		{ periodStart: "2026-02-01", periodEnd: "2026-04-30" },
+		{ periodStart: "2026-01-15", periodEnd: "2026-03-31" },
+		{ periodStart: "2026-xx-01", periodEnd: "2026-03-31" },
+	])
+		expect(reportingPeriod(dates)).toBeNull();
+	for (const value of ["2026-Q0", "2026-Q5", "2200-Q1", "2026-13", "2026-00"])
+		expect(() => parsePeriod(value)).toThrow();
+});
+
+test("月报到季报再到月报按实际期间传递留抵，月季重叠拒绝重复计算", () => {
+	const history = ["2026-01", "2026-02", "2026-03", "2026-Q2", "2026-07"].map(
+		(value) => {
+			const dates = parsePeriod(value);
+			return period(value, dates.periodStart, dates.periodEnd);
+		},
+	);
+	const result = calculate(history, {
+		"2026-03": { ...emptyAdjustment(), inputIncrease: "75" },
+	});
+	expect(result.allReady).toBe(true);
+	expect(result.rows.map((row) => row.n?.tax)).toEqual([
+		5000, 5000, 0, 2500, 5000,
+	]);
+	expect(result.rows[3]?.n?.b).toBe(2500);
+	expect(result.audit).toBe(true);
+	expect(
+		readBackup({
+			schema: RULES_VERSION,
+			source: "月季衔接",
+			history,
+			adjustments: {},
+		}).history,
+	).toEqual(history);
+	const q1 = parsePeriod("2026-Q1");
+	expect(() =>
+		calculate([...history, period("q1", q1.periodStart, q1.periodEnd)], {}),
+	).toThrow("重叠");
+});
 
 test("季度及非整月按原所属期计算，不生成中间月份", () => {
 	const rows = [

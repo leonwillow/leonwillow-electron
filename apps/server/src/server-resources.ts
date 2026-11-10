@@ -1,7 +1,7 @@
 /**
  * @file 当前服务进程共用的认证、数据库和安全配置。
  * 创建时间：2026-10-05
- * 修改时间：2026-10-06
+ * 修改时间：2026-11-10
  * 版本作用：基础依赖只在启动时绑定一次，业务模块按需读取。
  * 被调用：index.ts、认证/权限服务、管理事务服务、服务端测试。
  * 调用：auth/db 类型；不加载环境、不创建连接或监听器。
@@ -16,7 +16,7 @@ import type { FundsGraph } from "./modules/funds/graph";
 type ServerResources = Readonly<{
 	auth: Auth;
 	db: Database;
-	origins: readonly string[];
+	origins: readonly string[] | (() => readonly string[]);
 	trustedProxyIps: readonly string[];
 	fundsGraph?: FundsGraph;
 	fundsFiles?: FundsFileStore;
@@ -41,7 +41,10 @@ export function initializeServerResources(resources: ServerResources) {
 	if (current) throw new Error("服务资源已初始化，请先停止服务并释放原资源。");
 	const bound = Object.freeze({
 		...resources,
-		origins: Object.freeze([...resources.origins]),
+		origins:
+			typeof resources.origins === "function"
+				? resources.origins
+				: Object.freeze([...resources.origins]),
 		trustedProxyIps: Object.freeze([...resources.trustedProxyIps]),
 	});
 	current = bound;
@@ -56,11 +59,11 @@ export function getServerResources() {
 	return current;
 }
 
-/** 校验精确 Origin；未初始化时沿用本地公共路由的默认来源，不放开任意来源。 */
+/** 校验网站的精确 Origin；动态来源每次请求读取，用户地址不参与此校验。 */
 export function isTrustedOrigin(request: Request) {
-	return (current?.origins ?? defaultOrigins).includes(
-		request.headers.get("origin") ?? "",
-	);
+	const source = current?.origins ?? defaultOrigins;
+	const origins = typeof source === "function" ? source() : source;
+	return origins.includes(request.headers.get("origin") ?? "");
 }
 
 /** 只提供固定代理配置，不保存请求地址；未初始化时不信任任何代理。 */

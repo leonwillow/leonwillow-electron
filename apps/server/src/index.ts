@@ -1,7 +1,7 @@
 /**
  * @file Bun 服务进程的启动入口。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-06
+ * 修改时间：2026-11-10
  * 版本作用：Bun 服务进程的唯一启动入口。
  * 被调用：server 的 dev/start 命令。
  * 调用：Varlock、auth/db 工厂、app、env、lifecycle、server-resources、auth/client-ip。
@@ -12,6 +12,7 @@ import "varlock/auto-load";
 import { createAuth } from "@leonwillow-electron/auth";
 import { createDatabase } from "@leonwillow-electron/db";
 import { createApp } from "./app";
+import { createOriginResolver } from "./auth-origins";
 import { ENV } from "./env";
 import { createShutdown } from "./lifecycle";
 import { parseTrustedProxyIps } from "./modules/auth/client-ip";
@@ -27,7 +28,7 @@ const fundsGraph = createFundsGraph(
 	ENV.NEO4J_USER,
 	ENV.NEO4J_PASSWORD,
 );
-const origins = ENV.CORS_ORIGIN.split(",").map((origin) => origin.trim());
+const origins = createOriginResolver(ENV.CORS_ORIGIN.split(","), ENV.NODE_ENV);
 let releaseResources: (() => void) | undefined;
 try {
 	const auth = createAuth({

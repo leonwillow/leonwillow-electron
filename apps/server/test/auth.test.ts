@@ -1,7 +1,7 @@
 /**
  * @file 账号认证全链路的数据库集成测试。
  * 创建时间：2026-10-04（Git 首次收录）
- * 修改时间：2026-10-20
+ * 修改时间：2026-11-10
  * 版本作用：当前行为的回归约束，不进入产品构建。
  * 被调用：Bun 测试命令。
  * 调用：bun:test、@elysiajs/eden、@leonwillow-electron/auth、@leonwillow-electron/db、drizzle-orm、../src/app。
@@ -17,6 +17,7 @@ import { account, session, user } from "@leonwillow-electron/db/schema";
 import { eq } from "drizzle-orm";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { type App, createApp } from "../src/app";
+import { createOriginResolver } from "../src/auth-origins";
 import { initializeServerResources } from "../src/server-resources";
 
 // 在同一 PostgreSQL 中创建独立 schema；只清理本次测试生成的 schema。
@@ -27,10 +28,17 @@ describe("真实账号密码认证", () => {
 	let auth: ReturnType<typeof createAuth>;
 	let api: ReturnType<typeof treaty<App>>;
 	let releaseResources: (() => void) | undefined;
+	let localAddresses: string[] = [];
 	const origin = "http://localhost:3002";
 	const password = "test pass word 8";
 
 	beforeEach(async () => {
+		localAddresses = [];
+		const origins = createOriginResolver(
+			[origin],
+			"development",
+			() => localAddresses,
+		);
 		schemaName = `auth_test_${crypto.randomUUID().replaceAll("-", "")}`;
 		const url = new URL(
 			process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL || "",
@@ -49,12 +57,12 @@ describe("真实账号密码认证", () => {
 			db: database.db,
 			secret: crypto.randomUUID() + crypto.randomUUID(),
 			baseURL: "http://localhost:3000",
-			trustedOrigins: [origin],
+			trustedOrigins: origins,
 		});
 		releaseResources = initializeServerResources({
 			auth,
 			db: database.db,
-			origins: [origin],
+			origins,
 			trustedProxyIps: [],
 		});
 		app = createApp().listen({
@@ -137,6 +145,54 @@ describe("真实账号密码认证", () => {
 		expect(
 			(await api.api.auth.session.get({ headers: { cookie } })).status,
 		).toBe(200);
+	});
+
+	test("开发机换网后登录、会话和退出同步接受新网站，旧地址与未知网站继续拒绝", async () => {
+		await registerFixture();
+		const login = (site: string) =>
+			api.api.auth.login.post(
+				{ username: "Test_User", password, rememberMe: false },
+				{ headers: { origin: site } },
+			);
+		localAddresses = ["192.168.5.225"];
+		expect((await login("http://192.168.5.225:3002")).status).toBe(200);
+		localAddresses = ["192.168.1.58"];
+		const site = "http://192.168.1.58:3002";
+		const result = await login(site);
+		expect(result.status).toBe(200);
+		expect(result.response.headers.get("access-control-allow-origin")).toBe(
+			site,
+		);
+		const cookie = result.response.headers
+			.getSetCookie()
+			.map((value) => value.split(";")[0])
+			.join("; ");
+		expect(cookie).not.toBe("");
+		const current = await api.api.auth.session.get({
+			headers: { origin: site, cookie },
+		});
+		expect(current.status).toBe(200);
+		expect(current.data?.user.id).toBe(result.data?.user.id);
+		for (const denied of [
+			"http://192.168.5.225:3002",
+			"http://192.168.1.59:3002",
+			"https://attacker.invalid",
+		]) {
+			const response = await login(denied);
+			expect(response.status).toBe(403);
+			expect(response.error?.value).toMatchObject({ code: "INVALID_ORIGIN" });
+			expect(
+				response.response.headers.get("access-control-allow-origin"),
+			).toBeNull();
+		}
+		const logout = await api.api.auth.logout.post(undefined, {
+			headers: { origin: site, cookie },
+		});
+		expect(logout.status).toBe(200);
+		expect(
+			(await api.api.auth.session.get({ headers: { origin: site, cookie } }))
+				.status,
+		).toBe(401);
 	});
 
 	test("普通启动不创建管理员，弱初始密码被拒绝", async () => {

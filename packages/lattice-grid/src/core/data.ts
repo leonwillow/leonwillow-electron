@@ -1,6 +1,6 @@
 /**
  * @file Lattice Grid data：泛型表格数据与事务内核。
- * 创建时间：2026-11-05；修改时间：2026-11-07。
+ * 创建时间：2026-11-05；修改时间：2026-11-08。
  * 版本作用：适配 MIT Lattice Grid 0.1.0-beta.1，保留原始行标识、不可变事务与数据隔离。
  * 被调用：独立表格包的 React 视图；调用：包内核心模块，不依赖业务、数据库或路由。
  * 预期结果：多个表格实例独立工作，外部数据和提交由调用页面管理。
@@ -46,6 +46,12 @@ export function numericFilter(query: string): ((n: number) => boolean) | null {
 			return (v) => v === n;
 	}
 }
+// 仅数字、空白及金额/日期标点没有大小写；含任何其他字符仍遵守 locale。
+const uncasedNumericText = /^[\d\s.,+-]*$/;
+function normalizeSearchText(text: string, locale: string) {
+	return uncasedNumericText.test(text) ? text : text.toLocaleLowerCase(locale);
+}
+
 /**
  * 每个 store 独占当前不可变数据版本的搜索文本；不保留历史版本或跨实例缓存。
  * 惰性读取每格的显示文本和原值，继续按单格匹配，禁止跨格拼接造成误命中。
@@ -75,15 +81,15 @@ export class SearchTextCache<T> {
 		}
 		return (
 			this.columns?.some((column, index) => {
-				text.formatted[index] ??= formatValue(
-					row,
-					column,
+				text.formatted[index] ??= normalizeSearchText(
+					formatValue(row, column, this.locale),
 					this.locale,
-				).toLocaleLowerCase(this.locale);
+				);
 				if (text.formatted[index].includes(query)) return true;
-				text.raw[index] ??= String(
-					getCellValue(row, column) ?? "",
-				).toLocaleLowerCase(this.locale);
+				text.raw[index] ??= normalizeSearchText(
+					String(getCellValue(row, column) ?? ""),
+					this.locale,
+				);
 				return text.raw[index].includes(query);
 			}) ?? false
 		);

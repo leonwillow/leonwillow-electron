@@ -1,6 +1,6 @@
 /**
  * @file 税务导出表的纯文本解析，不执行导入内容。
- * 创建时间：2026-11-05；修改时间：2026-11-06。
+ * 创建时间：2026-11-05；修改时间：2026-11-08。
  * 版本作用：保留 V5 的 CSV/TSV、标题别名和所属期起止规则。
  * 被调用：浏览器导入弹窗与测试；调用：共享历史校验。HTML DOM 提取留在客户端。
  * 预期结果：跳过小规模与汇总行，拒绝不完整期间和不明确的金额。
@@ -11,6 +11,7 @@ import {
 	legacyPeriod,
 	normalizeHistoryRow,
 	periodDate,
+	reportingPeriodDates,
 } from ".";
 export function parseDelimited(input: string): string[][] {
 	const text = input.replace(/^\ufeff/, "");
@@ -51,6 +52,15 @@ export function parseDelimited(input: string): string[][] {
 /** 双列日期原样保留；旧 YYYY-MM 兼容为整月，不把季度或任意期间压成月份。 */
 export function parsePeriod(value: string, until = "") {
 	const s = value.trim();
+	const quarter = /^(\d{4})(?:-?Q([1-4])|年第?([1-4一二三四])季度)$/i.exec(s);
+	if (quarter && !until.trim()) {
+		const index = quarter[2] || quarter[3] || "";
+		return reportingPeriodDates({
+			cycle: "quarterly",
+			year: Number(quarter[1]),
+			index: Number(index) || "一二三四".indexOf(index) + 1,
+		});
+	}
 	if (/^\d{4}[-/年]\d{1,2}月?$/.test(s) && !until.trim()) {
 		const [year, month] = s.match(/\d+/g) as string[];
 		return legacyPeriod(`${year}-${month?.padStart(2, "0")}`);

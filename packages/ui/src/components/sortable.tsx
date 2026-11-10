@@ -1,8 +1,8 @@
 /**
  * @file ReUI Sortable 共享拖拽排序组件。
- * 创建时间：2026-11-04；修改时间：2026-11-06。
+ * 创建时间：2026-11-04；修改时间：2026-11-08。
  * 版本作用：保留 ReUI 官方鼠标、触摸、键盘传感器、排序策略及拖动/落位动画。
- * 被调用：笔录问答编辑；调用：Base UI、dnd-kit、React Portal 与共享 cn。
+ * 被调用：笔录问答编辑、Lattice Grid；调用：Base UI、dnd-kit、React Portal 与共享 cn。
  * 功能：按稳定 ID 排序，提供独立拖动手柄、拖动预览和排序提交接口。
  * 预期结果：业务仅绑定列表与变更回调；组件保持官方拖拽行为及效果。
  * 来源：https://reui.io/docs/components/base/sortable（shadcn registry @reui/sortable）。
@@ -152,6 +152,8 @@ export interface SortableRootProps<T>
 	onDragCancel?: (event: DragCancelEvent) => void;
 	accessibility?: React.ComponentProps<typeof DndContext>["accessibility"];
 	autoScroll?: React.ComponentProps<typeof DndContext>["autoScroll"];
+	/** 按场景配置官方落位动效；未传入时保留 ReUI 默认效果。 */
+	dropAnimation?: DropAnimation | null;
 	modifiers?: Modifiers;
 }
 
@@ -169,6 +171,7 @@ function Sortable<T>({
 	onDragCancel,
 	accessibility,
 	autoScroll,
+	dropAnimation = dropAnimationConfig,
 	modifiers,
 	children,
 	...props
@@ -312,7 +315,7 @@ function Sortable<T>({
 				{mounted &&
 					createPortal(
 						<DragOverlay
-							dropAnimation={dropAnimationConfig}
+							dropAnimation={dropAnimation}
 							modifiers={modifiers}
 							className={cn("z-50", activeId && "cursor-grabbing")}
 						>
@@ -364,6 +367,7 @@ function SortableItem({
 				"data-slot": "sortable-item",
 				"data-value": value,
 				"data-dragging": true,
+				"data-sortable-overlay": "",
 				className: cn(className),
 				children: props.children,
 			}

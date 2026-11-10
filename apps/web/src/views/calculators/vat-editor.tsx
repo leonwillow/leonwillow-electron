@@ -1,6 +1,6 @@
 /**
  * @file 增值税方案的汇总、筛选、录入与导出工作区。
- * 创建时间：2026-11-05；修改时间：2026-11-07。
+ * 创建时间：2026-11-05；修改时间：2026-11-08。
  * 版本作用：表格填满统计卡下方的剩余空间，全部所属期通过虚拟滚动展示，工具栏筛选不改变全期间计算结果。
  * 被调用：CalculatorsView；调用：共享算法、方案保存 Hook、导入弹窗、Lattice Grid 业务适配。
  * 预期结果：四项增减分别保存，清空调整需确认，新备份保留四项金额并兼容恢复旧 V5 数据。
@@ -25,6 +25,13 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@leonwillow-electron/ui/components/dialog";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuGroup,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@leonwillow-electron/ui/components/dropdown-menu";
 import { Label } from "@leonwillow-electron/ui/components/label";
 import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
 import {
@@ -36,7 +43,13 @@ import {
 	SelectValue,
 } from "@leonwillow-electron/ui/components/select";
 import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@leonwillow-electron/ui/components/tooltip";
+import {
 	CalendarPlusIcon,
+	ChevronDownIcon,
 	DownloadIcon,
 	FileJsonIcon,
 	RotateCcwIcon,
@@ -115,7 +128,7 @@ export default function VatEditor({
 		editor.change({ ...draft, ...next });
 		setRevealRowId(ids[0]);
 		toast.success(`已插入 ${count} 行`, {
-			description: "请在表格中选择所属期起、所属期止。",
+			description: "点击“所属期”，选择年份和月份或季度。",
 		});
 	};
 	const appendRow = () => {
@@ -141,8 +154,43 @@ export default function VatEditor({
 			),
 			"application/json",
 		);
-	const toolbarContent = (
-		<>
+	const toolbarSlots = {
+		filters: (
+			<>
+				<Select
+					value={year}
+					onValueChange={(v) => {
+						setYear(v ?? "all");
+					}}
+				>
+					<SelectTrigger aria-label="筛选年度">
+						<SelectValue>
+							{year === "all" ? "全部年度" : `${year} 年`}
+						</SelectValue>
+					</SelectTrigger>
+					<SelectContent>
+						<SelectGroup>
+							<SelectItem value="all">全部年度</SelectItem>
+							{years.map((y) => (
+								<SelectItem key={y} value={y}>
+									{y} 年
+								</SelectItem>
+							))}
+						</SelectGroup>
+					</SelectContent>
+				</Select>
+				<Label className="flex items-center gap-2">
+					<Checkbox
+						checked={changedOnly}
+						onCheckedChange={(checked) => {
+							setChangedOnly(!!checked);
+						}}
+					/>
+					仅看调整或联动
+				</Label>
+			</>
+		),
+		actions: (
 			<Button
 				variant="outline"
 				disabled={editor.readOnly}
@@ -152,60 +200,8 @@ export default function VatEditor({
 				<CalendarPlusIcon data-icon="inline-start" />
 				新增一行
 			</Button>
-			<Select
-				value={year}
-				onValueChange={(v) => {
-					setYear(v ?? "all");
-				}}
-			>
-				<SelectTrigger aria-label="筛选年度">
-					<SelectValue>
-						{year === "all" ? "全部年度" : `${year} 年`}
-					</SelectValue>
-				</SelectTrigger>
-				<SelectContent>
-					<SelectGroup>
-						<SelectItem value="all">全部年度</SelectItem>
-						{years.map((y) => (
-							<SelectItem key={y} value={y}>
-								{y} 年
-							</SelectItem>
-						))}
-					</SelectGroup>
-				</SelectContent>
-			</Select>
-			<Label className="flex items-center gap-2">
-				<Checkbox
-					checked={changedOnly}
-					onCheckedChange={(checked) => {
-						setChangedOnly(!!checked);
-					}}
-				/>
-				仅看调整或联动
-			</Label>
-			<Button variant="outline" onClick={exportBackup}>
-				<FileJsonIcon data-icon="inline-start" />
-				导出方案
-			</Button>
-			<Button
-				variant="outline"
-				disabled={!result.allReady || !result.audit}
-				disabledReason="全部所属期计算及金额平衡校验通过后可导出"
-				onClick={() => {
-					try {
-						downloadCalculation(
-							`${draft.name}-测算明细.csv`,
-							resultCsv(result),
-							"text/csv;charset=utf-8",
-						);
-					} catch (error) {
-						toast.error(calculatorError(error));
-					}
-				}}
-			>
-				<DownloadIcon data-icon="inline-start" />
-				导出明细
-			</Button>
+		),
+		actionsEnd: (
 			<Button
 				variant="warning"
 				disabled={editor.readOnly || !Object.keys(draft.adjustments).length}
@@ -215,8 +211,60 @@ export default function VatEditor({
 				<RotateCcwIcon data-icon="inline-start" />
 				清空调整
 			</Button>
-		</>
-	);
+		),
+		exports: (
+			<DropdownMenu>
+				<DropdownMenuTrigger
+					openOnHover
+					delay={100}
+					closeDelay={150}
+					render={<Button variant="outline" />}
+				>
+					<DownloadIcon data-icon="inline-start" />
+					导出
+					<ChevronDownIcon data-icon="inline-end" />
+				</DropdownMenuTrigger>
+				<DropdownMenuContent align="end">
+					<DropdownMenuGroup>
+						<DropdownMenuItem onClick={exportBackup}>
+							<FileJsonIcon />
+							导出方案
+						</DropdownMenuItem>
+						<Tooltip
+							disabled={result.allReady && !!result.audit}
+							disableHoverablePopup
+						>
+							<TooltipTrigger
+								render={
+									<DropdownMenuItem
+										disabled={!result.allReady || !result.audit}
+										className="data-disabled:pointer-events-auto data-disabled:cursor-not-allowed"
+										onClick={() => {
+											try {
+												downloadCalculation(
+													`${draft.name}-测算明细.csv`,
+													resultCsv(result),
+													"text/csv;charset=utf-8",
+												);
+											} catch (error) {
+												toast.error(calculatorError(error));
+											}
+										}}
+									/>
+								}
+							>
+								<DownloadIcon />
+								导出明细
+							</TooltipTrigger>
+							<TooltipContent>
+								全部所属期计算及金额平衡校验通过后可导出
+							</TooltipContent>
+						</Tooltip>
+					</DropdownMenuGroup>
+				</DropdownMenuContent>
+			</DropdownMenu>
+		),
+	};
 	return (
 		<>
 			<ScenarioHeader
@@ -295,7 +343,7 @@ export default function VatEditor({
 						readOnly={editor.readOnly}
 						rows={visible}
 						adjustments={draft.adjustments}
-						toolbarContent={toolbarContent}
+						toolbarSlots={toolbarSlots}
 						emptyContent={
 							!draft.history.length ? (
 								<div className="flex flex-col items-center gap-3">

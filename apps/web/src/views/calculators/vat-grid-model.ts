@@ -1,6 +1,6 @@
 /**
  * @file 增值税领域数据与通用 Lattice Grid 的列及批量更新适配。
- * 创建时间：2026-11-05；修改时间：2026-11-07。
+ * 创建时间：2026-11-05；修改时间：2026-11-08。
  * 版本作用：隔离税务字段、整数金额规则与通用表格内核。
  * 被调用：VatTable、适配回归；调用：calculators 金额函数、Grid 类型。
  * 预期结果：原始申报与调整可编辑，一次粘贴/撤销只产生一次方案快照，联动结果只读。
@@ -20,9 +20,12 @@ import {
 	money,
 	periodDate,
 	raw,
+	reportingPeriod,
+	reportingPeriodLabel,
 	type VatData,
 	validatePeriods,
 } from "@leonwillow-electron/calculators";
+import { parsePeriod } from "@leonwillow-electron/calculators/import";
 import {
 	type CellValue,
 	type Column,
@@ -45,6 +48,36 @@ export type VatGridChange = {
 	value: string;
 };
 export const vatGridRowId = (row: VatGridRow) => row.id;
+
+/** 月/季使用可复制的简写；旧的非标准或半填期间原样编码，供撤销和历史回显。 */
+export function vatPeriodValue(row: {
+	periodStart: string;
+	periodEnd: string;
+}) {
+	const period = reportingPeriod(row);
+	if (period)
+		return period.cycle === "monthly"
+			? `${period.year}-${String(period.index).padStart(2, "0")}`
+			: `${period.year}-Q${period.index}`;
+	return row.periodStart || row.periodEnd
+		? `${row.periodStart}/${row.periodEnd}`
+		: "";
+}
+
+/** 一次编辑同时解析起止；保留旧范围的复制/撤销，普通选择仅产生完整自然月或季。 */
+export function parseVatPeriod(value: string) {
+	const text = value.trim();
+	if (!text) return { periodStart: "", periodEnd: "" };
+	const range = /^(\d{4}-\d{2}-\d{2})?\/(\d{4}-\d{2}-\d{2})?$/.exec(text);
+	const dates = range
+		? {
+				periodStart: periodDate(range[1], true),
+				periodEnd: periodDate(range[2], true),
+			}
+		: parsePeriod(text);
+	validatePeriods([dates]);
+	return dates;
+}
 
 const isHistoryField = (key: VatGridChange["key"]): key is HistoryField =>
 	fields.some((field) => field === key);
@@ -237,27 +270,28 @@ const resultLabels = {
 	end: "期末留抵",
 } as const;
 export const vatGridColumns: Column<VatGridRow>[] = [
-	...(["periodStart", "periodEnd"] as const).map(
-		(key): Column<VatGridRow> => ({
-			id: key,
-			field: key,
-			header: key === "periodStart" ? "所属期起" : "所属期止",
-			group: "税款所属期",
-			aggregateLabel: key === "periodStart" ? "当前汇总" : "",
-			aggregate: (rows) => (key === "periodStart" ? `${rows.length} 期` : ""),
-			width: 145,
-			minWidth: 125,
-			pinned: true,
-			editable: true,
-			parse: (input) => periodDate(input, true),
-			format: (value) => String(value || "选择日期"),
-			setValue: (row, value) => ({
-				...row,
-				[key]: String(value ?? ""),
-				h: row.h ? { ...row.h, [key]: String(value ?? "") } : null,
-			}),
-		}),
-	),
+	{
+		id: "period",
+		header: "所属期",
+		group: "税款所属期",
+		aggregateLabel: "当前汇总",
+		aggregate: (rows) => `${rows.length} 期`,
+		width: 210,
+		minWidth: 170,
+		pinned: true,
+		editable: true,
+		editOnClick: true,
+		getValue: vatPeriodValue,
+		parse: (input) => vatPeriodValue(parseVatPeriod(input)),
+		format: (_value, row) => reportingPeriodLabel(row),
+		compare: (_a, _b, a, b) =>
+			a.periodStart.localeCompare(b.periodStart) ||
+			a.periodEnd.localeCompare(b.periodEnd),
+		setValue: (row, value) => {
+			const dates = parseVatPeriod(String(value ?? ""));
+			return { ...row, ...dates, h: row.h ? { ...row.h, ...dates } : null };
+		},
+	},
 	...fields.map(
 		(key): Column<VatGridRow> => ({
 			id: `history-${key}`,

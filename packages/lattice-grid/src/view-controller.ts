@@ -1,12 +1,13 @@
 /**
- * @file Lattice Grid 的虚拟行、键盘、选区与剪贴板控制器。
- * 创建时间：2026-11-05；修改时间：2026-11-07。
+ * @file Lattice Grid 的虚拟行列、键盘、选区与剪贴板控制器。
+ * 创建时间：2026-11-05；修改时间：2026-11-08。
  * 版本作用：保留原控制器契约，适配共享主题和 ScrollArea 的实际 viewport。
  * 被调用：React DataGrid；调用：泛型 GridStore、浏览器 DOM；仅 mount 后读取布局。
  * 预期结果：导航、选区与编辑定位始终使用相同几何数据，不介入业务持久化。
  */
 
 import { copyText } from "@leonwillow-electron/ui/lib/clipboard";
+import { columnWindow } from "./column-window";
 import {
 	aggregate,
 	columnAddress,
@@ -37,13 +38,14 @@ export interface EditorContext<T> extends CellContext<T> {
 	onValueChange: (value: string) => void;
 	editScope: string;
 	commit: (value: string) => Promise<boolean>;
-	cancel: () => void;
+	cancel: (restoreFocus?: boolean) => void;
 }
 export interface ViewOptions<T> {
 	id: string;
 	label?: string;
 	height?: number;
 	overscan?: number;
+	/** 大表按行列视口渲染；false 保留全部行列，200 行以内始终完整渲染。 */
 	virtualize?: boolean;
 	messages?: Partial<Messages>;
 	className?: string;
@@ -70,6 +72,8 @@ export interface ViewState {
 	start: number;
 	end: number;
 	width: number;
+	columnStart: number;
+	columnEnd: number;
 	showFilters: boolean;
 	popup: Popup | null;
 	editing: CellPosition | null;
@@ -93,6 +97,8 @@ export class GridView<T> {
 		start: 0,
 		end: 25,
 		width: 940,
+		columnStart: 0,
+		columnEnd: Number.POSITIVE_INFINITY,
 		showFilters: false,
 		popup: null,
 		editing: null,
@@ -344,6 +350,13 @@ export class GridView<T> {
 		);
 		const width = this.scroller.clientWidth || 940;
 		const scrollX = this.scroller.scrollLeft > 0;
+		const { columnStart, columnEnd } = columnWindow(
+			this.layout(width),
+			this.scroller.scrollLeft,
+			width,
+			this.gutterWidth(),
+			count > 200 && this.options.virtualize !== false,
+		);
 		const geometry = [
 			h,
 			this.headHeight(),
@@ -355,10 +368,12 @@ export class GridView<T> {
 			start !== this.snapshot.start ||
 			end !== this.snapshot.end ||
 			width !== this.snapshot.width ||
+			columnStart !== this.snapshot.columnStart ||
+			columnEnd !== this.snapshot.columnEnd ||
 			scrollX !== this.snapshot.scrollX
 		) {
 			this.geometry = geometry;
-			this.set({ start, end, width, scrollX });
+			this.set({ start, end, width, scrollX, columnStart, columnEnd });
 		}
 	};
 	// 滚动事件中同步发布窗口，避免额外 rAF 延迟后 React 才开始渲染。
@@ -833,17 +848,16 @@ export class GridView<T> {
 		a.click();
 		setTimeout(() => win.URL.revokeObjectURL(url), 1000);
 	}
-	layout() {
+	layout(viewportWidth = this.snapshot.width) {
 		const { columns, state } = this.store.getSnapshot();
 		const source = this.store.getOptions().columns;
 		const gutter = this.gutterWidth();
-		const width = this.snapshot.width;
 		const cache = this.layoutCache;
 		if (
 			cache &&
 			cache.columns === source &&
 			cache.state === state.columns &&
-			cache.width === width &&
+			cache.width === viewportWidth &&
 			cache.gutter === gutter
 		)
 			return cache.result;
@@ -853,8 +867,7 @@ export class GridView<T> {
 			const cs = state.columns.find((c) => c.id === column.id);
 			const width = cs?.width ?? column.width ?? 160;
 			const pinned =
-				!!cs?.pinned &&
-				pinLeft + width <= Math.max(220, this.snapshot.width - 120);
+				!!cs?.pinned && pinLeft + width <= Math.max(220, viewportWidth - 120);
 			const result = { column, width, left, pinned, pinLeft };
 			left += width;
 			if (pinned) pinLeft += width;
@@ -863,7 +876,7 @@ export class GridView<T> {
 		this.layoutCache = {
 			columns: source,
 			state: state.columns,
-			width,
+			width: viewportWidth,
 			gutter,
 			result,
 		};
