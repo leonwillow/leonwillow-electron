@@ -1,7 +1,7 @@
 /**
  * @file 主题持久化快照的编解码边界。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-06
+ * 修改时间：2026-11-10
  * 版本作用：持久化快照 v2，兼容旧三档缩放。
  * 被调用：apps/web/test/theme-settings.test.ts、apps/web/test/custom-themes.test.ts、stores/theme-store.ts。
  * 调用：configs/fonts、configs/theme-presets、configs/theme-settings、lib/custom-themes、types/theme。
@@ -52,6 +52,10 @@ export function normalizeSettings(value: unknown): Settings {
 			input.scale === "xl"
 				? input.scale
 				: initialSettings.scale,
+		sidebarMode:
+			input.sidebarMode === "docked" || input.sidebarMode === "floating"
+				? input.sidebarMode
+				: initialSettings.sidebarMode,
 	};
 }
 

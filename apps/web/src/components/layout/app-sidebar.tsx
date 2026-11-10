@@ -1,7 +1,7 @@
 /**
  * @file 工作台的固定图标导航。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-05
+ * 修改时间：2026-11-10
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/layout/workspace-layout.tsx。
  * 调用：共享 UI、路由、导航目录、工作台统一导航上下文、管理中心、搜索、品牌、主题与个人菜单。
@@ -56,7 +56,7 @@ const AppSidebar = () => {
 
 	return (
 		<ScrollArea
-			className="w-workspace-rail shrink-0 border-r bg-sidebar"
+			className="workspace-rail w-workspace-rail shrink-0 border-r bg-sidebar"
 			contentClassName="flex flex-col items-center"
 			render={<aside />}
 		>

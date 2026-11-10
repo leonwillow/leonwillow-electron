@@ -1,7 +1,7 @@
 /**
  * @file 主题 Store 的持久化与窗口同步回归测试。
  * 创建时间：2026-10-04
- * 修改时间：2026-10-06
+ * 修改时间：2026-11-10
  * 版本作用：验证 Zustand 迁移后的行为，不进入产品构建。
  * 被调用：Bun 测试命令、test:ui。
  * 调用：bun:test、configs/theme-settings、configs/theme-variables、lib/theme-settings、stores/theme-store、types/theme。
@@ -98,15 +98,18 @@ test("连续操作基于最新状态，写回格式保持 v2 且能由启动入�
 	const { updateSettings } = useThemeStore.getState();
 	updateSettings({ scale: "lg" });
 	updateSettings({ mode: "dark" });
+	updateSettings({ sidebarMode: "floating" });
 	expect(useThemeStore.getState().preferences.settings).toMatchObject({
 		scale: "lg",
 		mode: "dark",
+		sidebarMode: "floating",
 	});
 	expect(JSON.parse(storage.get(THEME_STORAGE_KEY) ?? "null")).toEqual({
 		...initialSettings,
 		version: 2,
 		scale: "lg",
 		mode: "dark",
+		sidebarMode: "floating",
 		customThemes: [],
 	});
 	expect(readThemePreferences()).toEqual(useThemeStore.getState().preferences);
@@ -175,7 +178,7 @@ test("接收消息不反向广播；双通道相同快照只更新一次且保�
 	useThemeStore.getState().setThemePreview({ draft, mode: "dark" });
 	const preview = useThemeStore.getState().preview;
 	const payload = encodeThemePreferences({
-		settings: { ...initialSettings, scale: "lg" },
+		settings: { ...initialSettings, scale: "lg", sidebarMode: "floating" },
 		customThemes: [],
 	});
 	const listener = mock(() => {});
@@ -187,6 +190,7 @@ test("接收消息不反向广播；双通道相同快照只更新一次且保�
 		emitStorage(JSON.stringify(payload));
 		expect(listener).toHaveBeenCalledTimes(1);
 		expect(readThemePreferences().settings.scale).toBe("lg");
+		expect(readThemePreferences().settings.sidebarMode).toBe("floating");
 		expect(useThemeStore.getState().preview).toBe(preview);
 		expect(TestChannel.instances[0]?.postMessage).not.toHaveBeenCalled();
 	} finally {

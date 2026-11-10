@@ -342,6 +342,37 @@ input[type="number"]::-webkit-outer-spin-button {
 	}
 }
 
+/* 悬浮将主导航与右侧工作区分为两个表面；二级菜单和正文保留在同一分栏内。
+ * 四周留白使用工作区令牌，圆角/边框/阴影跟随当前主题；短窗口继续由 ScrollArea 滚动。 */
+.workspace-shell {
+	--workspace-rail-gap: var(--spacing-workspace-gutter);
+}
+.workspace-shell[data-sidebar-mode="floating"] > .workspace-rail {
+	margin: var(--workspace-rail-gap);
+	border: 1px solid var(--sidebar-border);
+	border-radius: var(--radius-xl);
+	box-shadow: var(--shadow-sm);
+}
+.workspace-shell[data-sidebar-mode="floating"] > .workspace-surface {
+	margin-block: var(--workspace-rail-gap);
+	margin-inline-end: var(--workspace-rail-gap);
+	overflow: hidden;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-xl);
+	background: var(--background);
+	box-shadow: var(--shadow-sm);
+}
+.workspace-shell[data-sidebar-mode="floating"]
+	> .workspace-rail
+	[data-slot="workspace-header"] {
+	border-bottom-color: transparent;
+}
+@media (max-width: 40rem) {
+	.workspace-shell {
+		--workspace-rail-gap: calc(var(--spacing-workspace-gutter) / 2);
+	}
+}
+
 /* 图标之间及组首、组尾共用一份留白，与图标两侧间距相等。 */
 .workspace-rail-group {
 	@apply flex shrink-0 flex-col items-center;

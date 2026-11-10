@@ -1,11 +1,11 @@
 /**
  * @file 常用外观设置的轻量入口。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-06
+ * 修改时间：2026-11-10
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/layout/app-sidebar.tsx。
  * 调用：ui 基础组件/样式、lucide-react、next-themes、react、components/theme-editor/theme-preset-select、configs/fonts、configs/theme-settings、stores/theme-store、types/theme。
- * 功能：组合预设、字体、明暗、圆角、缩放及重置控件。
+ * 功能：组合预设、字体、明暗、圆角、缩放、菜单外观及重置控件。
  * 预期结果：修改即时应用并持久化，可打开完整主题编辑器。
  */
 import { Button } from "@leonwillow-electron/ui/components/button";
@@ -46,7 +46,7 @@ import { FONT_CONFIG, FONT_GROUPS, type FontKey } from "@/configs/fonts";
 
 import { initialSettings } from "@/configs/theme-settings";
 import { useThemeStore } from "@/stores/theme-store";
-import type { Mode, Radius, Scale } from "@/types/theme";
+import type { Mode, Radius, Scale, SidebarMode } from "@/types/theme";
 
 const MODES: { value: Mode; label: string }[] = [
 	{ value: "light", label: "浅色" },
@@ -66,6 +66,11 @@ const RADII: { value: Radius; label: string; tooltip: string }[] = [
 	{ value: "sm", label: "小", tooltip: "0.45rem" },
 	{ value: "md", label: "中", tooltip: "0.625rem" },
 	{ value: "lg", label: "大", tooltip: "0.875rem" },
+];
+
+const SIDEBAR_MODES: { value: SidebarMode; label: string }[] = [
+	{ value: "docked", label: "贴边" },
+	{ value: "floating", label: "悬浮" },
 ];
 
 const FONT_ITEMS: { label: string; value: FontKey }[] = (
@@ -251,7 +256,7 @@ const ThemeCustomizer = () => {
 						id="color-mode"
 						aria-label="颜色模式"
 						variant="segmented"
-						size="lg"
+						size="default"
 						className="grid-cols-3"
 						value={settings.mode}
 						onValueChange={(v) => updateSettings({ mode: v as Mode })}
@@ -280,7 +285,7 @@ const ThemeCustomizer = () => {
 						id="radius"
 						aria-label="圆角"
 						variant="segmented"
-						size="lg"
+						size="default"
 						className="grid-cols-4"
 						value={settings.radius}
 						onValueChange={(v) => updateSettings({ radius: v as Radius })}
@@ -319,7 +324,7 @@ const ThemeCustomizer = () => {
 						id="scale"
 						aria-label="界面缩放"
 						variant="segmented"
-						size="lg"
+						size="default"
 						className="grid-cols-4"
 						value={settings.scale}
 						onValueChange={(v) => updateSettings({ scale: v as Scale })}
@@ -337,6 +342,37 @@ const ThemeCustomizer = () => {
 									aria-label={item.label}
 								/>
 								<p className="text-foreground">{item.label}</p>
+							</Label>
+						))}
+					</RadioGroup>
+				</div>
+
+				<div className="flex flex-col gap-1 px-3">
+					<Label htmlFor="sidebar-mode">菜单外观</Label>
+					<RadioGroup
+						id="sidebar-mode"
+						aria-label="菜单外观"
+						variant="segmented"
+						size="default"
+						className="grid-cols-2"
+						value={settings.sidebarMode}
+						onValueChange={(value) =>
+							updateSettings({ sidebarMode: value as SidebarMode })
+						}
+					>
+						{SIDEBAR_MODES.map(({ value, label }) => (
+							<Label
+								key={value}
+								htmlFor={`sidebar-${value}`}
+								className="relative flex items-center justify-center border not-last:border-r-0 px-2 text-center shadow-xs outline-none transition-[color,box-shadow] first:rounded-l-md last:rounded-r-md has-data-checked:bg-accent"
+							>
+								<RadioGroupItem
+									id={`sidebar-${value}`}
+									value={value}
+									className="sr-only absolute inset-0"
+									aria-label={label}
+								/>
+								<span className="text-foreground">{label}</span>
 							</Label>
 						))}
 					</RadioGroup>

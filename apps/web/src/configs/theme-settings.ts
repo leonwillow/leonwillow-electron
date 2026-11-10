@@ -1,7 +1,7 @@
 /**
  * @file 主题默认偏好、存储键和圆角映射。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-11-10
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：apps/web/test、contexts、utils、utils/theme、components/layout、components/theme-editor、lib。
  * 调用：types/theme。
@@ -26,4 +26,5 @@ export const initialSettings: Settings = {
 	font: "public-sans",
 	radius: "md",
 	scale: "md",
+	sidebarMode: "docked",
 };

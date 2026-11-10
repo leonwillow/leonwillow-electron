@@ -1,7 +1,7 @@
 /**
  * @file 主题偏好存储版本的回归测试。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-11-10
  * 版本作用：当前行为的回归约束，不进入产品构建。
  * 被调用：Bun 测试命令。
  * 调用：bun:test、../src/configs/theme-settings、../src/lib/theme-settings。
@@ -44,4 +44,27 @@ test("损坏和过期设置回退到有效默认值", () => {
 	expect(decodeStoredSettings({ scale: "unknown", font: "missing" })).toEqual(
 		initialSettings,
 	);
+});
+
+test("旧快照与无效菜单模式继续贴边，有效悬浮偏好往返后保留其他外观", () => {
+	const legacy = { version: 2, mode: "dark", scale: "lg", font: "inter" };
+	expect(decodeStoredSettings(legacy)).toMatchObject({
+		mode: "dark",
+		scale: "lg",
+		font: "inter",
+		sidebarMode: "docked",
+	});
+	for (const sidebarMode of [undefined, true, "overlay", null]) {
+		expect(decodeStoredSettings({ ...legacy, sidebarMode }).sidebarMode).toBe(
+			"docked",
+		);
+	}
+	for (const sidebarMode of ["docked", "floating"] as const) {
+		const settings = { ...initialSettings, sidebarMode, radius: "lg" as const };
+		expect(
+			decodeStoredSettings(
+				JSON.parse(JSON.stringify(encodeStoredSettings(settings))),
+			),
+		).toEqual(settings);
+	}
 });
