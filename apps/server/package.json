@@ -31,7 +31,8 @@
 		"pizzip": "^3.3.0",
 		"varlock": "catalog:",
 		"xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
-		"@leonwillow-electron/calculators": "workspace:*"
+		"@leonwillow-electron/calculators": "workspace:*",
+		"@leonwillow-electron/desktop-bridge": "workspace:*"
 	},
 	"devDependencies": {
 		"@elysiajs/eden": "^1.4.9",

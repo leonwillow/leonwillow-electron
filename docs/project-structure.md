@@ -1,6 +1,6 @@
 # 项目结构与依赖边界
 
-维护日期：2026-10-10。当前是 Bun 工作区中的纯 CSR 应用；目录调整以职责变化为依据。
+维护日期：2026-11-10。当前是 Bun 工作区中的纯 CSR 应用；目录调整以职责变化为依据。
 
 | 目录 | 职责 | 归属判断 |
 | --- | --- | --- |
@@ -18,6 +18,8 @@
 | `apps/server/src/index.ts` | 进程装配、信号与资源所有权 | 常规启动不创建账号、不执行数据库迁移 |
 | `apps/server/src/server-resources.ts` | 当前服务共用的 auth、db、可选 fundsGraph 和安全配置 | 启动时绑定一次，停止后解绑；不保存用户、会话或事务 |
 | `apps/server/src/modules/<feature>` | 功能 HTTP 边界、模型、服务和必要适配 | 纯计算不必变成 Elysia 插件；按实际职责新增文件 |
+| `apps/desktop` | Electron 窗口、preload、连接配置、会话隔离与协议转发 | 使用同一 Web 构建产物，不包含后端、数据库或另一套业务视图 |
+| `packages/desktop-bridge` | 桌面连接类型、地址校验与固定应用来源 | Web/主进程/后端共用的纯契约，不依赖 Electron、Node、UI 或应用运行时 |
 | `packages/ui` | Base UI 组件、语义样式、cn | 不依赖应用路由、账号或 Store |
 | `packages/access` | 现有功能标识、名称、路由和访问规则 | 前后端共用的纯 TypeScript 目录；不依赖认证、数据库或 UI |
 | `packages/auth` | Better Auth 配置、工厂、显式初始化、schema 生成适配 | 依赖 db；不自行加载部署环境或监听 |
@@ -37,7 +39,7 @@ Web 运行时使用共享 UI、纯规则目录和客户端库；通过 `import t
 
 当前数据库工具通过 `packages/db/.env.schema` 复用 Server 的数据库环境定义；这是保留的工具耦合。只有出现独立部署/第二个服务端需求再拆出中立契约。没有立即加入 domain/repository 等空目录。
 
-UI 包的源码由 Vite 消费；内部包无需为形式统一各自创建 dist。手工文件用 kebab-case，路由特殊名及固定工具入口保留惯例。未来 Electron 放 `apps/desktop`，复用 renderer 和 API；当前未实现桌面打包。
+UI 包的源码由 Vite 消费；内部包无需为形式统一各自创建 dist。手工文件用 kebab-case，路由特殊名及固定工具入口保留惯例。Electron 壳位于 `apps/desktop`，构建时复制同一 Web 产物；主进程负责本地协议和可配置 API 转发，React 不导入 Electron/Node。登录设置仍位于 `views/login`，基础地址契约位于 `packages/desktop-bridge`。构建、打包命令及当前验收范围见 [Electron 桌面适配](./desktop-migration.md)。
 
 生成与检查责任见 [工程验证](./engineering-verification.md)，注释见 [注释规范](./code-comments.md)，基线问题见 [评审记录](./project-structure-review.md)。
 

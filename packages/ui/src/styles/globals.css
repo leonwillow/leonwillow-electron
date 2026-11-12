@@ -342,6 +342,11 @@ input[type="number"]::-webkit-outer-spin-button {
 	}
 }
 
+/* 桌面连接设置在短窗口中由共享 Dialog 的 ScrollArea 承担滚动。 */
+.desktop-connection-dialog {
+	max-height: calc(100dvh - 2 * var(--spacing-workspace-gutter));
+}
+
 /* 悬浮将主导航与右侧工作区分为两个表面；二级菜单和正文保留在同一分栏内。
  * 四周留白使用工作区令牌，圆角/边框/阴影跟随当前主题；短窗口继续由 ScrollArea 滚动。 */
 .workspace-shell {

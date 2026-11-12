@@ -55,7 +55,11 @@
 		"lint": "biome check . && bun scripts/check-ui-styles.ts",
 		"test:ui": "bun test scripts/check-ui-styles.test.ts packages/ui/test && bun run --cwd apps/web test",
 		"test:calculators": "bun test packages/calculators/test",
-		"test:lattice-grid": "bun run --cwd packages/lattice-grid test"
+		"test:lattice-grid": "bun run --cwd packages/lattice-grid test",
+		"dev:desktop": "bun run build:desktop && bun run --cwd apps/desktop start",
+		"build:desktop": "turbo run build -F desktop",
+		"package:desktop": "bun run build:desktop && bun run --cwd apps/desktop package",
+		"test:desktop": "bun test packages/desktop-bridge/test && bun run --cwd apps/desktop test"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.5.12",

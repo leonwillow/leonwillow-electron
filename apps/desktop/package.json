@@ -1,0 +1,27 @@
+{
+	"name": "desktop",
+	"version": "0.1.0",
+	"private": true,
+	"description": "AIDesk desktop client",
+	"productName": "AIDesk",
+	"main": "dist/main.cjs",
+	"type": "module",
+	"scripts": {
+		"build": "bun build.ts",
+		"check-types": "tsc --noEmit",
+		"test": "bun test test",
+		"test:electron": "bun verify-network.ts",
+		"start": "electron .",
+		"package": "bun package.ts"
+	},
+	"dependencies": {
+		"@leonwillow-electron/desktop-bridge": "workspace:*"
+	},
+	"devDependencies": {
+		"@electron/packager": "20.3.0",
+		"@leonwillow-electron/config": "workspace:*",
+		"@types/bun": "catalog:",
+		"electron": "45.2.3",
+		"typescript": "catalog:"
+	}
+}

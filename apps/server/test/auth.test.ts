@@ -14,6 +14,7 @@ import { createAuth } from "@leonwillow-electron/auth";
 import { initializeAdmin } from "@leonwillow-electron/auth/bootstrap";
 import { createDatabase } from "@leonwillow-electron/db";
 import { account, session, user } from "@leonwillow-electron/db/schema";
+import { DESKTOP_ORIGIN } from "@leonwillow-electron/desktop-bridge";
 import { eq } from "drizzle-orm";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { type App, createApp } from "../src/app";
@@ -192,6 +193,63 @@ describe("真实账号密码认证", () => {
 		expect(
 			(await api.api.auth.session.get({ headers: { origin: site, cookie } }))
 				.status,
+		).toBe(401);
+	});
+
+	test("桌面固定来源通过真实认证和 Cookie 会话，伪似来源仍被拒绝", async () => {
+		const fixture = await registerFixture();
+		const result = await api.api.auth.login.post(
+			{ username: "Test_User", password, rememberMe: true },
+			{ headers: { origin: DESKTOP_ORIGIN } },
+		);
+		expect(result.status).toBe(200);
+		expect(result.data?.user.id).toBe(fixture.userId);
+		expect(result.response.headers.get("access-control-allow-origin")).toBe(
+			DESKTOP_ORIGIN,
+		);
+		const cookieHeaders = result.response.headers.getSetCookie();
+		expect(cookieHeaders.some((value) => /httponly/i.test(value))).toBe(true);
+		const cookie = cookieHeaders.map((value) => value.split(";")[0]).join("; ");
+		expect(cookie).not.toBe("");
+		const current = await api.api.auth.session.get({
+			headers: { origin: DESKTOP_ORIGIN, cookie },
+		});
+		expect(current.status).toBe(200);
+		expect(current.data?.user.id).toBe(fixture.userId);
+		for (const site of [
+			"aidesk://other",
+			"aidesk://app:3000",
+			"aidesk://app.evil.invalid",
+			"aidesk://app/login",
+			"null",
+			"https://unconfigured.invalid",
+		]) {
+			const denied = await api.api.auth.logout.post(undefined, {
+				headers: { origin: site, cookie },
+			});
+			expect(denied.status).toBe(403);
+			expect(denied.error?.value).toMatchObject({ code: "INVALID_ORIGIN" });
+			expect(
+				denied.response.headers.get("access-control-allow-origin"),
+			).toBeNull();
+		}
+		expect(
+			(
+				await api.api.auth.session.get({
+					headers: { origin: DESKTOP_ORIGIN, cookie },
+				})
+			).status,
+		).toBe(200);
+		const logout = await api.api.auth.logout.post(undefined, {
+			headers: { origin: DESKTOP_ORIGIN, cookie },
+		});
+		expect(logout.status).toBe(200);
+		expect(
+			(
+				await api.api.auth.session.get({
+					headers: { origin: DESKTOP_ORIGIN, cookie },
+				})
+			).status,
 		).toBe(401);
 	});
 

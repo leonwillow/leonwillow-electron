@@ -52,7 +52,8 @@
 		"zod": "catalog:",
 		"zustand": "^5.0.15",
 		"@leonwillow-electron/calculators": "workspace:*",
-		"@leonwillow-electron/lattice-grid": "workspace:*"
+		"@leonwillow-electron/lattice-grid": "workspace:*",
+		"@leonwillow-electron/desktop-bridge": "workspace:*"
 	},
 	"devDependencies": {
 		"@leonwillow-electron/config": "workspace:*",

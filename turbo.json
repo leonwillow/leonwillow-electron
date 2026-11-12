@@ -18,8 +18,12 @@
 			"inputs": ["$TURBO_DEFAULT$", ".env*"],
 			"outputs": ["dist/**"]
 		},
-		"env:generate": { "outputs": ["src/env.ts"] },
-		"routes:generate": { "outputs": ["src/routeTree.gen.ts"] },
+		"env:generate": {
+			"outputs": ["src/env.ts"]
+		},
+		"routes:generate": {
+			"outputs": ["src/routeTree.gen.ts"]
+		},
 		"dev": {
 			"cache": false,
 			"persistent": true
@@ -51,6 +55,11 @@
 		},
 		"db:down": {
 			"cache": false
+		},
+		"desktop#build": {
+			"dependsOn": ["web#build"],
+			"inputs": ["$TURBO_DEFAULT$", "../web/.env*"],
+			"outputs": ["dist/**"]
 		}
 	},
 	"globalEnv": [

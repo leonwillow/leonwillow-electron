@@ -12,7 +12,9 @@
 
 仅 `NODE_ENV=development` 时，`auth-origins.ts` 从已配置的 localhost、127.0.0.1 或 IPv6 回环网站提取协议与端口，自动派生本机当前网卡 IPv4 对应的网站地址。CORS、应用写入保护和 Better Auth 共用该读取器，每次请求读取当前网卡；换网后新地址生效，自动派生的旧地址不再保留。它不信任请求自报的 Host/Origin，不开放整个局域网网段或任意端口，也不根据访问者的 IP 决定能否登录。
 
-生产显式设置 `NODE_ENV=production`，只接受 `CORS_ORIGIN` 配置的网站域名，不自动扩展本机地址；通过 HTTPS 对外服务。改端口或部署域名时同步配置。当前 Cookie 使用 SameSite=Lax；生产拓扑以同站点部署为前提，独立站点和第三方 Cookie 场景尚未验证。
+生产显式设置 `NODE_ENV=production`，网页仅接受 `CORS_ORIGIN` 配置的网站域名，不自动扩展本机地址；通过 HTTPS 对外服务。改网页端口或部署域名时同步配置。当前网页 Cookie 使用 SameSite=Lax；网页生产拓扑以同站点部署为前提，独立站点和第三方 Cookie 场景尚未验证。
+
+Electron 使用固定的本地应用来源 `aidesk://app`，由 `packages/desktop-bridge` 统一定义，`createOriginResolver` 在开发、测试和生产环境均精确加入该值。应用写入保护、CORS 和 Better Auth 读取同一来源规则，仍会拒绝 `null`、其他主机、其他端口及任意网站；没有开放通配符或关闭来源检查。桌面端用户配置的是目标 API 服务器，不是新增网页来源；部署本版本后，无需逐个登记用户设备/IP。账号、密码、权限和服务端会话仍按原规则校验。
 
 ```sh
 bun install --frozen-lockfile
@@ -89,7 +91,7 @@ unset ADMIN_INITIAL_PASSWORD
 
 `bun run test:api` 使用配置的 PostgreSQL，为每个用例创建随机 `auth_test_*` / `access_test_*` schema，单独执行迁移并清理。测试账号需 CREATE SCHEMA 权限。请使用专用测试数据库；不要给测试账户生产权限。`bun run test:server` 不需要数据库，覆盖健康、错误、代理地址和资源关闭。完整流程见 [工程验证](./engineering-verification.md)。
 
-`auth-origins.test.ts` 覆盖开发网卡变化、协议/端口限制、生产固定配置与配置隔离。`auth.test.ts` 使用合成账号验证换网后的登录、Cookie 会话、退出，以及旧来源和未知来源的拒绝路径；测试不修改实际管理员账号。
+`auth-origins.test.ts` 覆盖开发网卡变化、协议/端口限制、生产固定配置、精确桌面来源与配置隔离。`auth.test.ts` 使用合成账号验证换网及桌面来源的登录、Cookie 会话、退出，以及旧来源、伪似桌面来源和未知来源的拒绝路径；测试不修改实际管理员账号。桌面用例以真实 HTTP 请求经过 Better Auth handler，验证自定义协议来源可以完成账号认证；Electron 自身的 Cookie 持久化及服务器会话隔离另由桌面端验收。
 
 2026-11-10 验证：lint、全工作区类型检查与构建通过，来源/健康/认证响应/代理地址单元测试 11 项、认证与权限集成测试 23 项通过。后端完整重启后，经开发 Web 的 `/api` 代理检查，本机当前局域网和 localhost 来源均进入账号密码校验，旧局域网网址与未知网站仍返回 `INVALID_ORIGIN`。浏览器已重新打开局域网登录页，未读取或重置实际管理员密码。
 

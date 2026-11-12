@@ -1,0 +1,15 @@
+{
+	"extends": "@leonwillow-electron/config/tsconfig.base.json",
+	"compilerOptions": {
+		"lib": ["ESNext", "DOM", "DOM.Iterable"],
+		"types": ["bun"],
+		"noEmit": true
+	},
+	"include": [
+		"src/**/*.ts",
+		"test/**/*.ts",
+		"build.ts",
+		"package.ts",
+		"verify-network.ts"
+	]
+}
