@@ -1,11 +1,11 @@
 /**
  * @file Lattice Grid data：泛型表格数据与事务内核。
- * 创建时间：2026-11-05；修改时间：2026-11-08。
+ * 创建时间：2026-11-05；修改时间：2026-11-17。
  * 版本作用：适配 MIT Lattice Grid 0.1.0-beta.1，保留原始行标识、不可变事务与数据隔离。
  * 被调用：独立表格包的 React 视图；调用：包内核心模块，不依赖业务、数据库或路由。
  * 预期结果：多个表格实例独立工作，外部数据和提交由调用页面管理。
  */
-import type { CellValue, Column, GridState } from "./types";
+import type { CellRange, CellValue, Column, GridState } from "./types";
 export function getCellValue<T>(row: T, column: Column<T>): CellValue {
 	return column.getValue
 		? column.getValue(row)
@@ -210,25 +210,87 @@ export async function validateCell<T>(
 	}
 	return col.validate?.(value, row);
 }
+type SelectionState = Pick<GridState, "selection" | "additionalSelections">;
+
+/** 返回保留区域及最后的活动区域；没有活动区域时视为已取消全部选择。 */
+export function selectionRanges(state: SelectionState): readonly CellRange[] {
+	if (!state.selection) return [];
+	const seen = new Set<string>();
+	return [...(state.additionalSelections ?? []), state.selection]
+		.reverse()
+		.filter((range) => {
+			const key = JSON.stringify(
+				[range.anchor, range.focus]
+					.map((position) =>
+						JSON.stringify([position.rowId, position.columnId]),
+					)
+					.sort(),
+			);
+			if (seen.has(key)) return false;
+			seen.add(key);
+			return true;
+		})
+		.reverse();
+}
+
+/**
+ * 将所有区域映射到当前可见行列坐标；缺失端点的区域跳过，重叠但不相同的区域保留。
+ * @param state 活动区域及可选追加区域，旧单区域状态无需适配。
+ * @returns 去除重复矩形后的边界；不扩大区域，也不包含区域之间未选择的单元格。
+ */
+export function selectionBounds<T>(
+	state: SelectionState,
+	rows: readonly T[],
+	columns: readonly Column<T>[],
+	getRowId: (row: T) => string,
+): readonly { r0: number; r1: number; c0: number; c1: number }[] {
+	const ranges = selectionRanges(state);
+	if (!ranges.length) return [];
+	const rowIndices = new Map(rows.map((row, index) => [getRowId(row), index]));
+	const columnIndices = new Map(
+		columns.map((column, index) => [column.id, index]),
+	);
+	const seen = new Set<string>();
+	return ranges.flatMap((range) => {
+		const a = rowIndices.get(range.anchor.rowId);
+		const b = rowIndices.get(range.focus.rowId);
+		const c = columnIndices.get(range.anchor.columnId);
+		const d = columnIndices.get(range.focus.columnId);
+		if (
+			a === undefined ||
+			b === undefined ||
+			c === undefined ||
+			d === undefined
+		)
+			return [];
+		const bounds = {
+			r0: Math.min(a, b),
+			r1: Math.max(a, b),
+			c0: Math.min(c, d),
+			c1: Math.max(c, d),
+		};
+		const key = `${bounds.r0},${bounds.r1},${bounds.c0},${bounds.c1}`;
+		if (seen.has(key)) return [];
+		seen.add(key);
+		return [bounds];
+	});
+}
+
+/** 兼容原单区域调用；仅返回当前活动区域在可见行列中的边界。 */
 export function rangeBounds<T>(
-	state: GridState,
+	state: SelectionState,
 	rows: readonly T[],
 	columns: readonly Column<T>[],
 	getRowId: (row: T) => string,
 ) {
-	const s = state.selection;
-	if (!s) return null;
-	const a = rows.findIndex((r) => getRowId(r) === s.anchor.rowId);
-	const b = rows.findIndex((r) => getRowId(r) === s.focus.rowId);
-	const c = columns.findIndex((col) => col.id === s.anchor.columnId);
-	const d = columns.findIndex((col) => col.id === s.focus.columnId);
-	if (Math.min(a, b, c, d) < 0) return null;
-	return {
-		r0: Math.min(a, b),
-		r1: Math.max(a, b),
-		c0: Math.min(c, d),
-		c1: Math.max(c, d),
-	};
+	return (
+		selectionBounds(
+			{ selection: state.selection },
+			rows,
+			columns,
+			getRowId,
+		)[0] ?? null
+	);
 }
 export function columnAddress(index: number): string {
 	let n = index + 1;

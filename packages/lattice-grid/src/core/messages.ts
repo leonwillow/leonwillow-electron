@@ -1,6 +1,6 @@
 /**
  * @file Lattice Grid messages：泛型表格数据与事务内核。
- * 创建时间：2026-11-05；修改时间：2026-11-05。
+ * 创建时间：2026-11-05；修改时间：2026-11-17。
  * 版本作用：适配 MIT Lattice Grid 0.1.0-beta.1，保留原始行标识、不可变事务与数据隔离。
  * 被调用：独立表格包的 React 视图；调用：包内核心模块，不依赖业务、数据库或路由。
  * 预期结果：多个表格实例独立工作，外部数据和提交由调用页面管理。
@@ -52,8 +52,10 @@ export const enUS: Messages = {
 	readOnly: "Read only",
 	loaded: "loaded",
 	keyboardHelp:
-		"Arrow keys navigate cells. Shift extends selection. Enter edits. Escape cancels. Control or Command C and V copy and paste. Shift Space selects a row.",
+		"Arrow keys navigate cells. Shift extends selection. Ctrl/Command click or drag adds a range. Enter edits. Escape cancels. Control or Command C and V copy and paste a single range. Shift Space selects a row.",
 	clipboardUnavailable: "Clipboard unavailable. Use Ctrl/Cmd+C.",
+	multipleSelectionsClipboard:
+		"Select a single range before copying or pasting.",
 };
 export const zhCN: Messages = {
 	search: "搜索",
@@ -101,8 +103,9 @@ export const zhCN: Messages = {
 	readOnly: "只读",
 	loaded: "已加载",
 	keyboardHelp:
-		"方向键移动，Shift 扩展选区，回车编辑，Escape 取消。Ctrl 或 Command 加 C、V 复制粘贴，Shift 加空格选择当前行。",
+		"方向键移动，Shift 扩展选区，Ctrl 或 Command 加点击或拖动追加区域，回车编辑，Escape 取消。Ctrl 或 Command 加 C、V 复制粘贴单一区域，Shift 加空格选择当前行。",
 	clipboardUnavailable: "无法访问剪贴板，请按 Ctrl/Cmd+C 复制。",
+	multipleSelectionsClipboard: "请先选择单一区域后再复制或粘贴。",
 };
 
 const builtInErrors: Readonly<Record<string, string>> = {
@@ -119,6 +122,8 @@ const builtInErrors: Readonly<Record<string, string>> = {
 	"Edits cannot change row identity.": "修改内容不能改变行标识。",
 	"Cell no longer exists.": "该单元格已不存在，请重新选择。",
 	"Select a cell before pasting.": "请先选择要粘贴的单元格。",
+	"Select a single range before copying or pasting.":
+		"请先选择单一区域后再复制或粘贴。",
 	"The paste exceeds the visible table. No cells were changed.":
 		"粘贴范围超出了当前表格，尚未修改任何单元格。",
 	"The paste exceeds the visible table.": "粘贴范围超出了当前表格。",

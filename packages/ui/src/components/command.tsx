@@ -1,7 +1,7 @@
 /**
  * @file 命令搜索、分组与键盘选择的基础组件。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-11-17
  * 版本作用：共享 UI 基础层，随工作区维护。
  * 被调用：components/layout/command-menu.tsx。
  * 调用：ui 基础组件/样式、ui/lib/utils、cmdk、lucide-react、react。
@@ -148,7 +148,7 @@ function CommandSeparator({
 	return (
 		<CommandPrimitive.Separator
 			data-slot="command-separator"
-			className={cn("-mx-1 my-1 h-px bg-border/50", className)}
+			className={cn("-mx-1 my-1 h-(--ui-border-width) bg-border/50", className)}
 			{...props}
 		/>
 	);

@@ -1,7 +1,7 @@
 /**
  * @file 主题持久化快照的编解码边界。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-10
+ * 修改时间：2026-11-17
  * 版本作用：持久化快照 v2，兼容旧三档缩放。
  * 被调用：apps/web/test/theme-settings.test.ts、apps/web/test/custom-themes.test.ts、stores/theme-store.ts。
  * 调用：configs/fonts、configs/theme-presets、configs/theme-settings、lib/custom-themes、types/theme。
@@ -11,7 +11,11 @@
 import { FONT_CONFIG } from "@/configs/fonts";
 import { themePresets } from "@/configs/theme-presets";
 import { initialSettings, THEME_STORAGE_KEY } from "@/configs/theme-settings";
-import { decodeCustomThemes, isCustomThemeId } from "@/lib/custom-themes";
+import {
+	decodeCustomThemes,
+	isColorValue,
+	isCustomThemeId,
+} from "@/lib/custom-themes";
 import type { Settings, ThemePreferences } from "@/types/theme";
 
 /**
@@ -56,6 +60,23 @@ export function normalizeSettings(value: unknown): Settings {
 			input.sidebarMode === "docked" || input.sidebarMode === "floating"
 				? input.sidebarMode
 				: initialSettings.sidebarMode,
+		borderWidth:
+			input.borderWidth === 0.5 ||
+			input.borderWidth === 1 ||
+			input.borderWidth === 1.5 ||
+			input.borderWidth === 2
+				? input.borderWidth
+				: initialSettings.borderWidth,
+		borderColorLight:
+			typeof input.borderColorLight === "string" &&
+			isColorValue(input.borderColorLight)
+				? input.borderColorLight.trim()
+				: initialSettings.borderColorLight,
+		borderColorDark:
+			typeof input.borderColorDark === "string" &&
+			isColorValue(input.borderColorDark)
+				? input.borderColorDark.trim()
+				: initialSettings.borderColorDark,
 	};
 }
 

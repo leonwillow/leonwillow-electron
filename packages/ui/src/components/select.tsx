@@ -1,7 +1,7 @@
 /**
  * @file 下拉选择、分组与滚动入口的基础组件。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-05
+ * 修改时间：2026-11-17
  * 版本作用：按 ReUI c-select-1 统一弹出方向、控件令牌与 ScrollArea 列表，提供 cell 内联变体。
  * 被调用：components/layout/theme-customizer.tsx、components/theme-editor/theme-preset-select.tsx、components/theme-editor/theme-control-panel.tsx。
  * 调用：@base-ui/react、ui/lib/utils、lucide-react、react。
@@ -98,7 +98,7 @@ function SelectContent({
 					data-slot="select-content"
 					data-align-trigger={alignItemWithTrigger}
 					className={cn(
-						"data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:fade-in-0 data-open:zoom-in-95 data-closed:fade-out-0 data-closed:zoom-out-95 no-scrollbar relative isolate z-50 max-h-(--available-height) w-(--anchor-width) min-w-32 origin-(--transform-origin) overflow-hidden rounded-lg bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 data-[align-trigger=true]:animate-none data-closed:animate-out data-open:animate-in",
+						"data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:fade-in-0 data-open:zoom-in-95 data-closed:fade-out-0 data-closed:zoom-out-95 no-scrollbar ring-(length:--ui-border-width) relative isolate z-50 max-h-(--available-height) w-(--anchor-width) min-w-32 origin-(--transform-origin) overflow-hidden rounded-lg bg-popover text-popover-foreground shadow-md ring-ui-outline duration-100 data-[align-trigger=true]:animate-none data-closed:animate-out data-open:animate-in",
 						className,
 					)}
 					{...props}
@@ -165,7 +165,7 @@ function SelectSeparator({
 		<SelectPrimitive.Separator
 			data-slot="select-separator"
 			className={cn(
-				"pointer-events-none -mx-1 my-1 h-px bg-border/50",
+				"pointer-events-none -mx-1 my-1 h-(--ui-border-width) bg-border/50",
 				className,
 			)}
 			{...props}

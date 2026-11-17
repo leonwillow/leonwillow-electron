@@ -1,7 +1,7 @@
 /**
  * @file 认证表单共用的密码输入。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-11-17
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：views/login/login-form.tsx、views/admin/users。
  * 调用：ui 基础组件/样式、lucide-react、react、react-hook-form。
@@ -45,7 +45,7 @@ const PasswordField = ({
 			<FieldLabel htmlFor={id} className="leading-5">
 				{label}
 			</FieldLabel>
-			<InputGroup size="lg">
+			<InputGroup size="lg" className="overflow-hidden">
 				<InputGroupInput
 					id={id}
 					type={isVisible ? "text" : "password"}

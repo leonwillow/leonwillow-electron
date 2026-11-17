@@ -1,7 +1,7 @@
 /**
  * @file 登录页面的视图入口。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-11-17
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：routes/login.tsx。
  * 调用：components/auth/auth-header、components/auth/auth-shell、configs/app、./login-form。
@@ -22,7 +22,7 @@ const LoginView = () => (
 			panelDescription: `登录 ${appConfig.name}，查看最新对话、工单与动态。`,
 		}}
 	>
-		<AuthHeader title="欢迎回来" subtitle="请输入你的账号和密码。" />
+		<AuthHeader title="欢迎回来" />
 		<div className="flex flex-col gap-4">
 			<LoginForm />
 			<p className="text-center text-muted-foreground text-xs">

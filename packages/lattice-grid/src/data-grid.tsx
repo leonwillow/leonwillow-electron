@@ -2,7 +2,7 @@
 // biome-ignore-all lint/a11y/useFocusableInteractive: The grid owns keyboard focus and exposes its active cell through aria-activedescendant; nested controls keep their own focus behavior.
 /**
  * @file Lattice Grid 的 React / ReUI 可复用表格视图。
- * 创建时间：2026-11-05；修改时间：2026-11-08。
+ * 创建时间：2026-11-05；修改时间：2026-11-17。
  * 版本作用：保留原引擎与选择、编辑、虚拟化控制器，使用当前共享控件与主题呈现。
  * 被调用：业务页面；调用：GridStore、GridView、共享 Base UI 控件与 Sonner。
  * 预期结果：稳定行 ID、受控数据和提交回调与业务解耦；可填满父级剩余高度，汇总始终位于滚动口底部。
@@ -67,13 +67,14 @@ import { toast } from "sonner";
 import { CellContextMenu, type InsertRowsRequest } from "./cell-context-menu";
 import { CellIndicator } from "./cell-indicator";
 import { columnRenderPlan } from "./column-window";
-import { rangeBounds } from "./core/data";
+import { selectionBounds } from "./core/data";
 import { formatGridError, zhCN } from "./core/messages";
 import { GridStore } from "./core/store";
 import type { CellPosition, Column, GridOptions } from "./core/types";
 import { DeleteRowsButton } from "./delete-rows-button";
 import { GridHeader } from "./grid-header";
 import { GridRow } from "./grid-row";
+import { selectionRowCells } from "./selection-outline";
 import { useColumnDrag } from "./use-column-drag";
 import {
 	type CellContext,
@@ -295,8 +296,6 @@ export function DataGrid<T>(props: DataGridProps<T>) {
 	const drag = useColumnDrag(view);
 	const m = view.messages();
 	const layout = view.layout();
-	const movedColumn = layout.find((c) => drag.marker(c.column.id))?.column.id;
-	const moveMarker = movedColumn ? drag.marker(movedColumn) : undefined;
 	const rh = view.rowHeight();
 	const grouped = s.columns.some((c) => c.group);
 	const headerRows = grouped ? 2 : 1;
@@ -310,7 +309,14 @@ export function DataGrid<T>(props: DataGridProps<T>) {
 		v.scrollX &&
 		layout.some((column) => column.pinned) &&
 		layout.some((column) => !column.pinned);
-	const bounds = rangeBounds(s.state, s.viewRows, s.columns, props.getRowId);
+	const bounds = useMemo(
+		() => selectionBounds(s.state, s.viewRows, s.columns, props.getRowId),
+		[s.state, s.viewRows, s.columns, props.getRowId],
+	);
+	const rangeSelection =
+		v.selecting ||
+		bounds.length > 1 ||
+		bounds.some((range) => range.r0 !== range.r1 || range.c0 !== range.c1);
 	const selected = new Set(s.state.selectedRows);
 	const visibleSelected = s.viewRows.filter((row) =>
 		selected.has(props.getRowId(row)),
@@ -634,8 +640,6 @@ export function DataGrid<T>(props: DataGridProps<T>) {
 									s.viewRows.slice(v.start, v.end).map((row, index) => {
 										const r = index + v.start;
 										const rowId = props.getRowId(row);
-										const inRange =
-											!!bounds && r >= bounds.r0 && r <= bounds.r1;
 										const editing = v.editing?.rowId === rowId;
 										return (
 											<GridRow
@@ -652,8 +656,12 @@ export function DataGrid<T>(props: DataGridProps<T>) {
 												selectLabel={m.selectRow}
 												layout={layout}
 												columnSlots={columnSlots}
-												selectionStart={inRange ? bounds.c0 : -1}
-												selectionEnd={inRange ? bounds.c1 : -1}
+												selectionCells={selectionRowCells(
+													bounds,
+													r,
+													layout.length,
+												)}
+												rangeSelection={rangeSelection}
 												activeColumn={
 													active?.rowId === rowId ? active.columnId : undefined
 												}
@@ -670,15 +678,13 @@ export function DataGrid<T>(props: DataGridProps<T>) {
 													)
 												}
 												pending={editing && s.pending}
-												movedColumn={movedColumn}
-												moveMarker={moveMarker}
 												locale={options.locale}
 												renderCell={props.renderCell}
 												renderEditor={props.renderEditor}
 											/>
 										);
 									})}
-								<CellIndicator view={view} />
+								{!rangeSelection && <CellIndicator view={view} />}
 								{(props.loading ||
 									props.error ||
 									!s.viewRows.length ||

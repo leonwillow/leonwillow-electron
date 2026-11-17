@@ -2,8 +2,8 @@
 // biome-ignore-all lint/a11y/useFocusableInteractive: Keyboard focus remains on the grid via aria-activedescendant.
 /**
  * @file 按单元格隔离显示内容与编辑草稿的 React 渲染。
- * 创建时间：2026-11-07；修改时间：2026-11-08。
- * 版本作用：浅比较真实显示依赖，避免选择或输入导致未变化的单元格重绘。
+ * 创建时间：2026-11-07；修改时间：2026-11-17。
+ * 版本作用：浅比较真实显示依赖；以选区并集外周替代拖选时的逐格位移动画。
  * 被调用：GridRow；调用：GridView、共享 Input/Select 和列格式化函数。
  * 预期结果：沿用原 DOM、事件和编辑生命周期，渲染函数变化仍及时生效。
  */
@@ -26,6 +26,7 @@ import {
 } from "react";
 import { formatValue, getCellValue } from "./core/data";
 import type { Column } from "./core/types";
+import { SelectionEdge } from "./selection-outline";
 import type { CellContext, EditorContext, GridView } from "./view-controller";
 
 function DefaultEditor<T>({
@@ -174,13 +175,13 @@ function GridCellView<T>({
 	columnIndex,
 	width,
 	pinLeft,
-	selected,
+	selectionMask,
+	rangeSelection,
 	active,
 	editable,
 	editing,
 	error,
 	pending,
-	moveMarker,
 	locale,
 	renderCell,
 	renderEditor,
@@ -194,17 +195,19 @@ function GridCellView<T>({
 	columnIndex: number;
 	width: number;
 	pinLeft?: number;
-	selected: boolean;
+	selectionMask: number;
+	rangeSelection: boolean;
 	active: boolean;
 	editable: boolean;
 	editing: boolean;
 	error: string;
 	pending: boolean;
-	moveMarker?: string;
 	locale: string;
 	renderCell?: (context: CellContext<T>) => ReactNode;
 	renderEditor?: (context: EditorContext<T>) => ReactNode;
 }) {
+	const selected = (selectionMask & SelectionEdge.selected) !== 0;
+	const outlineEdges = selectionMask & ~SelectionEdge.selected;
 	const context: CellContext<T> = {
 		row,
 		column,
@@ -224,11 +227,10 @@ function GridCellView<T>({
 			className={cn(
 				"lg-cell",
 				pinLeft !== undefined && "lg-pinned",
-				editable && selected && "lg-selected",
-				editable && active && "lg-active",
+				selected && "lg-selected",
+				active && "lg-active",
 				editing && "lg-editing",
 			)}
-			data-column-moved={moveMarker}
 			data-lg-cell
 			data-row={rowIndex}
 			data-col={column.id}
@@ -288,6 +290,16 @@ function GridCellView<T>({
 				<div className="lg-cell-value">
 					{renderCell?.(context) ?? formatValue(row, column, locale)}
 				</div>
+			)}
+			{rangeSelection && outlineEdges !== 0 && !editing && (
+				<span
+					aria-hidden="true"
+					className="lg-range-outline"
+					data-top={!!(selectionMask & SelectionEdge.top) || undefined}
+					data-right={!!(selectionMask & SelectionEdge.right) || undefined}
+					data-bottom={!!(selectionMask & SelectionEdge.bottom) || undefined}
+					data-left={!!(selectionMask & SelectionEdge.left) || undefined}
+				/>
 			)}
 		</div>
 	);

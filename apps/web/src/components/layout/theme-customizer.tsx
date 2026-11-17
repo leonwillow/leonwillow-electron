@@ -1,11 +1,11 @@
 /**
  * @file 常用外观设置的轻量入口。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-10
+ * 修改时间：2026-11-17
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/layout/app-sidebar.tsx。
- * 调用：ui 基础组件/样式、lucide-react、next-themes、react、components/theme-editor/theme-preset-select、configs/fonts、configs/theme-settings、stores/theme-store、types/theme。
- * 功能：组合预设、字体、明暗、圆角、缩放、菜单外观及重置控件。
+ * 调用：ui 基础组件/样式、ThemeLineSettings、ThemePresetSelect、next-themes、主题 Store 与字体配置。
+ * 功能：组合预设、字体、明暗、圆角、线条、缩放、菜单外观及重置控件。
  * 预期结果：修改即时应用并持久化，可打开完整主题编辑器。
  */
 import { Button } from "@leonwillow-electron/ui/components/button";
@@ -41,6 +41,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useRef, useState } from "react";
+import { ThemeLineSettings } from "@/components/layout/theme-line-settings";
 import ThemePresetSelect from "@/components/theme-editor/theme-preset-select";
 import { FONT_CONFIG, FONT_GROUPS, type FontKey } from "@/configs/fonts";
 
@@ -317,6 +318,8 @@ const ThemeCustomizer = () => {
 						))}
 					</RadioGroup>
 				</div>
+
+				<ThemeLineSettings key={mode} mode={mode} />
 
 				<div className="flex flex-col gap-1 px-3">
 					<Label htmlFor="scale">界面缩放</Label>

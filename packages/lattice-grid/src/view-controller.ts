@@ -1,7 +1,7 @@
 /**
  * @file Lattice Grid 的虚拟行列、键盘、选区与剪贴板控制器。
- * 创建时间：2026-11-05；修改时间：2026-11-08。
- * 版本作用：保留原控制器契约，适配共享主题和 ScrollArea 的实际 viewport。
+ * 创建时间：2026-11-05；修改时间：2026-11-17。
+ * 版本作用：统一多区域选择、拖选生命周期与实际 ScrollArea viewport 的几何。
  * 被调用：React DataGrid；调用：泛型 GridStore、浏览器 DOM；仅 mount 后读取布局。
  * 预期结果：导航、选区与编辑定位始终使用相同几何数据，不介入业务持久化。
  */
@@ -13,7 +13,7 @@ import {
 	columnAddress,
 	getCellValue,
 	parseDelimited,
-	rangeBounds,
+	selectionBounds,
 } from "./core/data";
 import { enUS } from "./core/messages";
 import type { GridStore } from "./core/store";
@@ -80,6 +80,8 @@ export interface ViewState {
 	draft: string;
 	notice: string;
 	scrollX: boolean;
+	/** 指针已离开起始格并正在扩展选区；普通单击保持原选中框动画。 */
+	selecting: boolean;
 }
 type ColumnLayout<T> = {
 	column: Column<T>;
@@ -105,6 +107,7 @@ export class GridView<T> {
 		draft: "",
 		notice: "",
 		scrollX: false,
+		selecting: false,
 	};
 	private presentationSnapshot: Omit<ViewState, "draft"> = this.snapshot;
 	private listeners = new Set<() => void>();
@@ -118,13 +121,20 @@ export class GridView<T> {
 	private editInitialDraft = "";
 	private popupTrigger: HTMLElement | null = null;
 	private drag:
-		| { type: "select" }
-		| { type: "resize"; columnId: string; x: number; width: number }
+		| { type: "select"; pointerId: number }
+		| {
+				type: "resize";
+				pointerId: number;
+				columnId: string;
+				x: number;
+				width: number;
+		  }
 		| null = null;
 	private cleanStore?: () => void;
 	private statsCache?: {
 		rows: readonly T[];
 		selection: GridState["selection"];
+		additionalSelections: GridState["additionalSelections"];
 		columnIds: string;
 		stats: { count: number; sum: number; numericCount: number };
 	};
@@ -159,10 +169,11 @@ export class GridView<T> {
 			cache &&
 			cache.rows === viewRows &&
 			cache.selection === state.selection &&
+			cache.additionalSelections === state.additionalSelections &&
 			cache.columnIds === columnIds
 		)
 			return cache.stats;
-		const b = rangeBounds(
+		const bounds = selectionBounds(
 			state,
 			viewRows,
 			columns,
@@ -171,9 +182,16 @@ export class GridView<T> {
 		let count = 0;
 		let sum = 0;
 		let numericCount = 0;
-		if (b)
-			for (const row of viewRows.slice(b.r0, b.r1 + 1))
-				for (const column of columns.slice(b.c0, b.c1 + 1)) {
+		const visited = new Set<number>();
+		for (const b of bounds)
+			for (let r = b.r0; r <= b.r1; r++)
+				for (let c = b.c0; c <= b.c1; c++) {
+					const key = r * columns.length + c;
+					if (visited.has(key)) continue;
+					visited.add(key);
+					const row = viewRows[r];
+					const column = columns[c];
+					if (!row || !column) continue;
 					count++;
 					const value = getCellValue(row, column);
 					if (typeof value === "number" && Number.isFinite(value)) {
@@ -185,10 +203,32 @@ export class GridView<T> {
 		this.statsCache = {
 			rows: viewRows,
 			selection: state.selection,
+			additionalSelections: state.additionalSelections,
 			columnIds,
 			stats,
 		};
 		return stats;
+	}
+	/** 右键命中已选区域时保留全部选择；隐藏行列或区域之间的空隙不算选中。 */
+	isSelected(position: CellPosition) {
+		const { state, viewRows, columns } = this.store.getSnapshot();
+		const row = this.rowIndex(position.rowId);
+		const column = columns.findIndex(
+			(candidate) => candidate.id === position.columnId,
+		);
+		if (row < 0 || column < 0) return false;
+		return selectionBounds(
+			state,
+			viewRows,
+			columns,
+			this.store.getOptions().getRowId,
+		).some(
+			(bounds) =>
+				row >= bounds.r0 &&
+				row <= bounds.r1 &&
+				column >= bounds.c0 &&
+				column <= bounds.c1,
+		);
 	}
 	total(col: Column<T>) {
 		const rows = this.store.getSnapshot().viewRows;
@@ -295,6 +335,7 @@ export class GridView<T> {
 		const cleanStore = this.cleanStore;
 		const cleanData = () => {
 			cleanStore();
+			this.finishDrag();
 			clearTimeout(this.timer);
 			clearTimeout(this.focusTimer);
 			this.editSession++;
@@ -313,6 +354,7 @@ export class GridView<T> {
 		doc.addEventListener("pointermove", this.pointerMove);
 		doc.addEventListener("pointerup", this.pointerUp);
 		doc.addEventListener("pointercancel", this.pointerCancel);
+		win.addEventListener("blur", this.pointerCancel);
 		this.measure();
 		return () => {
 			this.resizeObserver?.disconnect();
@@ -323,7 +365,7 @@ export class GridView<T> {
 			doc.removeEventListener("pointermove", this.pointerMove);
 			doc.removeEventListener("pointerup", this.pointerUp);
 			doc.removeEventListener("pointercancel", this.pointerCancel);
-			this.drag = null;
+			win.removeEventListener("blur", this.pointerCancel);
 		};
 	}
 	measure = () => {
@@ -536,74 +578,127 @@ export class GridView<T> {
 		} else this.focusEditor();
 		return result.ok;
 	}
-	select(pos: CellPosition, extend = false) {
-		this.store.select(pos, extend);
+	select(pos: CellPosition, extend = false, additive = false) {
+		this.store.select(pos, extend, additive);
 		this.focusGrid();
 	}
 	startSelection(event: PointerEvent, pos: CellPosition) {
-		if (event.button !== 0 || this.snapshot.editing) return;
+		if (
+			event.button !== 0 ||
+			event.isPrimary === false ||
+			this.snapshot.editing
+		)
+			return;
 		if (
 			(event.target as HTMLElement).closest(
-				"button,input,select,a,[data-lg-interactive]",
+				"button,input,textarea,select,a,[contenteditable=true],[data-lg-interactive]",
 			)
 		)
 			return;
-		this.select(pos, event.shiftKey);
+		this.finishDrag();
+		this.select(pos, event.shiftKey, event.ctrlKey || event.metaKey);
 		if (event.pointerType !== "touch") {
 			event.preventDefault();
-			this.drag = { type: "select" };
+			// 单元格可能被虚拟化卸载，监听 document 避免捕获节点移除后丢失结束事件。
+			this.drag = { type: "select", pointerId: event.pointerId };
 		}
 	}
 	startResize(event: PointerEvent, id: string) {
+		if (event.button !== 0 || event.isPrimary === false) return;
 		event.preventDefault();
 		event.stopPropagation();
+		this.finishDrag();
 		const c = this.store.getSnapshot().state.columns.find((c) => c.id === id);
 		this.drag = {
 			type: "resize",
+			pointerId: event.pointerId,
 			columnId: id,
 			x: event.clientX,
 			width: c?.width ?? 160,
 		};
 	}
 	private pointerMove = (e: PointerEvent) => {
-		if (!this.drag || !this.scroller) return;
+		if (!this.drag || this.drag.pointerId !== e.pointerId || !this.scroller)
+			return;
+		if ((e.buttons & 1) === 0) {
+			this.finishDrag();
+			return;
+		}
 		if (this.drag.type === "resize") {
 			this.store.setColumn(this.drag.columnId, {
 				width: this.drag.width + e.clientX - this.drag.x,
 			});
 			return;
 		}
+		this.extendSelectionAt(e, true);
+	};
+	/** 直接按当前虚拟行列几何定位，滚动后不依赖尚未重新挂载的 DOM 单元格。 */
+	private extendSelectionAt(e: PointerEvent, scroll: boolean) {
+		if (!this.scroller) return;
 		const rect = this.scroller.getBoundingClientRect();
-		if (e.clientY < rect.top + this.headHeight() + 16)
+		if (scroll && e.clientY < rect.top + this.headHeight() + 16)
 			this.scroller.scrollTop -= this.rowHeight();
-		if (e.clientY > rect.bottom - this.summaryHeight())
+		if (scroll && e.clientY > rect.bottom - this.summaryHeight())
 			this.scroller.scrollTop += this.rowHeight();
-		if (e.clientX > rect.right - 24) this.scroller.scrollLeft += 24;
-		if (e.clientX < rect.left + 24) this.scroller.scrollLeft -= 24;
-		const el = this.root?.ownerDocument
-			.elementFromPoint(e.clientX, e.clientY)
-			?.closest<HTMLElement>("[data-lg-cell]");
-		if (!el || !this.root?.contains(el)) return;
-		const row = Number(el.dataset.row);
-		const col = el.dataset.col;
-		if (!col) return;
-		const rows = this.store.getSnapshot().viewRows;
-		if (rows[row]) {
+		if (scroll && e.clientX > rect.right - 24) this.scroller.scrollLeft += 24;
+		if (scroll && e.clientX < rect.left + 24) this.scroller.scrollLeft -= 24;
+		const { viewRows: rows } = this.store.getSnapshot();
+		const layout = this.layout();
+		const rowIndex = Math.max(
+			0,
+			Math.min(
+				rows.length - 1,
+				Math.floor(
+					(e.clientY - rect.top - this.headHeight() + this.scroller.scrollTop) /
+						this.rowHeight(),
+				),
+			),
+		);
+		const x = Math.max(
+			this.gutterWidth(),
+			Math.min(this.scroller.clientWidth - 1, e.clientX - rect.left),
+		);
+		const scrollLeft = this.scroller.scrollLeft;
+		const column =
+			layout.find(
+				(col) => col.pinned && x >= col.pinLeft && x < col.pinLeft + col.width,
+			) ??
+			layout.find(
+				(col) =>
+					!col.pinned &&
+					x + scrollLeft >= col.left &&
+					x + scrollLeft < col.left + col.width,
+			) ??
+			(x <= this.gutterWidth() ? layout[0] : layout.at(-1));
+		const row = rows[rowIndex];
+		if (row && column) {
 			const pos = {
-				rowId: this.store.getOptions().getRowId(rows[row]),
-				columnId: col,
+				rowId: this.store.getOptions().getRowId(row),
+				columnId: column.column.id,
 			};
 			const focus = this.store.getSnapshot().state.selection?.focus;
-			if (focus?.rowId !== pos.rowId || focus.columnId !== pos.columnId)
+			if (focus?.rowId !== pos.rowId || focus.columnId !== pos.columnId) {
+				if (!this.snapshot.selecting) this.set({ selecting: true });
 				this.store.select(pos, true);
+			}
 		}
+	}
+	private pointerUp = (event: PointerEvent) => {
+		if (!this.drag || this.drag.pointerId !== event.pointerId) return;
+		// 已拖动时补齐释放位置；普通点击不因边缘自动滚动而意外扩大范围。
+		if (this.drag.type === "select" && this.snapshot.selecting)
+			this.extendSelectionAt(event, false);
+		this.finishDrag();
 	};
-	private pointerUp = () => {
+	private pointerCancel = (event: Event) => {
+		if ("pointerId" in event && this.drag?.pointerId !== event.pointerId)
+			return;
+		this.finishDrag();
+	};
+	private finishDrag() {
 		this.drag = null;
-	};
-	private pointerCancel = () => {
-		this.drag = null;
-	};
+		if (this.snapshot.selecting) this.set({ selecting: false });
+	}
 	ensureVisible(rowIndex: number, columnIndex: number) {
 		if (!this.scroller) return;
 		const h = this.rowHeight();
@@ -695,6 +790,7 @@ export class GridView<T> {
 		}
 		if (mod && event.key.toLowerCase() === "a") {
 			event.preventDefault();
+			this.finishDrag();
 			const { viewRows, columns } = this.store.getSnapshot();
 			const firstRow = viewRows[0];
 			const lastRow = viewRows.at(-1);
@@ -703,6 +799,7 @@ export class GridView<T> {
 			if (firstRow && lastRow && firstColumn && lastColumn)
 				this.store.setState(
 					{
+						additionalSelections: [],
 						selection: {
 							anchor: {
 								rowId: this.store.getOptions().getRowId(firstRow),
@@ -716,6 +813,7 @@ export class GridView<T> {
 					},
 					"selection",
 				);
+			else this.store.clearSelection();
 			return;
 		}
 		const directions: Record<string, [number, number]> = {
@@ -771,7 +869,8 @@ export class GridView<T> {
 			return;
 		}
 		if (event.key === "Escape") {
-			this.store.setState({ selection: null }, "selection");
+			this.finishDrag();
+			this.store.clearSelection();
 			return;
 		}
 		if (event.key === "Delete" || event.key === "Backspace") {
@@ -796,6 +895,10 @@ export class GridView<T> {
 			(event.target as HTMLElement).closest("input,textarea")
 		)
 			return;
+		if (!this.canUseClipboard()) {
+			event.preventDefault();
+			return;
+		}
 		const text = this.store.copySelection();
 		if (text) {
 			event.clipboardData?.setData("text/plain", text);
@@ -810,6 +913,7 @@ export class GridView<T> {
 		)
 			return;
 		event.preventDefault();
+		if (!this.canUseClipboard()) return;
 		try {
 			void this.store.paste(
 				parseDelimited(event.clipboardData?.getData("text/plain") ?? ""),
@@ -819,7 +923,23 @@ export class GridView<T> {
 			this.announce(this.options.formatError?.(message) ?? message);
 		}
 	};
+	/** TSV 没有不连续区域的无损表示；阻止仅处理活动区域并向可见状态栏说明。 */
+	private canUseClipboard() {
+		const { state, viewRows, columns } = this.store.getSnapshot();
+		if (
+			selectionBounds(
+				state,
+				viewRows,
+				columns,
+				this.store.getOptions().getRowId,
+			).length <= 1
+		)
+			return true;
+		this.announce(this.messages().multipleSelectionsClipboard);
+		return false;
+	}
 	async copy() {
+		if (!this.canUseClipboard()) return;
 		try {
 			if (!this.root) return;
 			await copyText(this.store.copySelection(), this.root.ownerDocument);
@@ -884,14 +1004,17 @@ export class GridView<T> {
 	}
 	address() {
 		const { state, viewRows, columns } = this.store.getSnapshot();
-		const b = rangeBounds(
+		const bounds = selectionBounds(
 			state,
 			viewRows,
 			columns,
 			this.store.getOptions().getRowId,
 		);
-		return b
-			? `${columnAddress(b.c0)}${b.r0 + 1}${b.r0 === b.r1 && b.c0 === b.c1 ? "" : `:${columnAddress(b.c1)}${b.r1 + 1}`}`
-			: "";
+		return bounds
+			.map(
+				(b) =>
+					`${columnAddress(b.c0)}${b.r0 + 1}${b.r0 === b.r1 && b.c0 === b.c1 ? "" : `:${columnAddress(b.c1)}${b.r1 + 1}`}`,
+			)
+			.join(", ");
 	}
 }

@@ -1,7 +1,7 @@
 /**
  * @file 主题设置、预设、草稿与快照的共享类型。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-10
+ * 修改时间：2026-11-17
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：apps/web/test、contexts、utils、utils/theme、components/layout、components/theme-editor、configs、lib。
  * 调用：configs/fonts、configs/theme-presets。
@@ -70,6 +70,7 @@ export type Mode = "light" | "dark" | "system";
 export type Radius = "none" | "sm" | "md" | "lg";
 export type Scale = "sm" | "md" | "lg" | "xl";
 export type SidebarMode = "docked" | "floating";
+export type BorderWidth = 0.5 | 1 | 1.5 | 2;
 
 export type Settings = {
 	mode: Mode;
@@ -78,6 +79,9 @@ export type Settings = {
 	scale: Scale;
 	font: FontKey;
 	sidebarMode: SidebarMode;
+	borderWidth: BorderWidth;
+	borderColorLight: string | null;
+	borderColorDark: string | null;
 };
 
 export type CustomThemeId = `custom:${string}`;

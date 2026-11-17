@@ -1,11 +1,11 @@
 /**
  * @file 主题偏好到根元素样式的应用边界。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-11-17
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：main.tsx、components/layout/theme-effects.tsx。
  * 调用：configs/fonts、configs/theme-settings、configs/theme-variables、lib/custom-themes、types/theme、utils/theme/shadows。
- * 功能：清理旧变量，再应用颜色、阴影、字体、圆角和缩放。
+ * 功能：清理旧变量，再应用主题样式及独立的线条、字体、圆角和缩放偏好。
  * 预期结果：首屏、预览和跨窗口更新采用相同外观规则。
  */
 import { FONT_CONFIG } from "@/configs/fonts";
@@ -55,6 +55,12 @@ export function applyTheme(
 		}
 	}
 	const settings = preferences.settings;
+	// 全局线条偏好独立于主题和预览，清空单一覆盖变量即可恢复当前主题的语义色。
+	root.style.setProperty("--ui-border-width", `${settings.borderWidth}px`);
+	const borderColor =
+		mode === "dark" ? settings.borderColorDark : settings.borderColorLight;
+	if (borderColor === null) root.style.removeProperty("--ui-line-color");
+	else root.style.setProperty("--ui-line-color", borderColor);
 	root.style.setProperty(
 		"--radius",
 		RADIUS_VALUES[preview?.radius ?? settings.radius],

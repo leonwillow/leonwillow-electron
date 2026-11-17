@@ -1,9 +1,9 @@
 /**
  * @file 可编辑网格单元格共用的选中边框。
- * 创建时间：2026-11-06；修改时间：2026-11-07。
+ * 创建时间：2026-11-06；修改时间：2026-11-17。
  * 版本作用：边框通过 Portal 挂到当前单元格，原生跟随滚动、冻结及布局变化。
  * 被调用：DataGrid；调用：GridView、React Portal 与 Web Animations，不修改数据或选区。
- * 预期结果：仅点击或键盘切换时播放位移动画，滚动不追踪坐标，边框沿用所在单元格的层级。
+ * 预期结果：仅单格点击或键盘切换时播放位移动画；拖选和多区域由 GridCell 绘制外周。
  */
 import { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -44,9 +44,7 @@ export function CellIndicator<T>({ view }: { view: GridView<T> }) {
 		previousSelection.current = selection;
 		const target = view.getSnapshot().editing
 			? null
-			: (viewport?.querySelector<HTMLElement>(
-					'.lg-cell.lg-active[aria-readonly="false"]',
-				) ?? null);
+			: (viewport?.querySelector<HTMLElement>(".lg-cell.lg-active") ?? null);
 		if (target === anchor) return;
 
 		originRef.current = null;

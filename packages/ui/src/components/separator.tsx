@@ -1,7 +1,7 @@
 /**
  * @file 内容区域的语义分隔线的基础组件。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-11-17
  * 版本作用：共享 UI 基础层，随工作区维护。
  * 被调用：components/field.tsx。
  * 调用：@base-ui/react、ui/lib/utils。
@@ -22,7 +22,7 @@ function Separator({
 			data-slot="separator"
 			orientation={orientation}
 			className={cn(
-				"shrink-0 bg-border data-horizontal:h-px data-horizontal:w-full data-vertical:w-px data-vertical:self-stretch",
+				"shrink-0 bg-border data-horizontal:h-(--ui-border-width) data-horizontal:w-full data-vertical:w-(--ui-border-width) data-vertical:self-stretch",
 				className,
 			)}
 			{...props}

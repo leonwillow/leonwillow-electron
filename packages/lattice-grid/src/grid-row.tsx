@@ -2,10 +2,10 @@
 // biome-ignore-all lint/a11y/useFocusableInteractive: The grid owns keyboard focus and exposes its active cell through aria-activedescendant.
 /**
  * @file 网格正文行的局部更新边界。
- * 创建时间：2026-11-07；修改时间：2026-11-08。
+ * 创建时间：2026-11-07；修改时间：2026-11-17。
  * 版本作用：以稳定行、布局和该行选区隔离更新，按横向窗口合并屏幕外列的等宽占位。
  * 被调用：DataGrid；调用：GridCell、共享 Checkbox 和 GridView。
- * 预期结果：保留稳定 DOM 身份、虚拟行位置及冻结样式，只更新受影响行和单元格。
+ * 预期结果：保留稳定 DOM 身份、虚拟行位置及冻结样式，仅选区掩码变化的行和单元格更新。
  */
 import { Checkbox } from "@leonwillow-electron/ui/components/checkbox";
 import { memo, type ReactNode } from "react";
@@ -26,15 +26,13 @@ function GridRowView<T>({
 	selectLabel,
 	layout,
 	columnSlots,
-	selectionStart,
-	selectionEnd,
+	selectionCells,
+	rangeSelection,
 	activeColumn,
 	editingColumn,
 	error,
 	disabled,
 	pending,
-	movedColumn,
-	moveMarker,
 	locale,
 	renderCell,
 	renderEditor,
@@ -51,15 +49,13 @@ function GridRowView<T>({
 	selectLabel: string;
 	layout: ReturnType<GridView<T>["layout"]>;
 	columnSlots: readonly ColumnSlot[];
-	selectionStart: number;
-	selectionEnd: number;
+	selectionCells: readonly number[];
+	rangeSelection: boolean;
 	activeColumn?: string;
 	editingColumn?: string;
 	error: string;
 	disabled: boolean;
 	pending: boolean;
-	movedColumn?: string;
-	moveMarker?: string;
 	locale: string;
 	renderCell?: (context: CellContext<T>) => ReactNode;
 	renderEditor?: (context: EditorContext<T>) => ReactNode;
@@ -110,17 +106,13 @@ function GridRowView<T>({
 						columnIndex={index}
 						width={c.width}
 						pinLeft={c.pinned ? c.pinLeft : undefined}
-						selected={
-							selectionStart >= 0 &&
-							index >= selectionStart &&
-							index <= selectionEnd
-						}
+						selectionMask={selectionCells[index] ?? 0}
+						rangeSelection={rangeSelection}
 						active={activeColumn === c.column.id}
 						editable={!disabled && view.store.isEditable(row, c.column)}
 						editing={editing}
 						error={editing ? error : ""}
 						pending={editing && pending}
-						moveMarker={movedColumn === c.column.id ? moveMarker : undefined}
 						locale={locale}
 						renderCell={renderCell}
 						renderEditor={renderEditor}
@@ -131,4 +123,14 @@ function GridRowView<T>({
 	);
 }
 
-export const GridRow = memo(GridRowView) as typeof GridRowView;
+export const GridRow = memo(GridRowView, (previous, next) => {
+	const { selectionCells: previousCells, ...previousProps } = previous;
+	const { selectionCells: nextCells, ...nextProps } = next;
+	return (
+		previousCells.length === nextCells.length &&
+		previousCells.every((cell, index) => cell === nextCells[index]) &&
+		(Object.keys(previousProps) as (keyof typeof previousProps)[]).every(
+			(key) => Object.is(previousProps[key], nextProps[key]),
+		)
+	);
+}) as typeof GridRowView;

@@ -1,9 +1,9 @@
 /**
  * @file 按语义分组的主题颜色编辑区域。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-11-17
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
- * 被调用：components/theme-editor/shadow-control.tsx、components/theme-editor/theme-control-panel.tsx。
+ * 被调用：theme-line-settings、shadow-control、theme-control-panel。
  * 调用：ui 基础组件/样式、react、lib/custom-themes、types/theme、utils/theme/color-converter。
  * 功能：组合颜色字段、原生色盘及文本校验；延迟提交色盘拖动。
  * 预期结果：有效颜色进入草稿，无效输入保留在字段并报告给保存按钮。
@@ -20,6 +20,7 @@ import {
 	FieldLabel,
 } from "@leonwillow-electron/ui/components/field";
 import { Input } from "@leonwillow-electron/ui/components/input";
+import { cn } from "@leonwillow-electron/ui/lib/utils";
 import type { InputHTMLAttributes } from "react";
 import { useEffect, useEffectEvent, useId, useState } from "react";
 import { isColorValue } from "@/lib/custom-themes";
@@ -30,6 +31,7 @@ import { colorFormatter } from "@/utils/theme/color-converter";
 type ColorSwatchProps = {
 	label: string;
 	value: string;
+	size?: "default" | "lg";
 	onChange: (value: string) => void;
 	onValidityChange?: (valid: boolean) => void;
 };
@@ -88,6 +90,7 @@ const DebouncedInput = ({
 export const ColorSwatch = ({
 	label,
 	value,
+	size = "lg",
 	onChange,
 	onValidityChange,
 }: ColorSwatchProps) => {
@@ -111,7 +114,10 @@ export const ColorSwatch = ({
 			</div>
 			<div className="flex items-center gap-2">
 				<div
-					className="relative flex size-control-lg cursor-pointer items-center justify-center overflow-hidden rounded border"
+					className={cn(
+						"relative flex shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded border",
+						size === "lg" ? "size-control-lg" : "size-control-md",
+					)}
 					style={{ backgroundColor: valid ? localValue : value }}
 				>
 					<DebouncedInput
@@ -127,7 +133,7 @@ export const ColorSwatch = ({
 				</div>
 				<Input
 					id={id}
-					size="lg"
+					size={size}
 					type="text"
 					aria-invalid={!valid}
 					value={localValue}

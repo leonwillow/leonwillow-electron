@@ -1,9 +1,9 @@
 /**
  * @file 通用网格的单元格右键操作与批量插行请求。
- * 创建时间：2026-11-06；修改时间：2026-11-06。
+ * 创建时间：2026-11-06；修改时间：2026-11-17。
  * 版本作用：菜单只传递稳定行身份、方向和数量，不生成业务字段。
  * 被调用：DataGrid；调用：Base UI ContextMenu、Dialog、GridView。
- * 预期结果：只读可复制；插入由宿主验证、保存，目标失效或正在提交时不执行。
+ * 预期结果：选区内右键保留全部区域；只读可复制，插行由宿主验证与保存。
  */
 import { Button } from "@leonwillow-electron/ui/components/button";
 import {
@@ -107,7 +107,7 @@ export function CellContextMenu<T>({
 					details.cancel();
 					return;
 				}
-				view.store.select(next);
+				if (!view.isSelected(next)) view.store.select(next);
 				setTarget(next);
 			}}
 		>
@@ -148,7 +148,7 @@ export function CellContextMenu<T>({
 				<ContextMenuGroup>
 					<ContextMenuItem onClick={() => void view.copy()}>
 						<CopyIcon />
-						复制此单元格
+						复制选区
 					</ContextMenuItem>
 				</ContextMenuGroup>
 				{onInsertRows && (

@@ -1,6 +1,6 @@
 /**
  * @file Lattice Grid 迁移的纯内核行为回归。
- * 创建时间：2026-11-05；修改时间：2026-11-07。
+ * 创建时间：2026-11-05；修改时间：2026-11-17。
  * 来源：MIT 原项目 core.test.ts；运行：bun test；使用独立虚构行，不访问业务数据。
  */
 import { describe, expect, it, mock } from "bun:test";
@@ -14,6 +14,9 @@ import {
 	type GridState,
 	numericFilter,
 	parseDelimited,
+	rangeBounds,
+	selectionBounds,
+	selectionRanges,
 	stringifyDelimited,
 	validateCell,
 } from "../src/core";
@@ -53,6 +56,178 @@ const rows: [Row, Row, Row] = [
 const getRowId = (r: Row) => r.id;
 const make = (extra: Partial<GridOptions<Row>> = {}) =>
 	createGrid({ rows, columns, getRowId, ...extra });
+
+describe("multiple cell ranges", () => {
+	const a = { rowId: "a", columnId: "amount" };
+	const b = { rowId: "b", columnId: "amount" };
+	const c = { rowId: "c", columnId: "amount" };
+	it("adds a new active range, extends only it, and replaces all ranges on a normal click", () => {
+		const g = make();
+		g.select(a);
+		g.select(c, false, true);
+		expect(g.getSnapshot().state.selection).toEqual({ anchor: c, focus: c });
+		expect(g.getSnapshot().state.additionalSelections).toEqual([
+			{ anchor: a, focus: a },
+		]);
+		g.select(b, true);
+		expect(
+			selectionBounds(g.getSnapshot().state, rows, columns, getRowId),
+		).toEqual([
+			{ r0: 0, r1: 0, c0: 1, c1: 1 },
+			{ r0: 1, r1: 2, c0: 1, c1: 1 },
+		]);
+		expect(rangeBounds(g.getSnapshot().state, rows, columns, getRowId)).toEqual(
+			{
+				r0: 1,
+				r1: 2,
+				c0: 1,
+				c1: 1,
+			},
+		);
+		g.select(b);
+		expect(selectionRanges(g.getSnapshot().state)).toEqual([
+			{ anchor: b, focus: b },
+		]);
+		expect(g.getSnapshot().state.additionalSelections).toEqual([]);
+		expect(g.getSnapshot().rows).toBe(rows);
+	});
+
+	it("keeps legacy controlled state compatible and submits the complete appended selection", () => {
+		const initial = createGridState(columns, {
+			selection: { anchor: a, focus: a },
+		});
+		const { additionalSelections: _additional, ...legacy } = initial;
+		const changed = mock((_next: GridState) => {});
+		const g = make({ state: legacy, onStateChange: changed });
+		g.select(c, false, true);
+		expect(selectionRanges(g.getSnapshot().state)).toHaveLength(1);
+		const next = changed.mock.calls[0]?.[0];
+		expect(next?.selection).toEqual({ anchor: c, focus: c });
+		expect(next?.additionalSelections).toEqual([{ anchor: a, focus: a }]);
+		g.updateOptions({ rows, columns, getRowId, state: next });
+		expect(selectionRanges(g.getSnapshot().state)).toHaveLength(2);
+	});
+
+	it("maps ranges by stable identity after sorting, drops invisible endpoints and deduplicates rectangles", () => {
+		const state = createGridState(columns, {
+			selection: { anchor: b, focus: a },
+			additionalSelections: [
+				{ anchor: a, focus: b },
+				{ anchor: c, focus: c },
+				{ anchor: { rowId: "missing", columnId: "amount" }, focus: c },
+			],
+		});
+		expect(
+			selectionBounds(state, [...rows].reverse(), columns, getRowId),
+		).toEqual([
+			{ r0: 0, r1: 0, c0: 1, c1: 1 },
+			{ r0: 1, r1: 2, c0: 1, c1: 1 },
+		]);
+		expect(selectionBounds(state, [rows[2]], columns, getRowId)).toEqual([
+			{ r0: 0, r1: 0, c0: 1, c1: 1 },
+		]);
+		expect(selectionBounds(state, rows, [columns[0]], getRowId)).toEqual([]);
+	});
+
+	it("clears the selected union once per cell and keeps all changes in one undoable transaction", async () => {
+		const commit = mock((_transaction: unknown) => {});
+		const g = make({ onCommit: commit });
+		g.select(a);
+		g.select(b, true);
+		g.select(b, false, true);
+		g.select(c, true);
+		expect((await g.clear()).ok).toBe(true);
+		expect(g.getSnapshot().rows.map((row) => row.amount)).toEqual([
+			null,
+			null,
+			null,
+		]);
+		expect(commit).toHaveBeenCalledTimes(1);
+		expect(commit.mock.calls[0]?.[0]).toMatchObject({
+			source: "clear",
+			patches: [
+				{ ...a, value: null },
+				{ ...b, value: null },
+				{ ...c, value: null },
+			],
+		});
+		await g.undo();
+		expect(g.getSnapshot().rows).toBe(rows);
+	});
+
+	it("clears disjoint cells without touching the gap and rejects a mixed readonly union atomically", async () => {
+		const g = make();
+		g.select(a);
+		g.select(c, false, true);
+		expect((await g.clear()).ok).toBe(true);
+		expect(g.getSnapshot().rows.map((row) => row.amount)).toEqual([
+			null,
+			20,
+			null,
+		]);
+		const readonly = make({
+			columns: columns.map((column) =>
+				column.id === "amount"
+					? { ...column, editable: (row: Row) => row.id !== "c" }
+					: column,
+			),
+		});
+		readonly.select(a);
+		readonly.select(c, false, true);
+		expect((await readonly.clear()).ok).toBe(false);
+		expect(readonly.getSnapshot().rows).toBe(rows);
+		expect(readonly.getSnapshot().canUndo).toBe(false);
+	});
+
+	it("rejects multi-range copy and paste without changing data, selection or history", async () => {
+		const g = make();
+		g.select(a);
+		g.select(c, false, true);
+		const state = g.getSnapshot().state;
+		const message = "Select a single range before copying or pasting.";
+		expect(() => g.copySelection()).toThrow(message);
+		expect(await g.paste([["99"]])).toEqual({ ok: false, error: message });
+		expect(g.getSnapshot().rows).toBe(rows);
+		expect(g.getSnapshot().state).toBe(state);
+		expect(g.getSnapshot().canUndo).toBe(false);
+		expect(formatGridError(message)).toBe("请先选择单一区域后再复制或粘贴。");
+		g.select(b);
+		expect(g.copySelection()).toBe("20");
+		expect((await g.paste([["99"]])).ok).toBe(true);
+		expect(g.getSnapshot().rows[1]?.amount).toBe(99);
+	});
+
+	it("clears additional areas through cancellation, legacy selection updates, reset, restore and row deletion", async () => {
+		const g = make({ allowDelete: true });
+		const append = () => {
+			g.select(a);
+			g.select(c, false, true);
+		};
+		append();
+		g.clearSelection();
+		expect(selectionRanges(g.getSnapshot().state)).toEqual([]);
+		expect(g.getSnapshot().state.additionalSelections).toEqual([]);
+		append();
+		g.setState({ selection: null });
+		expect(g.getSnapshot().state.additionalSelections).toEqual([]);
+		append();
+		g.setState({ selection: { anchor: b, focus: b } });
+		expect(g.getSnapshot().state.additionalSelections).toEqual([]);
+		append();
+		g.resetView();
+		expect(selectionRanges(g.getSnapshot().state)).toEqual([]);
+		append();
+		const json = g.saveView();
+		expect(json).not.toContain("additionalSelections");
+		expect(g.restoreView(json)).toBe(true);
+		expect(g.getSnapshot().state.additionalSelections).toEqual([]);
+		append();
+		expect((await g.deleteRows(["a"])).ok).toBe(true);
+		expect(g.getSnapshot().state.selection).toBeNull();
+		expect(g.getSnapshot().state.additionalSelections).toEqual([]);
+	});
+});
+
 describe("identity and derivation", () => {
 	it("rejects duplicate row IDs and dangerous fields", () => {
 		expect(() => make({ rows: [rows[0], rows[0]] })).toThrow("unique");

@@ -1,8 +1,8 @@
 /**
  * @file 随主题变化的全局通知容器的基础组件。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-06
- * 版本作用：按 Sonner 通知类型呈现成功、错误、警告和信息的语义配色。
+ * 修改时间：2026-11-17
+ * 版本作用：普通边线跟随全局设置，成功、错误、警告和信息保留语义配色。
  * 被调用：components/layout/root-layout.tsx。
  * 调用：next-themes、sonner。
  * 功能：组合底层控件和语义样式，透传对应属性并提供稳定 data-slot。
@@ -25,7 +25,7 @@ const Toaster = ({ toastOptions, ...props }: ToasterProps) => {
 				{
 					"--normal-bg": "var(--popover)",
 					"--normal-text": "var(--popover-foreground)",
-					"--normal-border": "var(--border)",
+					"--normal-border": "var(--ui-line-color, var(--border))",
 					"--success-bg":
 						"color-mix(in oklab, var(--success) 10%, var(--popover))",
 					"--success-text": "var(--success-foreground)",

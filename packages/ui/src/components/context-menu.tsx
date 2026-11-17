@@ -1,6 +1,6 @@
 /**
  * @file Base UI 右键菜单，沿用共享下拉菜单的项目样式。
- * 创建时间：2026-11-06；修改时间：2026-11-06。
+ * 创建时间：2026-11-06；修改时间：2026-11-17。
  * 版本作用：适配 shadcn base-mira ContextMenu，长内容由 ScrollArea 承载。
  * 被调用：Lattice Grid；调用：Base UI ContextMenu 各部件、共享 ScrollArea 和主题。
  * 预期结果：原生右键/长按定位、键盘和焦点行为由官方组件管理。
@@ -33,7 +33,7 @@ export function ContextMenuSeparator({
 	return (
 		<Primitive.Separator
 			data-slot="context-menu-separator"
-			className={cn("-mx-1 my-1 h-px bg-border", className)}
+			className={cn("-mx-1 my-1 h-(--ui-border-width) bg-border", className)}
 			{...props}
 		/>
 	);
@@ -56,7 +56,7 @@ export function ContextMenuContent({
 				<Primitive.Popup
 					data-slot="context-menu-content"
 					className={cn(
-						"data-open:fade-in-0 data-open:zoom-in-95 data-closed:fade-out-0 data-closed:zoom-out-95 flex max-h-(--available-height) min-w-32 origin-(--transform-origin) flex-col overflow-hidden rounded-lg bg-popover text-popover-foreground shadow-md outline-none ring-1 ring-foreground/10 duration-100 data-closed:animate-out data-open:animate-in",
+						"data-open:fade-in-0 data-open:zoom-in-95 data-closed:fade-out-0 data-closed:zoom-out-95 ring-(length:--ui-border-width) flex max-h-(--available-height) min-w-32 origin-(--transform-origin) flex-col overflow-hidden rounded-lg bg-popover text-popover-foreground shadow-md outline-none ring-ui-outline duration-100 data-closed:animate-out data-open:animate-in",
 						className,
 					)}
 					{...props}

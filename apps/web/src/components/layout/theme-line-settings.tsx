@@ -1,0 +1,187 @@
+/**
+ * @file 常用主题面板中的全局线条外观设置。
+ * 创建时间：2026-11-17；修改时间：2026-11-17。
+ * 版本作用：复用分段单选与 ReUI 最近颜色色盘，按明暗模式保存线条颜色。
+ * 被调用：ThemeCustomizer；调用：主题 Store、共享 ColorPicker、RadioGroup。
+ * 预期结果：粗细与有效颜色即时持久化，跟随主题时保留原语义色及透明度。
+ */
+import { Button } from "@leonwillow-electron/ui/components/button";
+import {
+	ColorPicker,
+	ColorPickerArea,
+	ColorPickerContent,
+	ColorPickerEyeDropper,
+	ColorPickerFields,
+	ColorPickerPanel,
+	ColorPickerSlider,
+	ColorPickerSwatches,
+	ColorPickerTrigger,
+} from "@leonwillow-electron/ui/components/color-picker";
+import {
+	addRecentColor,
+	parseRecentColors,
+} from "@leonwillow-electron/ui/components/color-picker-history";
+import { Label } from "@leonwillow-electron/ui/components/label";
+import {
+	RadioGroup,
+	RadioGroupItem,
+} from "@leonwillow-electron/ui/components/radio-group";
+import { useEffect, useId, useState } from "react";
+import { useThemeStore } from "@/stores/theme-store";
+import type { BorderWidth } from "@/types/theme";
+
+const WIDTHS: readonly BorderWidth[] = [0.5, 1, 1.5, 2];
+const RECENT_COLORS_KEY = "leonwillow:theme-line-recent-colors:v1";
+
+function readRecentColors() {
+	try {
+		return parseRecentColors(localStorage.getItem(RECENT_COLORS_KEY));
+	} catch {
+		return [];
+	}
+}
+
+export function ThemeLineSettings({ mode }: { mode: "light" | "dark" }) {
+	const settings = useThemeStore((state) => state.preferences.settings);
+	const updateSettings = useThemeStore((state) => state.updateSettings);
+	const id = useId();
+	const [themeBorder, setThemeBorder] = useState<string | null>(null);
+	const [recent, setRecent] = useState(readRecentColors);
+	const colorKey = mode === "dark" ? "borderColorDark" : "borderColorLight";
+	const customColor = settings[colorKey];
+	const colorLabel = `线条颜色（${mode === "dark" ? "深色" : "浅色"}）`;
+	const colorId = `${id}-color`;
+	const colorLabelId = `${colorId}-label`;
+	const colorStateId = `${colorId}-state`;
+	const recentLabelId = `${colorId}-recent`;
+
+	const rememberColor = (value: string | null) => {
+		const next = addRecentColor(recent, value);
+		setRecent(next);
+		try {
+			localStorage.setItem(RECENT_COLORS_KEY, JSON.stringify(next));
+		} catch {
+			// 存储受限时仍可调色；本次打开期间保留最近颜色。
+		}
+	};
+
+	useEffect(() => {
+		const root = document.documentElement;
+		const readBorder = () => {
+			const color = getComputedStyle(root).getPropertyValue("--border").trim();
+			if (color) setThemeBorder(color);
+		};
+		readBorder();
+		// 读取原主题边框色，不读取全局覆盖变量，恢复跟随时不保留旧覆盖。
+		const observer = new MutationObserver(readBorder);
+		observer.observe(root, {
+			attributes: true,
+			attributeFilter: ["class", "style"],
+		});
+		return () => observer.disconnect();
+	}, []);
+
+	return (
+		<div className="flex flex-col gap-3 px-3">
+			<div className="flex flex-col gap-1">
+				<Label htmlFor={id}>线条粗细</Label>
+				<RadioGroup
+					id={id}
+					aria-label="线条粗细"
+					variant="segmented"
+					size="default"
+					className="grid-cols-4"
+					value={String(settings.borderWidth)}
+					onValueChange={(value) =>
+						updateSettings({ borderWidth: Number(value) as BorderWidth })
+					}
+				>
+					{WIDTHS.map((width) => (
+						<Label
+							key={width}
+							htmlFor={`${id}-${width}`}
+							className="relative flex items-center justify-center border not-last:border-r-0 px-2 text-center shadow-xs outline-none transition-[color,box-shadow] first:rounded-l-md last:rounded-r-md has-data-checked:bg-accent"
+						>
+							<RadioGroupItem
+								id={`${id}-${width}`}
+								value={String(width)}
+								className="sr-only absolute inset-0"
+								aria-label={`${width}px`}
+							/>
+							<span className="text-foreground">{width}px</span>
+						</Label>
+					))}
+				</RadioGroup>
+				<p className="text-muted-foreground text-xs">统一界面边框和分隔线。</p>
+			</div>
+			{themeBorder && (
+				<div className="flex flex-col gap-1">
+					<Label id={colorLabelId} htmlFor={colorId}>
+						{colorLabel}
+					</Label>
+					<ColorPicker
+						id={colorId}
+						value={customColor ?? themeBorder}
+						alpha
+						format="hex"
+						aria-labelledby={colorLabelId}
+						aria-describedby={colorStateId}
+						onValueChange={(value) => {
+							if (value) updateSettings({ [colorKey]: value });
+						}}
+						onValueCommit={rememberColor}
+					>
+						<ColorPickerTrigger className="w-full" />
+						<ColorPickerContent>
+							<ColorPickerPanel>
+								<ColorPickerArea />
+								<div className="flex items-center gap-3">
+									<ColorPickerEyeDropper />
+									<div className="flex min-w-0 flex-1 flex-col gap-3">
+										<ColorPickerSlider channel="hue" />
+										<ColorPickerSlider channel="alpha" />
+									</div>
+								</div>
+								<ColorPickerFields />
+								<div className="flex flex-col gap-2">
+									<span
+										id={recentLabelId}
+										className="font-medium text-muted-foreground text-xs"
+									>
+										最近使用
+									</span>
+									{recent.length > 0 ? (
+										<ColorPickerSwatches
+											colors={recent}
+											aria-labelledby={recentLabelId}
+										/>
+									) : (
+										<p className="text-muted-foreground text-xs">
+											选择后显示最近使用的颜色。
+										</p>
+									)}
+								</div>
+							</ColorPickerPanel>
+						</ColorPickerContent>
+					</ColorPicker>
+					<div className="flex items-center justify-between gap-2">
+						<span id={colorStateId} className="text-muted-foreground text-xs">
+							{customColor === null ? "当前跟随主题" : "自定义颜色"}
+						</span>
+						<Button
+							variant="ghost"
+							size="sm"
+							aria-label={`${colorLabel}跟随主题`}
+							disabled={customColor === null}
+							onClick={() => {
+								updateSettings({ [colorKey]: null });
+							}}
+						>
+							跟随主题
+						</Button>
+					</div>
+				</div>
+			)}
+		</div>
+	);
+}

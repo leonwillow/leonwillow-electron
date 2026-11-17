@@ -1,7 +1,7 @@
 /**
  * @file 主题 Store 的持久化与窗口同步回归测试。
  * 创建时间：2026-10-04
- * 修改时间：2026-11-10
+ * 修改时间：2026-11-17
  * 版本作用：验证 Zustand 迁移后的行为，不进入产品构建。
  * 被调用：Bun 测试命令、test:ui。
  * 调用：bun:test、configs/theme-settings、configs/theme-variables、lib/theme-settings、stores/theme-store、types/theme。
@@ -233,4 +233,52 @@ test("挂载清理再挂载不会重复广播，卸载后不再接收 storage �
 	emitStorage(null);
 	expect(useThemeStore.getState().preferences.settings.scale).toBe("xl");
 	expect(TestChannel.instances[1]?.close).toHaveBeenCalledTimes(1);
+});
+
+test("全局线条偏好独立于保存的主题库，切换主题保留，重置清除并持久化", () => {
+	const { updateSettings, saveTheme } = useThemeStore.getState();
+	const lines = {
+		borderWidth: 0.5 as const,
+		borderColorLight: "#cbd5e1",
+		borderColorDark: "#475569",
+	};
+	updateSettings(lines);
+	saveTheme(draft, "custom:lines");
+	updateSettings({ themePreset: "default" });
+	updateSettings({ themePreset: "custom:lines" });
+	expect(readThemePreferences().settings).toMatchObject(lines);
+	const themes = useThemeStore.getState().preferences.customThemes;
+	for (const key of Object.keys(lines))
+		expect(Object.hasOwn(themes[0] ?? {}, key)).toBe(false);
+	updateSettings(initialSettings);
+	expect(readThemePreferences().settings).toEqual(initialSettings);
+	expect(useThemeStore.getState().preferences.customThemes).toBe(themes);
+});
+
+test("跨窗口完整覆盖线条偏好，空值和旧快照清除本窗口原有颜色", () => {
+	useThemeStore.getState().updateSettings({
+		borderWidth: 0.5,
+		borderColorLight: "#cbd5e1",
+		borderColorDark: "#475569",
+	});
+	disconnect = connectThemeSync();
+	const remote = {
+		...initialSettings,
+		borderWidth: 2 as const,
+		borderColorDark: "#112233",
+	};
+	TestChannel.instances[0]?.onmessage?.({
+		data: {
+			type: "SETTINGS_UPDATED",
+			payload: encodeThemePreferences({ settings: remote, customThemes: [] }),
+		},
+	});
+	expect(useThemeStore.getState().preferences.settings).toEqual(remote);
+	expect(readThemePreferences().settings).toEqual(remote);
+	emitStorage(JSON.stringify({ version: 2, mode: "dark" }));
+	expect(useThemeStore.getState().preferences.settings).toEqual({
+		...initialSettings,
+		mode: "dark",
+	});
+	expect(TestChannel.instances[0]?.postMessage).not.toHaveBeenCalled();
 });

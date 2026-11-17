@@ -1,6 +1,6 @@
 /**
  * @file Lattice Grid store：泛型表格数据与事务内核。
- * 创建时间：2026-11-05；修改时间：2026-11-07。
+ * 创建时间：2026-11-05；修改时间：2026-11-17。
  * 版本作用：适配 MIT Lattice Grid 0.1.0-beta.1，保留原始行标识、不可变事务与数据隔离。
  * 被调用：独立表格包的 React 视图；调用：包内核心模块，不依赖业务、数据库或路由。
  * 预期结果：多个表格实例独立工作，外部数据和提交由调用页面管理。
@@ -12,6 +12,8 @@ import {
 	parseCell,
 	rangeBounds,
 	SearchTextCache,
+	selectionBounds,
+	selectionRanges,
 	stringifyDelimited,
 	validateCell,
 } from "./data";
@@ -44,6 +46,7 @@ export function createGridState<T>(
 		sorting: [],
 		density: "standard",
 		selection: null,
+		additionalSelections: [],
 		selectedRows: [],
 		...initial,
 		columns: columns.map((c) => ({
@@ -267,6 +270,12 @@ export class GridStore<T> {
 	}
 	setState(patch: Partial<GridState>, reason = "api") {
 		const next = { ...this.snapshot.state, ...patch };
+		// 旧调用只替换 selection 时仍表示单一区域；扩展/追加路径需显式保留额外区域。
+		if (
+			Object.hasOwn(patch, "selection") &&
+			(!patch.selection || !Object.hasOwn(patch, "additionalSelections"))
+		)
+			next.additionalSelections = [];
 		if (!this.options.state) {
 			this.state = next;
 			this.emit();
@@ -376,19 +385,27 @@ export class GridStore<T> {
 			"sorting",
 		);
 	}
-	select(position: CellPosition, extend = false) {
+	/** 普通选择替换全部区域；追加开启新活动区域，扩展只移动当前区域的终点。 */
+	select(position: CellPosition, extend = false, additive = false) {
+		const state = this.snapshot.state;
 		this.setState(
 			{
 				selection: {
-					anchor:
-						extend && this.snapshot.state.selection
-							? this.snapshot.state.selection.anchor
-							: position,
+					anchor: extend && state.selection ? state.selection.anchor : position,
 					focus: position,
 				},
+				additionalSelections: extend
+					? (state.additionalSelections ?? [])
+					: additive
+						? selectionRanges(state)
+						: [],
 			},
 			"selection",
 		);
+	}
+	/** 取消全部单元格区域，不清空数据或改变已勾选的整行。 */
+	clearSelection() {
+		this.setState({ selection: null, additionalSelections: [] }, "selection");
 	}
 	toggleRow(id: string) {
 		const ids = new Set(this.snapshot.state.selectedRows);
@@ -517,6 +534,13 @@ export class GridStore<T> {
 	}
 	async paste(matrix: readonly (readonly string[])[]): Promise<CommitResult> {
 		const { state, viewRows, columns } = this.snapshot;
+		if (
+			selectionBounds(state, viewRows, columns, this.options.getRowId).length >
+			1
+		)
+			return this.report(
+				new Error("Select a single range before copying or pasting."),
+			);
 		const range = rangeBounds(state, viewRows, columns, this.options.getRowId);
 		if (!range) return { ok: false, error: "Select a cell before pasting." };
 		if (
@@ -553,16 +577,22 @@ export class GridStore<T> {
 	}
 	async clear() {
 		const { state, viewRows, columns } = this.snapshot;
-		const b = rangeBounds(state, viewRows, columns, this.options.getRowId);
-		if (!b) return { ok: true };
+		const ranges = selectionBounds(
+			state,
+			viewRows,
+			columns,
+			this.options.getRowId,
+		);
+		if (!ranges.length) return { ok: true };
 		const patches: Patch[] = [];
-		for (const row of viewRows.slice(b.r0, b.r1 + 1))
-			for (const column of columns.slice(b.c0, b.c1 + 1))
-				patches.push({
-					rowId: this.options.getRowId(row),
-					columnId: column.id,
-					value: column.type === "number" ? null : "",
-				});
+		for (const b of ranges)
+			for (const row of viewRows.slice(b.r0, b.r1 + 1))
+				for (const column of columns.slice(b.c0, b.c1 + 1))
+					patches.push({
+						rowId: this.options.getRowId(row),
+						columnId: column.id,
+						value: column.type === "number" ? null : "",
+					});
 		return this.apply(patches, "clear");
 	}
 	/** Insert validated rows at an index in the underlying data, not in sorted view order. */
@@ -796,6 +826,11 @@ export class GridStore<T> {
 	}
 	copySelection() {
 		const { viewRows, columns, state } = this.snapshot;
+		if (
+			selectionBounds(state, viewRows, columns, this.options.getRowId).length >
+			1
+		)
+			throw new Error("Select a single range before copying or pasting.");
 		const b = rangeBounds(state, viewRows, columns, this.options.getRowId);
 		return b
 			? stringifyDelimited(

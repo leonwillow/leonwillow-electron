@@ -1,9 +1,9 @@
 /**
  * @file 工作台浏览器全屏开关。
- * 创建时间：2026-11-05；修改时间：2026-11-06。
+ * 创建时间：2026-11-05；修改时间：2026-11-17。
  * 版本作用：头像上方提供全屏入口，监听真实浏览器状态以同步 Escape 退出。
  * 被调用：AppSidebar；调用：Fullscreen API、Arc FullscreenIcon、共享 Button/Tooltip、Sonner。
- * 预期结果：全屏状态驱动四角连续形变和渐变；不支持或拒绝时给出中文原因。
+ * 预期结果：全屏状态驱动四角连续旋转；不支持或拒绝时给出中文原因。
  */
 import { FullscreenIcon } from "@leonwillow-electron/ui/components/arc/icon-morph/icon-morph";
 import { Button } from "@leonwillow-electron/ui/components/button";

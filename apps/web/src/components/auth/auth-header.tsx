@@ -1,7 +1,7 @@
 /**
  * @file 认证页面的品牌与标题区域。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-11-17
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：views/register/index.tsx、views/login/index.tsx。
  * 调用：components/layout/app-logo。
@@ -15,13 +15,13 @@ const AuthHeader = ({
 	subtitle,
 }: {
 	title: string;
-	subtitle: string;
+	subtitle?: string;
 }) => (
 	<div className="flex flex-col gap-6">
 		<AppLogo showName />
 		<div>
 			<h1 className="mb-2 font-semibold text-2xl">{title}</h1>
-			<p className="text-muted-foreground">{subtitle}</p>
+			{subtitle && <p className="text-muted-foreground">{subtitle}</p>}
 		</div>
 	</div>
 );

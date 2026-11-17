@@ -4,8 +4,8 @@ import type { Transition } from "motion/react";
 import { motion, useReducedMotion } from "motion/react";
 import type { ReactNode, SVGProps } from "react";
 /**
- * @file Arc UI 双状态 SVG 图标与项目扩展的全屏路径形变。
- * 创建时间：2026-11-06（@uiarc/icon-morph 注册源码）；修改时间：2026-11-06。
+ * @file Arc UI 双状态 SVG 图标与项目扩展的全屏四角旋转。
+ * 创建时间：2026-11-06（@uiarc/icon-morph 注册源码）；修改时间：2026-11-17。
  * 版本作用：共享 UI 层，保持 Arc 的可中断弹簧及减少动态效果处理。
  * 被调用：Web 侧栏明暗和全屏按钮，也可由其他工作区按钮复用。
  * 调用：motion/react、React、Arc motionTokens；调用方提供可访问按钮名称和状态。
@@ -343,37 +343,28 @@ const EXPAND_CORNERS = [
 	"M8 21H5a2 2 0 0 1-2-2v-3",
 	"M16 21h3a2 2 0 0 0 2-2v-3",
 ];
-const COLLAPSE_CORNERS = [
-	"M8 3v3a2 2 0 0 1-2 2H3",
-	"M16 3v3a2 2 0 0 0 2 2h3",
-	"M8 21v-3a2 2 0 0 0-2-2H3",
-	"M16 21v-3a2 2 0 0 1 2-2h3",
-];
+const CORNER_TURNS = [180, -180, -180, 180];
 
-/** Expand to collapse: the four corners travel inward while a short crossfade softens the path interpolation. */
+/**
+ * 四角绕各自中心对称旋转，半周后的描边与原收起图标重合。
+ * 固定路径与透明度，避免 H/v 命令及圆弧标志插值产生残缺线段；快速反向沿当前角度继续。
+ */
 export function FullscreenIcon({
 	state = false,
 	...props
 }: IconMorphIconProps) {
 	const reduced = useReducedFlag();
-	const t = reduced ? instant : spring.morph;
+	const t = reduced ? instant : spring.snappy;
 	return (
 		<Frame {...props}>
 			{EXPAND_CORNERS.map((d, index) => (
 				<motion.path
 					key={d}
 					d={d}
+					style={{ transformBox: "fill-box", transformOrigin: "50% 50%" }}
 					initial={false}
-					animate={{
-						d: state ? COLLAPSE_CORNERS[index] : d,
-						opacity: reduced ? 1 : [1, 0.4, 1],
-					}}
-					transition={{
-						...t,
-						opacity: reduced
-							? instant
-							: { duration: motionTokens.duration.standard },
-					}}
+					animate={{ rotate: state ? CORNER_TURNS[index] : 0 }}
+					transition={t}
 				/>
 			))}
 		</Frame>

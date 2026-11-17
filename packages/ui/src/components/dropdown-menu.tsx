@@ -1,7 +1,7 @@
 /**
  * @file 下拉菜单、分组、子菜单与选择项的基础组件。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-05
+ * 修改时间：2026-11-17
  * 版本作用：共享 UI 基础层，随工作区维护。
  * 被调用：components/layout/profile-menu.tsx、components/layout/auth-links-menu.tsx。
  * 调用：@base-ui/react、ui/lib/utils、lucide-react、react。
@@ -54,7 +54,7 @@ function DropdownMenuContent({
 				<MenuPrimitive.Popup
 					data-slot="dropdown-menu-content"
 					className={cn(
-						"data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:fade-in-0 data-open:zoom-in-95 data-closed:fade-out-0 data-closed:zoom-out-95 z-50 flex max-h-(--available-height) w-(--anchor-width) min-w-32 origin-(--transform-origin) flex-col overflow-hidden rounded-lg bg-popover p-0 text-popover-foreground shadow-md outline-none ring-1 ring-foreground/10 duration-100 data-closed:animate-out data-open:animate-in data-closed:overflow-hidden",
+						"data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:fade-in-0 data-open:zoom-in-95 data-closed:fade-out-0 data-closed:zoom-out-95 ring-(length:--ui-border-width) z-50 flex max-h-(--available-height) w-(--anchor-width) min-w-32 origin-(--transform-origin) flex-col overflow-hidden rounded-lg bg-popover p-0 text-popover-foreground shadow-md outline-none ring-ui-outline duration-100 data-closed:animate-out data-open:animate-in data-closed:overflow-hidden",
 						className,
 					)}
 					{...props}
@@ -155,7 +155,7 @@ function DropdownMenuSubContent({
 		<DropdownMenuContent
 			data-slot="dropdown-menu-sub-content"
 			className={cn(
-				"data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:fade-in-0 data-open:zoom-in-95 data-closed:fade-out-0 data-closed:zoom-out-95 w-auto min-w-32 rounded-lg bg-popover p-0 text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 data-closed:animate-out data-open:animate-in",
+				"data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:fade-in-0 data-open:zoom-in-95 data-closed:fade-out-0 data-closed:zoom-out-95 ring-(length:--ui-border-width) w-auto min-w-32 rounded-lg bg-popover p-0 text-popover-foreground shadow-md ring-ui-outline duration-100 data-closed:animate-out data-open:animate-in",
 				className,
 			)}
 			align={align}
@@ -247,7 +247,7 @@ function DropdownMenuSeparator({
 	return (
 		<MenuPrimitive.Separator
 			data-slot="dropdown-menu-separator"
-			className={cn("-mx-1 my-1 h-px bg-border/50", className)}
+			className={cn("-mx-1 my-1 h-(--ui-border-width) bg-border/50", className)}
 			{...props}
 		/>
 	);
