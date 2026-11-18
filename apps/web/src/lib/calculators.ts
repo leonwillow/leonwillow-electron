@@ -6,38 +6,17 @@
  * 预期结果：修订冲突保持当前输入，可导出备份；错误保留 HTTP 状态。
  */
 import type { VatData } from "@leonwillow-electron/calculators";
-import { api } from "./api";
+import { ApiRequestError, api, apiErrorMessage, unwrapApi } from "./api";
 
 const vat = api.api.calculators.vat;
-export class CalculatorError extends Error {
-	constructor(
-		message: string,
-		public status: number,
-	) {
-		super(message);
-	}
-}
-export function unwrap<T>(r: {
+
+export { ApiRequestError as CalculatorError };
+export const unwrap = <T>(r: {
 	data: T | null;
 	error: { value: unknown; status: number } | null;
-}): T {
-	if (r.error) {
-		const v = r.error.value;
-		throw new CalculatorError(
-			typeof v === "object" &&
-				v &&
-				"message" in v &&
-				typeof v.message === "string"
-				? v.message
-				: "计算器操作失败，请稍后重试。",
-			r.error.status,
-		);
-	}
-	if (!r.data) throw Error("计算器未返回有效结果");
-	return r.data;
-}
+}): T => unwrapApi(r, "计算器操作失败，请稍后重试。", "计算器未返回有效结果");
 export const calculatorError = (e: unknown) =>
-	e instanceof Error ? e.message : "无法连接计算器服务";
+	apiErrorMessage(e, "无法连接计算器服务");
 export const listScenarios = async () => unwrap(await vat.get()).scenarios;
 export const getScenario = async (id: string) =>
 	unwrap(await vat({ id }).get());

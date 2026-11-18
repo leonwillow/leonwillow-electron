@@ -18,6 +18,7 @@ import {
 } from "@leonwillow-electron/ui/components/table";
 import { TooltipText } from "@leonwillow-electron/ui/components/tooltip";
 import { useCallback, useState } from "react";
+import { useAsyncResource } from "@/hooks/use-async-resource";
 import {
 	decideFundsMatch,
 	type FundsCase,
@@ -27,7 +28,6 @@ import {
 } from "@/lib/funds";
 import EvidenceDialog, { type EvidenceTarget } from "./evidence-dialog";
 import SubjectPanel from "./subject-panel";
-import { useFundsResource } from "./use-funds-resource";
 
 const issueNames: Record<string, string> = {
 	quarantine: "待核记录",
@@ -52,7 +52,7 @@ export default function ReviewPanel({
 	const [target, setTarget] = useState<EvidenceTarget | null>(null);
 	const [busy, setBusy] = useState("");
 	const [error, setError] = useState("");
-	const resource = useFundsResource(
+	const resource = useAsyncResource(
 		useCallback(
 			() => getFundsReview(record.id, offset, kind),
 			[record.id, offset, kind],

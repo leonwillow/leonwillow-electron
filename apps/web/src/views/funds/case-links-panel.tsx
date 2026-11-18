@@ -24,13 +24,13 @@ import {
 	TableRow,
 } from "@leonwillow-electron/ui/components/table";
 import { useCallback, useState } from "react";
+import { useAsyncResource } from "@/hooks/use-async-resource";
 import {
 	excludeFundsAccount,
 	fundsError,
 	getFundsLinks,
 	includeFundsAccount,
 } from "@/lib/funds";
-import { useFundsResource } from "./use-funds-resource";
 
 type Match = Awaited<ReturnType<typeof getFundsLinks>>["matches"][number];
 export default function CaseLinksPanel({
@@ -40,7 +40,7 @@ export default function CaseLinksPanel({
 	caseId: string;
 	onChanged: () => Promise<void>;
 }) {
-	const data = useFundsResource(
+	const data = useAsyncResource(
 		useCallback(() => getFundsLinks(caseId), [caseId]),
 	);
 	const [selected, setSelected] = useState<Match | null>(null);

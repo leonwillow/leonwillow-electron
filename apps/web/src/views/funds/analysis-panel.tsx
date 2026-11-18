@@ -43,6 +43,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { useAsyncResource } from "@/hooks/use-async-resource";
 import {
 	accountName,
 	type FundsGraph,
@@ -83,7 +84,6 @@ import GraphToolbar, {
 	type RelationFilter,
 } from "./graph-toolbar";
 import NodeActionMenu, { type NodeMenuTarget } from "./node-action-menu";
-import { useFundsResource } from "./use-funds-resource";
 import { useGraphHistory } from "./use-graph-history";
 import { useGraphPresentation } from "./use-graph-presentation";
 
@@ -148,7 +148,7 @@ export default function AnalysisPanel({ caseId }: { caseId: string }) {
 	const [tracing, setTracing] = useState(false);
 	const [traceError, setTraceError] = useState("");
 	const traceRequest = useRef(0);
-	const result = useFundsResource(
+	const result = useAsyncResource(
 		useCallback(() => getFundsGraph(caseId), [caseId]),
 	);
 	const full = useMemo(

@@ -30,11 +30,7 @@ import {
 	SelectValue,
 } from "@leonwillow-electron/ui/components/select";
 import { Separator } from "@leonwillow-electron/ui/components/separator";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipTrigger,
-} from "@leonwillow-electron/ui/components/tooltip";
+import { TooltipIconButton } from "@leonwillow-electron/ui/components/tooltip-icon-button";
 import { cn } from "@leonwillow-electron/ui/lib/utils";
 import {
 	CheckIcon,
@@ -115,29 +111,10 @@ export type DataGridProps<T> = GridOptions<T> &
 		renderEmpty?: () => ReactNode;
 	};
 
-function IconButton({
-	label,
-	children,
-	...props
-}: Omit<ComponentProps<typeof Button>, "aria-label"> & { label: string }) {
-	return (
-		<Tooltip disableHoverablePopup>
-			<TooltipTrigger
-				render={
-					<Button
-						type="button"
-						variant="ghost"
-						size="icon-sm"
-						aria-label={label}
-						{...props}
-					/>
-				}
-			>
-				{children}
-			</TooltipTrigger>
-			<TooltipContent>{label}</TooltipContent>
-		</Tooltip>
-	);
+function IconButton(
+	props: Omit<ComponentProps<typeof TooltipIconButton>, "size">,
+) {
+	return <TooltipIconButton size="icon-sm" {...props} />;
 }
 function GridPopover({
 	label,

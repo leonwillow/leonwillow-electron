@@ -1,13 +1,16 @@
 /**
- * @file 新笔录的默认值与编辑纯函数。
- * 创建时间：2026-11-04；修改时间：2026-11-07。
- * 版本作用：沿用 haoji 默认字段和独立问答/询问人标识。
- * 被调用：笔录创建、编辑器、问答表单；调用：浏览器 UUID、Eden 类型。
- * 预期结果：首次创建已保存的笔录，时间使用本地日期，不生成假人员资料。
+ * @file 笔录表单关系与证件常量及默认值转发。
+ * 创建时间：2026-11-04；修改时间：2026-11-18。
+ * 版本作用：保持编辑器表单选项常量，复用共享领域默认值工厂。
+ * 被调用：笔录编辑器、基础信息与问答表单；调用：@/lib/inquiries。
+ * 预期结果：旧关系值平滑展示为法定代表人，新笔录默认值与菜单创建共用同一实现。
  */
+export {
+	createInquiryDocument,
+	emptyInquirer,
+	emptyQuestion,
+} from "@/lib/inquiry-schedule";
 
-import type { InquiryDocument } from "@/lib/inquiries";
-import { randomUUID } from "@/lib/uuid";
 export const relationships = [
 	"法定代表人",
 	"实际控制人",
@@ -16,9 +19,11 @@ export const relationships = [
 	"税务代理人",
 	"其他",
 ];
+
 /** 旧笔录保留可读性；编辑或选择关系时使用当前称呼。 */
 export const inquiryRelationshipName = (value: string) =>
 	value === "法人" ? "法定代表人" : value;
+
 export const idTypes = [
 	"居民身份证",
 	"护照",
@@ -27,42 +32,3 @@ export const idTypes = [
 	"台湾居民来往大陆通行证",
 	"其他",
 ];
-export const emptyInquirer = () => ({
-	id: randomUUID(),
-	name: "",
-	badgeNumber: "",
-	isRecorder: false,
-});
-export const emptyQuestion = () => ({
-	id: randomUUID(),
-	question: "",
-	answer: "",
-});
-export function createInquiryDocument(): InquiryDocument {
-	const now = new Date();
-	const pad = (n: number) => String(n).padStart(2, "0");
-	const date = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-	return {
-		title: `询问笔录 ${date}`,
-		content: {
-			inquiryStartAt: `${date}T${pad(now.getHours())}:${pad(now.getMinutes())}`,
-			inquiryEndAt: "",
-			inquiryCount: 1,
-			inquiryLocation: "",
-			enforcementUnitName: "国家税务总局XXX税务局XXX稽查局",
-			inquirers: [emptyInquirer(), emptyInquirer()],
-			subjectName: "",
-			subjectGender: "男",
-			subjectAge: "",
-			subjectIdType: "居民身份证",
-			subjectIdNumber: "",
-			subjectAddress: "",
-			subjectPhone: "",
-			subjectOrg: "",
-			subjectPosition: "",
-			subjectRelationship: "法定代表人",
-			subjectRelationshipOther: "",
-			qaItems: [emptyQuestion()],
-		},
-	};
-}

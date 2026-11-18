@@ -5,7 +5,51 @@
  * 被调用：基础信息表单、字段测试；调用：标准日期函数和笔录类型。
  * 预期结果：日期和时分可分别编辑，清空时分不丢日期，历史跨日记录不被静默改写。
  */
-import type { InquiryContent } from "@/lib/inquiries";
+import type { InquiryContent, InquiryDocument } from "@/lib/inquiries";
+import { randomUUID } from "@/lib/uuid";
+
+export const emptyInquirer = () => ({
+	id: randomUUID(),
+	name: "",
+	badgeNumber: "",
+	isRecorder: false,
+});
+
+export const emptyQuestion = () => ({
+	id: randomUUID(),
+	question: "",
+	answer: "",
+});
+
+/** 生成新询问笔录的初始标题与本地日期时间字段，不生成虚假身份资料。 */
+export function createInquiryDocument(): InquiryDocument {
+	const now = new Date();
+	const pad = (n: number) => String(n).padStart(2, "0");
+	const date = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+	return {
+		title: `询问笔录 ${date}`,
+		content: {
+			inquiryStartAt: `${date}T${pad(now.getHours())}:${pad(now.getMinutes())}`,
+			inquiryEndAt: "",
+			inquiryCount: 1,
+			inquiryLocation: "",
+			enforcementUnitName: "国家税务总局XXX税务局XXX稽查局",
+			inquirers: [emptyInquirer(), emptyInquirer()],
+			subjectName: "",
+			subjectGender: "男",
+			subjectAge: "",
+			subjectIdType: "居民身份证",
+			subjectIdNumber: "",
+			subjectAddress: "",
+			subjectPhone: "",
+			subjectOrg: "",
+			subjectPosition: "",
+			subjectRelationship: "法定代表人",
+			subjectRelationshipOther: "",
+			qaItems: [emptyQuestion()],
+		},
+	};
+}
 
 type InquiryTimes = Pick<InquiryContent, "inquiryStartAt" | "inquiryEndAt">;
 const dayLength = 86_400_000;

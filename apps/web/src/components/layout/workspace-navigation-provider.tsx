@@ -6,7 +6,14 @@
  * 调用：useWorkspaceMenu；预期结果：任意模块固定/取消固定后，整个菜单框同步生效。
  */
 import { HoverCard } from "@leonwillow-electron/ui/components/hover-card";
-import { createContext, type ReactNode, useContext } from "react";
+import { useLocation } from "@tanstack/react-router";
+import {
+	createContext,
+	type ReactNode,
+	useContext,
+	useEffect,
+	useState,
+} from "react";
 import {
 	isWorkspaceMenuId,
 	type WorkspaceMenuId,
@@ -103,4 +110,28 @@ export function useWorkspaceMenuSection(menuId: WorkspaceMenuId) {
 		show: () => navigation.show(menuId),
 		focusPanel: () => navigation.focusPanel(menuId),
 	};
+}
+
+function menuRouteMatches(menuId: WorkspaceMenuId, pathname: string) {
+	return pathname === `/${menuId}` || pathname.startsWith(`/${menuId}/`);
+}
+
+/**
+ * 仅在当前路由属于该模块或用户首次展开/悬停其二级菜单时激活目录请求，
+ * 避免登录进入工作台时一次性并发拉取全部无关模块的目录。
+ */
+export function useWorkspaceMenuActivated(
+	menuId: WorkspaceMenuId,
+	enabled: boolean,
+) {
+	const menu = useWorkspaceMenuSection(menuId);
+	const routeActive = useLocation({
+		select: (location) => menuRouteMatches(menuId, location.pathname),
+	});
+	const [activated, setActivated] = useState(false);
+	const shouldActivate = enabled && (menu.visible || routeActive);
+	useEffect(() => {
+		if (shouldActivate && !activated) setActivated(true);
+	}, [shouldActivate, activated]);
+	return enabled && (activated || shouldActivate);
 }

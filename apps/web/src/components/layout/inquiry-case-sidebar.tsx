@@ -13,6 +13,7 @@ import {
 	InputGroupInput,
 } from "@leonwillow-electron/ui/components/input-group";
 import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
+import { TooltipIconButton } from "@leonwillow-electron/ui/components/tooltip-icon-button";
 import { Tree } from "@leonwillow-electron/ui/components/tree";
 import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import {
@@ -22,8 +23,9 @@ import {
 	SearchIcon,
 	UsersIcon,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { lazy, Suspense, useRef, useState } from "react";
 import { toast } from "sonner";
+import { useCreateInquiry } from "@/hooks/use-create-inquiry";
 import {
 	type InquiryCase,
 	type InquiryRow,
@@ -31,15 +33,16 @@ import {
 	updateInquiryCase,
 	updateInquiryRecordMetadata,
 } from "@/lib/inquiries";
-import InquiryCaseDialog from "@/views/inquiries/case-dialog";
-import { InquiryIconButton, InquiryState } from "@/views/inquiries/controls";
-import InquiryRecordNameDialog from "@/views/inquiries/record-name-dialog";
-import { useCreateInquiry } from "@/views/inquiries/use-create-inquiry";
 import { useInquiryEditorActions } from "./inquiry-editor-actions";
 import { useInquiryNavigation } from "./inquiry-navigation-provider";
 import InquiryTreeItem from "./inquiry-tree-item";
 import { useInquiryTree } from "./use-inquiry-tree";
 import type { WorkspaceMenuContent } from "./workspace-menu";
+
+const InquiryCaseDialog = lazy(() => import("./inquiry-case-dialog"));
+const InquiryRecordNameDialog = lazy(
+	() => import("./inquiry-record-name-dialog"),
+);
 
 export default function useInquiryCaseMenu(): WorkspaceMenuContent {
 	const menu = useInquiryNavigation();
@@ -150,7 +153,7 @@ export default function useInquiryCaseMenu(): WorkspaceMenuContent {
 		title: archived ? "已归档笔录" : "笔录",
 		toolbar: (
 			<>
-				<InquiryIconButton
+				<TooltipIconButton
 					label="新建独立笔录"
 					disabled={creation.busy || busy}
 					onClick={() => {
@@ -158,15 +161,15 @@ export default function useInquiryCaseMenu(): WorkspaceMenuContent {
 					}}
 				>
 					<FilePlus2Icon />
-				</InquiryIconButton>
-				<InquiryIconButton
+				</TooltipIconButton>
+				<TooltipIconButton
 					label="新建案件文件夹"
 					disabled={busy}
 					onClick={() => setEditing("new")}
 				>
 					<FolderPlusIcon />
-				</InquiryIconButton>
-				<InquiryIconButton
+				</TooltipIconButton>
+				<TooltipIconButton
 					label={archived ? "返回笔录案件" : "查看归档笔录"}
 					aria-pressed={archived}
 					onClick={() => {
@@ -175,7 +178,7 @@ export default function useInquiryCaseMenu(): WorkspaceMenuContent {
 					}}
 				>
 					<ArchiveIcon />
-				</InquiryIconButton>
+				</TooltipIconButton>
 			</>
 		),
 		children: (
@@ -198,11 +201,24 @@ export default function useInquiryCaseMenu(): WorkspaceMenuContent {
 					className="min-h-0 flex-1"
 					contentClassName="w-full min-w-0! px-workspace-gutter pb-workspace-gutter"
 				>
-					<InquiryState
-						loading={menu.cases.loading && !menu.cases.data}
-						error={menu.cases.error || error}
-						retry={menu.cases.reload}
-					/>
+					{menu.cases.error || error ? (
+						<div className="flex flex-col items-start gap-2 p-2">
+							<p role="alert" className="text-destructive text-sm">
+								{menu.cases.error || error}
+							</p>
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => void menu.cases.reload()}
+							>
+								重新加载
+							</Button>
+						</div>
+					) : menu.cases.loading && !menu.cases.data ? (
+						<p role="status" className="p-2 text-muted-foreground text-sm">
+							正在加载…
+						</p>
+					) : null}
 					{creation.error && (
 						<p role="alert" className="p-2 text-destructive text-xs">
 							{creation.error}
@@ -262,7 +278,7 @@ export default function useInquiryCaseMenu(): WorkspaceMenuContent {
 			</>
 		),
 		dialogs: (
-			<>
+			<Suspense fallback={null}>
 				{editingRecord && (
 					<InquiryRecordNameDialog
 						title={editingRecord.record.title}
@@ -279,7 +295,7 @@ export default function useInquiryCaseMenu(): WorkspaceMenuContent {
 						onClose={() => setEditing(null)}
 					/>
 				)}
-			</>
+			</Suspense>
 		),
 	};
 }

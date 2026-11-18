@@ -7,28 +7,15 @@
  * 功能：请求整案数据、上传文件、读取图和原始证据；无损格式化金额。
  * 预期结果：失败保留中文原因，金额全程使用整数分字符串。
  */
-import { api } from "./api";
+import { api, apiErrorMessage, unwrapApi } from "./api";
 
-function unwrap<T>(result: {
+const unwrap = <T>(result: {
 	data: T | null;
-	error: { value: unknown } | null;
-}): T {
-	if (result.error) {
-		const value = result.error.value;
-		throw new Error(
-			typeof value === "object" &&
-				value !== null &&
-				"message" in value &&
-				typeof value.message === "string"
-				? value.message
-				: "请求失败，请稍后重试。",
-		);
-	}
-	if (result.data === null) throw new Error("服务没有返回数据，请重试。");
-	return result.data;
-}
+	error: { value: unknown; status?: number } | null;
+}): T =>
+	unwrapApi(result, "请求失败，请稍后重试。", "服务没有返回数据，请重试。");
 export const fundsError = (error: unknown) =>
-	error instanceof Error ? error.message : "暂时无法连接服务，请重试。";
+	apiErrorMessage(error, "暂时无法连接服务，请重试。");
 export const listFundsCases = async () =>
 	unwrap(await api.api.funds.cases.get());
 export const createFundsCase = async (name: string) =>

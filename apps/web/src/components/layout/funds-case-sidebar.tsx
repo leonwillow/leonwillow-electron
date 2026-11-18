@@ -36,7 +36,8 @@ import {
 	useSearch,
 } from "@tanstack/react-router";
 import { ArchiveIcon, ArrowLeftIcon, PlusIcon, SearchIcon } from "lucide-react";
-import { type DragEvent, useCallback, useRef, useState } from "react";
+import { type DragEvent, lazy, Suspense, useRef, useState } from "react";
+import { useAsyncResource } from "@/hooks/use-async-resource";
 import {
 	deleteFundsCase,
 	fundsError,
@@ -44,8 +45,6 @@ import {
 	moveFundsCase,
 	updateFundsCase,
 } from "@/lib/funds";
-import CreateCaseDialog from "@/views/funds/create-case-dialog";
-import { useFundsResource } from "@/views/funds/use-funds-resource";
 import FundsCaseRow, {
 	CaseIconAction,
 	type CaseRecord,
@@ -53,20 +52,22 @@ import FundsCaseRow, {
 } from "./funds-case-row";
 import { useFundsNavigation } from "./funds-navigation-provider";
 import type { WorkspaceMenuContent } from "./workspace-menu";
+import { useWorkspaceMenuActivated } from "./workspace-navigation-provider";
+
+const FundsCreateCaseDialog = lazy(() => import("./funds-create-case-dialog"));
 
 export default function useFundsCaseMenu(
 	enabled: boolean,
 ): WorkspaceMenuContent {
 	const menu = useFundsNavigation();
+	const activated = useWorkspaceMenuActivated("funds", enabled);
 	const { caseId } = useSearch({ strict: false });
 	const pathname = useLocation({ select: (location) => location.pathname });
 	const navigate = useNavigate();
 	const router = useRouter();
-	const loadCases = useCallback(
-		() => (enabled ? listFundsCases() : Promise.resolve([])),
-		[enabled],
-	);
-	const cases = useFundsResource(loadCases);
+	const cases = useAsyncResource(activated ? listFundsCases : null, {
+		keepPreviousOnReload: true,
+	});
 	const [creating, setCreating] = useState(false);
 	const [draft, setDraft] = useState("");
 	const [search, setSearch] = useState("");
@@ -387,17 +388,21 @@ export default function useFundsCaseMenu(
 		),
 		dialogs: (
 			<>
-				<CreateCaseDialog
-					open={creating}
-					onOpenChange={setCreating}
-					onCreated={() => {
-						setArchived(false);
-						setDraft("");
-						setSearch("");
-						void cases.reload();
-						menu.dismiss();
-					}}
-				/>
+				{creating && (
+					<Suspense fallback={null}>
+						<FundsCreateCaseDialog
+							open={creating}
+							onOpenChange={setCreating}
+							onCreated={() => {
+								setArchived(false);
+								setDraft("");
+								setSearch("");
+								void cases.reload();
+								menu.dismiss();
+							}}
+						/>
+					</Suspense>
+				)}
 				<Dialog
 					open={!!removing}
 					onOpenChange={(open) => {

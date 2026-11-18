@@ -8,17 +8,25 @@
 import { Button } from "@leonwillow-electron/ui/components/button";
 import { getRouteApi } from "@tanstack/react-router";
 import { FilePlus2Icon, FolderOpenIcon, FolderPlusIcon } from "lucide-react";
-import { useCallback, useState } from "react";
+import { lazy, Suspense, useCallback, useState } from "react";
 import { useInquiryNavigation } from "@/components/layout/inquiry-navigation-provider";
+import { useAsyncResource } from "@/hooks/use-async-resource";
+import { useCreateInquiry } from "@/hooks/use-create-inquiry";
 import { getInquiryCase, getInquiryRecord } from "@/lib/inquiries";
 import "./inquiry-document.css";
-import InquiryCaseDialog from "./case-dialog";
 import { InquiryState } from "./controls";
 import InquiryInquirers from "./inquirers";
 import InquiryRecordEditor from "./record-editor";
-import { useCreateInquiry } from "./use-create-inquiry";
-import { useInquiryResource } from "./use-inquiry-resource";
 import InquiryWorkspaceHeader from "./workspace-header";
+
+const InquiryCaseDialog = lazy(
+	() => import("@/components/layout/inquiry-case-dialog"),
+);
+
+const inquiryResourceOptions = {
+	fallbackError: "无法连接笔录服务，请稍后重试。",
+	keepPreviousOnReload: true,
+};
 
 function EditorResource({
 	caseId,
@@ -27,7 +35,7 @@ function EditorResource({
 	caseId: string;
 	recordId: string;
 }) {
-	const resource = useInquiryResource(
+	const resource = useAsyncResource(
 		useCallback(async () => {
 			const [folder, record] = await Promise.all([
 				getInquiryCase(caseId),
@@ -35,6 +43,7 @@ function EditorResource({
 			]);
 			return { folder, record };
 		}, [caseId, recordId]),
+		inquiryResourceOptions,
 	);
 	return resource.data ? (
 		<InquiryRecordEditor
@@ -103,7 +112,11 @@ export default function InquiriesView() {
 					)}
 				</div>
 			)}
-			{creating && <InquiryCaseDialog onClose={() => setCreating(false)} />}
+			{creating && (
+				<Suspense fallback={null}>
+					<InquiryCaseDialog onClose={() => setCreating(false)} />
+				</Suspense>
+			)}
 		</div>
 	);
 }

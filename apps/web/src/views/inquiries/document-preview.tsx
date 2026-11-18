@@ -6,6 +6,7 @@
  * 预期结果：面板双向适宽，手动缩放保持视野，拖动不触发字段定位；打印不受影响。
  */
 import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
+import { TooltipIconButton } from "@leonwillow-electron/ui/components/tooltip-icon-button";
 import { MinusIcon, PlusIcon, RotateCcwIcon } from "lucide-react";
 import {
 	type PointerEvent,
@@ -15,7 +16,6 @@ import {
 	useState,
 } from "react";
 import type { InquiryDocument } from "@/lib/inquiries";
-import { InquiryIconButton } from "./controls";
 import InquiryDocumentPages, { INQUIRY_PAGE_WIDTH } from "./document-pages";
 
 const MIN_SCALE = 0.1;
@@ -179,7 +179,7 @@ export default function InquiryDocumentPreview({
 				role="toolbar"
 				aria-label="文书预览工具栏"
 			>
-				<InquiryIconButton
+				<TooltipIconButton
 					label="缩小文书"
 					size="icon-sm"
 					disabled={scale <= MIN_SCALE}
@@ -187,14 +187,14 @@ export default function InquiryDocumentPreview({
 					onClick={() => zoom(-ZOOM_STEP)}
 				>
 					<MinusIcon />
-				</InquiryIconButton>
+				</TooltipIconButton>
 				<output
 					className="inquiry-document-preview-scale text-xs tabular-nums"
 					aria-label="预览缩放比例"
 				>
 					{Math.round(scale * 100)}%
 				</output>
-				<InquiryIconButton
+				<TooltipIconButton
 					label="放大文书"
 					size="icon-sm"
 					disabled={scale >= MAX_SCALE}
@@ -202,8 +202,8 @@ export default function InquiryDocumentPreview({
 					onClick={() => zoom(ZOOM_STEP)}
 				>
 					<PlusIcon />
-				</InquiryIconButton>
-				<InquiryIconButton
+				</TooltipIconButton>
+				<TooltipIconButton
 					label="还原为自动适宽"
 					size="icon-sm"
 					onClick={() => {
@@ -217,7 +217,7 @@ export default function InquiryDocumentPreview({
 					}}
 				>
 					<RotateCcwIcon />
-				</InquiryIconButton>
+				</TooltipIconButton>
 			</div>
 		</div>
 	);

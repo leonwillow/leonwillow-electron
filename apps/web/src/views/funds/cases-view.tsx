@@ -30,6 +30,7 @@ import { getRouteApi } from "@tanstack/react-router";
 import { DownloadIcon, RefreshCwIcon } from "lucide-react";
 import { useCallback, useState } from "react";
 import { useFundsNavigation } from "@/components/layout/funds-navigation-provider";
+import { useAsyncResource } from "@/hooks/use-async-resource";
 import {
 	downloadFundsCsv,
 	downloadFundsOriginal,
@@ -42,10 +43,9 @@ import CaseLinksPanel from "./case-links-panel";
 import FundsHeader from "./funds-header";
 import PipelinePanel from "./pipeline-panel";
 import ReviewPanel from "./review-panel";
-import { useFundsResource } from "./use-funds-resource";
 
 function CaseWorkspace({ caseId }: { caseId: string }) {
-	const details = useFundsResource(
+	const details = useAsyncResource(
 		useCallback(() => getFundsCase(caseId), [caseId]),
 	);
 	const [reviewMode, setReviewMode] = useState<
@@ -55,7 +55,7 @@ function CaseWorkspace({ caseId }: { caseId: string }) {
 	const [busy, setBusy] = useState(false);
 	const [message, setMessage] = useState("");
 	const [error, setError] = useState("");
-	const summary = useFundsResource(
+	const summary = useAsyncResource(
 		useCallback(() => getFundsSummary(caseId), [caseId]),
 	);
 	const refresh = async () => {

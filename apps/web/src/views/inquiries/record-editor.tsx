@@ -29,6 +29,7 @@ import {
 	TabsList,
 	TabsTrigger,
 } from "@leonwillow-electron/ui/components/tabs";
+import { TooltipIconButton } from "@leonwillow-electron/ui/components/tooltip-icon-button";
 import { cn } from "@leonwillow-electron/ui/lib/utils";
 import {
 	DownloadIcon,
@@ -49,7 +50,6 @@ import {
 	saveInquiryFile,
 } from "@/lib/inquiries";
 import InquiryBasicFields from "./basic-fields";
-import { InquiryIconButton } from "./controls";
 import InquiryDocumentPages from "./document-pages";
 import InquiryDocumentPreview from "./document-preview";
 import InquiryQuestionFields from "./question-fields";
@@ -234,7 +234,7 @@ export default function InquiryRecordEditor({
 					aria-label="笔录操作"
 					className="ml-auto flex min-w-0 flex-wrap items-center gap-2"
 				>
-					<InquiryIconButton
+					<TooltipIconButton
 						label="撤销上一步操作"
 						disabledReason={
 							editingDisabled ? "当前笔录不可编辑" : "没有可以撤销的操作"
@@ -243,8 +243,8 @@ export default function InquiryRecordEditor({
 						onClick={editor.undo}
 					>
 						<Undo2Icon />
-					</InquiryIconButton>
-					<InquiryIconButton
+					</TooltipIconButton>
+					<TooltipIconButton
 						label="重做上一步操作"
 						disabledReason={
 							editingDisabled ? "当前笔录不可编辑" : "没有可以重做的操作"
@@ -253,7 +253,7 @@ export default function InquiryRecordEditor({
 						onClick={editor.redo}
 					>
 						<Redo2Icon />
-					</InquiryIconButton>
+					</TooltipIconButton>
 					{!readOnly && (
 						<Button
 							variant="outline"

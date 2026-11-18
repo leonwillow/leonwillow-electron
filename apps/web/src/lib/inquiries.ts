@@ -5,37 +5,19 @@
  * 被调用：笔录视图与案件导航；调用：共用 api。
  * 功能与预期结果：所有数据持久化到服务端，保留中文错误与修订号。
  */
-import { api } from "./api";
+import { ApiRequestError, api, apiErrorMessage, unwrapApi } from "./api";
 
 const inquiries = api.api.inquiries;
-function unwrap<T>(result: {
+
+export { ApiRequestError as InquiryError };
+
+const unwrap = <T>(result: {
 	data: T | null;
 	error: { value: unknown; status: number } | null;
-}): T {
-	if (result.error) {
-		const value = result.error.value;
-		const message =
-			typeof value === "object" &&
-			value &&
-			"message" in value &&
-			typeof value.message === "string"
-				? value.message
-				: "笔录操作失败，请稍后重试。";
-		throw new InquiryError(message, result.error.status);
-	}
-	if (result.data === null) throw new Error("笔录服务未返回有效结果。");
-	return result.data;
-}
-export class InquiryError extends Error {
-	constructor(
-		message: string,
-		public status: number,
-	) {
-		super(message);
-	}
-}
+}): T =>
+	unwrapApi(result, "笔录操作失败，请稍后重试。", "笔录服务未返回有效结果。");
 export const inquiryError = (error: unknown) =>
-	error instanceof Error ? error.message : "无法连接笔录服务，请稍后重试。";
+	apiErrorMessage(error, "无法连接笔录服务，请稍后重试。");
 export async function listInquiryCases(
 	query: { q?: string; archived?: boolean } = {},
 ) {

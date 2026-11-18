@@ -17,6 +17,7 @@ import {
 	SortableItemHandle,
 } from "@leonwillow-electron/ui/components/sortable";
 import { Textarea } from "@leonwillow-electron/ui/components/textarea";
+import { TooltipIconButton } from "@leonwillow-electron/ui/components/tooltip-icon-button";
 import {
 	ArrowDownIcon,
 	ArrowUpIcon,
@@ -27,7 +28,6 @@ import {
 } from "lucide-react";
 import { useRef, useState } from "react";
 import type { InquiryContent } from "@/lib/inquiries";
-import { InquiryIconButton } from "./controls";
 import { emptyQuestion } from "./record-fields";
 
 export default function InquiryQuestionFields({
@@ -133,7 +133,7 @@ export default function InquiryQuestionFields({
 							<span className="mr-auto font-medium text-sm">
 								第 {index + 1} 组
 							</span>
-							<InquiryIconButton
+							<TooltipIconButton
 								label={`上移第 ${index + 1} 组问答`}
 								disabled={readOnly || index === 0}
 								disabledReason={
@@ -142,8 +142,8 @@ export default function InquiryQuestionFields({
 								onClick={() => move(item.id, index - 1)}
 							>
 								<ArrowUpIcon />
-							</InquiryIconButton>
-							<InquiryIconButton
+							</TooltipIconButton>
+							<TooltipIconButton
 								label={`下移第 ${index + 1} 组问答`}
 								disabled={readOnly || index === items.length - 1}
 								disabledReason={
@@ -152,8 +152,8 @@ export default function InquiryQuestionFields({
 								onClick={() => move(item.id, index + 1)}
 							>
 								<ArrowDownIcon />
-							</InquiryIconButton>
-							<InquiryIconButton
+							</TooltipIconButton>
+							<TooltipIconButton
 								label={`在第 ${index + 1} 组上方插入问答`}
 								disabled={readOnly || items.length >= 200}
 								disabledReason={
@@ -162,8 +162,8 @@ export default function InquiryQuestionFields({
 								onClick={() => insert(index)}
 							>
 								<PlusIcon />
-							</InquiryIconButton>
-							<InquiryIconButton
+							</TooltipIconButton>
+							<TooltipIconButton
 								label={`在第 ${index + 1} 组下方插入问答`}
 								disabled={readOnly || items.length >= 200}
 								disabledReason={
@@ -172,8 +172,8 @@ export default function InquiryQuestionFields({
 								onClick={() => insert(index + 1)}
 							>
 								<ListPlusIcon />
-							</InquiryIconButton>
-							<InquiryIconButton
+							</TooltipIconButton>
+							<TooltipIconButton
 								label={`删除第 ${index + 1} 组问答`}
 								variant="destructive"
 								disabled={readOnly || items.length <= 1}
@@ -185,7 +185,7 @@ export default function InquiryQuestionFields({
 								onClick={() => onChange(items.filter((r) => r.id !== item.id))}
 							>
 								<Trash2Icon />
-							</InquiryIconButton>
+							</TooltipIconButton>
 						</div>
 						<FieldGroup>
 							<Field>

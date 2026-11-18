@@ -6,15 +6,8 @@
  * 被调用：FundsCaseSidebar；调用：共享 Button/Tooltip、目录摘要预览、TanStack Router。
  * 预期结果：点击选择不留下操作图标；拖动不触发导航，键盘 Alt+方向键亦可排序。
  */
-import {
-	Button,
-	buttonVariants,
-} from "@leonwillow-electron/ui/components/button";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipTrigger,
-} from "@leonwillow-electron/ui/components/tooltip";
+import { buttonVariants } from "@leonwillow-electron/ui/components/button";
+import { TooltipIconButton } from "@leonwillow-electron/ui/components/tooltip-icon-button";
 import { cn } from "@leonwillow-electron/ui/lib/utils";
 import { Link } from "@tanstack/react-router";
 import {
@@ -32,32 +25,12 @@ export type CaseRecord = Awaited<ReturnType<typeof listFundsCases>>[number];
 export type DropTarget = { id: string; placement: "before" | "after" };
 
 export function CaseIconAction({
-	label,
-	keepTooltipOnClick = false,
-	disabledReason,
+	disabledReason = "正在处理，请稍候",
+	size = "icon-sm",
 	...props
-}: ComponentProps<typeof Button> & {
-	label: string;
-	keepTooltipOnClick?: boolean;
-}) {
+}: ComponentProps<typeof TooltipIconButton>) {
 	return (
-		<Tooltip>
-			<TooltipTrigger
-				closeOnClick={!keepTooltipOnClick}
-				render={
-					<Button
-						focusableWhenDisabled
-						size="icon-sm"
-						variant="ghost"
-						aria-label={label}
-						{...props}
-					/>
-				}
-			/>
-			<TooltipContent>
-				{props.disabled ? (disabledReason ?? "正在处理，请稍候") : label}
-			</TooltipContent>
-		</Tooltip>
+		<TooltipIconButton size={size} disabledReason={disabledReason} {...props} />
 	);
 }
 

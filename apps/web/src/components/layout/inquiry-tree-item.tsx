@@ -7,6 +7,7 @@
  */
 import type { ItemInstance } from "@headless-tree/core";
 import { MenuLabel } from "@leonwillow-electron/ui/components/menu-label";
+import { TooltipIconButton } from "@leonwillow-electron/ui/components/tooltip-icon-button";
 import {
 	TreeItem,
 	TreeItemLabel,
@@ -26,8 +27,7 @@ import {
 } from "lucide-react";
 import type { ComponentProps } from "react";
 import type { InquiryCase, InquiryRow } from "@/lib/inquiries";
-import { InquiryIconButton } from "@/views/inquiries/controls";
-import { readInquirySchedule } from "@/views/inquiries/inquiry-schedule";
+import { readInquirySchedule } from "@/lib/inquiry-schedule";
 import { DirectoryItemLabel } from "./directory-item-label";
 import type { InquiryTreeNode } from "./use-inquiry-tree";
 
@@ -59,9 +59,9 @@ function previewDetails(record: InquiryRow) {
 function RowAction({
 	onClick,
 	...props
-}: ComponentProps<typeof InquiryIconButton>) {
+}: ComponentProps<typeof TooltipIconButton>) {
 	return (
-		<InquiryIconButton
+		<TooltipIconButton
 			size="icon-xs"
 			{...props}
 			onKeyDownCapture={(event) => event.stopPropagation()}

@@ -30,17 +30,19 @@ import {
 	SelectValue,
 } from "@leonwillow-electron/ui/components/select";
 import { TimePicker } from "@leonwillow-electron/ui/components/time-picker";
+import { TooltipIconButton } from "@leonwillow-electron/ui/components/tooltip-icon-button";
 import { PlusIcon, Trash2Icon } from "lucide-react";
+import { useAsyncResource } from "@/hooks/use-async-resource";
 import type { InquiryContent } from "@/lib/inquiries";
 import { listInquiryInquirers } from "@/lib/inquiries";
-import { InquiryIconButton, InquiryState } from "./controls";
 import {
 	changeInquiryDate,
 	changeInquiryEndTime,
 	changeInquiryStartTime,
 	minimumInquiryEndTime,
 	readInquirySchedule,
-} from "./inquiry-schedule";
+} from "@/lib/inquiry-schedule";
+import { InquiryState } from "./controls";
 import {
 	emptyInquirer,
 	idTypes,
@@ -48,7 +50,6 @@ import {
 	relationships,
 } from "./record-fields";
 import { calculateSubjectAge } from "./subject-age";
-import { useInquiryResource } from "./use-inquiry-resource";
 
 export function InquirySelect({
 	label,
@@ -97,7 +98,10 @@ export default function InquiryBasicFields({
 	onChange: (value: InquiryContent) => void;
 	readOnly: boolean;
 }) {
-	const frequent = useInquiryResource(listInquiryInquirers);
+	const frequent = useAsyncResource(listInquiryInquirers, {
+		fallbackError: "无法连接笔录服务，请稍后重试。",
+		keepPreviousOnReload: true,
+	});
 	const schedule = readInquirySchedule(c);
 	const updateSchedule = (
 		times: Pick<InquiryContent, "inquiryStartAt" | "inquiryEndAt">,
@@ -258,7 +262,7 @@ export default function InquiryBasicFields({
 									/>
 									第 {i + 1} 位 · 记录人
 								</Label>
-								<InquiryIconButton
+								<TooltipIconButton
 									label={`删除第 ${i + 1} 位询问人`}
 									variant="destructive"
 									disabled={readOnly || c.inquirers.length <= 2}
@@ -275,7 +279,7 @@ export default function InquiryBasicFields({
 									}
 								>
 									<Trash2Icon />
-								</InquiryIconButton>
+								</TooltipIconButton>
 							</div>
 							<FieldGroup>
 								<Field>

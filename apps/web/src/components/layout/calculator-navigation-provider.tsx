@@ -22,6 +22,7 @@ import {
 	calculatorKinds,
 } from "@/lib/calculator-directory";
 import { calculatorError } from "@/lib/calculators";
+import { useWorkspaceMenuActivated } from "./workspace-navigation-provider";
 
 type Editor = {
 	kind: CalculatorKind;
@@ -36,6 +37,7 @@ const initial = (): Record<CalculatorKind, Resource> => ({
 	"late-fees": { rows: [], loading: false, error: "" },
 });
 function useCalculatorState(enabled: boolean) {
+	const activated = useWorkspaceMenuActivated("calculators", enabled);
 	const [resources, setResources] = useState(initial);
 	const [archived, setArchived] = useState(false);
 	const [expanded, setExpanded] = useState<string[]>([...calculatorKinds]);
@@ -94,11 +96,12 @@ function useCalculatorState(enabled: boolean) {
 		[enabled],
 	);
 	useEffect(() => {
+		if (!activated) return;
 		for (const kind of calculatorKinds) void reload(kind);
 		return () => {
 			for (const kind of calculatorKinds) generations.current[kind]++;
 		};
-	}, [reload]);
+	}, [activated, reload]);
 	const upsert = useCallback((kind: CalculatorKind, row: CalculatorSummary) => {
 		changes.current[kind].set(row.id, ++changeSequence.current);
 		const summary = {

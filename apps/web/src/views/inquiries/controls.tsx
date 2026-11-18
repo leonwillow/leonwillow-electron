@@ -1,9 +1,9 @@
 /**
- * @file 笔录工作区共用的图标操作、确认和状态提示。
- * 创建时间：2026-11-04；修改时间：2026-11-05。
- * 版本作用：组合现有 Base UI，保留中文名称、焦点和共享尺寸。
- * 被调用：笔录页面及案件侧栏；调用：共享 Button/Dialog/Tooltip。
- * 预期结果：操作提示在离开按钮时关闭；异步失败可重试，删除明确确认且进行中不能重复提交。
+ * @file 笔录工作区共用的删除确认与异步状态提示。
+ * 创建时间：2026-11-04；修改时间：2026-11-18。
+ * 版本作用：图标按钮已上移至 packages/ui TooltipIconButton，本文件仅保留笔录局部加载/错误提示与删除确认。
+ * 被调用：笔录页面；调用：共享 Button/Dialog。
+ * 预期结果：异步失败可重试，删除明确确认且进行中不能重复提交。
  */
 import { Button } from "@leonwillow-electron/ui/components/button";
 import {
@@ -14,41 +14,8 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@leonwillow-electron/ui/components/dialog";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipTrigger,
-} from "@leonwillow-electron/ui/components/tooltip";
-import type { ComponentProps, ReactNode } from "react";
+import type { ReactNode } from "react";
 
-export function InquiryIconButton({
-	label,
-	children,
-	disabledReason,
-	...props
-}: ComponentProps<typeof Button> & { label: string }) {
-	return (
-		<Tooltip disableHoverablePopup>
-			<TooltipTrigger
-				render={
-					<Button
-						focusableWhenDisabled
-						type="button"
-						variant="ghost"
-						size="icon"
-						aria-label={label}
-						{...props}
-					/>
-				}
-			>
-				{children}
-			</TooltipTrigger>
-			<TooltipContent>
-				{props.disabled ? (disabledReason ?? "当前操作暂不可用") : label}
-			</TooltipContent>
-		</Tooltip>
-	);
-}
 export function InquiryState({
 	loading,
 	error,
@@ -80,6 +47,7 @@ export function InquiryState({
 		);
 	return null;
 }
+
 export function InquiryConfirm({
 	title,
 	children,

@@ -12,7 +12,7 @@ import {
 	changeInquiryStartTime,
 	minimumInquiryEndTime,
 	readInquirySchedule,
-} from "../src/views/inquiries/inquiry-schedule";
+} from "../src/lib/inquiry-schedule";
 import {
 	createInquiryDocument,
 	inquiryRelationshipName,

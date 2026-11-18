@@ -30,9 +30,11 @@ import {
 	TableHeader,
 	TableRow,
 } from "@leonwillow-electron/ui/components/table";
+import { TooltipIconButton } from "@leonwillow-electron/ui/components/tooltip-icon-button";
 import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
+import { useAsyncResource } from "@/hooks/use-async-resource";
 import {
 	deleteInquiryInquirer,
 	type FrequentInquirer,
@@ -40,8 +42,7 @@ import {
 	listInquiryInquirers,
 	saveInquiryInquirer,
 } from "@/lib/inquiries";
-import { InquiryConfirm, InquiryIconButton, InquiryState } from "./controls";
-import { useInquiryResource } from "./use-inquiry-resource";
+import { InquiryConfirm, InquiryState } from "./controls";
 
 function InquirerDialog({
 	row,
@@ -139,7 +140,10 @@ function InquirerDialog({
 	);
 }
 export default function InquiryInquirers() {
-	const resource = useInquiryResource(listInquiryInquirers);
+	const resource = useAsyncResource(listInquiryInquirers, {
+		fallbackError: "无法连接笔录服务，请稍后重试。",
+		keepPreviousOnReload: true,
+	});
 	const [search, setSearch] = useState("");
 	const [editing, setEditing] = useState<FrequentInquirer | "new" | null>(null);
 	const [removing, setRemoving] = useState<FrequentInquirer | null>(null);
@@ -203,14 +207,14 @@ export default function InquiryInquirers() {
 							<TableCell>{r.name}</TableCell>
 							<TableCell>{r.badgeNumber}</TableCell>
 							<TableCell>
-								<InquiryIconButton
+								<TooltipIconButton
 									label={`编辑询问人 ${r.name}`}
 									variant="info"
 									onClick={() => setEditing(r)}
 								>
 									<PencilIcon />
-								</InquiryIconButton>
-								<InquiryIconButton
+								</TooltipIconButton>
+								<TooltipIconButton
 									label={`删除询问人 ${r.name}`}
 									variant="destructive"
 									onClick={() => {
@@ -219,7 +223,7 @@ export default function InquiryInquirers() {
 									}}
 								>
 									<Trash2Icon />
-								</InquiryIconButton>
+								</TooltipIconButton>
 							</TableCell>
 						</TableRow>
 					))}

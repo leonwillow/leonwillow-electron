@@ -29,6 +29,7 @@ import {
 	InputGroupInput,
 } from "@leonwillow-electron/ui/components/input-group";
 import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
+import { TooltipIconButton } from "@leonwillow-electron/ui/components/tooltip-icon-button";
 import { Tree } from "@leonwillow-electron/ui/components/tree";
 import { useLocation, useNavigate, useSearch } from "@tanstack/react-router";
 import { ArchiveIcon, RotateCwIcon, SearchIcon } from "lucide-react";
@@ -42,7 +43,6 @@ import {
 } from "@/lib/calculator-directory";
 import { calculatorError } from "@/lib/calculators";
 import { randomUUID } from "@/lib/uuid";
-import { InquiryIconButton } from "@/views/inquiries/controls";
 import { useCalculatorNavigation } from "./calculator-navigation-provider";
 import CalculatorTreeItem, {
 	type CalculatorNode,
@@ -208,15 +208,15 @@ export default function useCalculatorMenu(): WorkspaceMenuContent {
 		title: directory.archived ? "已归档方案" : "计算器",
 		toolbar: (
 			<>
-				<InquiryIconButton
+				<TooltipIconButton
 					label={directory.archived ? "查看未归档方案" : "查看归档方案"}
 					variant={directory.archived ? "warning" : "ghost"}
 					aria-pressed={directory.archived}
 					onClick={() => directory.setArchived(!directory.archived)}
 				>
 					<ArchiveIcon />
-				</InquiryIconButton>
-				<InquiryIconButton
+				</TooltipIconButton>
+				<TooltipIconButton
 					label="刷新方案目录"
 					disabled={busy}
 					onClick={() => {
@@ -224,7 +224,7 @@ export default function useCalculatorMenu(): WorkspaceMenuContent {
 					}}
 				>
 					<RotateCwIcon />
-				</InquiryIconButton>
+				</TooltipIconButton>
 			</>
 		),
 		children: (

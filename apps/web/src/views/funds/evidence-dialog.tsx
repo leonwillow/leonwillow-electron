@@ -15,8 +15,8 @@ import {
 	DialogTitle,
 } from "@leonwillow-electron/ui/components/dialog";
 import { useCallback } from "react";
+import { useAsyncResource } from "@/hooks/use-async-resource";
 import { formatFunds, getFundsEvidence, getFundsRow } from "@/lib/funds";
-import { useFundsResource } from "./use-funds-resource";
 export type EvidenceTarget =
 	| { transactionId: string }
 	| { sourceId: string; sheet: string; row: number };
@@ -34,7 +34,7 @@ function Fields({ fields }: { fields: Record<string, string> }) {
 		</dl>
 	);
 }
-/** 来源内容可嵌入侧栏；按目标挂载，切换时旧请求由 useFundsResource 失效。 */
+/** 来源内容可嵌入侧栏；按目标挂载，切换时旧请求由 useAsyncResource 失效。 */
 export function EvidenceContent({
 	caseId,
 	target,
@@ -42,7 +42,7 @@ export function EvidenceContent({
 	caseId: string;
 	target: EvidenceTarget;
 }) {
-	const resource = useFundsResource(
+	const resource = useAsyncResource(
 		useCallback(async () => {
 			if ("transactionId" in target) {
 				const result = await getFundsEvidence(caseId, target.transactionId);

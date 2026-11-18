@@ -17,14 +17,14 @@ import { cn } from "@leonwillow-electron/ui/lib/utils";
 import { getRouteApi, Link } from "@tanstack/react-router";
 import { useCallback, useEffect } from "react";
 import { useFundsNavigation } from "@/components/layout/funds-navigation-provider";
+import { useAsyncResource } from "@/hooks/use-async-resource";
 import { getFundsCase, listFundsCases } from "@/lib/funds";
 import "./funds.css";
 import AnalysisPanel from "./analysis-panel";
 import FundsHeader from "./funds-header";
-import { useFundsResource } from "./use-funds-resource";
 
 function CaseAnalysis({ caseId }: { caseId: string }) {
-	const details = useFundsResource(
+	const details = useAsyncResource(
 		useCallback(() => getFundsCase(caseId), [caseId]),
 	);
 	const record = details.data;

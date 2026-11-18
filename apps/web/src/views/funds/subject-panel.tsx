@@ -11,6 +11,7 @@ import { Checkbox } from "@leonwillow-electron/ui/components/checkbox";
 import { Input } from "@leonwillow-electron/ui/components/input";
 import { Label } from "@leonwillow-electron/ui/components/label";
 import { useCallback, useState } from "react";
+import { useAsyncResource } from "@/hooks/use-async-resource";
 import {
 	adjustFundsSubjects,
 	type FundsCase,
@@ -19,7 +20,6 @@ import {
 	scanFundsSubjects,
 	undoFundsSubjects,
 } from "@/lib/funds";
-import { useFundsResource } from "./use-funds-resource";
 
 export default function SubjectPanel({
 	record,
@@ -28,7 +28,7 @@ export default function SubjectPanel({
 	record: FundsCase;
 	onChanged: () => Promise<void>;
 }) {
-	const resource = useFundsResource(
+	const resource = useAsyncResource(
 		useCallback(() => getFundsSubjects(record.id), [record.id]),
 	);
 	const [search, setSearch] = useState("");

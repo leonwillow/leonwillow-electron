@@ -7,6 +7,7 @@
  */
 import type { ItemInstance } from "@headless-tree/core";
 import { MenuLabel } from "@leonwillow-electron/ui/components/menu-label";
+import { TooltipIconButton } from "@leonwillow-electron/ui/components/tooltip-icon-button";
 import {
 	TreeItem,
 	TreeItemLabel,
@@ -26,7 +27,6 @@ import {
 	type CalculatorSummary,
 	calculatorDirectory,
 } from "@/lib/calculator-directory";
-import { InquiryIconButton } from "@/views/inquiries/controls";
 import { DirectoryItemLabel } from "./directory-item-label";
 export type CalculatorNode = {
 	name: string;
@@ -37,9 +37,9 @@ export type CalculatorNode = {
 function Action({
 	onClick,
 	...props
-}: ComponentProps<typeof InquiryIconButton>) {
+}: ComponentProps<typeof TooltipIconButton>) {
 	return (
-		<InquiryIconButton
+		<TooltipIconButton
 			size="icon-xs"
 			{...props}
 			onKeyDownCapture={(e) => e.stopPropagation()}

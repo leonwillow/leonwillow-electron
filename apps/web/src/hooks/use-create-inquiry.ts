@@ -14,8 +14,8 @@ import {
 	createStandaloneInquiry,
 	inquiryError,
 } from "@/lib/inquiries";
+import { createInquiryDocument } from "@/lib/inquiry-schedule";
 import { randomUUID } from "@/lib/uuid";
-import { createInquiryDocument } from "./record-fields";
 
 /** caseId 是默认目标，create 可指定其他文件夹；请求状态由调用方的挂载生命周期持有。 */
 export function useCreateInquiry(caseId?: string) {

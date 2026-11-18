@@ -5,29 +5,16 @@
  * 被调用：documents 路由和视图；调用：共享 api 客户端。
  * 功能与预期结果：保留中文错误，Word 预览/下载使用真实生成字节，不存储文书内容。
  */
-import { api } from "./api";
+import { api, apiErrorMessage, unwrapApi } from "./api";
 
 const documents = api.api.documents;
-function unwrap<T>(result: {
+const unwrap = <T>(result: {
 	data: T | null;
-	error: { value: unknown } | null;
-}): T {
-	if (result.error) {
-		const value = result.error.value;
-		throw new Error(
-			typeof value === "object" &&
-				value !== null &&
-				"message" in value &&
-				typeof value.message === "string"
-				? value.message
-				: "文书操作失败，请稍后重试。",
-		);
-	}
-	if (result.data === null) throw new Error("文书服务未返回有效结果。");
-	return result.data;
-}
+	error: { value: unknown; status?: number } | null;
+}): T =>
+	unwrapApi(result, "文书操作失败，请稍后重试。", "文书服务未返回有效结果。");
 export const documentError = (error: unknown) =>
-	error instanceof Error ? error.message : "无法连接文书服务，请稍后重试。";
+	apiErrorMessage(error, "无法连接文书服务，请稍后重试。");
 export async function listDocumentCatalog() {
 	return unwrap(await documents.catalog.get()).types;
 }

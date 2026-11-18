@@ -14,10 +14,13 @@ import {
 	useEffect,
 	useState,
 } from "react";
+import { useAsyncResource } from "@/hooks/use-async-resource";
 import { listInquiryCases } from "@/lib/inquiries";
-import { useInquiryResource } from "@/views/inquiries/use-inquiry-resource";
 import { InquiryEditorActionsProvider } from "./inquiry-editor-actions";
-import { useWorkspaceMenuSection } from "./workspace-navigation-provider";
+import {
+	useWorkspaceMenuActivated,
+	useWorkspaceMenuSection,
+} from "./workspace-navigation-provider";
 
 type InquiryNavigation = ReturnType<typeof useWorkspaceMenuSection> & {
 	query: string;
@@ -29,7 +32,7 @@ type InquiryNavigation = ReturnType<typeof useWorkspaceMenuSection> & {
 	setCaseExpanded: (id: string, expanded: boolean) => void;
 	setExpandedCases: (ids: string[]) => void;
 	cases: ReturnType<
-		typeof useInquiryResource<Awaited<ReturnType<typeof listInquiryCases>>>
+		typeof useAsyncResource<Awaited<ReturnType<typeof listInquiryCases>>>
 	>;
 };
 const Context = createContext<InquiryNavigation | null>(null);
@@ -41,6 +44,7 @@ export function InquiryNavigationProvider({
 	children: ReactNode;
 }) {
 	const menu = useWorkspaceMenuSection("inquiries");
+	const activated = useWorkspaceMenuActivated("inquiries", enabled);
 	const [query, setQuery] = useState("");
 	const [archived, setArchived] = useState(false);
 	const searchTerm = query.trim();
@@ -52,7 +56,10 @@ export function InquiryNavigationProvider({
 			}),
 		[searchTerm, archived],
 	);
-	const cases = useInquiryResource(enabled ? loadCases : null);
+	const cases = useAsyncResource(activated ? loadCases : null, {
+		fallbackError: "无法连接笔录服务，请稍后重试。",
+		keepPreviousOnReload: true,
+	});
 	const resetFilters = useCallback(() => {
 		setQuery("");
 		setArchived(false);
