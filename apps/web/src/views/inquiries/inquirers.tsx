@@ -7,6 +7,7 @@
  */
 
 import { Button } from "@leonwillow-electron/ui/components/button";
+import { ConfirmDialog } from "@leonwillow-electron/ui/components/confirm-dialog";
 import {
 	Dialog,
 	DialogContent,
@@ -34,6 +35,7 @@ import { TooltipIconButton } from "@leonwillow-electron/ui/components/tooltip-ic
 import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
+import { AsyncStatusBlock } from "@/components/layout/async-state";
 import { useAsyncResource } from "@/hooks/use-async-resource";
 import {
 	deleteInquiryInquirer,
@@ -42,7 +44,6 @@ import {
 	listInquiryInquirers,
 	saveInquiryInquirer,
 } from "@/lib/inquiries";
-import { InquiryConfirm, InquiryState } from "./controls";
 
 function InquirerDialog({
 	row,
@@ -188,10 +189,11 @@ export default function InquiryInquirers() {
 				value={search}
 				onChange={(e) => setSearch(e.target.value)}
 			/>
-			<InquiryState
+			<AsyncStatusBlock
+				compact
 				loading={resource.loading}
 				error={resource.error}
-				retry={resource.reload}
+				onRetry={resource.reload}
 			/>
 			<Table>
 				<TableHeader>
@@ -243,16 +245,17 @@ export default function InquiryInquirers() {
 					onSaved={() => void resource.reload()}
 				/>
 			)}
-			<InquiryConfirm
+			<ConfirmDialog
 				title="删除常用询问人"
 				open={!!removing}
 				busy={busy}
+				busyLabel="正在处理…"
 				error={error}
 				onClose={() => setRemoving(null)}
 				onConfirm={() => void remove()}
 			>
 				从常用名单中移除“{removing?.name}”。已有笔录中的姓名和检查证号会保留。
-			</InquiryConfirm>
+			</ConfirmDialog>
 		</ScrollArea>
 	);
 }

@@ -25,7 +25,7 @@ import {
 import { Label } from "@leonwillow-electron/ui/components/label";
 import {
 	RadioGroup,
-	RadioGroupItem,
+	RadioGroupSegmentedItem,
 } from "@leonwillow-electron/ui/components/radio-group";
 import { CheckIcon } from "lucide-react";
 import { useEffect, useId, useState } from "react";
@@ -104,19 +104,14 @@ export function ThemeLineSettings({ mode }: { mode: "light" | "dark" }) {
 					}
 				>
 					{WIDTHS.map((width) => (
-						<Label
+						<RadioGroupSegmentedItem
 							key={width}
-							htmlFor={`${id}-${width}`}
-							className="relative flex items-center justify-center border not-last:border-r-0 px-2 text-center shadow-xs outline-none transition-[color,box-shadow] first:rounded-l-md last:rounded-r-md has-data-checked:bg-accent"
+							id={`${id}-${width}`}
+							value={String(width)}
+							aria-label={`${width}px`}
 						>
-							<RadioGroupItem
-								id={`${id}-${width}`}
-								value={String(width)}
-								className="sr-only absolute inset-0"
-								aria-label={`${width}px`}
-							/>
-							<span className="text-foreground">{width}px</span>
-						</Label>
+							{width}px
+						</RadioGroupSegmentedItem>
 					))}
 				</RadioGroup>
 				<p className="text-muted-foreground text-xs">统一界面边框和分隔线。</p>

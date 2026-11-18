@@ -20,7 +20,7 @@ import {
 	FieldLabel,
 } from "@leonwillow-electron/ui/components/field";
 import { Input } from "@leonwillow-electron/ui/components/input";
-import { useNavigate, useRouter } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { useId, useState } from "react";
 import { createFundsCase, fundsError } from "@/lib/funds";
 
@@ -37,7 +37,6 @@ export default function CreateCaseDialog({
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState("");
 	const fieldId = useId();
-	const router = useRouter();
 	const navigate = useNavigate();
 	const create = async () => {
 		if (!name.trim() || busy) return;
@@ -48,7 +47,6 @@ export default function CreateCaseDialog({
 			onCreated();
 			onOpenChange(false);
 			setName("");
-			await router.invalidate();
 			await navigate({ to: "/funds/cases", search: { caseId: record.id } });
 		} catch (e) {
 			setError(fundsError(e));

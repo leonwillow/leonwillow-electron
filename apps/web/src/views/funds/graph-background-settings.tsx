@@ -23,6 +23,7 @@ import {
 import {
 	RadioGroup,
 	RadioGroupItem,
+	RadioGroupSegmentedItem,
 } from "@leonwillow-electron/ui/components/radio-group";
 import {
 	Tooltip,
@@ -181,18 +182,13 @@ export default function GraphBackgroundSettings({
 								}
 							>
 								{canvasPatterns.map(([pattern, label]) => (
-									<Label
+									<RadioGroupSegmentedItem
 										key={pattern}
-										htmlFor={`${id}-${pattern}`}
-										className="relative flex cursor-pointer items-center justify-center border not-last:border-r-0 px-2 first:rounded-l-md last:rounded-r-md has-data-checked:bg-accent"
+										id={`${id}-${pattern}`}
+										value={pattern}
 									>
-										<RadioGroupItem
-											id={`${id}-${pattern}`}
-											value={pattern}
-											className="sr-only absolute inset-0"
-										/>
 										{label}
-									</Label>
+									</RadioGroupSegmentedItem>
 								))}
 							</RadioGroup>
 						</FieldSet>

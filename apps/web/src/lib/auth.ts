@@ -36,19 +36,6 @@ export const authErrorMessage = (error: unknown) =>
 		: "暂时无法连接登录服务，请稍后再试。";
 
 /**
- * GET /api/auth/session：通过 HttpOnly Cookie 恢复公开用户资料。
- * @returns 有效用户；仅 401 返回 null，让路由执行登录跳转。
- * @throws 服务或网络异常；不把故障伪装成未登录。
- */
-export async function getSession() {
-	const { data, error, status } = await api.api.auth.session.get();
-	if (status === 401) return null;
-	if (error) throwAuthRequestError(error);
-	if (!data) throw new AuthRequestError("无法读取登录状态，请稍后再试。");
-	return data.user;
-}
-
-/**
  * POST /api/auth/login：校验账号密码并由浏览器接收会话 Cookie。
  * @param values username 为账号，password 保持原样；rememberMe 控制持久 Cookie。
  * @returns 请求成功后完成，不在浏览器存储密码或 token。

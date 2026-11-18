@@ -27,21 +27,31 @@ export type FundsFileRef = {
 	size: number;
 };
 
-export const fundsCase = pgTable("funds_case", {
-	id: text("id").primaryKey(),
-	name: text("name").notNull(),
-	pinned: boolean("pinned").notNull().default(false),
-	archived: boolean("archived").notNull().default(false),
-	sortOrder: integer("sort_order").notNull().default(0),
-	deletedAt: timestamp("deleted_at"),
-	deletedBy: text("deleted_by").references(() => user.id),
-	ownerId: text("owner_id")
-		.notNull()
-		.references(() => user.id),
-	revision: integer("revision").notNull().default(0),
-	graphRevision: integer("graph_revision").notNull().default(0),
-	createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+export const fundsCase = pgTable(
+	"funds_case",
+	{
+		id: text("id").primaryKey(),
+		name: text("name").notNull(),
+		pinned: boolean("pinned").notNull().default(false),
+		archived: boolean("archived").notNull().default(false),
+		sortOrder: integer("sort_order").notNull().default(0),
+		deletedAt: timestamp("deleted_at"),
+		deletedBy: text("deleted_by").references(() => user.id),
+		ownerId: text("owner_id")
+			.notNull()
+			.references(() => user.id),
+		revision: integer("revision").notNull().default(0),
+		graphRevision: integer("graph_revision").notNull().default(0),
+		createdAt: timestamp("created_at").notNull().defaultNow(),
+	},
+	(table) => [
+		index("funds_case_owner_order_idx").on(
+			table.ownerId,
+			table.sortOrder,
+			table.createdAt,
+		),
+	],
+);
 export const fundsSource = pgTable(
 	"funds_source",
 	{
@@ -92,20 +102,26 @@ export const fundsJob = pgTable(
 	],
 );
 
-export const fundsJobFile = pgTable("funds_job_file", {
-	id: text("id").primaryKey(),
-	jobId: text("job_id")
-		.notNull()
-		.references(() => fundsJob.id, { onDelete: "cascade" }),
-	ordinal: integer("ordinal").notNull(),
-	name: text("name").notNull(),
-	bytesBase64: text("bytes_base64"),
-	fileRef: jsonb("file_ref").$type<FundsFileRef>(),
-	status: text("status").notNull().default("queued"),
-	standardCsv: text("standard_csv"),
-	parsed: jsonb("parsed"),
-	report: jsonb("report"),
-});
+export const fundsJobFile = pgTable(
+	"funds_job_file",
+	{
+		id: text("id").primaryKey(),
+		jobId: text("job_id")
+			.notNull()
+			.references(() => fundsJob.id, { onDelete: "cascade" }),
+		ordinal: integer("ordinal").notNull(),
+		name: text("name").notNull(),
+		bytesBase64: text("bytes_base64"),
+		fileRef: jsonb("file_ref").$type<FundsFileRef>(),
+		status: text("status").notNull().default("queued"),
+		standardCsv: text("standard_csv"),
+		parsed: jsonb("parsed"),
+		report: jsonb("report"),
+	},
+	(table) => [
+		index("funds_job_file_job_ordinal_idx").on(table.jobId, table.ordinal),
+	],
+);
 
 /** 规范交易是关系库中的基础事实；图同步从该案已提交的规范版本生成。 */
 export const fundsTransaction = pgTable(
@@ -125,22 +141,29 @@ export const fundsTransaction = pgTable(
 );
 
 /** 跨案纳入是一份明确范围的快照；排除只影响目标案件，不修改来源案件。 */
-export const fundsInclusion = pgTable("funds_inclusion", {
-	id: text("id").primaryKey(),
-	caseId: text("case_id")
-		.notNull()
-		.references(() => fundsCase.id),
-	originCaseId: text("origin_case_id")
-		.notNull()
-		.references(() => fundsCase.id),
-	originRevision: integer("origin_revision").notNull(),
-	account: text("account").notNull(),
-	active: boolean("active").notNull().default(true),
-	actorId: text("actor_id")
-		.notNull()
-		.references(() => user.id),
-	createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+export const fundsInclusion = pgTable(
+	"funds_inclusion",
+	{
+		id: text("id").primaryKey(),
+		caseId: text("case_id")
+			.notNull()
+			.references(() => fundsCase.id),
+		originCaseId: text("origin_case_id")
+			.notNull()
+			.references(() => fundsCase.id),
+		originRevision: integer("origin_revision").notNull(),
+		account: text("account").notNull(),
+		active: boolean("active").notNull().default(true),
+		actorId: text("actor_id")
+			.notNull()
+			.references(() => user.id),
+		createdAt: timestamp("created_at").notNull().defaultNow(),
+	},
+	(table) => [
+		index("funds_inclusion_case_idx").on(table.caseId),
+		index("funds_inclusion_origin_idx").on(table.originCaseId),
+	],
+);
 export const fundsRevision = pgTable(
 	"funds_revision",
 	{

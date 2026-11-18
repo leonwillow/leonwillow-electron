@@ -10,6 +10,7 @@
  */
 
 import { Button } from "@leonwillow-electron/ui/components/button";
+import { ConfirmDialog } from "@leonwillow-electron/ui/components/confirm-dialog";
 import {
 	Dialog,
 	DialogContent,
@@ -25,10 +26,9 @@ import {
 	FieldLabel,
 } from "@leonwillow-electron/ui/components/field";
 import { Input } from "@leonwillow-electron/ui/components/input";
-import { Label } from "@leonwillow-electron/ui/components/label";
 import {
 	RadioGroup,
-	RadioGroupItem,
+	RadioGroupSegmentedItem,
 } from "@leonwillow-electron/ui/components/radio-group";
 import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
 import {
@@ -263,17 +263,14 @@ export default function ThemeControlPanel({
 							{ value: "light", label: "编辑浅色", icon: SunIcon },
 							{ value: "dark", label: "编辑深色", icon: MoonIcon },
 						].map(({ value, label, icon: Icon }) => (
-							<Label
+							<RadioGroupSegmentedItem
 								key={value}
-								className="relative flex items-center justify-center gap-2 border not-last:border-r-0 px-2 text-center shadow-xs first:rounded-l-md last:rounded-r-md has-data-checked:bg-accent"
+								value={value}
+								className="gap-2"
 							>
-								<RadioGroupItem
-									value={value}
-									className="sr-only absolute inset-0"
-								/>
 								<Icon aria-hidden="true" />
 								{label}
-							</Label>
+							</RadioGroupSegmentedItem>
 						))}
 					</RadioGroup>
 					<Tabs defaultValue="colors">
@@ -567,49 +564,27 @@ export default function ThemeControlPanel({
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
-			<Dialog
+			<ConfirmDialog
 				open={deleteId !== null}
-				onOpenChange={(open) => {
-					if (!open) setDeleteId(null);
+				title="删除主题"
+				confirmLabel="删除主题"
+				buttonSize="lg"
+				showCloseButton
+				onClose={() => setDeleteId(null)}
+				onConfirm={() => {
+					if (!deleteId) return;
+					try {
+						deleteTheme(deleteId);
+						setDeleteId(null);
+						selectSource("default");
+						toast.success("主题已删除。");
+					} catch (error) {
+						toast.error(error instanceof Error ? error.message : "删除失败。");
+					}
 				}}
 			>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>删除主题</DialogTitle>
-						<DialogDescription>
-							删除“{draft.label}”？此操作会从当前浏览器的主题库中移除它。
-						</DialogDescription>
-					</DialogHeader>
-					<DialogFooter>
-						<Button
-							size="lg"
-							variant="outline"
-							onClick={() => setDeleteId(null)}
-						>
-							取消
-						</Button>
-						<Button
-							size="lg"
-							variant="destructive"
-							onClick={() => {
-								if (!deleteId) return;
-								try {
-									deleteTheme(deleteId);
-									setDeleteId(null);
-									selectSource("default");
-									toast.success("主题已删除。");
-								} catch (error) {
-									toast.error(
-										error instanceof Error ? error.message : "删除失败。",
-									);
-								}
-							}}
-						>
-							删除主题
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+				删除“{draft.label}”？此操作会从当前浏览器的主题库中移除它。
+			</ConfirmDialog>
 		</>
 	);
 }

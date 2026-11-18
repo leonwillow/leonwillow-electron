@@ -8,43 +8,18 @@
  * 预期结果：无默认选案或关闭按钮；删除不清除原始资料；浮层关闭不丢失对话框状态。
  */
 
-import { Button } from "@leonwillow-electron/ui/components/button";
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from "@leonwillow-electron/ui/components/dialog";
-import {
-	InputGroup,
-	InputGroupAddon,
-	InputGroupButton,
-	InputGroupInput,
-} from "@leonwillow-electron/ui/components/input-group";
+import { ConfirmDialog } from "@leonwillow-electron/ui/components/confirm-dialog";
 import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipTrigger,
-} from "@leonwillow-electron/ui/components/tooltip";
-import {
-	useLocation,
-	useNavigate,
-	useRouter,
-	useSearch,
-} from "@tanstack/react-router";
-import { ArchiveIcon, ArrowLeftIcon, PlusIcon, SearchIcon } from "lucide-react";
+import { useLocation, useNavigate, useSearch } from "@tanstack/react-router";
+import { ArchiveIcon, ArrowLeftIcon, PlusIcon } from "lucide-react";
 import { type DragEvent, lazy, Suspense, useRef, useState } from "react";
-import { useAsyncResource } from "@/hooks/use-async-resource";
 import {
 	deleteFundsCase,
 	fundsError,
-	listFundsCases,
 	moveFundsCase,
 	updateFundsCase,
 } from "@/lib/funds";
+import { AsyncStatusBlock } from "./async-state";
 import FundsCaseRow, {
 	CaseIconAction,
 	type CaseRecord,
@@ -52,20 +27,16 @@ import FundsCaseRow, {
 } from "./funds-case-row";
 import { useFundsNavigation } from "./funds-navigation-provider";
 import type { WorkspaceMenuContent } from "./workspace-menu";
-import { useWorkspaceMenuActivated } from "./workspace-navigation-provider";
+import { WorkspaceMenuSearch } from "./workspace-menu-search";
 
 const FundsCreateCaseDialog = lazy(() => import("./funds-create-case-dialog"));
 
-export function useFundsCaseMenu(enabled: boolean): WorkspaceMenuContent {
+export function useFundsCaseMenu(): WorkspaceMenuContent {
 	const menu = useFundsNavigation();
-	const activated = useWorkspaceMenuActivated("funds", enabled);
+	const { cases } = menu;
 	const { caseId } = useSearch({ strict: false });
 	const pathname = useLocation({ select: (location) => location.pathname });
 	const navigate = useNavigate();
-	const router = useRouter();
-	const cases = useAsyncResource(activated ? listFundsCases : null, {
-		keepPreviousOnReload: true,
-	});
 	const [creating, setCreating] = useState(false);
 	const [draft, setDraft] = useState("");
 	const [search, setSearch] = useState("");
@@ -136,7 +107,8 @@ export function useFundsCaseMenu(enabled: boolean): WorkspaceMenuContent {
 							? "已置顶"
 							: "已取消置顶",
 			);
-			await router.invalidate();
+			await cases.reload();
+			setChanged({});
 		} catch (e) {
 			setError(fundsError(e));
 		} finally {
@@ -152,6 +124,8 @@ export function useFundsCaseMenu(enabled: boolean): WorkspaceMenuContent {
 		try {
 			merge(await moveFundsCase(record.id, targetId, placement));
 			setMessage("案件顺序已保存");
+			await cases.reload();
+			setChanged({});
 		} catch (e) {
 			setError(fundsError(e));
 		} finally {
@@ -167,7 +141,7 @@ export function useFundsCaseMenu(enabled: boolean): WorkspaceMenuContent {
 			if (caseId === removing.id) await navigate({ to: "/funds", search: {} });
 			setRemoving(null);
 			setMessage("案件已删除，后台资料保留。");
-			await router.invalidate();
+			await cases.reload();
 		} catch (e) {
 			setDeleteError(fundsError(e));
 		} finally {
@@ -226,41 +200,16 @@ export function useFundsCaseMenu(enabled: boolean): WorkspaceMenuContent {
 		),
 		children: (
 			<>
-				<search>
-					<form
-						aria-label="案件搜索"
-						className="p-workspace-gutter pb-2"
-						onSubmit={(e) => {
-							e.preventDefault();
-							setSearch(draft);
-						}}
-					>
-						<InputGroup>
-							<InputGroupInput
-								aria-label="搜索案件"
-								placeholder={archived ? "搜索已归档案件" : "搜索案件"}
-								value={draft}
-								onChange={(e) => setDraft(e.target.value)}
-							/>
-							<InputGroupAddon align="inline-end">
-								<Tooltip>
-									<TooltipTrigger
-										render={
-											<InputGroupButton
-												type="submit"
-												size="icon-sm"
-												aria-label="执行案件搜索"
-											>
-												<SearchIcon />
-											</InputGroupButton>
-										}
-									/>
-									<TooltipContent>搜索案件</TooltipContent>
-								</Tooltip>
-							</InputGroupAddon>
-						</InputGroup>
-					</form>
-				</search>
+				<WorkspaceMenuSearch
+					formLabel="案件搜索"
+					label="搜索案件"
+					placeholder={archived ? "搜索已归档案件" : "搜索案件"}
+					submitLabel="执行案件搜索"
+					value={draft}
+					onChange={setDraft}
+					onSubmit={() => setSearch(draft)}
+					onClear={() => setSearch("")}
+				/>
 				<p id="case-sort-help" className="sr-only">
 					拖拽调整分组内顺序，或按 Alt 加上、下方向键移动案件。
 				</p>
@@ -279,19 +228,14 @@ export function useFundsCaseMenu(enabled: boolean): WorkspaceMenuContent {
 					contentClassName="w-full min-w-0! px-workspace-gutter pb-workspace-gutter"
 					render={<nav />}
 				>
-					{cases.loading && (
-						<p role="status" className="p-2 text-muted-foreground text-sm">
-							正在读取案件…
-						</p>
-					)}
-					{cases.error && (
-						<div role="alert" className="flex flex-col gap-2 p-2 text-sm">
-							<p>{cases.error}</p>
-							<Button variant="outline" onClick={() => void cases.reload()}>
-								重试读取案件
-							</Button>
-						</div>
-					)}
+					<AsyncStatusBlock
+						compact
+						loading={cases.loading}
+						loadingText="正在读取案件…"
+						retryLabel="重试读取案件"
+						error={cases.error}
+						onRetry={cases.reload}
+					/>
 					{groups
 						.filter((group) => group.rows.length > 0)
 						.map((group) => (
@@ -401,43 +345,18 @@ export function useFundsCaseMenu(enabled: boolean): WorkspaceMenuContent {
 						/>
 					</Suspense>
 				)}
-				<Dialog
+				<ConfirmDialog
 					open={!!removing}
-					onOpenChange={(open) => {
-						if (!open && !busy) setRemoving(null);
-					}}
+					title="删除案件"
+					busy={busy}
+					busyLabel="正在删除…"
+					error={deleteError}
+					onClose={() => setRemoving(null)}
+					onConfirm={() => void remove()}
 				>
-					<DialogContent showCloseButton={false}>
-						<DialogHeader>
-							<DialogTitle>删除案件</DialogTitle>
-							<DialogDescription>
-								“{removing?.name}
-								”将从案件列表中移除。原始文件、流水和图数据会保留，未完成的后台任务将停止。
-							</DialogDescription>
-						</DialogHeader>
-						{deleteError && (
-							<p role="alert" className="text-destructive text-sm">
-								{deleteError}
-							</p>
-						)}
-						<DialogFooter>
-							<Button
-								variant="outline"
-								disabled={busy}
-								onClick={() => setRemoving(null)}
-							>
-								取消
-							</Button>
-							<Button
-								variant="destructive"
-								disabled={busy}
-								onClick={() => void remove()}
-							>
-								{busy ? "正在删除…" : "确认删除"}
-							</Button>
-						</DialogFooter>
-					</DialogContent>
-				</Dialog>
+					“{removing?.name}
+					”将从案件列表中移除。原始文件、流水和图数据会保留，未完成的后台任务将停止。
+				</ConfirmDialog>
 			</>
 		),
 	};

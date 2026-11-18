@@ -568,7 +568,6 @@
 .lg-cell.lg-pinned.lg-active {
 	z-index: 3;
 }
-.lg-numeric,
 .lg-cell[data-align="end"] {
 	text-align: end;
 }

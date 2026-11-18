@@ -18,6 +18,7 @@ import { useThemeStore } from "@/stores/theme-store";
 import "@/styles/workspace.css";
 import { CalculatorNavigationProvider } from "./calculator-navigation-provider";
 import { DocumentNavigationProvider } from "./document-navigation-provider";
+import { FundsNavigationProvider } from "./funds-navigation-provider";
 import { InquiryNavigationProvider } from "./inquiry-navigation-provider";
 import { WorkspaceNavigationProvider } from "./workspace-navigation-provider";
 import WorkspacePanels from "./workspace-panels";
@@ -38,33 +39,35 @@ export default function WorkspaceLayout({ children }: { children: ReactNode }) {
 				userId={user.id}
 				enabledMenus={enabledMenus}
 			>
-				<DocumentNavigationProvider
-					enabled={enabledMenus.includes("documents")}
-				>
-					<InquiryNavigationProvider
-						enabled={enabledMenus.includes("inquiries")}
+				<FundsNavigationProvider enabled={enabledMenus.includes("funds")}>
+					<DocumentNavigationProvider
+						enabled={enabledMenus.includes("documents")}
 					>
-						<CalculatorNavigationProvider
-							enabled={enabledMenus.includes("calculators")}
+						<InquiryNavigationProvider
+							enabled={enabledMenus.includes("inquiries")}
 						>
-							<div
-								data-sidebar-mode={sidebarMode}
-								className="workspace-shell flex h-dvh w-full min-w-0 overflow-hidden"
+							<CalculatorNavigationProvider
+								enabled={enabledMenus.includes("calculators")}
 							>
-								<AppSidebar />
-								<div className="workspace-surface flex min-h-0 min-w-0 flex-1">
-									<WorkspacePanels
-										menu={
-											<WorkspaceSecondaryMenu enabledMenus={enabledMenus} />
-										}
-									>
-										{children}
-									</WorkspacePanels>
+								<div
+									data-sidebar-mode={sidebarMode}
+									className="workspace-shell flex h-dvh w-full min-w-0 overflow-hidden"
+								>
+									<AppSidebar />
+									<div className="workspace-surface flex min-h-0 min-w-0 flex-1">
+										<WorkspacePanels
+											menu={
+												<WorkspaceSecondaryMenu enabledMenus={enabledMenus} />
+											}
+										>
+											{children}
+										</WorkspacePanels>
+									</div>
 								</div>
-							</div>
-						</CalculatorNavigationProvider>
-					</InquiryNavigationProvider>
-				</DocumentNavigationProvider>
+							</CalculatorNavigationProvider>
+						</InquiryNavigationProvider>
+					</DocumentNavigationProvider>
+				</FundsNavigationProvider>
 			</WorkspaceNavigationProvider>
 		</TooltipProvider>
 	);

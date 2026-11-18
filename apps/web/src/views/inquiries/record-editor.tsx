@@ -8,14 +8,7 @@
 
 import { Button } from "@leonwillow-electron/ui/components/button";
 import { CollapsibleSidePanel } from "@leonwillow-electron/ui/components/collapsible-side-panel";
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from "@leonwillow-electron/ui/components/dialog";
+import { ConfirmDialog } from "@leonwillow-electron/ui/components/confirm-dialog";
 import { Field, FieldLabel } from "@leonwillow-electron/ui/components/field";
 import { Input } from "@leonwillow-electron/ui/components/input";
 import {
@@ -101,8 +94,23 @@ export default function InquiryRecordEditor({
 	const printed = useRef(false);
 	const root = useRef<HTMLDivElement>(null);
 	const { draft } = editor;
-	const contentChange = (content: InquiryDocument["content"]) =>
-		editor.change({ title: draft.title, content });
+	const draftRef = useRef(draft);
+	draftRef.current = draft;
+	const changeRef = useRef(editor.change);
+	changeRef.current = editor.change;
+	const contentChange = useCallback((content: InquiryDocument["content"]) => {
+		changeRef.current({ title: draftRef.current.title, content });
+	}, []);
+	const qaItemsChange = useCallback(
+		(qaItems: InquiryDocument["content"]["qaItems"]) => {
+			const current = draftRef.current;
+			changeRef.current({
+				title: current.title,
+				content: { ...current.content, qaItems },
+			});
+		},
+		[],
+	);
 	useEffect(() => {
 		const media = window.matchMedia("(min-width: 80rem)");
 		const update = () => setWide(media.matches);
@@ -165,7 +173,7 @@ export default function InquiryRecordEditor({
 		setPrintDraft(null);
 		toast.error(message);
 	}, []);
-	const focus = (id: string) => {
+	const focus = useCallback((id: string) => {
 		const isQuestion = id.startsWith("question-") || id.startsWith("answer-");
 		setTab(isQuestion ? "questions" : "basic");
 		if (!isQuestion) setBasicOpen(true);
@@ -178,7 +186,7 @@ export default function InquiryRecordEditor({
 				element?.focus({ preventScroll: true });
 			}),
 		);
-	};
+	}, []);
 	const basic = (
 		<InquiryBasicFields
 			content={draft.content}
@@ -189,11 +197,17 @@ export default function InquiryRecordEditor({
 	const questions = (
 		<InquiryQuestionFields
 			items={draft.content.qaItems}
-			onChange={(qaItems) => contentChange({ ...draft.content, qaItems })}
+			onChange={qaItemsChange}
 			readOnly={editingDisabled}
 		/>
 	);
-	const preview = <InquiryDocumentPreview draft={draft} focus={focus} />;
+	const preview = (
+		<InquiryDocumentPreview
+			draft={draft}
+			paused={wide && !previewOpen}
+			focus={focus}
+		/>
+	);
 	return (
 		<div ref={root} className="flex min-h-0 min-w-0 flex-1 flex-col">
 			<InquiryWorkspaceHeader>
@@ -395,32 +409,16 @@ export default function InquiryRecordEditor({
 					)}
 				</>
 			)}
-			<Dialog
+			<ConfirmDialog
 				open={editor.blocker.status === "blocked"}
-				onOpenChange={(open) => {
-					if (!open) editor.blocker.reset?.();
-				}}
+				title="笔录尚未保存"
+				cancelLabel="继续编辑"
+				confirmLabel="放弃修改并离开"
+				onClose={() => editor.blocker.reset?.()}
+				onConfirm={() => editor.blocker.proceed?.()}
 			>
-				<DialogContent showCloseButton={false}>
-					<DialogHeader>
-						<DialogTitle>笔录尚未保存</DialogTitle>
-						<DialogDescription>
-							保存未成功，当前修改仍留在编辑器。可以继续编辑，或放弃本次未保存的修改后离开。
-						</DialogDescription>
-					</DialogHeader>
-					<DialogFooter>
-						<Button variant="outline" onClick={() => editor.blocker.reset?.()}>
-							继续编辑
-						</Button>
-						<Button
-							variant="destructive"
-							onClick={() => editor.blocker.proceed?.()}
-						>
-							放弃修改并离开
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+				保存未成功，当前修改仍留在编辑器。可以继续编辑，或放弃本次未保存的修改后离开。
+			</ConfirmDialog>
 			{printDraft &&
 				createPortal(
 					<div className="inquiry-print-root">

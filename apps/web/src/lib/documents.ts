@@ -6,6 +6,7 @@
  * 功能与预期结果：保留中文错误，Word 预览/下载使用真实生成字节，不存储文书内容。
  */
 import { api, apiErrorMessage, unwrapApi } from "./api";
+import { downloadBlob } from "./download";
 
 const documents = api.api.documents;
 const unwrap = <T>(result: {
@@ -139,10 +140,5 @@ export async function downloadSampleTemplate() {
 
 /** 下载完成后释放临时 URL；模板和文书内容不进入 localStorage。 */
 export function saveDocumentFile(blob: Blob, name: string) {
-	const url = URL.createObjectURL(blob);
-	const anchor = document.createElement("a");
-	anchor.href = url;
-	anchor.download = name;
-	anchor.click();
-	setTimeout(() => URL.revokeObjectURL(url), 1000);
+	downloadBlob(blob, name);
 }

@@ -101,6 +101,7 @@ export const documentRecord = pgTable(
 			table.sequence,
 		),
 		index("document_record_created_idx").on(table.createdAt),
+		index("document_record_type_created_idx").on(table.typeId, table.createdAt),
 	],
 );
 

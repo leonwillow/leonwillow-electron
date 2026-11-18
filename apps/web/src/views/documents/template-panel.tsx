@@ -16,14 +16,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@leonwillow-electron/ui/components/card";
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from "@leonwillow-electron/ui/components/dialog";
+import { ConfirmDialog } from "@leonwillow-electron/ui/components/confirm-dialog";
 import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
 import {
 	DownloadIcon,
@@ -168,43 +161,18 @@ export default function TemplatePanel({
 					onSaved={onSaved}
 				/>
 			)}
-			<Dialog
+			<ConfirmDialog
 				open={!!remove}
-				onOpenChange={(open) => {
-					if (!open && !busy) setRemove(null);
-				}}
+				title="删除文书模板"
+				busy={busy}
+				showCloseButton
+				error={error}
+				onClose={() => setRemove(null)}
+				onConfirm={() => void confirmRemove()}
 			>
-				<DialogContent showCloseButton={!busy}>
-					<DialogHeader>
-						<DialogTitle>删除文书模板</DialogTitle>
-						<DialogDescription>
-							删除“{remove?.name}
-							”后不能再用它取号。历史文书与已用号码保留，已有文书仍可查看、修改和下载。
-						</DialogDescription>
-					</DialogHeader>
-					{error && (
-						<p role="alert" className="text-destructive text-xs">
-							{error}
-						</p>
-					)}
-					<DialogFooter>
-						<Button
-							variant="outline"
-							disabled={busy}
-							onClick={() => setRemove(null)}
-						>
-							取消
-						</Button>
-						<Button
-							variant="destructive"
-							disabled={busy}
-							onClick={() => void confirmRemove()}
-						>
-							确认删除
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+				删除“{remove?.name}
+				”后不能再用它取号。历史文书与已用号码保留，已有文书仍可查看、修改和下载。
+			</ConfirmDialog>
 		</ScrollArea>
 	);
 }

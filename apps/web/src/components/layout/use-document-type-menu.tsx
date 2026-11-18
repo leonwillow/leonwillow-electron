@@ -6,11 +6,7 @@
  * 功能与预期结果：未固定时选类型收起，固定偏好按用户保留，窄窗回到浮层。
  */
 
-import {
-	Button,
-	buttonVariants,
-} from "@leonwillow-electron/ui/components/button";
-import { Input } from "@leonwillow-electron/ui/components/input";
+import { buttonVariants } from "@leonwillow-electron/ui/components/button";
 import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
 import {
 	Tooltip,
@@ -21,9 +17,11 @@ import { cn } from "@leonwillow-electron/ui/lib/utils";
 import { getRouteApi, Link, useSearch } from "@tanstack/react-router";
 import { FileTextIcon, Settings2Icon } from "lucide-react";
 import { useState } from "react";
+import { AsyncStatusBlock } from "./async-state";
 import { DirectoryItemLabel } from "./directory-item-label";
 import { useDocumentNavigation } from "./document-navigation-provider";
 import type { WorkspaceMenuContent } from "./workspace-menu";
+import { WorkspaceMenuSearch } from "./workspace-menu-search";
 
 export function useDocumentTypeMenu(): WorkspaceMenuContent {
 	const menu = useDocumentNavigation();
@@ -56,37 +54,28 @@ export function useDocumentTypeMenu(): WorkspaceMenuContent {
 		),
 		children: (
 			<>
-				<div className="p-workspace-gutter">
-					<Input
-						aria-label="搜索文书类型"
-						placeholder="搜索文书类型"
-						value={search}
-						onChange={(event) => setSearch(event.target.value)}
-					/>
-				</div>
+				<WorkspaceMenuSearch
+					label="搜索文书类型"
+					placeholder="搜索文书类型"
+					value={search}
+					onChange={setSearch}
+				/>
 				<ScrollArea
 					aria-label="文书类型列表"
 					className="min-h-0 flex-1"
 					contentClassName="w-full min-w-0! px-workspace-gutter pb-workspace-gutter"
 					render={<nav />}
 				>
-					{menu.loading || (!menu.error && menu.catalog === null) ? (
-						<p role="status" className="p-2 text-muted-foreground text-xs">
-							正在读取文书类型…
-						</p>
-					) : menu.error ? (
-						<div className="flex flex-col gap-2 p-2">
-							<p role="alert" className="text-destructive text-xs">
-								{menu.error}
-							</p>
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={() => void menu.refreshCatalog()}
-							>
-								重新加载
-							</Button>
-						</div>
+					{menu.loading ||
+					menu.error ||
+					(!menu.error && menu.catalog === null) ? (
+						<AsyncStatusBlock
+							compact
+							loading={menu.loading || (!menu.error && menu.catalog === null)}
+							loadingText="正在读取文书类型…"
+							error={menu.error}
+							onRetry={menu.refreshCatalog}
+						/>
 					) : (
 						<>
 							{[false, true].map((archived) => {

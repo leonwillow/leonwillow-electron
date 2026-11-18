@@ -36,9 +36,11 @@ type PanGesture = {
 
 export default function InquiryDocumentPreview({
 	draft,
+	paused = false,
 	focus,
 }: {
 	draft: InquiryDocument;
+	paused?: boolean;
 	focus: (id: string) => void;
 }) {
 	const viewport = useRef<HTMLDivElement>(null);
@@ -172,7 +174,12 @@ export default function InquiryDocumentPreview({
 					},
 				}}
 			>
-				<InquiryDocumentPages draft={draft} scale={scale} focus={focus} />
+				<InquiryDocumentPages
+					draft={draft}
+					paused={paused}
+					scale={scale}
+					focus={focus}
+				/>
 			</ScrollArea>
 			<div
 				className="inquiry-document-preview-toolbar"

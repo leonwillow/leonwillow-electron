@@ -14,7 +14,7 @@ import {
 	fundsJobFile,
 	user,
 } from "@leonwillow-electron/db/schema";
-import { and, asc, desc, eq, isNull, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { getServerResources } from "../../server-resources";
 import { AccessError } from "../access/service";
 import {
@@ -130,41 +130,64 @@ export async function enqueueSync(
 
 export async function listJobs(actor: Actor, caseId: string) {
 	await findCase(actor, caseId);
-	const rows = await getServerResources()
-		.db.select()
+	const { db } = getServerResources();
+	const rows = await db
+		.select()
 		.from(fundsJob)
 		.where(eq(fundsJob.caseId, caseId))
 		.orderBy(desc(fundsJob.createdAt))
 		.limit(30);
-	return Promise.all(
-		rows.map(async (job) => ({
-			id: job.id,
-			mode: job.mode,
-			status: job.status,
-			stage: job.stage,
-			completedFiles: job.completedFiles,
-			totalFiles: job.totalFiles,
-			attempts: job.attempts,
-			error: job.error,
-			createdAt: job.createdAt,
-			updatedAt: job.updatedAt,
-			result: job.result as JobResult | null,
-			events: job.events as JobEvent[],
-			files: (
-				await getServerResources()
-					.db.select({
-						id: fundsJobFile.id,
-						name: fundsJobFile.name,
-						status: fundsJobFile.status,
-						report: fundsJobFile.report,
-						fileRef: fundsJobFile.fileRef,
-					})
-					.from(fundsJobFile)
-					.where(eq(fundsJobFile.jobId, job.id))
-					.orderBy(asc(fundsJobFile.ordinal))
-			).map((f) => ({ ...f, report: f.report as NormalizationReport | null })),
-		})),
-	);
+	const jobIds = rows.map((job) => job.id);
+	const allFiles = jobIds.length
+		? await db
+				.select({
+					id: fundsJobFile.id,
+					jobId: fundsJobFile.jobId,
+					name: fundsJobFile.name,
+					status: fundsJobFile.status,
+					report: fundsJobFile.report,
+					fileRef: fundsJobFile.fileRef,
+				})
+				.from(fundsJobFile)
+				.where(inArray(fundsJobFile.jobId, jobIds))
+				.orderBy(asc(fundsJobFile.ordinal))
+		: [];
+	const filesByJob = new Map<
+		string,
+		{
+			id: string;
+			name: string;
+			status: string;
+			report: NormalizationReport | null;
+			fileRef: FundsFileRef | null;
+		}[]
+	>();
+	for (const file of allFiles) {
+		const list = filesByJob.get(file.jobId) ?? [];
+		list.push({
+			id: file.id,
+			name: file.name,
+			status: file.status,
+			report: file.report as NormalizationReport | null,
+			fileRef: file.fileRef,
+		});
+		filesByJob.set(file.jobId, list);
+	}
+	return rows.map((job) => ({
+		id: job.id,
+		mode: job.mode,
+		status: job.status,
+		stage: job.stage,
+		completedFiles: job.completedFiles,
+		totalFiles: job.totalFiles,
+		attempts: job.attempts,
+		error: job.error,
+		createdAt: job.createdAt,
+		updatedAt: job.updatedAt,
+		result: job.result as JobResult | null,
+		events: job.events as JobEvent[],
+		files: filesByJob.get(job.id) ?? [],
+	}));
 }
 
 export async function retryJob(actor: Actor, caseId: string, jobId: string) {

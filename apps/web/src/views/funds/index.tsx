@@ -23,17 +23,23 @@ import "./funds.css";
 import AnalysisPanel from "./analysis-panel";
 import FundsHeader from "./funds-header";
 
-function CaseAnalysis({ caseId }: { caseId: string }) {
+function CaseAnalysis({
+	caseId,
+	onCasesReload,
+}: {
+	caseId: string;
+	onCasesReload: () => Promise<unknown>;
+}) {
 	const details = useAsyncResource(
 		useCallback(() => getFundsCase(caseId), [caseId]),
 	);
 	const record = details.data;
 	const waitingForGraph = !!record && record.revision !== record.graphRevision;
 	useEffect(() => {
-		if (!record) return;
+		if (!record || !waitingForGraph) return;
 		let active = true;
 		let checking = false;
-		// 只轮询轻量案件版本，资料发生变化后才重读来源与分析，离开页面即停止。
+		// 仅在图谱尚未追平数据修订时轮询轻量案件版本，追平或离开页面即停止。
 		const timer = window.setInterval(async () => {
 			if (document.hidden || checking) return;
 			checking = true;
@@ -45,8 +51,10 @@ function CaseAnalysis({ caseId }: { caseId: string }) {
 					current &&
 					(current.revision !== record.revision ||
 						current.graphRevision !== record.graphRevision)
-				)
+				) {
 					await details.reload();
+					void onCasesReload();
+				}
 			} catch {
 				// 临时网络故障保留当前分析；后续轮询恢复，不清空正在查阅的交易。
 			} finally {
@@ -57,7 +65,7 @@ function CaseAnalysis({ caseId }: { caseId: string }) {
 			active = false;
 			window.clearInterval(timer);
 		};
-	}, [caseId, record, details.reload]);
+	}, [caseId, record, waitingForGraph, details.reload, onCasesReload]);
 	if (details.loading)
 		return (
 			<p role="status" className="p-6 text-muted-foreground text-sm">
@@ -105,18 +113,20 @@ function CaseAnalysis({ caseId }: { caseId: string }) {
 
 export default function FundsView() {
 	const route = getRouteApi("/_workspace/funds");
-	const cases = route.useLoaderData();
-	const { caseId: selectedCaseId } = route.useSearch();
-	const caseId = selectedCaseId;
+	const { caseId } = route.useSearch();
 	const menu = useFundsNavigation();
 	return (
 		<div className="flex h-full min-h-0 flex-col">
 			<FundsHeader
 				caseId={caseId}
-				caseName={cases.find((record) => record.id === caseId)?.name}
+				caseName={menu.cases.data?.find((record) => record.id === caseId)?.name}
 			/>
 			{caseId ? (
-				<CaseAnalysis key={caseId} caseId={caseId} />
+				<CaseAnalysis
+					key={caseId}
+					caseId={caseId}
+					onCasesReload={menu.cases.reload}
+				/>
 			) : (
 				<div className="mx-auto flex w-full max-w-2xl flex-1 flex-col items-start justify-center gap-4 p-6">
 					<h2 className="font-semibold text-xl">选择案件，开始资金分析</h2>

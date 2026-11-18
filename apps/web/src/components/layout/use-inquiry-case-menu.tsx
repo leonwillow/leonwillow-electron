@@ -7,11 +7,6 @@
  */
 
 import { Button } from "@leonwillow-electron/ui/components/button";
-import {
-	InputGroup,
-	InputGroupAddon,
-	InputGroupInput,
-} from "@leonwillow-electron/ui/components/input-group";
 import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
 import { TooltipIconButton } from "@leonwillow-electron/ui/components/tooltip-icon-button";
 import { Tree } from "@leonwillow-electron/ui/components/tree";
@@ -20,7 +15,6 @@ import {
 	ArchiveIcon,
 	FilePlus2Icon,
 	FolderPlusIcon,
-	SearchIcon,
 	UsersIcon,
 } from "lucide-react";
 import { lazy, Suspense, useRef, useState } from "react";
@@ -33,11 +27,13 @@ import {
 	updateInquiryCase,
 	updateInquiryRecordMetadata,
 } from "@/lib/inquiries";
+import { AsyncStatusBlock } from "./async-state";
 import { useInquiryEditorActions } from "./inquiry-editor-actions";
 import { useInquiryNavigation } from "./inquiry-navigation-provider";
 import InquiryTreeItem from "./inquiry-tree-item";
 import { useInquiryTree } from "./use-inquiry-tree";
 import type { WorkspaceMenuContent } from "./workspace-menu";
+import { WorkspaceMenuSearch } from "./workspace-menu-search";
 
 const InquiryCaseDialog = lazy(() => import("./inquiry-case-dialog"));
 const InquiryRecordNameDialog = lazy(
@@ -183,42 +179,23 @@ export function useInquiryCaseMenu(): WorkspaceMenuContent {
 		),
 		children: (
 			<>
-				<div className="flex flex-col gap-2 p-workspace-gutter">
-					<InputGroup>
-						<InputGroupInput
-							aria-label="搜索笔录目录"
-							placeholder="搜索笔录、被询问人或文件夹"
-							maxLength={200}
-							value={search}
-							onChange={(e) => setSearch(e.target.value)}
-						/>
-						<InputGroupAddon align="inline-end">
-							<SearchIcon />
-						</InputGroupAddon>
-					</InputGroup>
-				</div>
+				<WorkspaceMenuSearch
+					label="搜索笔录目录"
+					placeholder="搜索笔录、被询问人或文件夹"
+					maxLength={200}
+					value={search}
+					onChange={setSearch}
+				/>
 				<ScrollArea
 					className="min-h-0 flex-1"
 					contentClassName="w-full min-w-0! px-workspace-gutter pb-workspace-gutter"
 				>
-					{menu.cases.error || error ? (
-						<div className="flex flex-col items-start gap-2 p-2">
-							<p role="alert" className="text-destructive text-sm">
-								{menu.cases.error || error}
-							</p>
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={() => void menu.cases.reload()}
-							>
-								重新加载
-							</Button>
-						</div>
-					) : menu.cases.loading && !menu.cases.data ? (
-						<p role="status" className="p-2 text-muted-foreground text-sm">
-							正在加载…
-						</p>
-					) : null}
+					<AsyncStatusBlock
+						compact
+						loading={menu.cases.loading && !menu.cases.data}
+						error={menu.cases.error || error}
+						onRetry={menu.cases.reload}
+					/>
 					{creation.error && (
 						<p role="alert" className="p-2 text-destructive text-xs">
 							{creation.error}

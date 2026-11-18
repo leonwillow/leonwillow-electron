@@ -350,7 +350,10 @@ export default function CasesView() {
 	};
 	return (
 		<div className="flex h-full min-h-0 flex-col">
-			<FundsHeader caseId={caseId} />
+			<FundsHeader
+				caseId={caseId}
+				caseName={menu.cases.data?.find((record) => record.id === caseId)?.name}
+			/>
 			<div className="flex shrink-0 flex-wrap items-center justify-end gap-3 border-b p-4 sm:px-6">
 				<div className="flex flex-wrap gap-2">
 					<Button variant="outline" onClick={() => void template()}>

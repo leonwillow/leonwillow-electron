@@ -23,16 +23,11 @@ import {
 } from "@leonwillow-electron/ui/components/dialog";
 import { Field, FieldLabel } from "@leonwillow-electron/ui/components/field";
 import { Input } from "@leonwillow-electron/ui/components/input";
-import {
-	InputGroup,
-	InputGroupAddon,
-	InputGroupInput,
-} from "@leonwillow-electron/ui/components/input-group";
 import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
 import { TooltipIconButton } from "@leonwillow-electron/ui/components/tooltip-icon-button";
 import { Tree } from "@leonwillow-electron/ui/components/tree";
 import { useLocation, useNavigate, useSearch } from "@tanstack/react-router";
-import { ArchiveIcon, RotateCwIcon, SearchIcon } from "lucide-react";
+import { ArchiveIcon, RotateCwIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -48,6 +43,7 @@ import CalculatorTreeItem, {
 	type CalculatorNode,
 } from "./calculator-tree-item";
 import type { WorkspaceMenuContent } from "./workspace-menu";
+import { WorkspaceMenuSearch } from "./workspace-menu-search";
 import { useWorkspaceNavigation } from "./workspace-navigation-provider";
 
 type Editing = {
@@ -229,22 +225,15 @@ export function useCalculatorMenu(): WorkspaceMenuContent {
 		),
 		children: (
 			<>
-				<div className="p-workspace-gutter">
-					<InputGroup>
-						<InputGroupInput
-							aria-label="搜索测算方案"
-							placeholder="搜索测算方案"
-							value={query}
-							onChange={(e) => {
-								setQuery(e.target.value);
-								directory.setExpanded([...calculatorKinds]);
-							}}
-						/>
-						<InputGroupAddon align="inline-end">
-							<SearchIcon />
-						</InputGroupAddon>
-					</InputGroup>
-				</div>
+				<WorkspaceMenuSearch
+					label="搜索测算方案"
+					placeholder="搜索测算方案"
+					value={query}
+					onChange={(nextQuery) => {
+						setQuery(nextQuery);
+						directory.setExpanded([...calculatorKinds]);
+					}}
+				/>
 				<ScrollArea
 					className="min-h-0 flex-1"
 					contentClassName="w-full min-w-0! px-workspace-gutter pb-workspace-gutter"

@@ -2,24 +2,18 @@
  * @file 案件管理独立文件路由。
  * 创建时间：2026-10-06
  * 修改时间：2026-11-18
- * 版本作用：URL 属于 funds 权限范围，视图不嵌套在资金分析页面中。
- * 被调用：TanStack Router；调用：按需加载的 Eden 案件列表与 CasesView。
- * 功能：校验案件参数，加载可访问案件并提供失败恢复。
- * 预期结果：选择案件、导入和资料核对拥有独立地址。
+ * 版本作用：URL 属于 funds 权限范围，视图不嵌套在资金分析页面中，共享 FundsNavigationProvider 案件目录。
+ * 被调用：TanStack Router；调用：parseOptionalUuid 与 CasesView。
+ * 功能：校验案件参数并渲染独立案件资料管理页。
+ * 预期结果：选择案件、导入和资料核对拥有独立地址，消除路由级重复列表请求。
  */
 import { createFileRoute } from "@tanstack/react-router";
 import { parseOptionalUuid } from "@/lib/uuid";
 import CasesView from "@/views/funds/cases-view";
-import { FundsErrorView, FundsPendingView } from "@/views/funds/route-states";
 
 export const Route = createFileRoute("/_workspace/funds_/cases")({
 	validateSearch: (search: Record<string, unknown>): { caseId?: string } => ({
 		caseId: parseOptionalUuid(search.caseId),
 	}),
-	loader: async () => (await import("@/lib/funds")).listFundsCases(),
-	staleTime: 0,
-	preloadStaleTime: 0,
 	component: CasesView,
-	errorComponent: FundsErrorView,
-	pendingComponent: FundsPendingView,
 });

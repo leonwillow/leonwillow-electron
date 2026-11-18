@@ -1,9 +1,9 @@
 /**
- * @file 文书类型菜单的导航上下文和目录状态。
- * 创建时间：2026-10-13；修改时间：2026-11-04。
- * 版本作用：只持有文书目录及类型选择状态，菜单框状态统一由工作台提供。
+ * @file 文书类型菜单的导航上下文和共享目录/模板状态。
+ * 创建时间：2026-10-13；修改时间：2026-11-18。
+ * 版本作用：按需激活并统一持有文书目录（catalog）与模板定义（types），消除路由 loader 与二级菜单的重复请求。
  * 被调用：WorkspaceLayout、文书菜单内容与 DocumentsView。
- * 调用：WorkspaceNavigationProvider、Eden；预期结果：悬停无需跳转，旧响应不覆盖管理后目录。
+ * 调用：WorkspaceNavigationProvider、Eden；预期结果：悬停或进入文书页仅请求一次，旧响应不覆盖刷新后的目录。
  */
 import {
 	createContext,
@@ -16,23 +16,30 @@ import {
 } from "react";
 import {
 	type DocumentCatalogType,
+	type DocumentType,
 	documentError,
 	listDocumentCatalog,
+	listDocumentTypes,
 } from "@/lib/documents";
-import { useWorkspaceMenuSection } from "./workspace-navigation-provider";
+import {
+	useWorkspaceMenuActivated,
+	useWorkspaceMenuSection,
+} from "./workspace-navigation-provider";
 
 type DocumentNavigation = ReturnType<typeof useWorkspaceMenuSection> & {
 	catalog: DocumentCatalogType[] | null;
+	types: DocumentType[];
 	loading: boolean;
 	error: string;
 	selection: number;
-	setCatalog: (catalog: DocumentCatalogType[]) => void;
 	refreshCatalog: () => Promise<void>;
 	selectType: () => void;
 };
+
 const DocumentNavigationContext = createContext<DocumentNavigation | null>(
 	null,
 );
+
 export function DocumentNavigationProvider({
 	enabled,
 	children,
@@ -41,48 +48,54 @@ export function DocumentNavigationProvider({
 	children: ReactNode;
 }) {
 	const menu = useWorkspaceMenuSection("documents");
+	const activated = useWorkspaceMenuActivated("documents", enabled);
 	const [catalog, updateCatalog] = useState<DocumentCatalogType[] | null>(null);
+	const [types, updateTypes] = useState<DocumentType[]>([]);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
 	const [selection, setSelection] = useState(0);
 	const generation = useRef(0);
-	const setCatalog = useCallback((types: DocumentCatalogType[]) => {
-		generation.current += 1;
-		updateCatalog(types);
-		setLoading(false);
-		setError("");
-	}, []);
+
 	const refreshCatalog = useCallback(async () => {
 		const request = ++generation.current;
 		setLoading(true);
 		setError("");
 		try {
-			const types = await listDocumentCatalog();
-			if (generation.current === request) updateCatalog(types);
+			const [nextTypes, nextCatalog] = await Promise.all([
+				listDocumentTypes(),
+				listDocumentCatalog(),
+			]);
+			if (generation.current === request) {
+				updateTypes(nextTypes);
+				updateCatalog(nextCatalog);
+			}
 		} catch (cause) {
 			if (generation.current === request) setError(documentError(cause));
 		} finally {
 			if (generation.current === request) setLoading(false);
 		}
 	}, []);
+
 	useEffect(() => {
-		if (enabled && menu.visible) void refreshCatalog();
-	}, [enabled, menu.visible, refreshCatalog]);
+		if (activated) void refreshCatalog();
+	}, [activated, refreshCatalog]);
+
 	useEffect(
 		() => () => {
 			generation.current += 1;
 		},
 		[],
 	);
+
 	return (
 		<DocumentNavigationContext
 			value={{
 				...menu,
 				catalog,
+				types,
 				loading,
 				error,
 				selection,
-				setCatalog,
 				refreshCatalog,
 				selectType: () => {
 					setSelection((value) => value + 1);
@@ -94,6 +107,7 @@ export function DocumentNavigationProvider({
 		</DocumentNavigationContext>
 	);
 }
+
 export function useDocumentNavigation() {
 	const context = useContext(DocumentNavigationContext);
 	if (!context) throw new Error("文书类型菜单必须放在工作台布局中。");

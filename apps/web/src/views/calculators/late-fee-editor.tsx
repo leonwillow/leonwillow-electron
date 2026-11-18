@@ -16,15 +16,8 @@ import {
 	type TaxLiability,
 } from "@leonwillow-electron/calculators/late-fees";
 import { Button } from "@leonwillow-electron/ui/components/button";
+import { ConfirmDialog } from "@leonwillow-electron/ui/components/confirm-dialog";
 import { DatePicker } from "@leonwillow-electron/ui/components/date-picker";
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from "@leonwillow-electron/ui/components/dialog";
 import {
 	Field,
 	FieldGroup,
@@ -346,68 +339,43 @@ export default function LateFeeEditor({
 						/>
 					))}
 				</div>
-				<Dialog
+				<ConfirmDialog
 					open={!!removing}
-					onOpenChange={(open) => {
-						if (!open) setRemoving(null);
+					title="删除这笔税款？"
+					confirmLabel="删除税款"
+					showCloseButton
+					disabled={editor.readOnly}
+					onClose={() => setRemoving(null)}
+					onConfirm={() => {
+						setDraft((prev) => ({
+							...prev,
+							liabilities: prev.liabilities.filter(
+								(row) => row.id !== removing,
+							),
+						}));
+						setRemoving(null);
 					}}
 				>
-					<DialogContent>
-						<DialogHeader>
-							<DialogTitle>删除这笔税款？</DialogTitle>
-							<DialogDescription>
-								这笔税款及其分次缴款将从当前方案移除。
-							</DialogDescription>
-						</DialogHeader>
-						<DialogFooter>
-							<Button variant="outline" onClick={() => setRemoving(null)}>
-								取消
-							</Button>
-							<Button
-								variant="destructive"
-								disabled={editor.readOnly}
-								onClick={() => {
-									setDraft((prev) => ({
-										...prev,
-										liabilities: prev.liabilities.filter(
-											(row) => row.id !== removing,
-										),
-									}));
-									setRemoving(null);
-								}}
-							>
-								删除税款
-							</Button>
-						</DialogFooter>
-					</DialogContent>
-				</Dialog>
-				<Dialog
+					这笔税款及其分次缴款将从当前方案移除。
+				</ConfirmDialog>
+				<ConfirmDialog
 					open={editor.blocker.status === "blocked"}
-					onOpenChange={(open) => {
-						if (!open) editor.blocker.reset?.();
-					}}
+					title="方案尚未保存"
+					cancelLabel="继续编辑"
+					cancelVariant="default"
+					confirmLabel="放弃未保存内容并离开"
+					confirmVariant="warning"
+					showCloseButton
+					extraActions={
+						<Button variant="outline" onClick={exportBackup}>
+							导出备份
+						</Button>
+					}
+					onClose={() => editor.blocker.reset?.()}
+					onConfirm={() => editor.blocker.proceed?.()}
 				>
-					<DialogContent>
-						<DialogHeader>
-							<DialogTitle>方案尚未保存</DialogTitle>
-							<DialogDescription>
-								保存未成功，请先导出当前方案备份，或留在页面重试。
-							</DialogDescription>
-						</DialogHeader>
-						<DialogFooter>
-							<Button variant="outline" onClick={exportBackup}>
-								导出备份
-							</Button>
-							<Button onClick={() => editor.blocker.reset?.()}>继续编辑</Button>
-							<Button
-								variant="warning"
-								onClick={() => editor.blocker.proceed?.()}
-							>
-								放弃未保存内容并离开
-							</Button>
-						</DialogFooter>
-					</DialogContent>
-				</Dialog>
+					保存未成功，请先导出当前方案备份，或留在页面重试。
+				</ConfirmDialog>
 			</ScrollArea>
 		</>
 	);

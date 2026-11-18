@@ -6,12 +6,12 @@
  * 功能与预期结果：切换类型不混入旧记录；普通人员可查看全部、修改本人，管理员可删除。
  */
 import { Button } from "@leonwillow-electron/ui/components/button";
+import { ConfirmDialog } from "@leonwillow-electron/ui/components/confirm-dialog";
 import { CopyText } from "@leonwillow-electron/ui/components/copy-text";
 import {
 	Dialog,
 	DialogContent,
 	DialogDescription,
-	DialogFooter,
 	DialogHeader,
 	DialogTitle,
 } from "@leonwillow-electron/ui/components/dialog";
@@ -452,43 +452,19 @@ export default function RecordsWorkspace({
 					)}
 				</DialogContent>
 			</Dialog>
-			<Dialog
+			<ConfirmDialog
 				open={!!removing}
-				onOpenChange={(open) => {
-					if (!open && !deleting) setRemoving(null);
-				}}
+				title="删除文书"
+				busy={deleting}
+				busyLabel="正在删除…"
+				showCloseButton
+				error={deleteError}
+				onClose={() => setRemoving(null)}
+				onConfirm={() => void remove()}
 			>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>删除文书</DialogTitle>
-						<DialogDescription>
-							删除 {removing?.documentNumber}
-							？记录将不再显示，文号不会回收或重新使用。
-						</DialogDescription>
-					</DialogHeader>
-					{deleteError && (
-						<p role="alert" className="text-destructive text-xs">
-							{deleteError}
-						</p>
-					)}
-					<DialogFooter>
-						<Button
-							variant="outline"
-							disabled={deleting}
-							onClick={() => setRemoving(null)}
-						>
-							取消
-						</Button>
-						<Button
-							variant="destructive"
-							disabled={deleting}
-							onClick={() => void remove()}
-						>
-							{deleting ? "正在删除…" : "确认删除"}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+				删除 {removing?.documentNumber}
+				？记录将不再显示，文号不会回收或重新使用。
+			</ConfirmDialog>
 		</>
 	);
 }

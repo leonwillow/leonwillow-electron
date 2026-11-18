@@ -12,7 +12,7 @@ import InspectModule from "docxtemplater/js/inspect-module.js";
 import PizZip from "pizzip";
 import { AccessError } from "../access/service";
 
-export const systemFields = ["文书号", "年份", "序号", "文书名称"];
+const systemFields = ["文书号", "年份", "序号", "文书名称"];
 const badTemplate = (message: string): never => {
 	throw new AccessError(400, "INVALID_TEMPLATE", message);
 };

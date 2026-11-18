@@ -1,17 +1,18 @@
 /**
- * @file 普通及分段外观的单选组的基础组件。
+ * @file 普通及分段外观的单选组基础组件。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-08
- * 版本作用：共享 UI 基础层，随工作区维护。
- * 被调用：components/layout/theme-customizer.tsx、components/theme-editor/theme-control-panel.tsx、views/funds/analysis-panel.tsx。
- * 调用：@base-ui/react、ui/lib/utils。
+ * 修改时间：2026-11-18
+ * 版本作用：共享 UI 基础层，随工作区维护，提供 RadioGroupSegmentedItem 消除分段单选重复样板。
+ * 被调用：主题弹层、线条设置、主题编辑器及资金画布设置。
+ * 调用：@base-ui/react、ui/components/label、ui/lib/utils。
  * 功能：组合底层控件和语义样式，透传对应属性并提供稳定 data-slot。
  * 预期结果：业务调用方负责内容与事件，基础层不依赖应用路由或账号接口。
  */
 import { Radio as RadioPrimitive } from "@base-ui/react/radio";
 import { RadioGroup as RadioGroupPrimitive } from "@base-ui/react/radio-group";
-
+import { Label } from "@leonwillow-electron/ui/components/label";
 import { cn } from "@leonwillow-electron/ui/lib/utils";
+import type { ComponentProps, ReactNode } from "react";
 
 function RadioGroup({
 	className,
@@ -66,4 +67,38 @@ function RadioGroupItem({ className, ...props }: RadioPrimitive.Root.Props) {
 	);
 }
 
-export { RadioGroup, RadioGroupItem };
+/** 与 RadioGroup variant="segmented" 配对使用的标准分段单选项，兼容 TooltipTrigger render 透传。 */
+function RadioGroupSegmentedItem({
+	id,
+	value,
+	"aria-label": ariaLabel,
+	className,
+	children,
+	...labelProps
+}: Omit<ComponentProps<typeof Label>, "id" | "htmlFor"> & {
+	id?: string;
+	value: string;
+	"aria-label"?: string;
+	children: ReactNode;
+}) {
+	return (
+		<Label
+			htmlFor={id}
+			className={cn(
+				"relative flex cursor-pointer items-center justify-center gap-1.5 border not-last:border-r-0 px-2 text-center text-foreground shadow-xs outline-none transition-[color,box-shadow] first:rounded-l-md last:rounded-r-md has-data-checked:bg-accent",
+				className,
+			)}
+			{...labelProps}
+		>
+			<RadioGroupItem
+				id={id}
+				value={value}
+				aria-label={ariaLabel}
+				className="sr-only absolute inset-0"
+			/>
+			{children}
+		</Label>
+	);
+}
+
+export { RadioGroup, RadioGroupItem, RadioGroupSegmentedItem };

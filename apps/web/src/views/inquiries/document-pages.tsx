@@ -21,6 +21,9 @@ type Fragment = {
 type Page = { key: string; fragments: Fragment[] };
 export const INQUIRY_PAGE_WIDTH = 793.7008;
 const HEIGHT = 1122.5197;
+const GRAPH_SEGMENTER = new Intl.Segmenter("zh-CN", {
+	granularity: "grapheme",
+});
 function dateText(value: string) {
 	const match = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?$/.exec(value);
 	return match
@@ -155,6 +158,7 @@ function FragmentLine({
 export default function InquiryDocumentPages({
 	draft,
 	preview = true,
+	paused = false,
 	scale = 1,
 	focus,
 	onReady,
@@ -162,6 +166,7 @@ export default function InquiryDocumentPages({
 }: {
 	draft: InquiryDocument;
 	preview?: boolean;
+	paused?: boolean;
 	scale?: number;
 	focus?: (id: string) => void;
 	onReady?: () => void;
@@ -177,6 +182,7 @@ export default function InquiryDocumentPages({
 	const errorRef = useRef(onError);
 	errorRef.current = onError;
 	useEffect(() => {
+		if (paused) return;
 		let cancelled = false;
 		setPaginating(true);
 		setError("");
@@ -188,21 +194,21 @@ export default function InquiryDocumentPages({
 					const container = measure.current;
 					if (!container || cancelled) return;
 					container.replaceChildren();
+					const available = container.clientHeight;
 					const all: Page[] = [{ key: "page-1", fragments: [] }];
 					let current = all[0];
 					if (!current) return;
+					const probeP = document.createElement("p");
+					const probeLabel = document.createTextNode("");
+					const probeSpan = document.createElement("span");
+					probeSpan.className = "inquiry-document-line-text";
+					probeP.append(probeLabel, probeSpan);
 					const fits = (fragment: Fragment) => {
-						const p = document.createElement("p");
-						p.className = `inquiry-document-line inquiry-document-line--${fragment.kind}`;
-						const span = document.createElement("span");
-						span.className = "inquiry-document-line-text";
-						span.textContent = fragment.text || "　";
-						p.append(fragment.continued ? "" : fragment.label, span);
-						container.append(p);
-						const height = container.scrollHeight;
-						const available = container.clientHeight;
-						p.remove();
-						return height <= available + 0.75;
+						probeP.className = `inquiry-document-line inquiry-document-line--${fragment.kind}`;
+						probeLabel.data = fragment.continued ? "" : fragment.label;
+						probeSpan.textContent = fragment.text || "　";
+						if (probeP.parentNode !== container) container.append(probeP);
+						return container.scrollHeight <= available + 0.75;
 					};
 					const append = (f: Fragment) => {
 						current?.fragments.push(f);
@@ -212,21 +218,22 @@ export default function InquiryDocumentPages({
 						span.className = "inquiry-document-line-text";
 						span.textContent = f.text || "　";
 						p.append(f.continued ? "" : f.label, span);
-						container.append(p);
+						if (probeP.parentNode === container) {
+							container.insertBefore(p, probeP);
+						} else {
+							container.append(p);
+						}
 					};
 					const nextPage = () => {
 						current = { key: `page-${all.length + 1}`, fragments: [] };
 						all.push(current);
 						container.replaceChildren();
 					};
-					const segmenter = new Intl.Segmenter("zh-CN", {
-						granularity: "grapheme",
-					});
 					for (let index = 0; index < source.length; index++) {
 						const original = source[index];
 						if (!original || cancelled) return;
 						let remaining = Array.from(
-							segmenter.segment(original.text),
+							GRAPH_SEGMENTER.segment(original.text),
 							(s) => s.segment,
 						);
 						if (!remaining.length) remaining = [""];
@@ -239,6 +246,7 @@ export default function InquiryDocumentPages({
 								text: remaining.join(""),
 							};
 							if (fits(candidate)) {
+								probeP.remove();
 								append(candidate);
 								break;
 							}
@@ -254,6 +262,7 @@ export default function InquiryDocumentPages({
 									low = mid + 1;
 								} else high = mid - 1;
 							}
+							probeP.remove();
 							if (!max) {
 								if (!current?.fragments.length)
 									throw new Error("无法测量文书页面，请重新打开预览。");
@@ -290,7 +299,7 @@ export default function InquiryDocumentPages({
 			cancelled = true;
 			clearTimeout(timer);
 		};
-	}, [source, preview]);
+	}, [source, preview, paused]);
 	useEffect(() => {
 		if (!paginating && pages.length && !error) {
 			const frame = requestAnimationFrame(() => readyRef.current?.());

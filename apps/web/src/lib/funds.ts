@@ -8,6 +8,7 @@
  * 预期结果：失败保留中文原因，金额全程使用整数分字符串。
  */
 import { api, apiErrorMessage, unwrapApi } from "./api";
+import { downloadBlob, downloadTextFile, downloadUtf8Csv } from "./download";
 
 const unwrap = <T>(result: {
 	data: T | null;
@@ -70,21 +71,12 @@ export async function downloadFundsStandardFile(
 	}
 	const content =
 		typeof data === "string" ? data : JSON.stringify(data, null, 2);
-	const url = URL.createObjectURL(
-		new Blob(
-			[format === "csv" ? `\uFEFF${content.replace(/^\uFEFF/, "")}` : content],
-			{
-				type: format === "csv" ? "text/csv;charset=utf-8" : "application/json",
-			},
-		),
-	);
-	const link = document.createElement("a");
-	link.href = url;
-	link.download = `${name.replace(/\.[^.]+$/, "")}.${format === "csv" ? "标准.csv" : "转换报告.json"}`;
-	document.body.append(link);
-	link.click();
-	link.remove();
-	setTimeout(() => URL.revokeObjectURL(url), 1000);
+	const baseName = name.replace(/\.[^.]+$/, "");
+	if (format === "csv") {
+		downloadUtf8Csv(content, `${baseName}.标准.csv`);
+	} else {
+		downloadTextFile(content, `${baseName}.转换报告.json`, "application/json");
+	}
 }
 export const syncFunds = async (caseId: string) =>
 	unwrap(await caseApi(caseId).sync.post());
@@ -164,17 +156,10 @@ export async function downloadFundsCsv(caseId?: string) {
 		throw new Error("下载失败");
 	}
 	// Eden 已消费响应体，使用已解析文本构造文件。
-	const content = `\uFEFF${unwrap(result).replace(/^\uFEFF/, "")}`;
-	const url = URL.createObjectURL(
-		new Blob([content], { type: "text/csv;charset=utf-8" }),
+	downloadUtf8Csv(
+		unwrap(result),
+		caseId ? "整案标准流水.csv" : "标准导入模板.csv",
 	);
-	const link = document.createElement("a");
-	link.href = url;
-	link.download = caseId ? "整案标准流水.csv" : "标准导入模板.csv";
-	document.body.append(link);
-	link.click();
-	link.remove();
-	setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 export type FundsCase = Awaited<ReturnType<typeof getFundsCase>>;
 export type FundsGraph = Awaited<ReturnType<typeof getFundsGraph>>;
@@ -192,16 +177,7 @@ export const accountName = (account?: FundsAccount) =>
 function saveOriginalDownload(data: unknown, name: string) {
 	if (!(data instanceof ArrayBuffer))
 		throw new Error("原件下载未返回文件，请重试。");
-	const url = URL.createObjectURL(
-		new Blob([data], { type: "application/octet-stream" }),
-	);
-	const link = document.createElement("a");
-	link.href = url;
-	link.download = name;
-	document.body.append(link);
-	link.click();
-	link.remove();
-	setTimeout(() => URL.revokeObjectURL(url), 1000);
+	downloadBlob(new Blob([data], { type: "application/octet-stream" }), name);
 }
 export async function downloadFundsOriginal(
 	caseId: string,

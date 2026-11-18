@@ -20,6 +20,17 @@ export function isWorkspaceMenuWidth(value: unknown): value is number {
 	);
 }
 
+/** 解码原始 JSON 宽度字符串，空值或损坏值返回 null。 */
+export function decodeWorkspaceMenuWidth(raw: string | null): number | null {
+	if (raw === null) return null;
+	try {
+		const value: unknown = JSON.parse(raw);
+		return isWorkspaceMenuWidth(value) ? value : null;
+	} catch {
+		return null;
+	}
+}
+
 /** userId 仅选择该用户的共享偏好；缺失、损坏或存储被禁用时返回 null，交由样式提供默认宽度。 */
 export function readWorkspaceMenuWidth(
 	userId: string,
@@ -27,10 +38,9 @@ export function readWorkspaceMenuWidth(
 ): number | null {
 	try {
 		const target = storage ?? localStorage;
-		const current = target.getItem(workspaceMenuWidthStorageKey(userId));
-		if (current === null) return null;
-		const value: unknown = JSON.parse(current);
-		return isWorkspaceMenuWidth(value) ? value : null;
+		return decodeWorkspaceMenuWidth(
+			target.getItem(workspaceMenuWidthStorageKey(userId)),
+		);
 	} catch {
 		return null;
 	}

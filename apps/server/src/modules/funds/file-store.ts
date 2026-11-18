@@ -19,7 +19,7 @@ import type { FundsFileRef } from "@leonwillow-electron/db/schema";
 import { getServerResources } from "../../server-resources";
 import { AccessError } from "../access/service";
 
-export type FundsFileConfig = {
+type FundsFileConfig = {
 	AWS_ENDPOINT_URL_S3?: string;
 	AWS_REGION?: string;
 	AWS_ACCESS_KEY_ID?: string;
@@ -29,7 +29,7 @@ export type FundsFileConfig = {
 	RUSTFS_ACCESS_KEY: string;
 	RUSTFS_SECRET_KEY: string;
 };
-export const fileHash = (bytes: Uint8Array) =>
+const fileHash = (bytes: Uint8Array) =>
 	createHash("sha256").update(bytes).digest("hex");
 /** 创建延迟连接的 S3 存储；Neon 字段不完整时立即拒绝，调用方负责 close。 */
 export function createFundsFileStore(config: FundsFileConfig) {
@@ -128,7 +128,7 @@ export function createFundsFileStore(config: FundsFileConfig) {
 	};
 }
 export type FundsFileStore = ReturnType<typeof createFundsFileStore>;
-export function fundsFiles() {
+function fundsFiles() {
 	const store = getServerResources().fundsFiles;
 	if (!store)
 		throw new AccessError(

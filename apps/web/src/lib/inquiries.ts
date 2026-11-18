@@ -6,6 +6,7 @@
  * 功能与预期结果：所有数据持久化到服务端，保留中文错误与修订号。
  */
 import { ApiRequestError, api, apiErrorMessage, unwrapApi } from "./api";
+import { downloadBlob, sanitizeDownloadFilename } from "./download";
 
 const inquiries = api.api.inquiries;
 
@@ -41,15 +42,6 @@ export async function updateInquiryCase(
 			revision: row.revision,
 			...patch,
 		}),
-	);
-}
-export async function deleteInquiryCase(
-	row: Pick<InquiryCase, "id" | "revision">,
-) {
-	return unwrap(
-		await inquiries
-			.cases({ caseId: row.id })
-			.delete({ revision: row.revision }),
 	);
 }
 export async function listInquiryRecords(
@@ -112,17 +104,6 @@ export async function updateInquiryRecordMetadata(
 			.patch({ ...patch, revision }),
 	);
 }
-export async function deleteInquiryRecord(
-	caseId: string,
-	row: Pick<InquiryRow, "id" | "revision">,
-) {
-	return unwrap(
-		await inquiries
-			.cases({ caseId })
-			.records({ recordId: row.id })
-			.delete({ revision: row.revision }),
-	);
-}
 export async function exportInquiryRecord(caseId: string, recordId: string) {
 	const file = unwrap(
 		await inquiries.cases({ caseId }).records({ recordId }).file.get(),
@@ -158,10 +139,5 @@ export async function deleteInquiryInquirer(row: FrequentInquirer) {
 
 /** 下载的对象 URL 延迟释放；笔录和身份资料不写入浏览器持久存储。 */
 export function saveInquiryFile(blob: Blob, title: string) {
-	const url = URL.createObjectURL(blob);
-	const a = document.createElement("a");
-	a.href = url;
-	a.download = `${title.replace(/[\\/:*?"<>|]/g, "_") || "询问笔录"}.docx`;
-	a.click();
-	setTimeout(() => URL.revokeObjectURL(url), 1000);
+	downloadBlob(blob, `${sanitizeDownloadFilename(title, "询问笔录")}.docx`);
 }

@@ -90,8 +90,16 @@ async function templateFor(
 }
 
 export async function listTypes() {
-	const rows = await db()
-		.select({ type: documentType, template: documentTemplate })
+	const types = await db()
+		.select({
+			id: documentType.id,
+			name: documentType.name,
+			prefix: documentType.prefix,
+			revision: documentType.revision,
+			version: documentTemplate.version,
+			fileName: documentTemplate.fileName,
+			fields: documentTemplate.fields,
+		})
 		.from(documentType)
 		.innerJoin(
 			documentTemplate,
@@ -102,17 +110,7 @@ export async function listTypes() {
 		)
 		.where(isNull(documentType.deletedAt))
 		.orderBy(documentType.createdAt);
-	return {
-		types: rows.map(({ type, template }) => ({
-			id: type.id,
-			name: type.name,
-			prefix: type.prefix,
-			revision: type.revision,
-			version: template.version,
-			fileName: template.fileName,
-			fields: template.fields,
-		})),
-	};
+	return { types };
 }
 
 /** 类型导航同时保留仍有可见文书的已删除类型；不暴露模板字节或已删除文书。 */

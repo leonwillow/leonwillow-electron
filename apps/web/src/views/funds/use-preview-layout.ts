@@ -1,12 +1,12 @@
 /**
  * @file 当前用户的画布速览窗口偏好。
  * 创建时间：2026-10-07
- * 修改时间：2026-10-07
+ * 修改时间：2026-11-18
  * 版本作用：独立保存位置与折叠状态，不存账户或交易内容。
- * 被调用：GraphHoverPreview；调用：八处停靠目录、localStorage。
+ * 被调用：GraphHoverPreview；调用：useLocalStorageState、八处停靠目录。
  * 预期结果：跨案与刷新复用布局，损坏存储回退，存储失败保留当前操作并提示。
  */
-import { useEffect, useState } from "react";
+import { useLocalStorageState } from "@/hooks/use-local-storage-state";
 import { type ToolbarPosition, toolbarPositions } from "./model/toolbar-layout";
 
 export type PreviewLayout = { position: ToolbarPosition; collapsed: boolean };
@@ -14,7 +14,8 @@ export const defaultPreviewLayout: PreviewLayout = {
 	position: "top-right",
 	collapsed: false,
 };
-export function decodePreviewLayout(raw: string | null): PreviewLayout {
+
+function decodePreviewLayout(raw: string | null): PreviewLayout {
 	try {
 		const value = JSON.parse(raw ?? "null");
 		if (
@@ -30,44 +31,15 @@ export function decodePreviewLayout(raw: string | null): PreviewLayout {
 }
 
 export function usePreviewLayout(userId: string) {
-	const key = `funds:preview:v1:${encodeURIComponent(userId)}`;
-	const read = () => {
-		try {
-			return decodePreviewLayout(localStorage.getItem(key));
-		} catch {
-			return { ...defaultPreviewLayout };
-		}
-	};
-	const [stored, setStored] = useState(() => ({ key, value: read() }));
-	const [error, setError] = useState("");
-	if (stored.key !== key) {
-		setStored({ key, value: read() });
-		setError("");
-	}
-	useEffect(() => {
-		const sync = (event: StorageEvent) => {
-			if (
-				event.storageArea === localStorage &&
-				(event.key === key || event.key === null)
-			) {
-				setStored({ key, value: decodePreviewLayout(event.newValue) });
-				setError("");
-			}
-		};
-		window.addEventListener("storage", sync);
-		return () => window.removeEventListener("storage", sync);
-	}, [key]);
-	return {
-		layout: stored.value,
+	const {
+		value: layout,
+		save,
 		error,
-		save(value: PreviewLayout) {
-			setStored({ key, value });
-			try {
-				localStorage.setItem(key, JSON.stringify({ version: 1, ...value }));
-				setError("");
-			} catch {
-				setError("速览位置暂未保存，刷新后可能丢失。");
-			}
-		},
-	};
+	} = useLocalStorageState<PreviewLayout>({
+		key: `funds:preview:v1:${encodeURIComponent(userId)}`,
+		decode: decodePreviewLayout,
+		encode: (value) => JSON.stringify({ version: 1, ...value }),
+		saveErrorMessage: "速览位置暂未保存，刷新后可能丢失。",
+	});
+	return { layout, save, error };
 }

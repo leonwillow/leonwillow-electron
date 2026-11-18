@@ -34,8 +34,6 @@ export const AuthModel = {
 	error: t.Object({ code: t.String(), message: t.String() }),
 };
 
-export type RegisterInput = typeof AuthModel.register.static;
-export type LoginInput = typeof AuthModel.login.static;
 export type UserResponse = typeof AuthModel.userResponse.static;
 export type LogoutResponse = typeof AuthModel.logoutResponse.static;
 export type AuthError = typeof AuthModel.error.static;

@@ -7,6 +7,7 @@
  */
 import type { VatData } from "@leonwillow-electron/calculators";
 import { ApiRequestError, api, apiErrorMessage, unwrapApi } from "./api";
+import { downloadTextFile, sanitizeDownloadFilename } from "./download";
 
 const vat = api.api.calculators.vat;
 
@@ -30,12 +31,7 @@ export const saveScenario = async (
 export type VatScenario = Awaited<ReturnType<typeof getScenario>>;
 export type ScenarioSummary = Awaited<ReturnType<typeof listScenarios>>[number];
 export function downloadCalculation(name: string, text: string, type: string) {
-	const url = URL.createObjectURL(new Blob([text], { type }));
-	const a = document.createElement("a");
-	a.href = url;
-	a.download = name.replace(/[\\/:*?"<>|]/g, "_");
-	a.click();
-	setTimeout(() => URL.revokeObjectURL(url), 1000);
+	downloadTextFile(text, sanitizeDownloadFilename(name), type);
 }
 
 export const updateScenario = async (

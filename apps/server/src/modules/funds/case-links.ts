@@ -165,7 +165,7 @@ export async function includeCaseAccount(
 				"纳入后超过单案 100,000 行限制，本次未纳入。",
 			);
 		const [version] = await tx
-			.select()
+			.select({ decisions: fundsRevision.decisions })
 			.from(fundsRevision)
 			.where(
 				and(
@@ -224,7 +224,7 @@ export async function excludeCaseAccount(
 				),
 			);
 		const [version] = await tx
-			.select()
+			.select({ decisions: fundsRevision.decisions })
 			.from(fundsRevision)
 			.where(
 				and(

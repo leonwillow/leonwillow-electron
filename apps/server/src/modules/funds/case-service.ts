@@ -24,7 +24,12 @@ import { csvDocument, standardHeaders, standardRows } from "./export";
 import { originalResponse, readStoredFile } from "./file-store";
 import { reconcile } from "./reconcile";
 import { subjectSummary } from "./subjects";
-import type { FundsSnapshot, MatchDecision, ParsedSource } from "./types";
+import type {
+	FundsSnapshot,
+	FundsSubject,
+	MatchDecision,
+	ParsedSource,
+} from "./types";
 
 export type Actor = Pick<AccessSession, "user">;
 
@@ -209,37 +214,71 @@ export async function createCase(actor: Actor, name: string) {
 
 export async function caseDetails(actor: Actor, caseId: string) {
 	const record = await findCase(actor, caseId);
-	const [{ snapshot }, sources, sourceMeta] = await Promise.all([
-		latest(caseId, record.revision),
-		sourcesFor(caseId),
-		getServerResources()
-			.db.select({ id: fundsSource.id, inclusionId: fundsSource.inclusionId })
+	const { db } = getServerResources();
+	const [[revisionRow], sources, history] = await Promise.all([
+		db
+			.select({
+				totals: sql<
+					FundsSnapshot["totals"] | null
+				>`${fundsRevision.snapshot}->'totals'`,
+				subjects: sql<
+					FundsSubject[] | null
+				>`${fundsRevision.snapshot}->'subjects'`,
+				subjectRuleVersion: sql<
+					number | null
+				>`(${fundsRevision.snapshot}->>'subjectRuleVersion')::int`,
+			})
+			.from(fundsRevision)
+			.where(
+				and(
+					eq(fundsRevision.caseId, caseId),
+					eq(fundsRevision.revision, record.revision),
+				),
+			),
+		db
+			.select({
+				id: sql<string>`coalesce(${fundsSource.parsed}->>'id', ${fundsSource.id})`,
+				name: sql<string>`coalesce(${fundsSource.parsed}->>'name', ${fundsSource.name})`,
+				inclusionId: fundsSource.inclusionId,
+				size: sql<number>`coalesce((${fundsSource.parsed}->>'size')::int, 0)`,
+				encoding: sql<string>`coalesce(${fundsSource.parsed}->>'encoding', 'UTF-8')`,
+				rowCount: sql<number>`coalesce(jsonb_array_length(${fundsSource.parsed}->'rows'), 0)`,
+				observations: sql<number>`coalesce(jsonb_array_length(${fundsSource.parsed}->'observations'), 0)`,
+				issues: sql<number>`coalesce(jsonb_array_length(${fundsSource.parsed}->'issues'), 0)`,
+				feedbackCount: sql<number>`coalesce((${fundsSource.parsed}->>'feedbackCount')::int, 0)`,
+				auxiliaryCount: sql<number>`coalesce((${fundsSource.parsed}->>'auxiliaryCount')::int, 0)`,
+			})
 			.from(fundsSource)
-			.where(eq(fundsSource.caseId, caseId)),
+			.where(and(eq(fundsSource.caseId, caseId), eq(fundsSource.active, true))),
+		db
+			.select({
+				revision: fundsRevision.revision,
+				action: fundsRevision.action,
+				actorId: fundsRevision.actorId,
+				createdAt: fundsRevision.createdAt,
+			})
+			.from(fundsRevision)
+			.where(eq(fundsRevision.caseId, caseId))
+			.orderBy(desc(fundsRevision.revision))
+			.limit(20),
 	]);
-	const history = await getServerResources()
-		.db.select({
-			revision: fundsRevision.revision,
-			action: fundsRevision.action,
-			actorId: fundsRevision.actorId,
-			createdAt: fundsRevision.createdAt,
-		})
-		.from(fundsRevision)
-		.where(eq(fundsRevision.caseId, caseId))
-		.orderBy(desc(fundsRevision.revision))
-		.limit(20);
+	const fallback = revisionRow?.totals ? null : reconcile([]);
 	return {
 		...record,
-		totals: snapshot.totals,
-		subjectSummary: subjectSummary(snapshot.subjects),
-		subjectRuleVersion: snapshot.subjectRuleVersion ?? 1,
+		totals: revisionRow?.totals ?? fallback?.totals ?? reconcile([]).totals,
+		subjectSummary: subjectSummary(
+			revisionRow ? (revisionRow.subjects ?? undefined) : fallback?.subjects,
+		),
+		subjectRuleVersion:
+			revisionRow?.subjectRuleVersion ?? fallback?.subjectRuleVersion ?? 1,
 		sources: sources.map(
 			({
 				id,
 				name,
+				inclusionId,
 				size,
 				encoding,
-				rows,
+				rowCount,
 				observations,
 				issues,
 				feedbackCount,
@@ -247,12 +286,12 @@ export async function caseDetails(actor: Actor, caseId: string) {
 			}) => ({
 				id,
 				name,
-				isSnapshot: !!sourceMeta.find((item) => item.id === id)?.inclusionId,
+				isSnapshot: !!inclusionId,
 				size,
 				encoding,
-				rowCount: rows.length,
-				observations: observations.length,
-				issues: issues.length,
+				rowCount,
+				observations,
+				issues,
 				feedbackCount,
 				auxiliaryCount,
 			}),

@@ -13,7 +13,7 @@ import { Label } from "@leonwillow-electron/ui/components/label";
 import { PopoverContent } from "@leonwillow-electron/ui/components/popover";
 import {
 	RadioGroup,
-	RadioGroupItem,
+	RadioGroupSegmentedItem,
 } from "@leonwillow-electron/ui/components/radio-group";
 import {
 	Select,
@@ -225,19 +225,14 @@ export default function ThemeCustomizerPanel({
 					onValueChange={(v) => updateSettings({ mode: v as Mode })}
 				>
 					{MODES.map(({ value, label }) => (
-						<Label
+						<RadioGroupSegmentedItem
 							key={value}
-							htmlFor={`mode-${value}`}
-							className="relative flex flex-col items-center justify-center gap-1 border not-last:border-r-0 px-2 text-center shadow-xs outline-none transition-[color,box-shadow] first:rounded-l-md last:rounded-r-md has-data-checked:bg-accent"
+							id={`mode-${value}`}
+							value={value}
+							aria-label={label}
 						>
-							<RadioGroupItem
-								id={`mode-${value}`}
-								value={value}
-								className="sr-only absolute inset-0"
-								aria-label={label}
-							/>
-							<p className="text-foreground">{label}</p>
-						</Label>
+							{label}
+						</RadioGroupSegmentedItem>
 					))}
 				</RadioGroup>
 			</div>
@@ -257,24 +252,15 @@ export default function ThemeCustomizerPanel({
 						<Tooltip key={value}>
 							<TooltipTrigger
 								render={
-									<Label
-										htmlFor={`radius-${value}`}
-										className="relative flex flex-col items-center justify-center gap-3 border not-last:border-r-0 px-2 text-center shadow-xs outline-none transition-[color,box-shadow] first:rounded-l-md last:rounded-r-md has-data-checked:bg-accent"
-									/>
+									<RadioGroupSegmentedItem
+										id={`radius-${value}`}
+										value={value}
+										aria-label={label}
+									>
+										{value === "none" ? <BanIcon aria-hidden="true" /> : label}
+									</RadioGroupSegmentedItem>
 								}
-							>
-								<RadioGroupItem
-									id={`radius-${value}`}
-									value={value}
-									className="sr-only absolute inset-0"
-									aria-label={label}
-								/>
-								{value === "none" ? (
-									<BanIcon aria-hidden="true" />
-								) : (
-									<p className="text-foreground">{label}</p>
-								)}
-							</TooltipTrigger>
+							/>
 							<TooltipContent>{tooltip}</TooltipContent>
 						</Tooltip>
 					))}
@@ -295,19 +281,14 @@ export default function ThemeCustomizerPanel({
 					onValueChange={(v) => updateSettings({ scale: v as Scale })}
 				>
 					{SCALE_MODES.map((item) => (
-						<Label
+						<RadioGroupSegmentedItem
 							key={item.value}
-							htmlFor={`scale-${item.value}`}
-							className="relative flex flex-col items-center justify-center gap-3 border not-last:border-r-0 px-2 text-center shadow-xs outline-none transition-[color,box-shadow] first:rounded-l-md last:rounded-r-md has-data-checked:bg-accent"
+							id={`scale-${item.value}`}
+							value={item.value}
+							aria-label={item.label}
 						>
-							<RadioGroupItem
-								id={`scale-${item.value}`}
-								value={item.value}
-								className="sr-only absolute inset-0"
-								aria-label={item.label}
-							/>
-							<p className="text-foreground">{item.label}</p>
-						</Label>
+							{item.label}
+						</RadioGroupSegmentedItem>
 					))}
 				</RadioGroup>
 			</div>
@@ -326,19 +307,14 @@ export default function ThemeCustomizerPanel({
 					}
 				>
 					{SIDEBAR_MODES.map(({ value, label }) => (
-						<Label
+						<RadioGroupSegmentedItem
 							key={value}
-							htmlFor={`sidebar-${value}`}
-							className="relative flex items-center justify-center border not-last:border-r-0 px-2 text-center shadow-xs outline-none transition-[color,box-shadow] first:rounded-l-md last:rounded-r-md has-data-checked:bg-accent"
+							id={`sidebar-${value}`}
+							value={value}
+							aria-label={label}
 						>
-							<RadioGroupItem
-								id={`sidebar-${value}`}
-								value={value}
-								className="sr-only absolute inset-0"
-								aria-label={label}
-							/>
-							<span className="text-foreground">{label}</span>
-						</Label>
+							{label}
+						</RadioGroupSegmentedItem>
 					))}
 				</RadioGroup>
 			</div>

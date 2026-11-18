@@ -18,14 +18,7 @@ import {
 import type { InsertRowsRequest } from "@leonwillow-electron/lattice-grid";
 import { Button } from "@leonwillow-electron/ui/components/button";
 import { Checkbox } from "@leonwillow-electron/ui/components/checkbox";
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from "@leonwillow-electron/ui/components/dialog";
+import { ConfirmDialog } from "@leonwillow-electron/ui/components/confirm-dialog";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -438,60 +431,43 @@ export default function VatEditor({
 						onApply={apply}
 					/>
 				)}
-				<Dialog open={clearing} onOpenChange={setClearing}>
-					<DialogContent>
-						<DialogHeader>
-							<DialogTitle>清空全部调整？</DialogTitle>
-							<DialogDescription>
-								清空调增销项、调减销项、调增进项和调减进项，原始申报保留。清空后将保存到数据库。
-							</DialogDescription>
-						</DialogHeader>
-						<DialogFooter>
-							<Button variant="outline" onClick={() => setClearing(false)}>
-								取消
-							</Button>
-							<Button
-								variant="warning"
-								disabled={editor.saving || readOnly}
-								onClick={async () => {
-									if (await apply({ ...vatData, adjustments: {} })) {
-										setClearing(false);
-										toast.success("调整已清空并保存");
-									}
-								}}
-							>
-								确认清空
-							</Button>
-						</DialogFooter>
-					</DialogContent>
-				</Dialog>
-				<Dialog
-					open={editor.blocker.status === "blocked"}
-					onOpenChange={(open) => {
-						if (!open) editor.blocker.reset?.();
+				<ConfirmDialog
+					open={clearing}
+					title="清空全部调整？"
+					confirmLabel="确认清空"
+					confirmVariant="warning"
+					showCloseButton
+					disabled={editor.saving || readOnly}
+					onClose={() => setClearing(false)}
+					onConfirm={() => {
+						void (async () => {
+							if (await apply({ ...vatData, adjustments: {} })) {
+								setClearing(false);
+								toast.success("调整已清空并保存");
+							}
+						})();
 					}}
 				>
-					<DialogContent>
-						<DialogHeader>
-							<DialogTitle>方案尚未保存</DialogTitle>
-							<DialogDescription>
-								保存未成功，请先导出当前方案备份，或留在页面重试。
-							</DialogDescription>
-						</DialogHeader>
-						<DialogFooter>
-							<Button variant="outline" onClick={exportBackup}>
-								导出备份
-							</Button>
-							<Button onClick={() => editor.blocker.reset?.()}>继续编辑</Button>
-							<Button
-								variant="warning"
-								onClick={() => editor.blocker.proceed?.()}
-							>
-								放弃未保存内容并离开
-							</Button>
-						</DialogFooter>
-					</DialogContent>
-				</Dialog>
+					清空调增销项、调减销项、调增进项和调减进项，原始申报保留。清空后将保存到数据库。
+				</ConfirmDialog>
+				<ConfirmDialog
+					open={editor.blocker.status === "blocked"}
+					title="方案尚未保存"
+					cancelLabel="继续编辑"
+					cancelVariant="default"
+					confirmLabel="放弃未保存内容并离开"
+					confirmVariant="warning"
+					showCloseButton
+					extraActions={
+						<Button variant="outline" onClick={exportBackup}>
+							导出备份
+						</Button>
+					}
+					onClose={() => editor.blocker.reset?.()}
+					onConfirm={() => editor.blocker.proceed?.()}
+				>
+					保存未成功，请先导出当前方案备份，或留在页面重试。
+				</ConfirmDialog>
 			</ScrollArea>
 		</>
 	);

@@ -19,7 +19,7 @@ export default function WorkspaceSecondaryMenu({
 	enabledMenus: readonly WorkspaceMenuId[];
 }) {
 	const navigation = useWorkspaceNavigation();
-	const funds = useFundsCaseMenu(enabledMenus.includes("funds"));
+	const funds = useFundsCaseMenu();
 	const documents = useDocumentTypeMenu();
 	const inquiries = useInquiryCaseMenu();
 	const calculators = useCalculatorMenu();

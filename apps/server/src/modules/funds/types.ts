@@ -12,7 +12,7 @@ export type SourceRow = {
 	row: number;
 	fields: Record<string, string>;
 };
-export type Issue = {
+type Issue = {
 	id: string;
 	sourceId: string;
 	sheet: string;

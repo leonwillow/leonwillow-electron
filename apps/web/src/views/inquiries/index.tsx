@@ -9,12 +9,12 @@ import { Button } from "@leonwillow-electron/ui/components/button";
 import { getRouteApi } from "@tanstack/react-router";
 import { FilePlus2Icon, FolderOpenIcon, FolderPlusIcon } from "lucide-react";
 import { lazy, Suspense, useCallback, useState } from "react";
+import { AsyncStatusBlock } from "@/components/layout/async-state";
 import { useInquiryNavigation } from "@/components/layout/inquiry-navigation-provider";
 import { useAsyncResource } from "@/hooks/use-async-resource";
 import { useCreateInquiry } from "@/hooks/use-create-inquiry";
 import { getInquiryCase, getInquiryRecord } from "@/lib/inquiries";
 import "./inquiry-document.css";
-import { InquiryState } from "./controls";
 import InquiryInquirers from "./inquirers";
 import InquiryRecordEditor from "./record-editor";
 import InquiryWorkspaceHeader from "./workspace-header";
@@ -54,10 +54,10 @@ function EditorResource({
 	) : (
 		<>
 			<InquiryWorkspaceHeader />
-			<InquiryState
+			<AsyncStatusBlock
 				loading={resource.loading}
 				error={resource.error}
-				retry={resource.reload}
+				onRetry={resource.reload}
 			/>
 		</>
 	);
