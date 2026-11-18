@@ -2,7 +2,7 @@
 // biome-ignore-all lint/a11y/useFocusableInteractive: The grid owns keyboard focus and exposes its active cell through aria-activedescendant; nested controls keep their own focus behavior.
 /**
  * @file Lattice Grid 的 React / ReUI 可复用表格视图。
- * 创建时间：2026-11-05；修改时间：2026-11-17。
+ * 创建时间：2026-11-05；修改时间：2026-11-18。
  * 版本作用：保留原引擎与选择、编辑、虚拟化控制器，使用当前共享控件与主题呈现。
  * 被调用：业务页面；调用：GridStore、GridView、共享 Base UI 控件与 Sonner。
  * 预期结果：稳定行 ID、受控数据和提交回调与业务解耦；可填满父级剩余高度，汇总始终位于滚动口底部。
@@ -378,177 +378,170 @@ export function DataGrid<T>(props: DataGridProps<T>) {
 					data-fill-height={props.fillHeight || undefined}
 				>
 					{props.toolbar !== false && (
-						<ScrollArea
-							className="lg-toolbar-scroll"
-							contentClassName="w-full"
-							viewportProps={{ "aria-label": "表格工具栏" }}
-						>
-							<div className="lg-toolbar">
-								<div className="lg-toolbar-filters">
-									<InputGroup className="lg-search">
-										<InputGroupInput
-											type="search"
-											aria-label={m.search}
-											placeholder={m.search}
-											value={s.state.search}
-											onChange={(e) => {
-												store.setState({ search: e.target.value }, "search");
-												if (view.scroller) view.scroller.scrollTop = 0;
-											}}
-										/>
-										<InputGroupAddon>
-											<SearchIcon aria-hidden />
-										</InputGroupAddon>
-									</InputGroup>
-									{props.toolbarContent != null && (
-										<div className="lg-toolbar-content">
-											{props.toolbarContent}
+						<section className="lg-toolbar" aria-label="表格工具栏">
+							<div className="lg-toolbar-filters">
+								<InputGroup className="lg-search">
+									<InputGroupInput
+										type="search"
+										aria-label={m.search}
+										placeholder={m.search}
+										value={s.state.search}
+										onChange={(e) => {
+											store.setState({ search: e.target.value }, "search");
+											if (view.scroller) view.scroller.scrollTop = 0;
+										}}
+									/>
+									<InputGroupAddon>
+										<SearchIcon aria-hidden />
+									</InputGroupAddon>
+								</InputGroup>
+								{props.toolbarContent != null && (
+									<div className="lg-toolbar-content">
+										{props.toolbarContent}
+									</div>
+								)}
+								{props.toolbarSlots?.filters}
+								<IconButton
+									label={m.filter}
+									aria-pressed={v.showFilters}
+									onClick={() => {
+										view.set({ showFilters: !v.showFilters });
+										view.measure();
+									}}
+								>
+									<FilterIcon />
+								</IconButton>
+							</div>
+							<div className="lg-toolbar-tools">
+								<div className="lg-toolbar-group">
+									{props.toolbarSlots?.actions}
+									{selected.size > 0 && (
+										<div className="lg-bulk">
+											<IconButton
+												label={m.clearSelection}
+												onClick={() =>
+													store.setState({ selectedRows: [] }, "selectedRows")
+												}
+											>
+												<XIcon />
+											</IconButton>
+											<span>
+												{selected.size} {m.selected}
+											</span>
+											{props.allowDelete && (
+												<DeleteRowsButton
+													view={view}
+													disabled={!!props.readOnly || busy}
+												/>
+											)}
 										</div>
 									)}
-									{props.toolbarSlots?.filters}
-									<IconButton
-										label={m.filter}
-										aria-pressed={v.showFilters}
-										onClick={() => {
-											view.set({ showFilters: !v.showFilters });
-											view.measure();
-										}}
-									>
-										<FilterIcon />
-									</IconButton>
-								</div>
-								<div className="lg-toolbar-tools">
-									<div className="lg-toolbar-group">
-										{props.toolbarSlots?.actions}
-										{selected.size > 0 && (
-											<div className="lg-bulk">
+									<div className="lg-actions">
+										{v.editing ? (
+											<>
 												<IconButton
-													label={m.clearSelection}
-													onClick={() =>
-														store.setState({ selectedRows: [] }, "selectedRows")
-													}
+													label={m.save}
+													data-lg-edit-scope={id}
+													disabled={busy}
+													onClick={() => void view.commitEdit()}
+												>
+													<CheckIcon />
+												</IconButton>
+												<IconButton
+													label={m.cancel}
+													data-lg-edit-scope={id}
+													disabled={s.pending}
+													onClick={() => view.cancelEdit()}
 												>
 													<XIcon />
 												</IconButton>
-												<span>
-													{selected.size} {m.selected}
-												</span>
-												{props.allowDelete && (
-													<DeleteRowsButton
-														view={view}
-														disabled={!!props.readOnly || busy}
-													/>
-												)}
-											</div>
-										)}
-										<div className="lg-actions">
-											{v.editing ? (
-												<>
-													<IconButton
-														label={m.save}
-														data-lg-edit-scope={id}
-														disabled={busy}
-														onClick={() => void view.commitEdit()}
-													>
-														<CheckIcon />
-													</IconButton>
-													<IconButton
-														label={m.cancel}
-														data-lg-edit-scope={id}
-														disabled={s.pending}
-														onClick={() => view.cancelEdit()}
-													>
-														<XIcon />
-													</IconButton>
-												</>
-											) : (
-												<>
-													<IconButton
-														label={m.undo}
-														disabled={!s.canUndo || busy}
-														onClick={() => void store.undo()}
-													>
-														<Undo2Icon />
-													</IconButton>
-													<IconButton
-														label={m.redo}
-														disabled={!s.canRedo || busy}
-														onClick={() => void store.redo()}
-													>
-														<Redo2Icon />
-													</IconButton>
-												</>
-											)}
-										</div>
-										{props.toolbarSlots?.actionsEnd}
-									</div>
-									{(props.toolbarSlots?.exports != null ||
-										props.exportable !== false) && (
-										<div className="lg-toolbar-group">
-											<Separator
-												orientation="vertical"
-												className="lg-toolbar-separator"
-											/>
-											{props.toolbarSlots?.exports}
-											{props.exportable !== false && (
+											</>
+										) : (
+											<>
 												<IconButton
-													label={m.export}
-													disabled={!s.columns.length}
-													onClick={() => view.export()}
+													label={m.undo}
+													disabled={!s.canUndo || busy}
+													onClick={() => void store.undo()}
 												>
-													<DownloadIcon />
+													<Undo2Icon />
 												</IconButton>
-											)}
-										</div>
-									)}
+												<IconButton
+													label={m.redo}
+													disabled={!s.canRedo || busy}
+													onClick={() => void store.redo()}
+												>
+													<Redo2Icon />
+												</IconButton>
+											</>
+										)}
+									</div>
+									{props.toolbarSlots?.actionsEnd}
+								</div>
+								{(props.toolbarSlots?.exports != null ||
+									props.exportable !== false) && (
 									<div className="lg-toolbar-group">
 										<Separator
 											orientation="vertical"
 											className="lg-toolbar-separator"
 										/>
-										<GridPopover label={m.columns} trigger={<Columns3Icon />}>
-											{props.columns.map((column) => (
-												<ColumnSettings
-													key={column.id}
-													store={store}
-													column={column}
-												/>
-											))}
-											<Button variant="ghost" onClick={() => store.resetView()}>
-												<RotateCcwIcon />
-												{m.resetView}
-											</Button>
-										</GridPopover>
-										<Select
-											items={(
-												["compact", "standard", "comfortable"] as const
-											).map((value) => ({ value, label: m[value] }))}
-											value={s.state.density}
-											onValueChange={(value) => {
-												if (value)
-													store.setState({ density: value }, "density");
-											}}
-										>
-											<SelectTrigger aria-label={m.density}>
-												<SelectValue />
-											</SelectTrigger>
-											<SelectContent>
-												<SelectGroup>
-													{(
-														["compact", "standard", "comfortable"] as const
-													).map((value) => (
+										{props.toolbarSlots?.exports}
+										{props.exportable !== false && (
+											<IconButton
+												label={m.export}
+												disabled={!s.columns.length}
+												onClick={() => view.export()}
+											>
+												<DownloadIcon />
+											</IconButton>
+										)}
+									</div>
+								)}
+								<div className="lg-toolbar-group">
+									<Separator
+										orientation="vertical"
+										className="lg-toolbar-separator"
+									/>
+									<GridPopover label={m.columns} trigger={<Columns3Icon />}>
+										{props.columns.map((column) => (
+											<ColumnSettings
+												key={column.id}
+												store={store}
+												column={column}
+											/>
+										))}
+										<Button variant="ghost" onClick={() => store.resetView()}>
+											<RotateCcwIcon />
+											{m.resetView}
+										</Button>
+									</GridPopover>
+									<Select
+										items={(
+											["compact", "standard", "comfortable"] as const
+										).map((value) => ({ value, label: m[value] }))}
+										value={s.state.density}
+										onValueChange={(value) => {
+											if (value) store.setState({ density: value }, "density");
+										}}
+									>
+										<SelectTrigger aria-label={m.density}>
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectGroup>
+												{(["compact", "standard", "comfortable"] as const).map(
+													(value) => (
 														<SelectItem key={value} value={value}>
 															{m[value]}
 														</SelectItem>
-													))}
-												</SelectGroup>
-											</SelectContent>
-										</Select>
-									</div>
+													),
+												)}
+											</SelectGroup>
+										</SelectContent>
+									</Select>
 								</div>
-								{props.renderToolbar?.(store)}
 							</div>
-						</ScrollArea>
+							{props.renderToolbar?.(store)}
+						</section>
 					)}
 					<p id={`${id}-help`} className="sr-only">
 						{m.keyboardHelp}

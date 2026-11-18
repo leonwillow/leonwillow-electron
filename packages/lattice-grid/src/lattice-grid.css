@@ -47,22 +47,14 @@
 	isolation: isolate;
 	overflow: clip;
 }
-.lg-toolbar-scroll {
-	border-bottom: var(--ui-border-width) solid
-		var(--ui-line-color, var(--border));
-}
 .lg-toolbar {
 	display: flex;
 	align-items: center;
-	flex-wrap: nowrap;
-	gap: 1rem;
-	width: max-content;
-	min-width: 100%;
+	flex-wrap: wrap;
+	gap: 0.5rem 1rem;
 	padding: 0.5rem;
-}
-/* 保持一行；窄窗口仅滚动工具栏，并为共享横向滚动条留出空间。 */
-.lg-toolbar-scroll[data-has-overflow-x] .lg-toolbar {
-	padding-block-end: 0.75rem;
+	border-bottom: var(--ui-border-width) solid
+		var(--ui-line-color, var(--border));
 }
 .lg-toolbar-filters,
 .lg-toolbar-tools,
@@ -70,10 +62,10 @@
 .lg-toolbar-content {
 	display: flex;
 	align-items: center;
-	flex-wrap: nowrap;
-	flex: 0 0 auto;
+	flex-wrap: wrap;
 	gap: 0.5rem;
 	min-width: 0;
+	max-width: 100%;
 	white-space: nowrap;
 }
 .lg-toolbar-tools {
@@ -90,6 +82,7 @@
 	position: relative;
 	flex: 0 0 auto;
 	width: 12rem;
+	max-width: 100%;
 }
 .lg-actions,
 .lg-bulk {
@@ -118,7 +111,7 @@
 	height: 0;
 	min-height: 16rem;
 }
-.lg-toolbar-scroll,
+.lg-toolbar,
 .lg-status {
 	flex-shrink: 0;
 }

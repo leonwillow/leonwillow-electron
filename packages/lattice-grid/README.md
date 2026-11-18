@@ -28,7 +28,7 @@ export function Inventory() {
 - React 视图使用共享 ReUI/Base UI 控件，主题、字号、行高、弹层和滚动由当前 UI 体系管理。
 - 业务列定义、货币精度、权限、保存与服务端冲突处理由调用页面负责，包不导入应用路由、Eden、数据库或税务算法。
 - 默认中文；提供 `renderCell`、`renderEditor`、`renderToolbar`、`renderEmpty` 扩展，以及 `apiRef` 获取实例。未接管的单元格从 `renderCell` 返回 `undefined`，交给默认显示。
-- `toolbarSlots` 按用途扩展工具栏：`filters` 与搜索、列筛选放一起；`actions` 放在撤销/重做之前，`actionsEnd` 放在其后；`exports` 与内置导出放一起；列设置和密度位于末尾。筛选靠左、操作靠右，组间以留白和共享 Separator 区分，始终保持一行；空间不足时由共享 ScrollArea 横向滚动。勾选计数与删除跟随编辑组，搜索始终可用；总行数由底部汇总呈现，工具栏不重复显示，也不提供复制按钮，复制仍可通过快捷键和单元格右键菜单使用。兼容原 `toolbarContent?: ReactNode`（搜索框之后）和 `renderToolbar(store)`（内置工具之后）；`toolbar={false}` 隐藏全部工具栏内容。
+- `toolbarSlots` 按用途扩展工具栏：`filters` 与搜索、列筛选放一起；`actions` 放在撤销/重做之前，`actionsEnd` 放在其后；`exports` 与内置导出放一起；列设置和密度位于末尾。筛选靠左、操作靠右，组间以留白和共享 Separator 区分，空间充足时保持一行，空间不足时按组换行，单组过宽时组内控件也可换行。勾选计数与删除跟随编辑组，搜索始终可用；总行数由底部汇总呈现，工具栏不重复显示，也不提供复制按钮，复制仍可通过快捷键和单元格右键菜单使用。兼容原 `toolbarContent?: ReactNode`（搜索框之后）和 `renderToolbar(store)`（内置工具之后）；`toolbar={false}` 隐藏全部工具栏内容。
 - 列宽 `width/minWidth/maxWidth` 是 CSS 像素，行高和工具控件跟随应用 rem 主题。可指定 `height`，默认使用响应式高度。`fillHeight` 可填满有界纵向 flex 父级的剩余高度，启用后优先于 `height`；工具栏和状态栏保留自身高度，滚动区分配剩余空间。小窗口保留最小可用高度，宿主可通过共享 ScrollArea 容纳溢出。
 
 ## 接入约定
