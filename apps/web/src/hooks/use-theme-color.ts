@@ -1,14 +1,25 @@
 /**
  * @file CSS 主题色到 Canvas RGB 色值的适配。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-11-18
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/auth/auth-showcase.tsx。
  * 调用：react。
- * 功能：监听根元素主题变化，用像素采样解析实际颜色。
+ * 功能：监听根元素主题变化，复用单像素画布采样解析实际颜色，未改变目标变量时跳过重绘。
  * 预期结果：背景随预设和草稿变化，颜色无效时保留最后有效值。
  */
 import { useEffect, useState } from "react";
+
+let sampleContext: CanvasRenderingContext2D | null = null;
+
+function getSampleContext() {
+	if (sampleContext) return sampleContext;
+	const canvas = document.createElement("canvas");
+	canvas.width = 1;
+	canvas.height = 1;
+	sampleContext = canvas.getContext("2d", { willReadFrequently: true });
+	return sampleContext;
+}
 
 /**
  * 将根元素的 CSS 颜色变量采样为 Canvas 背景使用的六位 HEX。
@@ -20,23 +31,20 @@ export function useThemeColorHex(cssVar: string, fallback: string): string {
 	const [hex, setHex] = useState(fallback);
 
 	useEffect(() => {
+		let lastRaw = "";
+
 		const resolve = () => {
 			const raw = getComputedStyle(document.documentElement)
 				.getPropertyValue(cssVar)
 				.trim();
 
-			if (!raw || !CSS.supports("color", raw)) return;
+			if (!raw || raw === lastRaw || !CSS.supports("color", raw)) return;
 
-			// fillStyle 的序列化格式因浏览器而异；采样像素可统一取得 sRGB 通道。
-			const canvas = document.createElement("canvas");
-
-			canvas.width = 1;
-			canvas.height = 1;
-
-			const ctx = canvas.getContext("2d", { willReadFrequently: true });
-
+			// fillStyle 的序列化格式因浏览器而异；复用单像素画布采样可统一取得 sRGB 通道。
+			const ctx = getSampleContext();
 			if (!ctx) return;
 
+			ctx.clearRect(0, 0, 1, 1);
 			ctx.fillStyle = "#000";
 			ctx.fillStyle = raw;
 			ctx.fillRect(0, 0, 1, 1);
@@ -47,6 +55,7 @@ export function useThemeColorHex(cssVar: string, fallback: string): string {
 			if (r === undefined || g === undefined || b === undefined || a === 0)
 				return;
 
+			lastRaw = raw;
 			const toHex = (n: number) => n.toString(16).padStart(2, "0");
 
 			setHex(`#${toHex(r)}${toHex(g)}${toHex(b)}`);

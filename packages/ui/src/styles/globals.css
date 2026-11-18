@@ -1,7 +1,7 @@
 /**
  * @file 全局语义色、排版与控件尺寸的唯一来源。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-17
+ * 修改时间：2026-11-18
  * 版本作用：共享 UI 基础层，随工作区维护。
  * 被调用：main.tsx、utils/theme/theme-draft.ts。
  * 调用：tailwindcss、tw-animate-css、shadcn。
@@ -361,11 +361,6 @@ input[type="number"]::-webkit-outer-spin-button {
 	[data-sonner-toast][data-styled="true"]
 	[data-close-button] {
 	border-width: var(--ui-border-width);
-}
-
-/* 桌面连接设置在短窗口中由共享 Dialog 的 ScrollArea 承担滚动。 */
-.desktop-connection-dialog {
-	max-height: calc(100dvh - 2 * var(--spacing-workspace-gutter));
 }
 
 /* 悬浮将主导航与右侧工作区分为两个表面；二级菜单和正文保留在同一分栏内。

@@ -1,11 +1,11 @@
 /**
  * @file 工作台路由的会话与权限边界。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-11-18
  * 版本作用：CSR 文件路由契约，由路由生成器收集。
  * 被调用：TanStack Router 生成的路由树。
  * 调用：@tanstack/react-router、components/auth/auth-route-error、components/layout/workspace-layout、lib/access、共享权限目录。
- * 功能：进入子路由及恢复窗口时查询权限，未登录跳转，无权访问显示说明。
+ * 功能：进入子路由及恢复窗口时查询权限，合并窗口焦点与可见性事件，未登录跳转，无权访问显示说明。
  * 预期结果：会话检查通过后挂载工作台；菜单与子路由共用同一份用户资料。
  */
 import { canAccessPath } from "@leonwillow-electron/access";
@@ -18,7 +18,9 @@ import {
 import { useEffect } from "react";
 import AuthRouteError from "@/components/auth/auth-route-error";
 import WorkspaceLayout from "@/components/layout/workspace-layout";
-import { getAccess } from "@/lib/access";
+import { clearAccessCache, getAccess } from "@/lib/access";
+
+const FOCUS_REFRESH_COOLDOWN_MS = 500;
 
 export const Route = createFileRoute("/_workspace")({
 	beforeLoad: async ({ location }) => {
@@ -42,8 +44,15 @@ export const Route = createFileRoute("/_workspace")({
 function WorkspaceRoute() {
 	const router = useRouter();
 	useEffect(() => {
+		let lastRefreshAt = 0;
 		const refresh = () => {
-			if (document.visibilityState === "visible") void router.invalidate();
+			if (document.visibilityState !== "visible") return;
+			const now = Date.now();
+			// focus 与 visibilitychange 在切回窗口时常连续触发，合并为单次实时授权核验。
+			if (now - lastRefreshAt < FOCUS_REFRESH_COOLDOWN_MS) return;
+			lastRefreshAt = now;
+			clearAccessCache();
+			void router.invalidate();
 		};
 		window.addEventListener("focus", refresh);
 		document.addEventListener("visibilitychange", refresh);

@@ -1,12 +1,12 @@
 /**
  * @file 不依赖 WebGL 的动态丝绸背景。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-11-18
  * 版本作用：共享 UI 基础层，随工作区维护。
  * 被调用：components/auth/auth-showcase.tsx。
  * 调用：ui/lib/utils、react。
- * 功能：在有限分辨率下绘制纹理，限制刷新频率并监听可见性和动态偏好。
- * 预期结果：装饰背景随主题变化，隐藏时暂停，减少动态模式只绘制静态帧。
+ * 功能：在有限分辨率下绘制纹理，外提帧级三角函数常量，限制刷新频率并监听可见性和动态偏好。
+ * 预期结果：装饰背景随主题变化，隐藏时暂停，无逐像素临时数组分配，高刷屏不空转帧回调。
  */
 import { cn } from "@leonwillow-electron/ui/lib/utils";
 import { useCallback, useEffect, useRef } from "react";
@@ -43,13 +43,6 @@ function noise(x: number, y: number): number {
 	return (((rx * ry * (1.0 + x)) % 1) + 1) % 1;
 }
 
-function rotateUV(u: number, v: number, angle: number): [number, number] {
-	const c = Math.cos(angle);
-	const s = Math.sin(angle);
-
-	return [c * u - s * v, s * u + c * v];
-}
-
 export default function SilkBackground({
 	speed = 5,
 	scale = 1,
@@ -60,6 +53,7 @@ export default function SilkBackground({
 }: SilkBackgroundProps) {
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const animRef = useRef<number>(0);
+	const timerRef = useRef<number>(0);
 	const timeRef = useRef<number>(0);
 	const lastTimestampRef = useRef<number | null>(null);
 	const lastPaintRef = useRef<number | null>(null);
@@ -69,8 +63,20 @@ export default function SilkBackground({
 
 	const [baseR, baseG, baseB] = hexToRgb(color);
 
+	const stopSchedule = useCallback(() => {
+		if (timerRef.current) {
+			window.clearTimeout(timerRef.current);
+			timerRef.current = 0;
+		}
+		if (animRef.current) {
+			cancelAnimationFrame(animRef.current);
+			animRef.current = 0;
+		}
+	}, []);
+
 	const draw = useCallback(
 		(timestamp: number) => {
+			animRef.current = 0;
 			const canvas = canvasRef.current;
 
 			if (!canvas) return;
@@ -82,13 +88,15 @@ export default function SilkBackground({
 			const h = canvas.height;
 			if (document.hidden || w <= 0 || h <= 0) return;
 
-			if (
-				!reducedMotionRef.current &&
-				lastPaintRef.current !== null &&
-				timestamp - lastPaintRef.current < FRAME_INTERVAL_MS
-			) {
-				animRef.current = requestAnimationFrame(drawRef.current);
-				return;
+			if (!reducedMotionRef.current && lastPaintRef.current !== null) {
+				const elapsed = timestamp - lastPaintRef.current;
+				if (elapsed < FRAME_INTERVAL_MS) {
+					timerRef.current = window.setTimeout(() => {
+						timerRef.current = 0;
+						animRef.current = requestAnimationFrame(drawRef.current);
+					}, FRAME_INTERVAL_MS - elapsed);
+					return;
+				}
 			}
 			lastPaintRef.current = timestamp;
 
@@ -112,50 +120,42 @@ export default function SilkBackground({
 			const data = imageData.data;
 
 			const tOffset = speed * t;
+			// 旋转角、归一化步长与时间偏移在单帧内恒定，外提避免逐像素重复三角运算与数组分配。
+			const cosAngle = Math.cos(rotation);
+			const sinAngle = Math.sin(rotation);
+			const scaleSq = scale * scale;
+			const stepX = scaleSq / w;
+			const stepY = scaleSq / h;
+			const innerTime = 0.02 * tOffset;
+			const outerTime = 0.1 * tOffset;
+			const noiseScale = (noiseIntensity / 15.0) * 255;
 
 			for (let py = 0; py < h; py++) {
+				const vScaled = py * stepY;
+				const rowTexX = -sinAngle * vScaled;
+				const rowTexY = cosAngle * vScaled;
+				let idx = py * w * 4;
+
 				for (let px = 0; px < w; px++) {
-					// 像素坐标归一化后再旋转，使纹理方向不依赖绘制分辨率。
-					const u = px / w;
-					const v = py / h;
-
-					const [ru, rv] = rotateUV(u * scale, v * scale, rotation);
-					const texX = ru * scale;
-					let texY = rv * scale;
-
-					// Y 方向缓慢扰动叠加两层正弦波，形成连续的丝绸褶皱。
-					texY += 0.03 * Math.sin(8.0 * texX - tOffset);
+					const uScaled = px * stepX;
+					const texX = cosAngle * uScaled + rowTexX;
+					const texY =
+						sinAngle * uScaled +
+						rowTexY +
+						0.03 * Math.sin(8.0 * texX - tOffset);
+					const texSum = texX + texY;
 
 					const inner =
-						5.0 *
-						(texX + texY + Math.cos(3.0 * texX + 5.0 * texY) + 0.02 * tOffset);
-
-					const outer = 20.0 * (texX + texY - 0.1 * tOffset);
-
+						5.0 * (texSum + Math.cos(3.0 * texX + 5.0 * texY) + innerTime);
+					const outer = 20.0 * (texSum - outerTime);
 					const pattern = 0.6 + 0.4 * Math.sin(inner + Math.sin(outer));
+					const adjust = noiseScale === 0 ? 0 : noise(px, py) * noiseScale;
 
-					const rnd = noiseIntensity === 0 ? 0 : noise(px, py);
-
-					const adjust = (rnd / 15.0) * noiseIntensity;
-					const r = Math.min(
-						255,
-						Math.max(0, (baseR / 255) * pattern * 255 - adjust * 255),
-					);
-					const g = Math.min(
-						255,
-						Math.max(0, (baseG / 255) * pattern * 255 - adjust * 255),
-					);
-					const b = Math.min(
-						255,
-						Math.max(0, (baseB / 255) * pattern * 255 - adjust * 255),
-					);
-
-					const idx = (py * w + px) * 4;
-
-					data[idx] = r;
-					data[idx + 1] = g;
-					data[idx + 2] = b;
+					data[idx] = Math.min(255, Math.max(0, baseR * pattern - adjust));
+					data[idx + 1] = Math.min(255, Math.max(0, baseG * pattern - adjust));
+					data[idx + 2] = Math.min(255, Math.max(0, baseB * pattern - adjust));
 					data[idx + 3] = 255;
+					idx += 4;
 				}
 			}
 
@@ -178,42 +178,51 @@ export default function SilkBackground({
 					1,
 					MAX_RENDER_EDGE / Math.max(width, height, 1),
 				);
-				canvas.width = Math.floor(width * resolution);
-				canvas.height = Math.floor(height * resolution);
+				const nextWidth = Math.floor(width * resolution);
+				const nextHeight = Math.floor(height * resolution);
+				if (canvas.width === nextWidth && canvas.height === nextHeight)
+					continue;
+				canvas.width = nextWidth;
+				canvas.height = nextHeight;
 				imageDataRef.current = null;
 				lastTimestampRef.current = null;
 				lastPaintRef.current = null;
-				cancelAnimationFrame(animRef.current);
-				animRef.current = requestAnimationFrame(drawRef.current);
+				stopSchedule();
+				if (nextWidth > 0 && nextHeight > 0 && !document.hidden)
+					animRef.current = requestAnimationFrame(drawRef.current);
 			}
 		});
 
 		observer.observe(canvas.parentElement ?? canvas);
 
-		return () => observer.disconnect();
-	}, []);
+		return () => {
+			stopSchedule();
+			observer.disconnect();
+		};
+	}, [stopSchedule]);
 
 	// 属性、可见性和动态偏好变化共用重启流程，避免重复注册动画循环。
 	useEffect(() => {
 		drawRef.current = draw;
 		const media = window.matchMedia("(prefers-reduced-motion: reduce)");
 		const restart = () => {
-			cancelAnimationFrame(animRef.current);
+			stopSchedule();
 			lastTimestampRef.current = null;
 			lastPaintRef.current = null;
 			reducedMotionRef.current = media.matches;
-			if (!document.hidden)
+			const canvas = canvasRef.current;
+			if (canvas && canvas.width > 0 && canvas.height > 0 && !document.hidden)
 				animRef.current = requestAnimationFrame(drawRef.current);
 		};
 		restart();
 		document.addEventListener("visibilitychange", restart);
 		media.addEventListener("change", restart);
 		return () => {
-			cancelAnimationFrame(animRef.current);
+			stopSchedule();
 			document.removeEventListener("visibilitychange", restart);
 			media.removeEventListener("change", restart);
 		};
-	}, [draw]);
+	}, [draw, stopSchedule]);
 
 	return (
 		<canvas

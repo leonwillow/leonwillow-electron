@@ -1,7 +1,7 @@
 /**
  * @file 当前用户资料与账号操作菜单。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-06
+ * 修改时间：2026-11-18
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/layout/app-sidebar.tsx。
  * 调用：ui 基础组件/样式、@tanstack/react-router、lucide-react、react、sonner、assets/data/navigation、configs/app、lib/auth。
@@ -47,7 +47,6 @@ const ProfileMenu = () => {
 		setIsLoggingOut(true);
 		try {
 			await logout();
-			await router.invalidate();
 			await router.navigate({ to: "/login", replace: true });
 		} catch (error) {
 			toast.error(authErrorMessage(error));

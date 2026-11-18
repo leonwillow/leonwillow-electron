@@ -1,7 +1,7 @@
 /**
  * @file Electron 登录页的服务器连接设置。
- * 创建时间：2026-11-10；修改时间：2026-11-10。
- * 版本作用：复用现有 Dialog/Field/Input，仅通过 preload 的配置接口访问桌面设置。
+ * 创建时间：2026-11-10；修改时间：2026-11-18。
+ * 版本作用：复用现有 Dialog/Field/Input，仅在桌面 preload 提供配置接口时按需加载。
  * 被调用：LoginForm；调用：desktop-bridge、lib/desktop、共享 UI 和 Sonner。
  * 功能：读取当前地址、修改地址与端口、无凭据测试、恢复默认及保存后重新登录。
  * 预期结果：测试和取消不修改当前连接；过期异步结果不覆盖新表单，保存期间不能重复提交。
@@ -177,7 +177,7 @@ export default function ServerConnectionSettings({
 			</div>
 			<DialogContent
 				scrollable
-				className="desktop-connection-dialog"
+				className="max-h-[calc(100dvh-2*var(--spacing-workspace-gutter))]"
 				showCloseButton={operation !== "save"}
 			>
 				<DialogHeader>

@@ -1,7 +1,7 @@
 /**
  * @file 认证表单共用的密码输入。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-17
+ * 修改时间：2026-11-18
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：views/login/login-form.tsx、views/admin/users。
  * 调用：ui 基础组件/样式、lucide-react、react、react-hook-form。
@@ -23,7 +23,7 @@ import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { useState } from "react";
 import type { UseFormRegisterReturn } from "react-hook-form";
 
-const PasswordField = ({
+export default function PasswordField({
 	id,
 	label,
 	placeholder = "••••••••••••••••",
@@ -37,7 +37,7 @@ const PasswordField = ({
 	registration: UseFormRegisterReturn;
 	autoComplete: "current-password" | "new-password";
 	error?: string;
-}) => {
+}) {
 	const [isVisible, setIsVisible] = useState(false);
 
 	return (
@@ -74,6 +74,4 @@ const PasswordField = ({
 			<FieldError id={`${id}-error`}>{error}</FieldError>
 		</Field>
 	);
-};
-
-export default PasswordField;
+}

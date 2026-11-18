@@ -1,13 +1,14 @@
 /**
  * @file 界面使用的账号请求与错误边界。
  * 创建时间：未记录（现有文件尚无 Git 创建记录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-11-18
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
- * 被调用：components/layout/profile-menu.tsx、views/login/login-form.tsx、routes/_workspace/route.tsx。
- * 调用：./api。
- * 功能：封装登录、会话读取、退出及中文错误转换。
+ * 被调用：components/layout/profile-menu.tsx、views/login/login-form.tsx。
+ * 调用：./access、./api。
+ * 功能：封装登录、会话读取、退出、短期权限缓存清理及中文错误转换。
  * 预期结果：路由能区分未登录与服务故障，表单无需处理底层响应结构。
  */
+import { clearAccessCache } from "./access";
 import { api } from "./api";
 
 class AuthRequestError extends Error {}
@@ -60,14 +61,16 @@ export async function login(values: {
 }) {
 	const { error } = await api.api.auth.login.post(values);
 	if (error) throwAuthRequestError(error);
+	clearAccessCache();
 }
 
 /**
  * POST /api/auth/logout：撤销服务端会话并让浏览器接收清除 Cookie 的响应。
- * @returns 服务端确认后完成；调用方再刷新路由并跳转到登录。
+ * @returns 服务端确认后完成；调用方再跳转到登录。
  * @throws 请求失败；不提前伪装成退出成功。
  */
 export async function logout() {
 	const { error } = await api.api.auth.logout.post();
 	if (error) throwAuthRequestError(error);
+	clearAccessCache();
 }

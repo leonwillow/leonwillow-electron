@@ -1,7 +1,7 @@
 /**
  * @file 认证页面宽屏展示区域。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-11-18
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/auth/auth-shell.tsx。
  * 调用：ui 基础组件/样式、assets/images/avatar-1.webp、assets/images/avatar-5.webp、assets/images/avatar-6.webp、assets/svg/logo-vector、hooks/use-theme-color。
@@ -39,12 +39,12 @@ const avatars = [
 	{ src: avatar6, fallback: "HR", name: "Hallie Richards" },
 ];
 
-const AuthShowcase = ({
+export default function AuthShowcase({
 	title,
 	description,
 	panelTitle,
 	panelDescription,
-}: AuthShowcaseContent) => {
+}: AuthShowcaseContent) {
 	const primary = useThemeColorHex("--primary", "#007595");
 
 	return (
@@ -99,7 +99,11 @@ const AuthShowcase = ({
 									key={avatar.name}
 									className="size-12 ring ring-primary-foreground/70"
 								>
-									<AvatarImage src={avatar.src} alt={avatar.name} />
+									<AvatarImage
+										src={avatar.src}
+										alt={avatar.name}
+										decoding="async"
+									/>
 									<AvatarFallback className="text-xs">
 										{avatar.fallback}
 									</AvatarFallback>
@@ -116,6 +120,4 @@ const AuthShowcase = ({
 			</Card>
 		</div>
 	);
-};
-
-export default AuthShowcase;
+}
