@@ -2,7 +2,7 @@
  * @file 计算器目录的分组、方案及操作行。
  * 创建时间：2026-11-05；修改时间：2026-11-05。
  * 版本作用：沿用笔录 Tree 行及悬停操作，保留两种计算器图标。
- * 被调用：calculator-sidebar；调用：共享 Tree、目录摘要预览与图标操作控件。
+ * 被调用：use-calculator-menu；调用：共享 Tree、目录摘要预览与图标操作控件。
  * 预期结果：未悬停时名称使用整行，悬停按钮贴右显示；操作不切换页面或折叠分组。
  */
 import type { ItemInstance } from "@headless-tree/core";

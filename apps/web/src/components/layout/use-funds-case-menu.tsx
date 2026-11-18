@@ -56,9 +56,7 @@ import { useWorkspaceMenuActivated } from "./workspace-navigation-provider";
 
 const FundsCreateCaseDialog = lazy(() => import("./funds-create-case-dialog"));
 
-export default function useFundsCaseMenu(
-	enabled: boolean,
-): WorkspaceMenuContent {
+export function useFundsCaseMenu(enabled: boolean): WorkspaceMenuContent {
 	const menu = useFundsNavigation();
 	const activated = useWorkspaceMenuActivated("funds", enabled);
 	const { caseId } = useSearch({ strict: false });

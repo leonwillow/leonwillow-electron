@@ -227,3 +227,9 @@ G6 的原生项通过共享 Tooltip 的 `anchor` 接口复用提示外观，不�
 工具栏不再显示总行数和复制按钮，行数信息由底部汇总呈现；批量操作保留已选计数，复制继续使用快捷键或单元格右键菜单。
 
 2026-11-08：增值税所属期使用共享Popover、Field和Select组合，申报周期、年份、月份/季度同排，卡片宽度及窄窗上限集中于 `.vat-period-picker` / `.vat-period-fields`。不展示日期日历，起止由选择自动生成；确认与取消沿用共享按钮规格，冲突使用Sonner。年份长列表使用Select已有的ScrollArea，表格编辑触发器沿用无内框的整格样式；所有弹层保留 `data-lg-edit-scope`，内部选项不会误结束编辑。
+
+2026-11-18：完成 `packages/ui/src/styles/globals.css` 瘦身与按需分包：
+
+- 默认明暗语义色板抽离至 `packages/ui/src/styles/tokens.css`，由 `globals.css` 与 `theme-draft.ts?raw` 共用，避免主题编辑器将全站 CSS 打包进脚本。
+- 删除已废弃的 `.vat-table*` 等无引用样式；计算器（增值税、滞纳金）、目录摘要预览与桌面连接弹窗的常规网格和宽高约束统一改用原生 Tailwind CSS 工具类。
+- 复杂组件与业务介质样式就近归位并随路由/包按需加载：工作台外壳归 `apps/web/src/styles/workspace.css`，虚拟网格 `.lg-*` 归 `packages/lattice-grid/src/lattice-grid.css`，资金画布与 G6 工具栏归 `apps/web/src/views/funds/funds.css`，笔录三栏变量、仿宋字体与 A4 物理打印规则归 `apps/web/src/views/inquiries/inquiry-document.css`（`scripts/check-ui-styles.ts` 仅对该打印介质放行物理 `pt` 字号与行高）。`globals.css` 仅保留 `@theme` 共享令牌、rem 缩放与 `packages/ui` 基础原语样式。

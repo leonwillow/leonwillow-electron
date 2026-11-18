@@ -1,6 +1,6 @@
 # Lattice Grid React 适配
 
-创建：2026-11-05；维护：2026-11-17。
+创建：2026-11-05；维护：2026-11-18。
 
 来源为 `/Users/leonwillow/Documents/Codex/2026-09-27/shi/outputs/lattice-grid` 的 0.1.0-beta.1。来源目录只读；保留 MIT LICENSE 和 NOTICE，不迁入 Vue、独立示例站、构建产物、旧 CSS 或示例数据。
 
@@ -227,3 +227,5 @@ VAT 通过同一个 VatTable 传递分组内容；不在通用包中增加税务
 ## 单击选择型编辑器（2026-11-08）
 
 列可选 `editOnClick`，在无修饰键且选区只有当前格时单击进入编辑；默认列仍用双击或键盘Enter/F2。拖选、只读限制和交互子元素沿用原规则。VAT所属期列使用此扩展打开月/季选择卡片，税务规则留在业务适配中。自定义编辑器的 `cancel(restoreFocus?)` 可在外点关闭时保留目标焦点，在Escape或显式取消时恢复网格焦点；所有嵌套Portal仍标记编辑作用域。
+
+2026-11-18：`.lg-*` 网格样式从全局 `globals.css` 迁回包内 `packages/lattice-grid/src/lattice-grid.css`，随 `DataGrid` 按需加载；根容器与表头显式挂载 `text-control` 共享字号令牌，工具栏图标按钮复用共享 `TooltipIconButton`。

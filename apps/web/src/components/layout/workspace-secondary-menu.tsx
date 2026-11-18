@@ -6,10 +6,10 @@
  * 功能与预期结果：切换模块不叠加菜单框，不丢失业务草稿；业务弹窗独立于浮层显隐。
  */
 import type { WorkspaceMenuId } from "@/lib/workspace-menu-state";
-import useCalculatorMenu from "./calculator-sidebar";
-import useDocumentTypeMenu from "./document-type-sidebar";
-import useFundsCaseMenu from "./funds-case-sidebar";
-import useInquiryCaseMenu from "./inquiry-case-sidebar";
+import { useCalculatorMenu } from "./use-calculator-menu";
+import { useDocumentTypeMenu } from "./use-document-type-menu";
+import { useFundsCaseMenu } from "./use-funds-case-menu";
+import { useInquiryCaseMenu } from "./use-inquiry-case-menu";
 import WorkspaceMenu from "./workspace-menu";
 import { useWorkspaceNavigation } from "./workspace-navigation-provider";
 

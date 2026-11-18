@@ -25,7 +25,7 @@ import { DirectoryItemLabel } from "./directory-item-label";
 import { useDocumentNavigation } from "./document-navigation-provider";
 import type { WorkspaceMenuContent } from "./workspace-menu";
 
-export default function useDocumentTypeMenu(): WorkspaceMenuContent {
+export function useDocumentTypeMenu(): WorkspaceMenuContent {
 	const menu = useDocumentNavigation();
 	const { typeId, view } = useSearch({ strict: false });
 	const { user } = getRouteApi("/_workspace").useRouteContext();

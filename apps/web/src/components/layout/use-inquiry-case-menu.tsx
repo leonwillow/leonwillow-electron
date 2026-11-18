@@ -44,7 +44,7 @@ const InquiryRecordNameDialog = lazy(
 	() => import("./inquiry-record-name-dialog"),
 );
 
-export default function useInquiryCaseMenu(): WorkspaceMenuContent {
+export function useInquiryCaseMenu(): WorkspaceMenuContent {
 	const menu = useInquiryNavigation();
 	const creation = useCreateInquiry();
 	const router = useRouter();

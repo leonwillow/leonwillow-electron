@@ -65,7 +65,7 @@ function activate(event: KeyboardEvent, tree: TreeInstance<CalculatorNode>) {
 		else item.expand();
 	} else item.primaryAction();
 }
-export default function useCalculatorMenu(): WorkspaceMenuContent {
+export function useCalculatorMenu(): WorkspaceMenuContent {
 	const menu = useWorkspaceNavigation();
 	const directory = useCalculatorNavigation();
 	const navigate = useNavigate();

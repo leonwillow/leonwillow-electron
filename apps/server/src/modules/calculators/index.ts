@@ -9,8 +9,8 @@ import { Elysia } from "elysia";
 import { accessPlugin } from "../access/plugin";
 import * as directory from "./directory-service";
 import * as lateFees from "./late-fee-service";
-import { lateFeeSave, CalculatorsModel as M } from "./model";
-import * as service from "./service";
+import { CalculatorsModel as M } from "./model";
+import * as vat from "./vat-service";
 export const calculatorsModule = new Elysia({
 	name: "calculators",
 	prefix: "/api/calculators",
@@ -18,14 +18,14 @@ export const calculatorsModule = new Elysia({
 	.use(accessPlugin)
 	.guard({ access: "calculators" })
 	.get("/vat", async ({ access }) => ({
-		scenarios: await service.list(access),
+		scenarios: await vat.list(access),
 	}))
 	.post(
 		"/vat",
-		({ access, body }) => service.create(access, body.name, body.requestId),
+		({ access, body }) => vat.create(access, body.name, body.requestId),
 		{ body: M.create },
 	)
-	.get("/vat/:id", ({ access, params }) => service.get(access, params.id), {
+	.get("/vat/:id", ({ access, params }) => vat.get(access, params.id), {
 		params: M.id,
 	})
 	.patch(
@@ -42,7 +42,7 @@ export const calculatorsModule = new Elysia({
 	)
 	.put(
 		"/vat/:id",
-		({ access, params, body }) => service.save(access, params.id, body),
+		({ access, params, body }) => vat.save(access, params.id, body),
 		{ params: M.id, body: M.save },
 	)
 	.get("/late-fees", async ({ access }) => ({
@@ -73,5 +73,5 @@ export const calculatorsModule = new Elysia({
 	.put(
 		"/late-fees/:id",
 		({ access, params, body }) => lateFees.save(access, params.id, body),
-		{ params: M.id, body: lateFeeSave },
+		{ params: M.id, body: M.lateFeeSave },
 	);

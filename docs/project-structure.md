@@ -1,6 +1,6 @@
 # 项目结构与依赖边界
 
-维护日期：2026-11-10。当前是 Bun 工作区中的纯 CSR 应用；目录调整以职责变化为依据。
+维护日期：2026-11-18。当前是 Bun 工作区中的纯 CSR 应用；目录调整以职责变化为依据。
 
 | 目录 | 职责 | 归属判断 |
 | --- | --- | --- |
@@ -74,3 +74,9 @@ UI 包的源码由 Vite 消费；内部包无需为形式统一各自创建 dist
 2026-11-05：`packages/lattice-grid` 封装泛型网格内核及 ReUI React 视图，依赖共享 UI，供页面组合；业务字段与提交逻辑留在页面。首个消费者为增值税月度表，见 [Lattice Grid 适配](./lattice-grid-migration.md)。
 
 2026-11-06：移除未接入 Bun 工作区的 `apps/server-java`，包括 Spring Boot 源码、Maven 模块配置、专属 IDE 配置和本地编译产物。应用后端统一由 `apps/server` 的 Bun/Elysia 服务承担。
+
+2026-11-18：收敛共享基础设施并上线自动化目录/命名与分层门禁 `scripts/check-conventions.ts`（纳入 `bun run lint` 与 `bun run test:architecture`）：
+
+- 二级菜单 Hook 统一正名为 `components/layout/use-{calculator,document-type,funds-case,inquiry-case}-menu.tsx` 具名导出，仅在对应路由激活或菜单首次悬停/展开时按需拉取目录（`useWorkspaceMenuActivated`），新建与重命名弹窗按需 `lazy` 加载。
+- 提炼 `packages/ui/src/components/tooltip-icon-button.tsx`、`apps/web/src/hooks/use-async-resource.ts` 及 `apps/web/src/lib/api.ts` 的 `unwrapApi` / `ApiRequestError`，彻底清零 `components/layout -> views/*` 反向依赖与跨视图私有引用；服务端计算器模块对称命名为 `vat-service.ts`、`late-fee-service.ts`、`directory-service.ts`。
+- 静态检查强制约束：`apps/web/src` 与 `apps/server/src` 顶层目录白名单及禁止空目录、小写 `kebab-case` 文件名、`routes -> views -> components -> hooks -> lib/stores/utils` 单向依赖与 `views/<feature>` 跨业务隔离、`use-*` Hook 文件命名、底层 `api` 实例限定在 `lib/` 内调用、薄路由行数以及 `globals.css` 禁止回流业务选择器。

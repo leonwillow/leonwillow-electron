@@ -105,47 +105,45 @@ export const CalculatorsModel = {
 		},
 		{ additionalProperties: false },
 	),
+	lateFeeSave: t.Object(
+		{
+			name,
+			revision: t.Integer({ minimum: 1 }),
+			cutoff: t.String({ maxLength: 10 }),
+			liabilities: t.Array(
+				t.Object(
+					{
+						id: t.String({ format: "uuid" }),
+						taxType: t.UnionEnum(
+							Object.keys(taxTypes) as [
+								keyof typeof taxTypes,
+								...(keyof typeof taxTypes)[],
+							],
+						),
+						period: t.String({ maxLength: 80 }),
+						principal: amount,
+						deadline: t.String({ maxLength: 10 }),
+						note: t.String({ maxLength: 300 }),
+						payments: t.Array(
+							t.Object(
+								{
+									id: t.String({ format: "uuid" }),
+									date: t.String({ maxLength: 10 }),
+									amount,
+								},
+								{ additionalProperties: false },
+							),
+							{ maxItems: MAX_PAYMENTS },
+						),
+					},
+					{ additionalProperties: false },
+				),
+				{ maxItems: MAX_LIABILITIES },
+			),
+		},
+		{ additionalProperties: false },
+	),
 };
 export type VatSave = typeof CalculatorsModel.save.static;
-
-export const lateFeeSave = t.Object(
-	{
-		name,
-		revision: t.Integer({ minimum: 1 }),
-		cutoff: t.String({ maxLength: 10 }),
-		liabilities: t.Array(
-			t.Object(
-				{
-					id: t.String({ format: "uuid" }),
-					taxType: t.UnionEnum(
-						Object.keys(taxTypes) as [
-							keyof typeof taxTypes,
-							...(keyof typeof taxTypes)[],
-						],
-					),
-					period: t.String({ maxLength: 80 }),
-					principal: amount,
-					deadline: t.String({ maxLength: 10 }),
-					note: t.String({ maxLength: 300 }),
-					payments: t.Array(
-						t.Object(
-							{
-								id: t.String({ format: "uuid" }),
-								date: t.String({ maxLength: 10 }),
-								amount,
-							},
-							{ additionalProperties: false },
-						),
-						{ maxItems: MAX_PAYMENTS },
-					),
-				},
-				{ additionalProperties: false },
-			),
-			{ maxItems: MAX_LIABILITIES },
-		),
-	},
-	{ additionalProperties: false },
-);
-export type LateFeeSave = typeof lateFeeSave.static;
-
+export type LateFeeSave = typeof CalculatorsModel.lateFeeSave.static;
 export type ScenarioMetadata = typeof CalculatorsModel.metadata.static;

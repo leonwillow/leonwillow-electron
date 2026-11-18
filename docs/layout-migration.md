@@ -1,6 +1,6 @@
 # 布局与框架适配
 
-维护日期：2026-11-05。原项目只读：`/Users/leonwillow/Downloads/shadcn-nextjs-aidesk-app-template-1.0.0`。
+维护日期：2026-11-18。原项目只读：`/Users/leonwillow/Downloads/shadcn-nextjs-aidesk-app-template-1.0.0`。
 
 | 来源 | 当前实现 | 必要适配 |
 | --- | --- | --- |
@@ -82,3 +82,5 @@ Web 默认资源 base 为 `/`。子路径构建使用 Vite `--base=/desk/`，Rou
 2026-11-05：业务页头统一复用 `WorkspaceHeader` / `WorkspaceTitle`，笔录保留业务包装，其余计算器、文书和资金页沿用原工具及路径结构。字号、图标大小、颜色和间距以笔录为基准，宽屏共享顶栏分隔线，窄屏工具允许换行。计算器二级菜单使用现有 ReUI Tree 行，保留两个图标和路由入口，不添加业务层级。
 
 2026-11-05：计算器目录由 CalculatorNavigationProvider 持有两种方案摘要与保存协调，树按计算器分组，方案管理弹窗挂在唯一菜单外；不改变共享固定、宽度和浮动交互。顶栏改用编辑器持有的 ScenarioHeader，显示名称输入、保存状态及业务工具，移除重复方案下拉与新建入口。
+
+2026-11-18：四个二级菜单内容入口统一正名为 `use-{calculator,document-type,funds-case,inquiry-case}-menu.tsx`，并通过 `useWorkspaceMenuActivated` 实现按需激活（仅当前路由所属模块或首次悬停/展开对应菜单时请求目录列表），工作台壳层样式迁至 `apps/web/src/styles/workspace.css`，目录新建与重命名弹窗按需懒加载。
