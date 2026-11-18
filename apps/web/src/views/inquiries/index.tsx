@@ -11,6 +11,7 @@ import { FilePlus2Icon, FolderOpenIcon, FolderPlusIcon } from "lucide-react";
 import { useCallback, useState } from "react";
 import { useInquiryNavigation } from "@/components/layout/inquiry-navigation-provider";
 import { getInquiryCase, getInquiryRecord } from "@/lib/inquiries";
+import "./inquiry-document.css";
 import InquiryCaseDialog from "./case-dialog";
 import { InquiryState } from "./controls";
 import InquiryInquirers from "./inquirers";

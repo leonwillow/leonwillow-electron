@@ -104,7 +104,7 @@ export default function LateFeeLiability({
 				</CardAction>
 			</CardHeader>
 			<CardContent className="flex min-w-0 flex-col gap-4">
-				<FieldGroup className="late-fee-fields">
+				<FieldGroup className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,15rem),1fr))]">
 					<Field>
 						<FieldLabel htmlFor={`${row.id}-tax`}>税种</FieldLabel>
 						<Select
@@ -165,7 +165,7 @@ export default function LateFeeLiability({
 							onValueChange={(deadline) => patch({ deadline })}
 						/>
 					</Field>
-					<Field className="late-fee-note">
+					<Field className="col-span-full">
 						<FieldLabel htmlFor={`${row.id}-note`}>备注</FieldLabel>
 						<Input
 							readOnly={readOnly}
@@ -211,8 +211,11 @@ export default function LateFeeLiability({
 						</p>
 					) : (
 						row.payments.map((p, pi) => (
-							<FieldGroup key={p.id} className="late-fee-payment">
-								<Field>
+							<FieldGroup
+								key={p.id}
+								className="grid grid-cols-[minmax(0,1fr)_auto] items-end sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
+							>
+								<Field className="col-span-full sm:col-auto">
 									<FieldLabel htmlFor={`${p.id}-date`}>
 										第 {pi + 1} 次缴款日期
 									</FieldLabel>
@@ -287,13 +290,15 @@ export default function LateFeeLiability({
 							计费明细 · {r.days} 天 · {r.segments.length} 段
 						</summary>
 						{r.segments.length ? (
-							<Table className="late-fee-table">
+							<Table className="min-w-160 tabular-nums">
 								<TableHeader>
 									<TableRow>
 										<TableHead>计费起止日（含）</TableHead>
-										<TableHead>天数</TableHead>
-										<TableHead>欠税本金（元）</TableHead>
-										<TableHead>滞纳金（元，未舍入）</TableHead>
+										<TableHead className="text-right">天数</TableHead>
+										<TableHead className="text-right">欠税本金（元）</TableHead>
+										<TableHead className="text-right">
+											滞纳金（元，未舍入）
+										</TableHead>
 									</TableRow>
 								</TableHeader>
 								<TableBody>
@@ -302,9 +307,11 @@ export default function LateFeeLiability({
 											<TableCell>
 												{s.start} 至 {s.end}
 											</TableCell>
-											<TableCell>{s.days}</TableCell>
-											<TableCell>{money(s.balance)}</TableCell>
-											<TableCell>{s.feeExact}</TableCell>
+											<TableCell className="text-right">{s.days}</TableCell>
+											<TableCell className="text-right">
+												{money(s.balance)}
+											</TableCell>
+											<TableCell className="text-right">{s.feeExact}</TableCell>
 										</TableRow>
 									))}
 								</TableBody>

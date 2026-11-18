@@ -112,12 +112,12 @@ export default function VatPeriodEditor({
 			</PopoverTrigger>
 			<PopoverContent
 				align="start"
-				className="vat-period-picker"
+				className="w-104 max-w-[calc(100vw-2*var(--spacing-workspace-gutter))]"
 				data-lg-edit-scope={context.editScope}
 				finalFocus={false}
 			>
 				<PopoverTitle>选择所属期</PopoverTitle>
-				<FieldGroup className="vat-period-fields">
+				<FieldGroup className="grid grid-cols-[1.4fr_1fr_1fr] gap-3">
 					<Field>
 						<FieldLabel htmlFor={`${id}-cycle`}>申报周期</FieldLabel>
 						<Select

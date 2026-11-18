@@ -32,7 +32,7 @@ import { getShadowMap } from "../src/utils/theme/shadows";
 import { generateThemeCode } from "../src/utils/theme/theme-style-generator";
 
 const css = await Bun.file(
-	new URL("../../../packages/ui/src/styles/globals.css", import.meta.url),
+	new URL("../../../packages/ui/src/styles/tokens.css", import.meta.url),
 ).text();
 const { lightColors, darkColors } = parseCssInput(css);
 const draft: ThemeDraft = {

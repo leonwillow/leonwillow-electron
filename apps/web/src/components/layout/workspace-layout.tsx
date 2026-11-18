@@ -15,6 +15,7 @@ import type { ReactNode } from "react";
 import AppSidebar from "@/components/layout/app-sidebar";
 import { workspaceMenuIds } from "@/lib/workspace-menu-state";
 import { useThemeStore } from "@/stores/theme-store";
+import "@/styles/workspace.css";
 import { CalculatorNavigationProvider } from "./calculator-navigation-provider";
 import { DocumentNavigationProvider } from "./document-navigation-provider";
 import { InquiryNavigationProvider } from "./inquiry-navigation-provider";

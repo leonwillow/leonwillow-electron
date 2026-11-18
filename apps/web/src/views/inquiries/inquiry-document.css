@@ -1,0 +1,298 @@
+/**
+ * @file 笔录工作区分栏尺寸、问答重排动效与 A4 仿宋文书物理排版样式。
+ * 创建时间：2026-11-18
+ * 修改时间：2026-11-18
+ * 版本作用：随笔录视图按需加载，将 3.8MB 仿宋字体与物理打印规则限定在笔录模块。
+ * 被调用：apps/web/src/views/inquiries/index.tsx。
+ * 调用：apps/web/src/assets/fonts/inquiry-fangsong.ttf、共享语义令牌。
+ * 功能：声明笔录三栏约束、问答移动发光、预览视口和 A4 纸张 mm/pt 打印规则。
+ * 预期结果：A4 文书比例独立于界面 rem 缩放，打印时仅输出文书纸张。
+ */
+:root {
+	/* 笔录三栏默认延续原宽度，拖动约束为问答及表单保留可用空间。 */
+	--inquiry-basic-default-size: 18rem;
+	--inquiry-basic-min-size: 12rem;
+	--inquiry-basic-max-size: 45%;
+	--inquiry-preview-default-size: 24rem;
+	--inquiry-preview-min-size: 14rem;
+	--inquiry-preview-max-size: 55%;
+	--inquiry-questions-min-size: 16rem;
+}
+
+/* 文书预览：2026-11-05 创建；可视区域约束宽度，工具栏独立于滚动内容。 */
+.inquiry-document-preview {
+	position: relative;
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	min-width: 0;
+	min-height: 0;
+	overflow: hidden;
+}
+.inquiry-document-preview-content {
+	/* Base UI 默认 fit-content；覆盖其 min-width，禁止纸张反向撑大测量层。 */
+	width: 100%;
+	min-width: 0;
+	padding: var(--spacing-workspace-gutter);
+	padding-bottom: calc(
+		var(--spacing-control-sm) +
+		var(--spacing-workspace-gutter) *
+		3
+	);
+}
+.inquiry-document-preview-viewport {
+	cursor: grab;
+	user-select: none;
+	overflow-anchor: none;
+}
+.inquiry-document-preview[data-dragging] .inquiry-document-preview-viewport {
+	cursor: grabbing;
+}
+.inquiry-document-preview-toolbar {
+	position: absolute;
+	right: var(--spacing-workspace-gutter);
+	bottom: var(--spacing-workspace-gutter);
+	display: flex;
+	align-items: center;
+	gap: 0.25rem;
+	padding: 0.25rem;
+	border: var(--ui-border-width) solid var(--ui-line-color, var(--border));
+	border-radius: var(--radius-lg);
+	background: var(--popover);
+	color: var(--popover-foreground);
+	box-shadow: var(--shadow-md);
+}
+.inquiry-document-preview-scale {
+	min-width: 4ch;
+	text-align: center;
+}
+
+/* 笔录文书：沿用 haoji 的 A4 物理排版。纸张独立于 UI 缩放，编辑控件仍使用共享 rem 令牌。 */
+@font-face {
+	font-family: "Inquiry FangSong";
+	src: url("../../assets/fonts/inquiry-fangsong.ttf") format("truetype");
+	font-display: swap;
+}
+
+/* 上下调整只重播装饰层，不改变 ReUI 拖拽变换或输入节点；主题色随全局切换。 */
+.inquiry-question-move-glow {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	border-radius: inherit;
+	z-index: 1;
+	animation: inquiry-question-move-glow 850ms ease-out both;
+}
+@keyframes inquiry-question-move-glow {
+	0% {
+		background: color-mix(in oklch, var(--info) 14%, transparent);
+		box-shadow: 0 0 0 0 color-mix(in oklch, var(--info) 50%, transparent);
+	}
+	100% {
+		background: transparent;
+		box-shadow: 0 0 0 0.5rem transparent;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.inquiry-question-move-glow {
+		animation-name: inquiry-question-move-fade;
+	}
+}
+@keyframes inquiry-question-move-fade {
+	0%,
+	65% {
+		background: color-mix(in oklch, var(--info) 14%, transparent);
+	}
+	100% {
+		background: transparent;
+	}
+}
+
+.inquiry-document-pages {
+	position: relative;
+	width: 100%;
+	min-width: 0;
+}
+.inquiry-document-stage {
+	display: grid;
+	justify-items: center;
+	gap: 1rem;
+	width: 100%;
+}
+.inquiry-document-page-frame {
+	position: relative;
+	flex: none;
+	width: 210mm;
+	height: 297mm;
+	overflow: clip;
+	box-shadow: var(--shadow-md);
+}
+.inquiry-document-page {
+	--inquiry-document-ink: #111;
+	--inquiry-document-paper: #fff;
+	--inquiry-document-font:
+		"Inquiry FangSong", "仿宋_GB2312", FangSong, STFangsong, "Songti SC", serif;
+	box-sizing: border-box;
+	position: absolute;
+	inset: 0 auto auto 0;
+	width: 210mm;
+	height: 297mm;
+	transform-origin: top left;
+	overflow: hidden;
+	background: var(--inquiry-document-paper);
+	color: var(--inquiry-document-ink);
+	font-family: var(--inquiry-document-font);
+	font-size: 14pt;
+	font-weight: 400;
+	line-height: 31.7pt;
+}
+.inquiry-document-page-header {
+	position: absolute;
+	top: 23mm;
+	right: 25mm;
+	left: 25mm;
+}
+.inquiry-document-page-header h1 {
+	margin: 0;
+	text-align: center;
+	font-family: inherit;
+	font-size: 26pt;
+	font-weight: 700;
+	line-height: 28pt;
+}
+.inquiry-document-authority {
+	text-align: center;
+	font-size: 20pt;
+	line-height: 24pt;
+	overflow-wrap: anywhere;
+}
+.inquiry-document-inquiry-count,
+.inquiry-document-page-count {
+	height: 25pt;
+	text-align: right;
+	line-height: 25pt;
+}
+.inquiry-document-page-header--continuation h1 {
+	margin: 5.292mm 0 9.172mm;
+}
+.inquiry-document-page-body {
+	position: absolute;
+	top: 63.5mm;
+	right: 25mm;
+	bottom: 40.569mm;
+	left: 25mm;
+	min-width: 0;
+	overflow: hidden;
+}
+.inquiry-document-line {
+	display: block;
+	box-sizing: border-box;
+	width: 100%;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	font-weight: 400;
+	text-align: left;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+.inquiry-document-line--metadata {
+	line-height: 23.5pt;
+}
+.inquiry-document-line--notice {
+	line-height: 25pt;
+}
+.inquiry-document-line--qa {
+	line-height: 31.7pt;
+}
+.inquiry-document-line-text {
+	text-decoration: underline;
+	text-decoration-thickness: 0.65625pt;
+	text-underline-offset: 2pt;
+	text-decoration-skip-ink: none;
+}
+.inquiry-document-focus-target {
+	cursor: pointer;
+}
+.inquiry-document-preview-viewport .inquiry-document-focus-target {
+	cursor: inherit;
+}
+.inquiry-document-focus-target:hover,
+.inquiry-document-focus-target:focus-visible {
+	outline: 1px solid var(--primary);
+	outline-offset: 1px;
+}
+.inquiry-document-signature-footer {
+	position: absolute;
+	right: 25mm;
+	bottom: 6.35mm;
+	left: 25mm;
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	height: 94.4pt;
+	line-height: 31.7pt;
+}
+.inquiry-document-signature-footer > div {
+	white-space: nowrap;
+}
+.inquiry-document-signature-footer > :nth-child(3) {
+	grid-column: 1 / -1;
+}
+.inquiry-document-signature-date {
+	grid-column: 1 / -1;
+	display: flex;
+	justify-content: space-between;
+}
+.inquiry-document-measurement {
+	position: fixed;
+	top: 0;
+	left: -300mm;
+	visibility: hidden;
+	pointer-events: none;
+}
+.inquiry-print-root {
+	position: fixed;
+	top: 0;
+	left: -300mm;
+	width: 210mm;
+}
+@media print {
+	@page {
+		size: A4 portrait;
+		margin: 0;
+	}
+	body:has(> .inquiry-print-root) > :not(.inquiry-print-root) {
+		display: none;
+	}
+	body:has(> .inquiry-print-root) {
+		margin: 0;
+		padding: 0;
+	}
+	.inquiry-print-root {
+		position: static;
+		width: 210mm;
+	}
+	.inquiry-print-root .inquiry-document-stage {
+		display: block;
+	}
+	.inquiry-print-root .inquiry-document-page-frame {
+		overflow: visible;
+		box-shadow: none;
+		break-after: page;
+		page-break-after: always;
+	}
+	.inquiry-print-root .inquiry-document-page-frame:last-child {
+		break-after: auto;
+		page-break-after: auto;
+	}
+	.inquiry-print-root .inquiry-document-page {
+		box-shadow: none;
+		print-color-adjust: exact;
+	}
+	.inquiry-print-root .inquiry-document-measurement {
+		display: none;
+	}
+}

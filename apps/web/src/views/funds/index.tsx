@@ -18,6 +18,7 @@ import { getRouteApi, Link } from "@tanstack/react-router";
 import { useCallback, useEffect } from "react";
 import { useFundsNavigation } from "@/components/layout/funds-navigation-provider";
 import { getFundsCase, listFundsCases } from "@/lib/funds";
+import "./funds.css";
 import AnalysisPanel from "./analysis-panel";
 import FundsHeader from "./funds-header";
 import { useFundsResource } from "./use-funds-resource";

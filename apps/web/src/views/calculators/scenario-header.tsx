@@ -39,7 +39,7 @@ function ScenarioHelp({
 			<HoverCardTrigger
 				id={triggerId}
 				render={<button type="button" />}
-				className="calculator-help-trigger"
+				className="inline-flex cursor-help! items-center gap-1 rounded-sm focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
 				delay={150}
 				closeDelay={100}
 				aria-label={`${title}：计算口径与数据来源`}
@@ -48,7 +48,10 @@ function ScenarioHelp({
 				onClick={() => setOpen(true)}
 			>
 				{title}
-				<CircleHelpIcon aria-hidden="true" className="calculator-help-icon" />
+				<CircleHelpIcon
+					aria-hidden="true"
+					className="size-3 shrink-0 self-start text-muted-foreground"
+				/>
 			</HoverCardTrigger>
 			<HoverCardContent
 				id={contentId}
@@ -57,7 +60,7 @@ function ScenarioHelp({
 				align="start"
 				sideOffset={8}
 				collisionPadding={12}
-				className="calculator-help-card p-0"
+				className="w-112 p-0"
 			>
 				<ScrollArea
 					className="max-h-(--available-height) rounded-lg"
@@ -106,7 +109,7 @@ export default function ScenarioHeader({
 			</WorkspaceTitle>
 			<div className="flex min-w-0 flex-1 basis-64 items-center">
 				<Input
-					className="calculator-name-field"
+					className="w-80 max-w-full"
 					aria-label="方案名称"
 					value={name}
 					maxLength={80}

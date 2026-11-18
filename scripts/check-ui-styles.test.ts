@@ -39,7 +39,7 @@ test("允许语义字号、控件尺寸属性、响应式布局和语义色", ()
 	).toEqual([]);
 });
 
-test("CSS 字号和缩放只能由共享样式维护", () => {
+test("CSS 字号和缩放只能由共享样式维护，文书打印介质仅允许物理 pt", () => {
 	const css =
 		":root { --ui-scale: 0.95; font-size: calc(100% * var(--ui-scale)); }";
 	expect(
@@ -48,4 +48,16 @@ test("CSS 字号和缩放只能由共享样式维护", () => {
 	expect(checkUIStyleSource(css, "packages/ui/src/styles/globals.css")).toEqual(
 		[],
 	);
+	expect(
+		checkUIStyleSource(
+			".inquiry-document-page { font-size: 14pt; line-height: 31.7pt; }",
+			"apps/web/src/views/inquiries/inquiry-document.css",
+		),
+	).toEqual([]);
+	expect(
+		checkUIStyleSource(
+			".inquiry-document-page { font-size: 14px; }",
+			"apps/web/src/views/inquiries/inquiry-document.css",
+		).length,
+	).toBeGreaterThan(0);
 });

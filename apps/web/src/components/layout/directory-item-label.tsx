@@ -89,7 +89,7 @@ export function DirectoryItemLabel({
 				anchor={() =>
 					trigger.current?.closest<HTMLElement>("[data-menu-row]") ?? null
 				}
-				className="directory-item-preview p-0"
+				className="w-88 p-0"
 				aria-label="目录条目详情"
 				onPointerDown={(event) => event.stopPropagation()}
 				onClick={(event) => event.stopPropagation()}

@@ -291,7 +291,10 @@ function GridHeaderView<T>({
 													: "descending"
 												: "none"
 										}
-										className={cn("lg-header", c.pinned && "lg-pinned")}
+										className={cn(
+											"lg-header text-control",
+											c.pinned && "lg-pinned",
+										)}
 										style={
 											{
 												width: c.width,

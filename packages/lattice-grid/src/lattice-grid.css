@@ -1,0 +1,760 @@
+/**
+ * @file Lattice Grid 虚拟化网格布局、固定列、选区轮廓与列拖动样式。
+ * 创建时间：2026-11-18
+ * 修改时间：2026-11-18
+ * 版本作用：归属 @leonwillow-electron/lattice-grid，仅在使用 DataGrid 的页面按需加载。
+ * 被调用：packages/lattice-grid/src/data-grid.tsx。
+ * 调用：共享 CSS 语义颜色、圆角、边框与间距令牌；字号由组件通过 text-control 挂载。
+ * 功能：管理三档密度行高、吸顶表头/汇总、冻结阴影、多选外周描边、编辑呼吸框与整列落位高亮。
+ * 预期结果：网格几何与 GridView 控制器一致，不向未使用网格的页面注入样式。
+ */
+.lg-root,
+.lg-header[data-sortable-overlay] {
+	/* Portal 浮层与网格共用动效令牌，毫秒值也供官方 dropAnimation 读取。 */
+	--lg-column-drop-ms: 320;
+	--lg-column-drag-scale: 1.04;
+}
+.lg-root {
+	/* 三类行沿用原分组高度，共用密度令牌，避免切换后再出现高低差。 */
+	--lg-row-compact: 1.75rem;
+	--lg-row-standard: 2rem;
+	--lg-row-comfortable: 2.5rem;
+	--lg-filter-min-height: 2.5rem;
+	--lg-header-compact: var(--lg-row-compact);
+	--lg-header-standard: var(--lg-row-standard);
+	--lg-header-comfortable: var(--lg-row-comfortable);
+	--lg-group-header-compact: var(--lg-row-compact);
+	--lg-group-header-standard: var(--lg-row-standard);
+	--lg-group-header-comfortable: var(--lg-row-comfortable);
+	--lg-group-label-inset: 0.75rem;
+	--lg-gutter-width: 3rem;
+	--lg-summary-height: 2.25rem;
+	--lg-selection-bg: color-mix(in oklch, var(--primary) 10%, var(--card));
+	--lg-frozen-shadow-width: 0.75rem;
+	--lg-frozen-shadow-color: color-mix(
+		in oklch,
+		var(--foreground) 12%,
+		transparent
+	);
+	position: relative;
+	min-width: 0;
+	width: 100%;
+	border: var(--ui-border-width) solid var(--ui-line-color, var(--border));
+	border-radius: var(--radius-lg);
+	background: var(--card);
+	color: var(--card-foreground);
+	font-variant-numeric: tabular-nums;
+	isolation: isolate;
+	overflow: clip;
+}
+.lg-toolbar-scroll {
+	border-bottom: var(--ui-border-width) solid
+		var(--ui-line-color, var(--border));
+}
+.lg-toolbar {
+	display: flex;
+	align-items: center;
+	flex-wrap: nowrap;
+	gap: 1rem;
+	width: max-content;
+	min-width: 100%;
+	padding: 0.5rem;
+}
+/* 保持一行；窄窗口仅滚动工具栏，并为共享横向滚动条留出空间。 */
+.lg-toolbar-scroll[data-has-overflow-x] .lg-toolbar {
+	padding-block-end: 0.75rem;
+}
+.lg-toolbar-filters,
+.lg-toolbar-tools,
+.lg-toolbar-group,
+.lg-toolbar-content {
+	display: flex;
+	align-items: center;
+	flex-wrap: nowrap;
+	flex: 0 0 auto;
+	gap: 0.5rem;
+	min-width: 0;
+	white-space: nowrap;
+}
+.lg-toolbar-tools {
+	margin-inline-start: auto;
+	justify-content: flex-end;
+	column-gap: 0.75rem;
+}
+.lg-toolbar-separator {
+	align-self: center;
+	height: var(--spacing-control-sm);
+	margin-inline-end: 0.25rem;
+}
+.lg-search {
+	position: relative;
+	flex: 0 0 auto;
+	width: 12rem;
+}
+.lg-actions,
+.lg-bulk {
+	display: flex;
+	align-items: center;
+	gap: 0.25rem;
+}
+.lg-bulk {
+	white-space: nowrap;
+}
+.lg-scroll-area {
+	height: min(32rem, 65vh);
+	min-height: 8rem;
+	/* 末列到达视口右边时与容器外框重合，保留完整表格边线而不叠成双线。 */
+	margin-inline-end: calc(-1 * var(--ui-border-width));
+	clip-path: inset(0 var(--ui-border-width) 0 0);
+}
+/* 填充模式分配父级剩余高度；小窗口仍保留滚动口的最小可用高度。 */
+.lg-root[data-fill-height] {
+	display: flex;
+	flex: 1 0 auto;
+	flex-direction: column;
+}
+.lg-root[data-fill-height] > .lg-scroll-area {
+	flex: 1 0 auto;
+	height: 0;
+	min-height: 16rem;
+}
+.lg-toolbar-scroll,
+.lg-status {
+	flex-shrink: 0;
+}
+/* 同一装饰层贯穿表头、虚拟行和汇总；在 viewport 之上、滚动条之下。 */
+.lg-scroll-area::after {
+	content: "";
+	position: absolute;
+	z-index: 0;
+	inset-block: 0;
+	left: var(--lg-frozen-edge);
+	width: var(--lg-frozen-shadow-width);
+	background: linear-gradient(
+		to right,
+		var(--lg-frozen-shadow-color),
+		transparent
+	);
+	pointer-events: none;
+	opacity: 0;
+	transition: opacity 150ms;
+}
+.lg-scroll-area[data-frozen-shadow]::after {
+	opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+	.lg-scroll-area::after {
+		transition: none;
+	}
+}
+.lg-scroller {
+	/* macOS 边界回弹会拉开表头/冻结列并露出 viewport 底层焦点框。 */
+	overscroll-behavior: none;
+	outline: none;
+}
+.lg-scroller:focus-visible {
+	/* 网格已有独立焦点提示，不叠加共享 ScrollArea 的内侧焦点阴影。 */
+	box-shadow: none;
+}
+/* 已有活动格时由单元格/选区描边提示焦点，避免整表再叠一圈灰框。 */
+.lg-root:has(.lg-scroller:focus-visible:not([aria-activedescendant])) {
+	outline: 2px solid var(--ring);
+	outline-offset: 2px;
+}
+.lg-sheet {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	min-height: 100%;
+}
+.lg-head {
+	flex-shrink: 0;
+	position: sticky;
+	top: 0;
+	z-index: 4;
+	background: var(--card);
+}
+.lg-column-row,
+.lg-group-row,
+.lg-row,
+.lg-summary {
+	display: flex;
+}
+.lg-column-row {
+	height: var(--lg-header-height);
+}
+.lg-head:has(.lg-filter) .lg-column-row {
+	height: calc(var(--lg-header-height) + var(--lg-filter-height));
+}
+.lg-group-heading {
+	display: flex;
+	align-items: center;
+	padding-inline: var(--lg-group-label-inset);
+	border-bottom: var(--ui-border-width) solid
+		var(--ui-line-color, var(--border));
+	border-inline-end: var(--ui-border-width) solid
+		var(--ui-line-color, var(--border));
+	background: var(--muted);
+	color: var(--muted-foreground);
+	font-weight: var(--font-weight-medium);
+}
+.lg-group-heading[data-pinned] {
+	z-index: 2;
+}
+.lg-group-label {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+/* 只吸附文字，分组盒子继续滚动；其右边界自然将组名推出可视区。 */
+.lg-group-heading:not([data-pinned]) > .lg-group-label {
+	position: sticky;
+	left: calc(var(--lg-group-sticky-left) + var(--lg-group-label-inset));
+}
+.lg-gutter {
+	position: sticky;
+	left: 0;
+	z-index: 2;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 var(--lg-gutter-width);
+	width: var(--lg-gutter-width);
+	background: var(--card);
+	border-inline-end: var(--ui-border-width) solid
+		var(--ui-line-color, var(--border));
+	border-bottom: var(--ui-border-width) solid
+		var(--ui-line-color, var(--border));
+	color: var(--muted-foreground);
+}
+.lg-head .lg-gutter {
+	z-index: 3;
+}
+.lg-header {
+	position: relative;
+	z-index: 0;
+	flex: none;
+	border-bottom: var(--ui-border-width) solid
+		var(--ui-line-color, var(--border));
+	border-inline-end: var(--ui-border-width) solid
+		var(--ui-line-color, var(--border));
+	background: var(--card);
+	color: var(--card-foreground);
+}
+.lg-heading {
+	display: flex;
+	align-items: center;
+	gap: 0.25rem;
+	height: var(--lg-header-height);
+	padding-inline: 0.375rem;
+}
+.lg-sort {
+	display: flex;
+	align-items: center;
+	gap: 0.25rem;
+	flex: 1;
+	min-width: 0;
+	height: 100%;
+	padding: 0;
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	font-weight: var(--font-weight-medium);
+	text-align: start;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	cursor: pointer;
+	transform-origin: left center;
+}
+.lg-header[data-sortable-overlay] .lg-sort {
+	transform: scale(var(--lg-column-drag-scale));
+	transition: transform calc(var(--lg-column-drop-ms) * 1ms)
+		cubic-bezier(0.16, 1, 0.3, 1);
+}
+[data-column-dropping] .lg-header .lg-sort {
+	transform: scale(1);
+}
+.lg-sort:disabled {
+	cursor: default;
+}
+.lg-sort:focus-visible,
+.lg-drag-handle:focus-visible {
+	outline: 2px solid var(--ring);
+	outline-offset: -2px;
+}
+.lg-header-icon {
+	width: 1rem;
+	height: 1rem;
+	flex: none;
+}
+.lg-column-sortable {
+	display: contents;
+}
+.lg-drag-handle {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 1rem;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	color: var(--muted-foreground);
+	opacity: 0;
+	touch-action: none;
+}
+.lg-header:hover .lg-drag-handle,
+.lg-header:focus-within .lg-drag-handle,
+.lg-header[data-dragging="true"] .lg-drag-handle {
+	opacity: 1;
+}
+@media (hover: none) {
+	.lg-drag-handle {
+		opacity: 1;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.lg-header[data-slot="sortable-item"] {
+		/* biome-ignore lint/complexity/noImportantStyles: 尊重减少动态效果需覆盖 ReUI Sortable 的内联 transition。 */
+		transition: none !important;
+	}
+}
+.lg-filter {
+	height: var(--lg-filter-height);
+	padding: 0.25rem 0.375rem;
+}
+.lg-header[data-column-drop-target] > .lg-heading,
+.lg-header[data-column-drop-target] > .lg-filter {
+	opacity: 0;
+}
+.lg-resizer {
+	position: absolute;
+	z-index: 3;
+	inset-block: 0;
+	right: 0;
+	width: 0.375rem;
+	cursor: col-resize;
+	touch-action: none;
+}
+.lg-resizer:hover,
+.lg-resizer:focus-visible {
+	background: var(--ring);
+	outline: none;
+}
+.lg-body {
+	position: relative;
+	flex: 1 0 auto;
+	/* 正文的选中框不能覆盖吸附表头或汇总。 */
+	isolation: isolate;
+}
+.lg-row {
+	position: absolute;
+	inset-inline-start: 0;
+	width: 100%;
+}
+.lg-cell {
+	display: flex;
+	align-items: center;
+	flex: none;
+	position: relative;
+	isolation: isolate;
+	padding: 0.25rem 0.5rem;
+	background: var(--card);
+	border-bottom: var(--ui-border-width) solid
+		var(--ui-line-color, var(--border));
+	border-inline-end: var(--ui-border-width) solid
+		var(--ui-line-color, var(--border));
+	min-width: 0;
+}
+.lg-summary > .lg-gutter {
+	border-bottom: 0;
+}
+.lg-cell-value {
+	min-width: 0;
+	width: 100%;
+	max-height: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.lg-row:hover > .lg-cell:not(.lg-selected),
+.lg-row:hover > .lg-gutter:not([data-selection-row]) {
+	background: var(--muted);
+}
+.lg-row[data-checked] > .lg-cell:not(.lg-selected),
+.lg-row[data-checked] > .lg-gutter:not([data-selection-row]) {
+	background: color-mix(in oklch, var(--primary) 6%, var(--card));
+}
+.lg-cell.lg-selected {
+	background: var(--lg-selection-bg);
+}
+/* 起点保留正常格底色，仍在选区内参与复制与统计；不依赖拖动方向。 */
+.lg-cell.lg-selected[data-selection-anchor] {
+	background: var(--card);
+}
+.lg-header[data-selection-column],
+.lg-gutter[data-selection-row] {
+	background: var(--lg-selection-bg);
+	color: var(--primary);
+}
+.lg-header[data-selection-column]::after,
+.lg-gutter[data-selection-row]::after {
+	content: "";
+	position: absolute;
+	background: var(--primary);
+	pointer-events: none;
+}
+.lg-header[data-selection-column]::after {
+	inset-inline: 0;
+	bottom: calc(-1 * var(--ui-border-width));
+	height: 2px;
+}
+.lg-gutter[data-selection-row]::after {
+	inset-block: 0 calc(-1 * var(--ui-border-width));
+	right: calc(-1 * var(--ui-border-width));
+	width: 2px;
+}
+.lg-cell[aria-readonly="false"] {
+	cursor: text;
+}
+.lg-cell.lg-active {
+	z-index: 1;
+}
+.lg-cell-indicator,
+.lg-range-outline,
+.lg-edit-outline {
+	--lg-cell-indicator-thickness: 2px;
+	position: absolute;
+	inset: 0 calc(-1 * var(--ui-border-width)) calc(-1 * var(--ui-border-width)) 0;
+	z-index: 1;
+	pointer-events: none;
+}
+.lg-cell-indicator {
+	--lg-cell-indicator-duration: 160ms;
+	--lg-cell-indicator-easing: linear;
+}
+.lg-range-edge {
+	position: absolute;
+	background: var(--primary);
+}
+.lg-range-edge[data-edge="top"],
+.lg-range-edge[data-edge="bottom"] {
+	left: 0;
+	right: 0;
+	height: var(--lg-cell-indicator-thickness);
+}
+.lg-range-edge[data-edge="left"],
+.lg-range-edge[data-edge="right"] {
+	top: 0;
+	bottom: 0;
+	width: var(--lg-cell-indicator-thickness);
+}
+.lg-range-edge[data-edge="top"] {
+	top: 0;
+}
+.lg-range-edge[data-edge="bottom"] {
+	bottom: 0;
+}
+.lg-range-edge[data-edge="left"] {
+	left: 0;
+}
+.lg-range-edge[data-edge="right"] {
+	right: 0;
+}
+/* 边段只向相邻已选格重叠 1px，封住小数行高/缩放产生的抗锯齿接缝。 */
+.lg-range-outline:not([data-left])
+> .lg-range-edge:is([data-edge="top"], [data-edge="bottom"]) {
+	left: -1px;
+}
+.lg-range-outline:not([data-right])
+	> .lg-range-edge:is([data-edge="top"], [data-edge="bottom"]) {
+	right: -1px;
+}
+.lg-range-outline:not([data-top])
+	> .lg-range-edge:is([data-edge="left"], [data-edge="right"]) {
+	top: -1px;
+}
+.lg-range-outline:not([data-bottom])
+	> .lg-range-edge:is([data-edge="left"], [data-edge="right"]) {
+	bottom: -1px;
+}
+/* 内凹角属于相邻两个边段之间的已选格，补齐方角而不伸入未选区。 */
+.lg-range-corner {
+	position: absolute;
+	width: var(--lg-cell-indicator-thickness);
+	height: var(--lg-cell-indicator-thickness);
+	background: var(--primary);
+}
+.lg-range-corner[data-corner^="top"] {
+	top: 0;
+}
+.lg-range-corner[data-corner^="bottom"] {
+	bottom: 0;
+}
+.lg-range-corner[data-corner$="left"] {
+	left: 0;
+}
+.lg-range-corner[data-corner$="right"] {
+	right: 0;
+}
+.lg-edit-outline {
+	border: var(--lg-cell-indicator-thickness) solid var(--primary);
+	@media (prefers-reduced-motion: no-preference) {
+		animation: lg-edit-breathe 3s ease-in-out infinite;
+	}
+}
+@keyframes lg-edit-breathe {
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0;
+	}
+}
+/* 短暂的跨列切换过渡位于 viewport 上方、滚动条下方，正文范围外始终裁掉。 */
+.lg-cell-transition {
+	position: absolute;
+	z-index: 0;
+	overflow: clip;
+	pointer-events: none;
+}
+.lg-cell-transition-clip {
+	position: absolute;
+	inset: 0;
+	overflow: clip;
+}
+.lg-cell-indicator-edge {
+	position: absolute;
+	transform-origin: top left;
+	background: var(--primary);
+}
+.lg-cell-indicator-edge[data-edge="top"],
+.lg-cell-indicator-edge[data-edge="bottom"] {
+	left: 0;
+	width: 100%;
+	height: var(--lg-cell-indicator-thickness);
+}
+.lg-cell-indicator-edge[data-edge="top"] {
+	top: 0;
+}
+.lg-cell-indicator-edge[data-edge="bottom"] {
+	bottom: 0;
+}
+.lg-cell-indicator-edge[data-edge="left"],
+.lg-cell-indicator-edge[data-edge="right"] {
+	top: 0;
+	width: var(--lg-cell-indicator-thickness);
+	height: 100%;
+}
+.lg-cell-indicator-edge[data-edge="left"] {
+	left: 0;
+}
+.lg-cell-indicator-edge[data-edge="right"] {
+	right: 0;
+}
+.lg-cell.lg-pinned,
+.lg-header.lg-pinned,
+.lg-summary-cell.lg-pinned {
+	z-index: 2;
+}
+.lg-column-row .lg-header.lg-pinned {
+	position: sticky;
+	left: var(--lg-pin-left);
+}
+.lg-cell.lg-pinned.lg-active {
+	z-index: 3;
+}
+.lg-numeric,
+.lg-cell[data-align="end"] {
+	text-align: end;
+}
+.lg-cell[data-align="center"] {
+	text-align: center;
+}
+.lg-cell[data-align="start"] {
+	text-align: start;
+}
+.lg-row > .lg-cell.lg-editing {
+	background: var(--card);
+	z-index: 1;
+}
+.lg-row > .lg-cell.lg-pinned.lg-editing {
+	z-index: 3;
+}
+.lg-row-check {
+	display: none;
+}
+.lg-row:hover .lg-row-check,
+.lg-row[data-checked] .lg-row-check,
+.lg-row:focus-within .lg-row-check {
+	display: flex;
+}
+.lg-row:hover .lg-row-number,
+.lg-row[data-checked] .lg-row-number,
+.lg-row:focus-within .lg-row-number {
+	display: none;
+}
+/* 拖选正文时保留行号定位；直接操作行号格时仍可勾选整行。 */
+.lg-row:not([data-checked])
+	> .lg-gutter[data-selection-row]:not(:hover):not(:focus-within)
+	.lg-row-number {
+	display: block;
+}
+.lg-row:not([data-checked])
+	> .lg-gutter[data-selection-row]:not(:hover):not(:focus-within)
+	.lg-row-check {
+	display: none;
+}
+.lg-empty {
+	position: sticky;
+	left: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-direction: column;
+	gap: 0.75rem;
+	padding: 2rem 1rem;
+	color: var(--muted-foreground);
+}
+.lg-summary {
+	flex-shrink: 0;
+	position: sticky;
+	bottom: 0;
+	z-index: 3;
+	height: var(--lg-summary-height);
+	/* 正文填满时，汇总顶线与末行底线共用同一位置。 */
+	margin-top: calc(-1 * var(--ui-border-width));
+	background: var(--card);
+	border-top: var(--ui-border-width) solid var(--ui-line-color, var(--border));
+}
+.lg-summary-cell {
+	flex: none;
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding-inline: 0.5rem;
+	border-inline-end: var(--ui-border-width) solid
+		var(--ui-line-color, var(--border));
+	color: var(--muted-foreground);
+	background: var(--card);
+	overflow: hidden;
+	white-space: nowrap;
+}
+.lg-summary-cell strong {
+	min-width: 0;
+	margin-inline-start: auto;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	color: var(--card-foreground);
+}
+.lg-status {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.75rem;
+	padding: 0.5rem 0.75rem;
+	min-height: var(--lg-summary-height);
+	color: var(--muted-foreground);
+	border-top: var(--ui-border-width) solid var(--ui-line-color, var(--border));
+}
+.lg-status-message {
+	margin-inline-start: auto;
+}
+.lg-control-popup {
+	width: 22rem;
+	max-width: calc(100vw - 1.5rem);
+}
+.lg-column-controls {
+	display: flex;
+	align-items: center;
+	gap: 0.25rem;
+}
+.lg-check-label {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	min-width: 0;
+	flex: 1;
+}
+.lg-check-text {
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+@media (hover: none) {
+	.lg-row-check {
+		display: flex;
+	}
+	.lg-row-number {
+		display: none;
+	}
+}
+
+/* 单层贯穿可见列；沿用 hover 色，以明暗混合保留文字，整列同步淡出。 */
+.lg-column-highlight {
+	position: absolute;
+	z-index: 0;
+	pointer-events: none;
+	background: var(--muted);
+	mix-blend-mode: darken;
+	@media (prefers-reduced-motion: no-preference) {
+		animation: lg-column-land 1100ms ease-out both;
+	}
+}
+.dark .lg-column-highlight {
+	mix-blend-mode: lighten;
+}
+.lg-header[data-sortable-overlay] {
+	background: var(--muted);
+}
+.lg-header[data-column-moved]:not([data-sortable-overlay]) .lg-sort {
+	animation: lg-column-label-land-odd calc(var(--lg-column-drop-ms) * 1ms)
+		cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.lg-header[data-column-moved="even"]:not([data-sortable-overlay]) .lg-sort {
+	animation-name: lg-column-label-land-even;
+}
+@keyframes lg-column-land {
+	0%,
+	30% {
+		opacity: 1;
+	}
+	100% {
+		opacity: 0;
+	}
+}
+@keyframes lg-column-label-land-odd {
+	from {
+		transform: scale(var(--lg-column-drag-scale));
+	}
+	to {
+		transform: scale(1);
+	}
+}
+@keyframes lg-column-label-land-even {
+	from {
+		transform: scale(var(--lg-column-drag-scale));
+	}
+	to {
+		transform: scale(1);
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.lg-header[data-sortable-overlay] .lg-sort,
+	.lg-header[data-column-moved]:not([data-sortable-overlay]) .lg-sort {
+		animation: none;
+		transition: none;
+		transform: none;
+	}
+}
+.lg-period-editor {
+	width: 100%;
+	height: 100%;
+	border: 0;
+	border-radius: 0;
+	background: var(--card);
+	box-shadow: none;
+}

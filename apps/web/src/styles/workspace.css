@@ -1,0 +1,114 @@
+/**
+ * @file 已登录工作台外壳、主导航栏与二级菜单目录行样式。
+ * 创建时间：2026-11-18
+ * 修改时间：2026-11-18
+ * 版本作用：随 WorkspaceLayout 按需加载，不在登录等外部公开路由加载。
+ * 被调用：apps/web/src/components/layout/workspace-layout.tsx。
+ * 调用：共享 CSS 语义令牌。
+ * 功能：定义工作台菜单宽度约束、悬浮/贴边导航外壳、导航状态色及二级目录同行悬停操作。
+ * 预期结果：工作台布局与目录交互一致，与基础 UI 组件库解耦。
+ */
+:root {
+	/* 停靠菜单的默认及约束宽度供 ReUI 读取，浮窗仍使用默认宽度。 */
+	--workspace-menu-default-size: 15rem;
+	--workspace-menu-min-size: 12rem;
+	--workspace-menu-max-size: 28rem;
+	--workspace-content-min-size: 20rem;
+}
+
+/* 悬浮将主导航与右侧工作区分为两个表面；二级菜单和正文保留在同一分栏内。
+ * 四周留白使用工作区令牌，圆角/边框/阴影跟随当前主题；短窗口继续由 ScrollArea 滚动。 */
+.workspace-shell {
+	--workspace-rail-gap: var(--spacing-workspace-gutter);
+}
+.workspace-shell[data-sidebar-mode="floating"] > .workspace-rail {
+	margin: var(--workspace-rail-gap);
+	border: var(--ui-border-width) solid
+		var(--ui-line-color, var(--sidebar-border));
+	border-radius: var(--radius-xl);
+	box-shadow: var(--shadow-sm);
+}
+.workspace-shell[data-sidebar-mode="floating"] > .workspace-surface {
+	margin-block: var(--workspace-rail-gap);
+	margin-inline-end: var(--workspace-rail-gap);
+	overflow: hidden;
+	border: var(--ui-border-width) solid var(--ui-line-color, var(--border));
+	border-radius: var(--radius-xl);
+	background: var(--background);
+	box-shadow: var(--shadow-sm);
+}
+.workspace-shell[data-sidebar-mode="floating"]
+	> .workspace-rail
+	[data-slot="workspace-header"] {
+	border-bottom-color: transparent;
+}
+@media (max-width: 40rem) {
+	.workspace-shell {
+		--workspace-rail-gap: calc(var(--spacing-workspace-gutter) / 2);
+	}
+}
+
+/* 图标之间及组首、组尾共用一份留白，与图标两侧间距相等。 */
+.workspace-rail-group {
+	display: flex;
+	flex-shrink: 0;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--spacing-workspace-rail-inset);
+	padding-block: var(--spacing-workspace-rail-inset);
+}
+
+/* 仅限工作台导航：展开状态与路由选中共用主色，避免 ghost 的灰色覆盖选中色。 */
+.workspace-nav-item {
+	position: relative;
+	border-width: 0;
+	transition-property: color, background-color;
+	transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+	transition-duration: 200ms;
+}
+
+.workspace-nav-item:hover,
+.workspace-nav-item[aria-expanded="true"],
+.workspace-nav-item[aria-current] {
+	background-color: color-mix(in oklab, var(--primary) 10%, transparent);
+	color: var(--primary);
+}
+
+.workspace-nav-item[aria-current]:focus-visible {
+	box-shadow:
+		0 0 0 1px var(--background),
+		0 0 0 3px color-mix(in oklab, var(--primary) 20%, transparent);
+}
+
+.workspace-menu-hover-card {
+	width: var(--spacing-workspace-menu);
+	height: calc(100dvh - var(--spacing-workspace-gutter) * 2);
+	max-width: min(
+		var(--available-width),
+		calc(
+			100vw -
+			var(--spacing-workspace-rail) -
+			var(--spacing-workspace-gutter) *
+			2
+		)
+	);
+	max-height: var(--available-height);
+	padding: 0;
+	overflow: hidden;
+}
+
+/* 操作贴右显示；未悬停时释放整列宽度，只有实际溢出的名称才在行尾渐隐。 */
+.menu-row-actions {
+	display: none;
+	flex-shrink: 0;
+	align-items: center;
+	gap: var(--spacing);
+}
+/* 目录操作沿用统一图标规格，隔离 Tree 对节点图标的默认尺寸。 */
+.menu-row-actions :where(button > svg) {
+	width: calc(var(--spacing) * 3);
+	height: calc(var(--spacing) * 3);
+}
+[data-menu-row]:hover .menu-row-actions {
+	display: flex;
+}

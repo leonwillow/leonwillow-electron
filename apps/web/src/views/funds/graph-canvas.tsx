@@ -212,7 +212,7 @@ export default function GraphCanvas({
 						type: "toolbar",
 						key: "funds-toolbar",
 						position: "bottom-left",
-						className: "funds-graph-toolbar",
+						className: "funds-graph-toolbar text-control",
 						style: { visibility: "hidden" },
 						getItems: () => [
 							{ id: "auto-fit", value: "fit", title: "适应画布" },

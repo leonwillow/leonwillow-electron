@@ -25,12 +25,30 @@ export function checkUIStyleSource(source: string, filename: string): string[] {
 		errors.push(`${filename}:${line} ${message}`);
 	};
 	if (filename.endsWith(".css")) {
-		if (filename !== "packages/ui/src/styles/globals.css") {
+		if (filename === "packages/ui/src/styles/globals.css") return errors;
+		// 笔录 A4 文书打印介质允许物理 pt 字号与行高，但仍禁止重定义全局缩放或共享令牌。
+		if (filename === "apps/web/src/views/inquiries/inquiry-document.css") {
 			for (const match of source.matchAll(
-				/(?:font-size|line-height|--ui-scale|--text-[\w-]+|--spacing(?:-[\w-]+)?)\s*:/g,
+				/(?:--ui-scale|--text-[\w-]+|--spacing(?:-[\w-]+)?)\s*:/g,
 			)) {
 				report(match.index, "排版和缩放令牌必须定义在共享 globals.css。");
 			}
+			for (const match of source.matchAll(
+				/(?:font-size|line-height)\s*:\s*([^;}\n]+)/g,
+			)) {
+				if (!/^\d+(?:\.\d+)?pt$/.test((match[1] ?? "").trim())) {
+					report(
+						match.index,
+						"文书打印样式仅允许物理 pt 字号与行高，界面排版请使用共享令牌。",
+					);
+				}
+			}
+			return errors;
+		}
+		for (const match of source.matchAll(
+			/(?:font-size|line-height|--ui-scale|--text-[\w-]+|--spacing(?:-[\w-]+)?)\s*:/g,
+		)) {
+			report(match.index, "排版和缩放令牌必须定义在共享 globals.css。");
 		}
 		return errors;
 	}

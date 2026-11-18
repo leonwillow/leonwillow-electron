@@ -125,7 +125,7 @@ export default function LateFeeEditor({
 				contentClassName="w-full min-w-0! p-workspace-gutter"
 			>
 				<div className="flex min-w-0 flex-col gap-4">
-					<FieldGroup className="late-fee-plan-fields">
+					<FieldGroup className="grid min-w-[min(100%,18rem)] flex-1 grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))]">
 						<Field>
 							<FieldLabel htmlFor="late-fee-cutoff">
 								测算截止日（含当日）
@@ -141,7 +141,10 @@ export default function LateFeeEditor({
 							/>
 						</Field>
 					</FieldGroup>
-					<section className="late-fee-totals" aria-label="滞纳金测算汇总">
+					<section
+						className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))] gap-4 rounded-lg bg-muted p-4"
+						aria-label="滞纳金测算汇总"
+					>
 						<div>
 							<p className="text-muted-foreground text-xs">
 								税款本金合计（元）

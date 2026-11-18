@@ -183,7 +183,7 @@ export default function ImportDialog({
 			}}
 		>
 			<DialogContent
-				className="vat-import-dialog"
+				className="max-h-[calc(100dvh-2rem)] sm:max-w-[min(48rem,calc(100vw-2rem))]"
 				scrollable
 				showCloseButton={!busy}
 			>
@@ -223,12 +223,10 @@ export default function ImportDialog({
 					</TabsContent>
 					<TabsContent value="paste" className="flex flex-col gap-3 pt-3">
 						<Label htmlFor="vat-paste">含标题行的历史数据</Label>
-						<ScrollArea
-							className="vat-paste-area"
-							contentClassName="w-full min-w-0!"
-						>
+						<ScrollArea className="max-h-56" contentClassName="w-full min-w-0!">
 							<Textarea
 								id="vat-paste"
+								className="overflow-hidden"
 								placeholder="所属期起、所属期止、销项税额、进项税额、进项税额转出、应纳税额、期末留抵"
 								value={text}
 								disabled={busy}
@@ -260,7 +258,7 @@ export default function ImportDialog({
 								确认后将用备份中的调整替换当前全部调整，额外的历史所属期仍会保留。
 							</p>
 						)}
-						<Table containerProps={{ className: "vat-import-preview" }}>
+						<Table containerProps={{ className: "max-h-72" }}>
 							<TableHeader>
 								<TableRow>
 									<TableHead>所属期起</TableHead>

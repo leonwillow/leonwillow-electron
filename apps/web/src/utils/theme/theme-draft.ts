@@ -1,20 +1,20 @@
 /**
  * @file 已选主题到编辑草稿的转换。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-11-18
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/theme-editor/theme-control-panel.tsx。
- * 调用：ui 基础组件/样式、lib/custom-themes、types/theme、utils/theme/parse-css-input。
- * 功能：从共享 CSS 补齐缺省语义色，再叠加选中预设。
- * 预期结果：编辑草稿拥有独立对象，不会修改内置预设。
+ * 调用：ui 默认色板 tokens.css、lib/custom-themes、types/theme、utils/theme/parse-css-input。
+ * 功能：从共享色板补齐缺省语义色，再叠加选中预设。
+ * 预期结果：编辑草稿拥有独立对象，不会修改内置预设，也不将全站 CSS 打包进脚本。
  */
-import globals from "@leonwillow-electron/ui/globals.css?raw";
+import tokens from "@leonwillow-electron/ui/tokens.css?raw";
 import { getPreset, isCustomThemeId } from "@/lib/custom-themes";
 import type { ThemeDraft, ThemePreferences } from "@/types/theme";
 import { parseCssInput } from "@/utils/theme/parse-css-input";
 
-// 读取同一份共享 CSS 默认值，避免另建一套默认色板。
-const { lightColors, darkColors } = parseCssInput(globals);
+// 读取同一份共享色板默认值，避免另建一套默认色板。
+const { lightColors, darkColors } = parseCssInput(tokens);
 const defaults = {
 	light: lightColors,
 	dark: { ...lightColors, ...darkColors },

@@ -7,6 +7,7 @@
  * 被调用：业务页面；调用：GridStore、GridView、共享 Base UI 控件与 Sonner。
  * 预期结果：稳定行 ID、受控数据和提交回调与业务解耦；可填满父级剩余高度，汇总始终位于滚动口底部。
  */
+import "./lattice-grid.css";
 import { Button } from "@leonwillow-electron/ui/components/button";
 import { Checkbox } from "@leonwillow-electron/ui/components/checkbox";
 import {
@@ -387,7 +388,7 @@ export function DataGrid<T>(props: DataGridProps<T>) {
 				<div
 					ref={rootRef}
 					id={id}
-					className={cn("lg-root", props.className)}
+					className={cn("lg-root text-control", props.className)}
 					style={
 						{
 							...props.style,
