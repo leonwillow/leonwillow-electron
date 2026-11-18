@@ -1,7 +1,7 @@
 /**
  * @file 通用网格的单元格右键操作与批量插行请求。
  * 创建时间：2026-11-06；修改时间：2026-11-17。
- * 版本作用：菜单只传递稳定行身份、方向和数量，不生成业务字段。
+ * 版本作用：二级插入菜单只传递稳定行身份、方向和数量，不生成业务字段。
  * 被调用：DataGrid；调用：Base UI ContextMenu、Dialog、GridView。
  * 预期结果：选区内右键保留全部区域；只读可复制，插行由宿主验证与保存。
  */
@@ -12,6 +12,9 @@ import {
 	ContextMenuGroup,
 	ContextMenuItem,
 	ContextMenuSeparator,
+	ContextMenuSub,
+	ContextMenuSubContent,
+	ContextMenuSubTrigger,
 	ContextMenuTrigger,
 } from "@leonwillow-electron/ui/components/context-menu";
 import {
@@ -142,7 +145,7 @@ export function CellContextMenu<T>({
 				/>,
 			)}
 			<ContextMenuContent
-				finalFocus={() => view.scroller}
+				finalFocus={() => (position ? false : view.scroller)}
 				aria-label="单元格操作"
 			>
 				<ContextMenuGroup>
@@ -154,42 +157,56 @@ export function CellContextMenu<T>({
 				{onInsertRows && (
 					<>
 						<ContextMenuSeparator />
-						<ContextMenuGroup>
-							<ContextMenuItem
-								disabled={disabled}
-								onClick={() => void insert("above", 1)}
+						<ContextMenuSub>
+							<ContextMenuSubTrigger disabled={disabled}>
+								<Rows3Icon aria-hidden="true" />
+								插入
+							</ContextMenuSubTrigger>
+							<ContextMenuSubContent
+								aria-label="插入行"
+								finalFocus={() => !position}
 							>
-								<ArrowUpIcon />
-								在上方插入一行
-							</ContextMenuItem>
-							<ContextMenuItem
-								disabled={disabled}
-								onClick={() => void insert("below", 1)}
-							>
-								<ArrowDownIcon />
-								在下方插入一行
-							</ContextMenuItem>
-							<ContextMenuItem
-								disabled={disabled}
-								onClick={() => {
-									setCount("1");
-									setPosition("above");
-								}}
-							>
-								<Rows3Icon />
-								在上方插入多行…
-							</ContextMenuItem>
-							<ContextMenuItem
-								disabled={disabled}
-								onClick={() => {
-									setCount("1");
-									setPosition("below");
-								}}
-							>
-								<Rows3Icon />
-								在下方插入多行…
-							</ContextMenuItem>
-						</ContextMenuGroup>
+								<ContextMenuGroup>
+									<ContextMenuItem
+										disabled={disabled}
+										onClick={() => void insert("above", 1)}
+									>
+										<ArrowUpIcon />
+										在上方插入一行
+									</ContextMenuItem>
+									<ContextMenuItem
+										disabled={disabled}
+										onClick={() => void insert("below", 1)}
+									>
+										<ArrowDownIcon />
+										在下方插入一行
+									</ContextMenuItem>
+								</ContextMenuGroup>
+								<ContextMenuSeparator />
+								<ContextMenuGroup>
+									<ContextMenuItem
+										disabled={disabled}
+										onClick={() => {
+											setCount("1");
+											setPosition("above");
+										}}
+									>
+										<Rows3Icon />
+										在上方插入多行…
+									</ContextMenuItem>
+									<ContextMenuItem
+										disabled={disabled}
+										onClick={() => {
+											setCount("1");
+											setPosition("below");
+										}}
+									>
+										<Rows3Icon />
+										在下方插入多行…
+									</ContextMenuItem>
+								</ContextMenuGroup>
+							</ContextMenuSubContent>
+						</ContextMenuSub>
 					</>
 				)}
 			</ContextMenuContent>
@@ -217,6 +234,7 @@ export function CellContextMenu<T>({
 							type="number"
 							min={1}
 							max={100}
+							disabled={busy}
 							value={count}
 							onChange={(event) => setCount(event.target.value)}
 							onKeyDown={(event) => {

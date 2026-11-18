@@ -2,8 +2,8 @@
 // biome-ignore-all lint/a11y/useFocusableInteractive: Header controls own keyboard focus; row/group containers are not additional tab stops.
 /**
  * @file 隔离正文滚动更新的网格表头。
- * 创建时间：2026-11-08；修改时间：2026-11-08。
- * 版本作用：表头仅响应数据、列状态、筛选、尺寸与拖动反馈，不随虚拟行窗口重新渲染。
+ * 创建时间：2026-11-08；修改时间：2026-11-17。
+ * 版本作用：表头仅响应实际数据、列状态和高亮变化，跳过虚拟滚动及同列范围内的拖选更新。
  * 被调用：DataGrid；调用：原共享 Sortable、Checkbox、Popover 和 ColumnMenu。
  * 预期结果：保留分组、冻结、调宽、菜单和键盘交互，减少滚动中的重复工作。
  */
@@ -127,6 +127,7 @@ function GridHeaderView<T>({
 	view,
 	snapshot: s,
 	layout,
+	selectedColumns,
 	drag,
 	headHeight,
 	headerHeight,
@@ -142,6 +143,7 @@ function GridHeaderView<T>({
 	view: GridView<T>;
 	snapshot: GridSnapshot<T>;
 	layout: ReturnType<GridView<T>["layout"]>;
+	selectedColumns: readonly boolean[];
 	drag: ReturnType<typeof useColumnDrag<T>>;
 	headHeight: number;
 	headerHeight: number;
@@ -272,6 +274,9 @@ function GridHeaderView<T>({
 									<SortableItem
 										value={col.id}
 										data-column-moved={drag.marker(col.id)}
+										data-selection-column={
+											selectedColumns[s.columns.indexOf(col)] || undefined
+										}
 										tabIndex={-1}
 										data-last-column={
 											col.id === layout.at(-1)?.column.id || undefined
@@ -383,4 +388,30 @@ function GridHeaderView<T>({
 	);
 }
 
-export const GridHeader = memo(GridHeaderView) as typeof GridHeaderView;
+export const GridHeader = memo(GridHeaderView, (previous, next) => {
+	const {
+		snapshot: before,
+		selectedColumns: beforeSelected,
+		...beforeProps
+	} = previous;
+	const {
+		snapshot: after,
+		selectedColumns: afterSelected,
+		...afterProps
+	} = next;
+	// snapshot 每次选择都会更新；只保留表头显示及筛选/自动列宽回调实际读取的部分。
+	return (
+		before.columns === after.columns &&
+		before.viewRows === after.viewRows &&
+		before.state.columns === after.state.columns &&
+		before.state.sorting === after.state.sorting &&
+		before.state.filters === after.state.filters &&
+		beforeSelected.length === afterSelected.length &&
+		beforeSelected.every(
+			(selected, index) => selected === afterSelected[index],
+		) &&
+		(Object.keys(beforeProps) as (keyof typeof beforeProps)[]).every((key) =>
+			Object.is(beforeProps[key], afterProps[key]),
+		)
+	);
+}) as typeof GridHeaderView;

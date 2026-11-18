@@ -3,7 +3,7 @@
 /**
  * @file 按单元格隔离显示内容与编辑草稿的 React 渲染。
  * 创建时间：2026-11-07；修改时间：2026-11-17。
- * 版本作用：浅比较真实显示依赖；以选区并集外周替代拖选时的逐格位移动画。
+ * 版本作用：浅比较显示依赖，区分选中与活动起点；选区和编辑框保留原几何。
  * 被调用：GridRow；调用：GridView、共享 Input/Select 和列格式化函数。
  * 预期结果：沿用原 DOM、事件和编辑生命周期，渲染函数变化仍及时生效。
  */
@@ -28,6 +28,19 @@ import { formatValue, getCellValue } from "./core/data";
 import type { Column } from "./core/types";
 import { SelectionEdge } from "./selection-outline";
 import type { CellContext, EditorContext, GridView } from "./view-controller";
+
+const CONCAVE_CORNERS = [
+	["top-left", SelectionEdge.concaveTopLeft],
+	["top-right", SelectionEdge.concaveTopRight],
+	["bottom-right", SelectionEdge.concaveBottomRight],
+	["bottom-left", SelectionEdge.concaveBottomLeft],
+] as const;
+const OUTLINE_EDGES = [
+	["top", SelectionEdge.top],
+	["right", SelectionEdge.right],
+	["bottom", SelectionEdge.bottom],
+	["left", SelectionEdge.left],
+] as const;
 
 function DefaultEditor<T>({
 	view,
@@ -207,7 +220,8 @@ function GridCellView<T>({
 	renderEditor?: (context: EditorContext<T>) => ReactNode;
 }) {
 	const selected = (selectionMask & SelectionEdge.selected) !== 0;
-	const outlineEdges = selectionMask & ~SelectionEdge.selected;
+	const outlineEdges =
+		selectionMask & ~(SelectionEdge.selected | SelectionEdge.anchor);
 	const context: CellContext<T> = {
 		row,
 		column,
@@ -232,6 +246,9 @@ function GridCellView<T>({
 				editing && "lg-editing",
 			)}
 			data-lg-cell
+			data-selection-anchor={
+				!!(selectionMask & SelectionEdge.anchor) || undefined
+			}
 			data-row={rowIndex}
 			data-col={column.id}
 			data-align={column.align ?? (column.type === "number" ? "end" : "start")}
@@ -299,8 +316,24 @@ function GridCellView<T>({
 					data-right={!!(selectionMask & SelectionEdge.right) || undefined}
 					data-bottom={!!(selectionMask & SelectionEdge.bottom) || undefined}
 					data-left={!!(selectionMask & SelectionEdge.left) || undefined}
-				/>
+				>
+					{OUTLINE_EDGES.map(([edge, mask]) =>
+						selectionMask & mask ? (
+							<span key={edge} className="lg-range-edge" data-edge={edge} />
+						) : null,
+					)}
+					{CONCAVE_CORNERS.map(([corner, mask]) =>
+						selectionMask & mask ? (
+							<span
+								key={corner}
+								className="lg-range-corner"
+								data-corner={corner}
+							/>
+						) : null,
+					)}
+				</span>
 			)}
+			{editing && <span aria-hidden="true" className="lg-edit-outline" />}
 		</div>
 	);
 }

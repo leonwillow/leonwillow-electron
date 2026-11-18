@@ -1,17 +1,39 @@
 /**
  * @file Base UI 右键菜单，沿用共享下拉菜单的项目样式。
  * 创建时间：2026-11-06；修改时间：2026-11-17。
- * 版本作用：适配 shadcn base-mira ContextMenu，长内容由 ScrollArea 承载。
+ * 版本作用：适配 shadcn base-mira ContextMenu 及子菜单，长内容由 ScrollArea 承载。
  * 被调用：Lattice Grid；调用：Base UI ContextMenu 各部件、共享 ScrollArea 和主题。
  * 预期结果：原生右键/长按定位、键盘和焦点行为由官方组件管理。
  */
 import { ContextMenu as Primitive } from "@base-ui/react/context-menu";
 import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
 import { cn } from "@leonwillow-electron/ui/lib/utils";
+import { ChevronRightIcon } from "lucide-react";
 
 export const ContextMenu = Primitive.Root;
 export const ContextMenuTrigger = Primitive.Trigger;
 export const ContextMenuGroup = Primitive.Group;
+export const ContextMenuSub = Primitive.SubmenuRoot;
+
+export function ContextMenuSubTrigger({
+	className,
+	children,
+	...props
+}: Primitive.SubmenuTrigger.Props) {
+	return (
+		<Primitive.SubmenuTrigger
+			data-slot="context-menu-sub-trigger"
+			className={cn(
+				"flex min-h-7 cursor-default select-none items-center gap-2 rounded-md px-2 py-1 text-xs/relaxed outline-hidden focus:bg-accent focus:text-accent-foreground data-disabled:pointer-events-none data-open:bg-accent data-popup-open:bg-accent data-open:text-accent-foreground data-popup-open:text-accent-foreground data-disabled:opacity-50 [&_svg:not([class*='size-'])]:size-3.5 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+				className,
+			)}
+			{...props}
+		>
+			{children}
+			<ChevronRightIcon className="ml-auto" aria-hidden="true" />
+		</Primitive.SubmenuTrigger>
+	);
+}
 
 export function ContextMenuItem({ className, ...props }: Primitive.Item.Props) {
 	return (
@@ -39,18 +61,28 @@ export function ContextMenuSeparator({
 	);
 }
 
+type ContextMenuContentProps = Primitive.Popup.Props &
+	Pick<
+		Primitive.Positioner.Props,
+		"side" | "sideOffset" | "align" | "alignOffset"
+	>;
+
 export function ContextMenuContent({
 	className,
 	children,
+	side = "right",
+	align = "start",
+	sideOffset = 0,
+	alignOffset = 4,
 	...props
-}: Primitive.Popup.Props) {
+}: ContextMenuContentProps) {
 	return (
 		<Primitive.Portal>
 			<Primitive.Positioner
-				side="right"
-				align="start"
-				sideOffset={0}
-				alignOffset={4}
+				side={side}
+				align={align}
+				sideOffset={sideOffset}
+				alignOffset={alignOffset}
 				className="isolate z-50 outline-none"
 			>
 				<Primitive.Popup
@@ -65,5 +97,18 @@ export function ContextMenuContent({
 				</Primitive.Popup>
 			</Primitive.Positioner>
 		</Primitive.Portal>
+	);
+}
+
+export function ContextMenuSubContent({
+	alignOffset = -3,
+	...props
+}: ContextMenuContentProps) {
+	return (
+		<ContextMenuContent
+			data-slot="context-menu-sub-content"
+			alignOffset={alignOffset}
+			{...props}
+		/>
 	);
 }

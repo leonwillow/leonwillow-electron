@@ -72,6 +72,11 @@ export class GridStore<T> {
 	private externalRevision = 0;
 	private epoch = 0;
 	private searchCache = new SearchTextCache<T>();
+	private visibleColumnsCache?: {
+		source: readonly Column<T>[];
+		state: GridState["columns"];
+		result: readonly Column<T>[];
+	};
 	private derivedCache?: {
 		rows: readonly T[];
 		columns: readonly Column<T>[];
@@ -119,18 +124,27 @@ export class GridStore<T> {
 	};
 	private rebuild() {
 		const state = this.options.state ?? this.state;
-		const visible = this.options.columns.filter(
-			(c) => !state.columns.find((s) => s.id === c.id)?.hidden,
-		);
-		const positions = new Map(state.columns.map((c, i) => [c.id, i]));
-		visible.sort((a, b) => {
-			const pa = state.columns.find((s) => s.id === a.id)?.pinned ?? false;
-			const pb = state.columns.find((s) => s.id === b.id)?.pinned ?? false;
-			return (
-				Number(pb) - Number(pa) ||
-				(positions.get(a.id) ?? 0) - (positions.get(b.id) ?? 0)
+		// 行数据和选区更新不改变列结构，保留引用供表头与布局消费者跳过无关更新。
+		let visible = this.visibleColumnsCache;
+		if (
+			visible?.source !== this.options.columns ||
+			visible.state !== state.columns
+		) {
+			const result = this.options.columns.filter(
+				(c) => !state.columns.find((s) => s.id === c.id)?.hidden,
 			);
-		});
+			const positions = new Map(state.columns.map((c, i) => [c.id, i]));
+			result.sort((a, b) => {
+				const pa = state.columns.find((s) => s.id === a.id)?.pinned ?? false;
+				const pb = state.columns.find((s) => s.id === b.id)?.pinned ?? false;
+				return (
+					Number(pb) - Number(pa) ||
+					(positions.get(a.id) ?? 0) - (positions.get(b.id) ?? 0)
+				);
+			});
+			visible = { source: this.options.columns, state: state.columns, result };
+			this.visibleColumnsCache = visible;
+		}
 		const locale = this.options.locale ?? "en-US";
 		const cache = this.derivedCache;
 		let viewRows = this.rows;
@@ -167,7 +181,7 @@ export class GridStore<T> {
 		this.snapshot = {
 			rows: this.rows,
 			viewRows,
-			columns: visible,
+			columns: visible.result,
 			state,
 			pending: this.pending,
 			error: this.error,

@@ -1616,6 +1616,7 @@ input[type="number"]::-webkit-outer-spin-button {
 	--lg-group-label-inset: 0.75rem;
 	--lg-gutter-width: 3rem;
 	--lg-summary-height: 2.25rem;
+	--lg-selection-bg: color-mix(in oklch, var(--primary) 10%, var(--card));
 	--lg-frozen-shadow-width: 0.75rem;
 	--lg-frozen-shadow-color: color-mix(
 		in oklch,
@@ -1740,7 +1741,12 @@ input[type="number"]::-webkit-outer-spin-button {
 	overscroll-behavior: none;
 	outline: none;
 }
-.lg-root:has(.lg-scroller:focus-visible) {
+.lg-scroller:focus-visible {
+	/* 网格已有独立焦点提示，不叠加共享 ScrollArea 的内侧焦点阴影。 */
+	box-shadow: none;
+}
+/* 已有活动格时由单元格/选区描边提示焦点，避免整表再叠一圈灰框。 */
+.lg-root:has(.lg-scroller:focus-visible:not([aria-activedescendant])) {
 	outline: 2px solid var(--ring);
 	outline-offset: 2px;
 }
@@ -1966,16 +1972,42 @@ input[type="number"]::-webkit-outer-spin-button {
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
-.lg-row:hover > .lg-cell,
-.lg-row:hover > .lg-gutter {
+.lg-row:hover > .lg-cell:not(.lg-selected),
+.lg-row:hover > .lg-gutter:not([data-selection-row]) {
 	background: var(--muted);
 }
-.lg-row[data-checked] > .lg-cell,
-.lg-row[data-checked] > .lg-gutter {
+.lg-row[data-checked] > .lg-cell:not(.lg-selected),
+.lg-row[data-checked] > .lg-gutter:not([data-selection-row]) {
 	background: color-mix(in oklch, var(--primary) 6%, var(--card));
 }
 .lg-cell.lg-selected {
-	background: color-mix(in oklch, var(--primary) 10%, var(--card));
+	background: var(--lg-selection-bg);
+}
+/* 起点保留正常格底色，仍在选区内参与复制与统计；不依赖拖动方向。 */
+.lg-cell.lg-selected[data-selection-anchor] {
+	background: var(--card);
+}
+.lg-header[data-selection-column],
+.lg-gutter[data-selection-row] {
+	background: var(--lg-selection-bg);
+	color: var(--primary);
+}
+.lg-header[data-selection-column]::after,
+.lg-gutter[data-selection-row]::after {
+	content: "";
+	position: absolute;
+	background: var(--primary);
+	pointer-events: none;
+}
+.lg-header[data-selection-column]::after {
+	inset-inline: 0;
+	bottom: calc(-1 * var(--ui-border-width));
+	height: 2px;
+}
+.lg-gutter[data-selection-row]::after {
+	inset-block: 0 calc(-1 * var(--ui-border-width));
+	right: calc(-1 * var(--ui-border-width));
+	width: 2px;
 }
 .lg-cell[aria-readonly="false"] {
 	cursor: text;
@@ -1983,33 +2015,97 @@ input[type="number"]::-webkit-outer-spin-button {
 .lg-cell.lg-active {
 	z-index: 1;
 }
-.lg-cell-indicator {
+.lg-cell-indicator,
+.lg-range-outline,
+.lg-edit-outline {
 	--lg-cell-indicator-thickness: 2px;
+	position: absolute;
+	inset: 0 calc(-1 * var(--ui-border-width)) calc(-1 * var(--ui-border-width)) 0;
+	z-index: 1;
+	pointer-events: none;
+}
+.lg-cell-indicator {
 	--lg-cell-indicator-duration: 160ms;
 	--lg-cell-indicator-easing: linear;
+}
+.lg-range-edge {
 	position: absolute;
-	inset: 0 calc(-1 * var(--ui-border-width)) calc(-1 * var(--ui-border-width)) 0;
-	z-index: 1;
-	pointer-events: none;
+	background: var(--primary);
 }
-.lg-range-outline {
+.lg-range-edge[data-edge="top"],
+.lg-range-edge[data-edge="bottom"] {
+	left: 0;
+	right: 0;
+	height: var(--lg-cell-indicator-thickness);
+}
+.lg-range-edge[data-edge="left"],
+.lg-range-edge[data-edge="right"] {
+	top: 0;
+	bottom: 0;
+	width: var(--lg-cell-indicator-thickness);
+}
+.lg-range-edge[data-edge="top"] {
+	top: 0;
+}
+.lg-range-edge[data-edge="bottom"] {
+	bottom: 0;
+}
+.lg-range-edge[data-edge="left"] {
+	left: 0;
+}
+.lg-range-edge[data-edge="right"] {
+	right: 0;
+}
+/* 边段只向相邻已选格重叠 1px，封住小数行高/缩放产生的抗锯齿接缝。 */
+.lg-range-outline:not([data-left])
+> .lg-range-edge:is([data-edge="top"], [data-edge="bottom"]) {
+	left: -1px;
+}
+.lg-range-outline:not([data-right])
+	> .lg-range-edge:is([data-edge="top"], [data-edge="bottom"]) {
+	right: -1px;
+}
+.lg-range-outline:not([data-top])
+	> .lg-range-edge:is([data-edge="left"], [data-edge="right"]) {
+	top: -1px;
+}
+.lg-range-outline:not([data-bottom])
+	> .lg-range-edge:is([data-edge="left"], [data-edge="right"]) {
+	bottom: -1px;
+}
+/* 内凹角属于相邻两个边段之间的已选格，补齐方角而不伸入未选区。 */
+.lg-range-corner {
 	position: absolute;
-	inset: 0 calc(-1 * var(--ui-border-width)) calc(-1 * var(--ui-border-width)) 0;
-	z-index: 1;
-	border: 0 solid var(--primary);
-	pointer-events: none;
+	width: var(--lg-cell-indicator-thickness);
+	height: var(--lg-cell-indicator-thickness);
+	background: var(--primary);
 }
-.lg-range-outline[data-top] {
-	border-top-width: 2px;
+.lg-range-corner[data-corner^="top"] {
+	top: 0;
 }
-.lg-range-outline[data-right] {
-	border-right-width: 2px;
+.lg-range-corner[data-corner^="bottom"] {
+	bottom: 0;
 }
-.lg-range-outline[data-bottom] {
-	border-bottom-width: 2px;
+.lg-range-corner[data-corner$="left"] {
+	left: 0;
 }
-.lg-range-outline[data-left] {
-	border-left-width: 2px;
+.lg-range-corner[data-corner$="right"] {
+	right: 0;
+}
+.lg-edit-outline {
+	border: var(--lg-cell-indicator-thickness) solid var(--primary);
+	@media (prefers-reduced-motion: no-preference) {
+		animation: lg-edit-breathe 3s ease-in-out infinite;
+	}
+}
+@keyframes lg-edit-breathe {
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0;
+	}
 }
 /* 短暂的跨列切换过渡位于 viewport 上方、滚动条下方，正文范围外始终裁掉。 */
 .lg-cell-transition {
@@ -2076,7 +2172,6 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 .lg-row > .lg-cell.lg-editing {
 	background: var(--card);
-	box-shadow: inset 0 0 0 2px var(--primary);
 	z-index: 1;
 }
 .lg-row > .lg-cell.lg-pinned.lg-editing {
@@ -2093,6 +2188,17 @@ input[type="number"]::-webkit-outer-spin-button {
 .lg-row:hover .lg-row-number,
 .lg-row[data-checked] .lg-row-number,
 .lg-row:focus-within .lg-row-number {
+	display: none;
+}
+/* 拖选正文时保留行号定位；直接操作行号格时仍可勾选整行。 */
+.lg-row:not([data-checked])
+	> .lg-gutter[data-selection-row]:not(:hover):not(:focus-within)
+	.lg-row-number {
+	display: block;
+}
+.lg-row:not([data-checked])
+	> .lg-gutter[data-selection-row]:not(:hover):not(:focus-within)
+	.lg-row-check {
 	display: none;
 }
 .lg-empty {

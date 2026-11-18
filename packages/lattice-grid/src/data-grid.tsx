@@ -74,7 +74,11 @@ import type { CellPosition, Column, GridOptions } from "./core/types";
 import { DeleteRowsButton } from "./delete-rows-button";
 import { GridHeader } from "./grid-header";
 import { GridRow } from "./grid-row";
-import { selectionRowCells } from "./selection-outline";
+import {
+	selectionAnchorCell,
+	selectionColumns,
+	selectionRowCells,
+} from "./selection-outline";
 import { useColumnDrag } from "./use-column-drag";
 import {
 	type CellContext,
@@ -317,6 +321,10 @@ export function DataGrid<T>(props: DataGridProps<T>) {
 		v.selecting ||
 		bounds.length > 1 ||
 		bounds.some((range) => range.r0 !== range.r1 || range.c0 !== range.c1);
+	const selectedColumns = useMemo(
+		() => selectionColumns(bounds, layout.length),
+		[bounds, layout.length],
+	);
 	const selected = new Set(s.state.selectedRows);
 	const visibleSelected = s.viewRows.filter((row) =>
 		selected.has(props.getRowId(row)),
@@ -349,6 +357,13 @@ export function DataGrid<T>(props: DataGridProps<T>) {
 		],
 	);
 	const activeIndex = active ? view.rowIndex(active.rowId) : -1;
+	const selectionAnchor = rangeSelection
+		? selectionAnchorCell(
+				s.state.selection,
+				(rowId) => view.rowIndex(rowId),
+				s.columns,
+			)
+		: undefined;
 	const cellId = (row: string, col: string) =>
 		`${id}-cell-${encodeURIComponent(row)}-${encodeURIComponent(col)}`;
 	const activeInView =
@@ -361,8 +376,11 @@ export function DataGrid<T>(props: DataGridProps<T>) {
 		...(c.pinned ? { position: "sticky", left: c.pinLeft } : {}),
 	});
 	const busy = !!props.loading || !!props.error || s.pending;
-	const nf = new Intl.NumberFormat(options.locale);
-	const stats = view.stats();
+	const nf = useMemo(
+		() => new Intl.NumberFormat(options.locale),
+		[options.locale],
+	);
+	const stats = props.statusBar === false ? null : view.stats();
 	return (
 		<CellContextMenu view={view} onInsertRows={props.onInsertRows}>
 			{(contextTrigger) => (
@@ -610,6 +628,7 @@ export function DataGrid<T>(props: DataGridProps<T>) {
 								view={view}
 								snapshot={s}
 								layout={layout}
+								selectedColumns={selectedColumns}
 								drag={drag}
 								headHeight={view.headHeight()}
 								groupHeaderHeight={view.groupHeaderHeight()}
@@ -641,6 +660,12 @@ export function DataGrid<T>(props: DataGridProps<T>) {
 										const r = index + v.start;
 										const rowId = props.getRowId(row);
 										const editing = v.editing?.rowId === rowId;
+										const selectionCells = selectionRowCells(
+											bounds,
+											r,
+											layout.length,
+											selectionAnchor,
+										);
 										return (
 											<GridRow
 												key={rowId}
@@ -656,12 +681,11 @@ export function DataGrid<T>(props: DataGridProps<T>) {
 												selectLabel={m.selectRow}
 												layout={layout}
 												columnSlots={columnSlots}
-												selectionCells={selectionRowCells(
-													bounds,
-													r,
-													layout.length,
-												)}
-												rangeSelection={rangeSelection}
+												selectionCells={selectionCells}
+												rangeSelection={
+													rangeSelection &&
+													selectionCells.some((mask) => mask !== 0)
+												}
 												activeColumn={
 													active?.rowId === rowId ? active.columnId : undefined
 												}
@@ -784,12 +808,12 @@ export function DataGrid<T>(props: DataGridProps<T>) {
 					{props.statusBar !== false && (
 						<div className="lg-status">
 							<strong>{view.address()}</strong>
-							{stats.count > 0 && (
+							{stats && stats.count > 0 && (
 								<span>
 									{m.count} {nf.format(stats.count)}
 								</span>
 							)}
-							{stats.numericCount > 0 && (
+							{stats && stats.numericCount > 0 && (
 								<span>
 									{m.sum} {nf.format(stats.sum)} · {m.avg}{" "}
 									{nf.format(stats.sum / stats.numericCount)}

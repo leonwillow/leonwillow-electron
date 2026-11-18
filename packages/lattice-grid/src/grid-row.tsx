@@ -3,7 +3,7 @@
 /**
  * @file 网格正文行的局部更新边界。
  * 创建时间：2026-11-07；修改时间：2026-11-17。
- * 版本作用：以稳定行、布局和该行选区隔离更新，按横向窗口合并屏幕外列的等宽占位。
+ * 版本作用：以稳定行及选区掩码隔离更新，分别标记选区行号和整行勾选。
  * 被调用：DataGrid；调用：GridCell、共享 Checkbox 和 GridView。
  * 预期结果：保留稳定 DOM 身份、虚拟行位置及冻结样式，仅选区掩码变化的行和单元格更新。
  */
@@ -11,6 +11,7 @@ import { Checkbox } from "@leonwillow-electron/ui/components/checkbox";
 import { memo, type ReactNode } from "react";
 import type { ColumnSlot } from "./column-window";
 import { GridCell } from "./grid-cell";
+import { SelectionEdge } from "./selection-outline";
 import type { CellContext, EditorContext, GridView } from "./view-controller";
 
 function GridRowView<T>({
@@ -70,7 +71,15 @@ function GridRowView<T>({
 			style={{ top: rowIndex * rowHeight, height: rowHeight }}
 			data-checked={checked || undefined}
 		>
-			<div role="rowheader" aria-colindex={1} className="lg-gutter">
+			<div
+				role="rowheader"
+				aria-colindex={1}
+				className="lg-gutter"
+				data-selection-row={
+					selectionCells.some((mask) => mask & SelectionEdge.selected) ||
+					undefined
+				}
+			>
 				<span className="lg-row-number">{rowIndex + 1}</span>
 				<Checkbox
 					className="lg-row-check"
@@ -107,7 +116,7 @@ function GridRowView<T>({
 						width={c.width}
 						pinLeft={c.pinned ? c.pinLeft : undefined}
 						selectionMask={selectionCells[index] ?? 0}
-						rangeSelection={rangeSelection}
+						rangeSelection={rangeSelection && !!selectionCells[index]}
 						active={activeColumn === c.column.id}
 						editable={!disabled && view.store.isEditable(row, c.column)}
 						editing={editing}

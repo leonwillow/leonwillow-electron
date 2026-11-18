@@ -14,6 +14,7 @@ import {
 	ColorPickerFields,
 	ColorPickerPanel,
 	ColorPickerSlider,
+	ColorPickerSwatch,
 	ColorPickerSwatches,
 	ColorPickerTrigger,
 } from "@leonwillow-electron/ui/components/color-picker";
@@ -26,6 +27,7 @@ import {
 	RadioGroup,
 	RadioGroupItem,
 } from "@leonwillow-electron/ui/components/radio-group";
+import { CheckIcon } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 import { useThemeStore } from "@/stores/theme-store";
 import type { BorderWidth } from "@/types/theme";
@@ -47,6 +49,7 @@ export function ThemeLineSettings({ mode }: { mode: "light" | "dark" }) {
 	const id = useId();
 	const [themeBorder, setThemeBorder] = useState<string | null>(null);
 	const [recent, setRecent] = useState(readRecentColors);
+	const [pickerOpen, setPickerOpen] = useState(false);
 	const colorKey = mode === "dark" ? "borderColorDark" : "borderColorLight";
 	const customColor = settings[colorKey];
 	const colorLabel = `线条颜色（${mode === "dark" ? "深色" : "浅色"}）`;
@@ -54,6 +57,10 @@ export function ThemeLineSettings({ mode }: { mode: "light" | "dark" }) {
 	const colorLabelId = `${colorId}-label`;
 	const colorStateId = `${colorId}-state`;
 	const recentLabelId = `${colorId}-recent`;
+	const restoreDefault = () => {
+		updateSettings({ [colorKey]: null });
+		setPickerOpen(false);
+	};
 
 	const rememberColor = (value: string | null) => {
 		const next = addRecentColor(recent, value);
@@ -121,6 +128,8 @@ export function ThemeLineSettings({ mode }: { mode: "light" | "dark" }) {
 					</Label>
 					<ColorPicker
 						id={colorId}
+						open={pickerOpen}
+						onOpenChange={setPickerOpen}
 						value={customColor ?? themeBorder}
 						alpha
 						format="hex"
@@ -134,6 +143,19 @@ export function ThemeLineSettings({ mode }: { mode: "light" | "dark" }) {
 						<ColorPickerTrigger className="w-full" />
 						<ColorPickerContent>
 							<ColorPickerPanel>
+								<Button
+									variant="ghost"
+									className="justify-start aria-pressed:bg-accent"
+									aria-label={`${colorLabel}使用主题默认色`}
+									aria-pressed={customColor === null}
+									onClick={restoreDefault}
+								>
+									<ColorPickerSwatch color={themeBorder} />
+									默认
+									{customColor === null && (
+										<CheckIcon className="ml-auto" aria-hidden="true" />
+									)}
+								</Button>
 								<ColorPickerArea />
 								<div className="flex items-center gap-3">
 									<ColorPickerEyeDropper />
@@ -166,18 +188,16 @@ export function ThemeLineSettings({ mode }: { mode: "light" | "dark" }) {
 					</ColorPicker>
 					<div className="flex items-center justify-between gap-2">
 						<span id={colorStateId} className="text-muted-foreground text-xs">
-							{customColor === null ? "当前跟随主题" : "自定义颜色"}
+							{customColor === null ? "当前使用主题默认色" : "自定义颜色"}
 						</span>
 						<Button
 							variant="ghost"
 							size="sm"
-							aria-label={`${colorLabel}跟随主题`}
+							aria-label={`${colorLabel}恢复默认`}
 							disabled={customColor === null}
-							onClick={() => {
-								updateSettings({ [colorKey]: null });
-							}}
+							onClick={restoreDefault}
 						>
-							跟随主题
+							默认
 						</Button>
 					</div>
 				</div>
