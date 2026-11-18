@@ -1,9 +1,9 @@
 /**
  * @file 带年月下拉的中文单日选择控件。
- * 创建时间：2026-11-04；修改时间：2026-11-06。
- * 版本作用：组合 shadcn 官方 Date of Birth 示例的 Popover 与 Calendar。
- * 被调用：笔录基础信息、计算器所属期单元格；调用：共享 Button、Calendar、Popover、date-fns。
- * 预期结果：以本地日历日期读写 yyyy-MM-dd，选择后关闭并回到触发器，不产生时区偏移。
+ * 创建时间：2026-11-04；修改时间：2026-11-18。
+ * 版本作用：组合 shadcn 官方 Date of Birth 示例的 Popover 与 Calendar，缓存本地日期解析与格式化。
+ * 被调用：笔录基础信息、滞纳金税款与缴款日期；调用：共享 Button、Calendar、Popover、date-fns。
+ * 预期结果：以本地日历日期读写 yyyy-MM-dd，选择后关闭并回到触发器，不产生时区偏移，父层重绘时不重复解析日期。
  */
 import { Button } from "@leonwillow-electron/ui/components/button";
 import { Calendar } from "@leonwillow-electron/ui/components/calendar";
@@ -14,7 +14,7 @@ import {
 } from "@leonwillow-electron/ui/components/popover";
 import { cn } from "@leonwillow-electron/ui/lib/utils";
 import { format, isValid, parse } from "date-fns";
-import { type ComponentProps, useState } from "react";
+import { type ComponentProps, useMemo, useState } from "react";
 
 type DatePickerProps = Omit<
 	ComponentProps<typeof Button>,
@@ -32,10 +32,12 @@ type DatePickerProps = Omit<
 	defaultMonth?: Date;
 };
 
+const REFERENCE_DATE = new Date(2000, 0, 1);
+
 /** 无效日期只显示占位，不回写或自动修正调用方数据。 */
 function parseLocalDate(value: string) {
 	if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return undefined;
-	const date = parse(value, "yyyy-MM-dd", new Date());
+	const date = parse(value, "yyyy-MM-dd", REFERENCE_DATE);
 	return isValid(date) && format(date, "yyyy-MM-dd") === value
 		? date
 		: undefined;
@@ -61,15 +63,26 @@ function DatePicker({
 		setOpen(next);
 		onOpenChange?.(next);
 	};
-	const date = parseLocalDate(value);
+	const date = useMemo(() => parseLocalDate(value), [value]);
+	const displayText = useMemo(
+		() => (date ? format(date, displayFormat) : placeholder),
+		[date, displayFormat, placeholder],
+	);
 	const selectedYear = date?.getFullYear() ?? new Date().getFullYear();
 	// 业务日期支持过去和未来；历史已存日期也必须在下拉导航范围内。
-	const firstMonth = startMonth ?? new Date(Math.min(1900, selectedYear), 0);
-	const lastMonth =
-		endMonth ??
-		new Date(Math.max(new Date().getFullYear() + 100, selectedYear), 11);
+	const firstMonth = useMemo(
+		() => startMonth ?? new Date(Math.min(1900, selectedYear), 0),
+		[startMonth, selectedYear],
+	);
+	const lastMonth = useMemo(
+		() =>
+			endMonth ??
+			new Date(Math.max(new Date().getFullYear() + 100, selectedYear), 11),
+		[endMonth, selectedYear],
+	);
+	const active = open && !disabled;
 	return (
-		<Popover open={open && !disabled} onOpenChange={changeOpen}>
+		<Popover open={active} onOpenChange={changeOpen}>
 			<PopoverTrigger
 				render={
 					<Button
@@ -86,7 +99,7 @@ function DatePicker({
 					/>
 				}
 			>
-				{date ? format(date, displayFormat) : placeholder}
+				{displayText}
 			</PopoverTrigger>
 			<PopoverContent
 				data-lg-edit-scope={editScope}
@@ -94,21 +107,23 @@ function DatePicker({
 				align="start"
 				aria-label={props["aria-label"] || "选择日期"}
 			>
-				<Calendar
-					editScope={editScope}
-					mode="single"
-					required
-					autoFocus
-					selected={date}
-					defaultMonth={date ?? defaultMonth}
-					captionLayout="dropdown"
-					startMonth={firstMonth}
-					endMonth={lastMonth}
-					onSelect={(next) => {
-						onValueChange(format(next, "yyyy-MM-dd"));
-						changeOpen(false);
-					}}
-				/>
+				{active && (
+					<Calendar
+						editScope={editScope}
+						mode="single"
+						required
+						autoFocus
+						selected={date}
+						defaultMonth={date ?? defaultMonth}
+						captionLayout="dropdown"
+						startMonth={firstMonth}
+						endMonth={lastMonth}
+						onSelect={(next) => {
+							onValueChange(format(next, "yyyy-MM-dd"));
+							changeOpen(false);
+						}}
+					/>
+				)}
 			</PopoverContent>
 		</Popover>
 	);

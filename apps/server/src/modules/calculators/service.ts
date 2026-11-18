@@ -45,6 +45,8 @@ export async function list(access: AccessSession) {
 export async function get(access: AccessSession, id: string) {
 	const [row] = await db().select().from(vatScenario).where(owned(access, id));
 	if (!row) return missing();
+	if (row.rulesVersion === RULES_VERSION)
+		return { ...row, history: row.history as HistoryRow[] };
 	// 读取旧 JSON 仅在内存转换并重算，不更新版本、修订或时间；保存才写入 v3。
 	const history = normalizeHistory(row.history);
 	const adjustments = normalizeAdjustments(row.adjustments, history);

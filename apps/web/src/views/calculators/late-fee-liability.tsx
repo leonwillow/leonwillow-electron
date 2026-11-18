@@ -1,9 +1,9 @@
 /**
  * @file 单笔税款、分次缴纳及计费明细表单。
- * 创建时间：2026-11-05；修改时间：2026-11-07。
- * 版本作用：稳定标识保持编辑焦点，使用共享日期选择与 ScrollArea 表格。
+ * 创建时间：2026-11-05；修改时间：2026-11-18。
+ * 版本作用：memo 化隔离跨笔录入重绘，计费分段表格在折叠展开时按需挂载。
  * 被调用：LateFeeEditor；调用：领域类型、共享表单及卡片组件。
- * 预期结果：录入本金与确认期限，分段结果可核对；校验说明仅在 Sonner 弹出。
+ * 预期结果：录入本金与确认期限，分段结果可核对；编辑单笔税款不引起其余税款卡片重渲染。
  */
 
 import { money } from "@leonwillow-electron/calculators";
@@ -52,11 +52,16 @@ import {
 	TooltipTrigger,
 } from "@leonwillow-electron/ui/components/tooltip";
 import { PlusIcon, Trash2Icon } from "lucide-react";
+import { memo, useState } from "react";
 import { toast } from "sonner";
 import { randomUUID } from "@/lib/uuid";
+
 export const firstDate = new Date(2001, 3, 30);
 export const lastDate = new Date(2199, 11, 31);
-export default function LateFeeLiability({
+
+const taxTypeEntries = Object.entries(taxTypes);
+
+function LateFeeLiabilityView({
 	row,
 	index,
 	result,
@@ -67,12 +72,13 @@ export default function LateFeeLiability({
 	row: TaxLiability;
 	index: number;
 	result: LateFeeResult["rows"][number] | undefined;
-	onChange: (value: TaxLiability) => void;
-	onRemove: () => void;
+	onChange: (id: string, value: TaxLiability) => void;
+	onRemove: (id: string) => void;
 	readOnly?: boolean;
 }) {
+	const [detailsOpen, setDetailsOpen] = useState(false);
 	const patch = (value: Partial<TaxLiability>) =>
-		onChange({ ...row, ...value });
+		onChange(row.id, { ...row, ...value });
 	const r = result?.result;
 	return (
 		<Card role="region" aria-label={`第${index + 1}笔税款`}>
@@ -93,7 +99,7 @@ export default function LateFeeLiability({
 									disabledReason="当前方案不可编辑"
 									size="icon-sm"
 									aria-label={`删除第${index + 1}笔税款`}
-									onClick={onRemove}
+									onClick={() => onRemove(row.id)}
 								/>
 							}
 						>
@@ -119,7 +125,7 @@ export default function LateFeeLiability({
 							</SelectTrigger>
 							<SelectContent>
 								<SelectGroup>
-									{Object.entries(taxTypes).map(([key, label]) => (
+									{taxTypeEntries.map(([key, label]) => (
 										<SelectItem key={key} value={key}>
 											{label}
 										</SelectItem>
@@ -285,42 +291,51 @@ export default function LateFeeLiability({
 					)}
 				</section>
 				{r && (
-					<details className="flex min-w-0 flex-col">
+					<details
+						className="flex min-w-0 flex-col"
+						open={detailsOpen}
+						onToggle={(event) => setDetailsOpen(event.currentTarget.open)}
+					>
 						<summary className="cursor-pointer text-sm">
 							计费明细 · {r.days} 天 · {r.segments.length} 段
 						</summary>
-						{r.segments.length ? (
-							<Table className="min-w-160 tabular-nums">
-								<TableHeader>
-									<TableRow>
-										<TableHead>计费起止日（含）</TableHead>
-										<TableHead className="text-right">天数</TableHead>
-										<TableHead className="text-right">欠税本金（元）</TableHead>
-										<TableHead className="text-right">
-											滞纳金（元，未舍入）
-										</TableHead>
-									</TableRow>
-								</TableHeader>
-								<TableBody>
-									{r.segments.map((s) => (
-										<TableRow key={s.start}>
-											<TableCell>
-												{s.start} 至 {s.end}
-											</TableCell>
-											<TableCell className="text-right">{s.days}</TableCell>
-											<TableCell className="text-right">
-												{money(s.balance)}
-											</TableCell>
-											<TableCell className="text-right">{s.feeExact}</TableCell>
+						{detailsOpen &&
+							(r.segments.length ? (
+								<Table className="min-w-160 tabular-nums">
+									<TableHeader>
+										<TableRow>
+											<TableHead>计费起止日（含）</TableHead>
+											<TableHead className="text-right">天数</TableHead>
+											<TableHead className="text-right">
+												欠税本金（元）
+											</TableHead>
+											<TableHead className="text-right">
+												滞纳金（元，未舍入）
+											</TableHead>
 										</TableRow>
-									))}
-								</TableBody>
-							</Table>
-						) : (
-							<p className="py-3 text-muted-foreground text-xs">
-								截至测算日未产生滞纳天数。
-							</p>
-						)}
+									</TableHeader>
+									<TableBody>
+										{r.segments.map((s) => (
+											<TableRow key={s.start}>
+												<TableCell>
+													{s.start} 至 {s.end}
+												</TableCell>
+												<TableCell className="text-right">{s.days}</TableCell>
+												<TableCell className="text-right">
+													{money(s.balance)}
+												</TableCell>
+												<TableCell className="text-right">
+													{s.feeExact}
+												</TableCell>
+											</TableRow>
+										))}
+									</TableBody>
+								</Table>
+							) : (
+								<p className="py-3 text-muted-foreground text-xs">
+									截至测算日未产生滞纳天数。
+								</p>
+							))}
 					</details>
 				)}
 			</CardContent>
@@ -361,3 +376,6 @@ export default function LateFeeLiability({
 		</Card>
 	);
 }
+
+const LateFeeLiability = memo(LateFeeLiabilityView);
+export default LateFeeLiability;

@@ -329,8 +329,16 @@ export const vatGridColumns: Column<VatGridRow>[] = [
 				}
 			},
 			// 表格复制/筛选采用元字符串，领域计算仍保留整数分，避免显示 100 元却复制为 10000。
-			getValue: (row) => (row.h ? raw(cents(row.h[key])) : null),
-			format: (_value, row) => money(row.h ? cents(row.h[key]) : null),
+			getValue: (row) =>
+				row.h
+					? /^-?\d+\.\d{2}$/.test(row.h[key])
+						? row.h[key]
+						: raw(cents(row.h[key]))
+					: null,
+			format: (value, row) =>
+				typeof value === "string" && /^-?\d+\.\d{2}$/.test(value)
+					? value.replace(/\B(?=(\d{3})+\.)/g, ",")
+					: money(row.h ? cents(row.h[key]) : null),
 		}),
 	),
 	...adjustmentFields.map(

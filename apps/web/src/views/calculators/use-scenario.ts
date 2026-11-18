@@ -1,16 +1,25 @@
 /**
- * @file 测算方案的串行保存、自动保存与离开保护。
- * 创建时间：2026-11-05；修改时间：2026-11-05。
- * 版本作用：只确认已提交快照；异步返回不覆盖继续输入的值。
+ * @file 测算方案的串行保存、按需自动保存与离开保护。
+ * 创建时间：2026-11-05；修改时间：2026-11-18。
+ * 版本作用：只确认已提交快照；以轻量版本号追踪脏状态并按需调度自动保存，消除每次渲染的 JSON 序列化与空闲轮询。
  * 被调用：增值税与滞纳金编辑器；调用：Eden、TanStack blocker、Sonner。
- * 预期结果：切换方案先保存，冲突停止重试并保留本地内存供导出备份。
+ * 预期结果：切换方案先保存，冲突停止重试并保留本地内存供导出备份；空闲时零定时器唤醒。
  */
 import { useBlocker } from "@tanstack/react-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+	type SetStateAction,
+	useCallback,
+	useEffect,
+	useRef,
+	useState,
+} from "react";
 import { toast } from "sonner";
 import { useCalculatorNavigation } from "@/components/layout/calculator-navigation-provider";
 import type { CalculatorKind } from "@/lib/calculator-directory";
 import { CalculatorError, calculatorError } from "@/lib/calculators";
+
+const AUTO_SAVE_DELAY_MS = 5000;
+
 export function useScenario<
 	D extends { name: string },
 	R extends {
@@ -31,12 +40,17 @@ export function useScenario<
 	const [mutating, setMutating] = useState(false);
 	const [archived, setArchived] = useState(record.archived);
 	const [draft, setDraft] = useState<D>(initial);
+	const [dirty, setDirty] = useState(false);
 
 	const current = useRef(draft);
 	current.current = draft;
-	const saved = useRef(JSON.stringify(draft));
+	const savedSnapshot = useRef<D>(initial);
+	const savedJson = useRef<string | null>(null);
+	const version = useRef(0);
+	const savedVersion = useRef(0);
+	const failedVersion = useRef(-1);
+	const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const revision = useRef(record.revision);
-	const failed = useRef("");
 	const blocked = useRef(false);
 	const live = useRef(true);
 	const pending = useRef<Promise<boolean> | null>(null);
@@ -45,13 +59,70 @@ export function useScenario<
 	const [saving, setSaving] = useState(false);
 	const [savedAt, setSavedAt] = useState(record.updatedAt);
 	const [error, setError] = useState("");
+
+	const clearAutoSaveTimer = useCallback(() => {
+		if (autoSaveTimer.current !== null) {
+			clearTimeout(autoSaveTimer.current);
+			autoSaveTimer.current = null;
+		}
+	}, []);
+
+	const persistRef = useRef<() => Promise<boolean>>(async () => false);
+
+	const scheduleAutoSave = useCallback(() => {
+		if (
+			autoSaveTimer.current !== null ||
+			!live.current ||
+			mutationLock.current ||
+			archived ||
+			blocked.current ||
+			version.current === savedVersion.current ||
+			version.current === failedVersion.current
+		)
+			return;
+		autoSaveTimer.current = setTimeout(() => {
+			autoSaveTimer.current = null;
+			if (
+				!live.current ||
+				mutationLock.current ||
+				archived ||
+				pending.current ||
+				blocked.current ||
+				version.current === savedVersion.current ||
+				version.current === failedVersion.current
+			)
+				return;
+			void persistRef.current();
+		}, AUTO_SAVE_DELAY_MS);
+	}, [archived]);
+
 	const persist = useCallback(async (): Promise<boolean> => {
+		clearAutoSaveTimer();
 		while (pending.current) await pending.current;
 		const snapshot = current.current;
+		const targetVersion = version.current;
+		if (targetVersion === savedVersion.current) {
+			if (live.current) {
+				setDirty(false);
+				setError("");
+			}
+			failedVersion.current = -1;
+			toast.dismiss(`calculator-save-${record.id}`);
+			return true;
+		}
 		const fingerprint = JSON.stringify(snapshot);
-		if (fingerprint === saved.current) {
-			setError("");
-			failed.current = "";
+		if (savedJson.current === null) {
+			savedJson.current = JSON.stringify(savedSnapshot.current);
+		}
+		const baseline = savedJson.current;
+		if (fingerprint === baseline) {
+			savedSnapshot.current = snapshot;
+			savedVersion.current = targetVersion;
+			failedVersion.current = -1;
+			if (live.current) {
+				if (version.current === targetVersion) setDirty(false);
+				setError("");
+			}
 			toast.dismiss(`calculator-save-${record.id}`);
 			return true;
 		}
@@ -62,17 +133,21 @@ export function useScenario<
 				if (!snapshot.name.trim()) throw Error("请填写方案名称");
 				const result = await save(record.id, revision.current, snapshot);
 				revision.current = result.revision;
-				saved.current = fingerprint;
-				failed.current = "";
+				savedSnapshot.current = snapshot;
+				savedJson.current = fingerprint;
+				savedVersion.current = targetVersion;
+				failedVersion.current = -1;
 				if (live.current) {
 					setSavedAt(result.updatedAt);
 					setError("");
+					if (version.current === targetVersion) setDirty(false);
+					else scheduleAutoSave();
 					savedCallback.current(result);
 					toast.dismiss(`calculator-save-${record.id}`);
 				}
 				return true;
 			} catch (cause) {
-				failed.current = fingerprint;
+				failedVersion.current = targetVersion;
 				if (
 					cause instanceof CalculatorError &&
 					[401, 403, 404, 409].includes(cause.status)
@@ -97,34 +172,27 @@ export function useScenario<
 		} finally {
 			if (pending.current === request) pending.current = null;
 		}
-	}, [record.id, save, archived]);
+	}, [record.id, save, archived, clearAutoSaveTimer, scheduleAutoSave]);
+
+	persistRef.current = persist;
+
 	useEffect(() => {
 		live.current = true;
-		const timer = setInterval(() => {
-			const fingerprint = JSON.stringify(current.current);
-			if (
-				!mutationLock.current &&
-				!archived &&
-				!pending.current &&
-				!blocked.current &&
-				fingerprint !== saved.current &&
-				fingerprint !== failed.current
-			)
-				void persist();
-		}, 5000);
 		return () => {
 			live.current = false;
-			clearInterval(timer);
+			clearAutoSaveTimer();
 		};
-	}, [persist, archived]);
+	}, [clearAutoSaveTimer]);
+
 	const flush = useCallback(async () => {
 		for (;;) {
 			while (pending.current) await pending.current;
 			if (blocked.current) return false;
-			if (JSON.stringify(current.current) === saved.current) return true;
+			if (version.current === savedVersion.current) return true;
 			if (!(await persist())) return false;
 		}
 	}, [persist]);
+
 	useEffect(
 		() =>
 			register({
@@ -132,39 +200,63 @@ export function useScenario<
 				id: record.id,
 				prepare: async () => {
 					mutationLock.current = true;
+					clearAutoSaveTimer();
 					setMutating(true);
 					return (await flush()) ? revision.current : null;
 				},
 				finish: () => {
 					mutationLock.current = false;
-					if (live.current) setMutating(false);
+					if (live.current) {
+						setMutating(false);
+						scheduleAutoSave();
+					}
 				},
 				accept: (row) => {
 					revision.current = row.revision;
 					const next = { ...current.current, name: row.name };
 					current.current = next;
-					saved.current = JSON.stringify(next);
+					savedSnapshot.current = next;
+					savedJson.current = null;
+					version.current += 1;
+					savedVersion.current = version.current;
+					failedVersion.current = -1;
+					clearAutoSaveTimer();
 					setDraft(next);
+					setDirty(false);
 					setArchived(row.archived);
 					setSavedAt(row.updatedAt);
 				},
 			}),
-		[register, kind, record.id, flush],
+		[register, kind, record.id, flush, clearAutoSaveTimer, scheduleAutoSave],
 	);
+
 	const blocker = useBlocker({
 		shouldBlockFn: async () => {
 			if (mutationLock.current) return true;
 			return !(await flush());
 		},
 		enableBeforeUnload: () =>
-			!!pending.current || JSON.stringify(current.current) !== saved.current,
+			!!pending.current || version.current !== savedVersion.current,
 		withResolver: true,
 	});
-	const change = (value: D) => {
-		if (mutationLock.current || archived) return;
-		current.current = value;
-		setDraft(value);
-	};
+
+	const change = useCallback(
+		(action: SetStateAction<D>) => {
+			if (mutationLock.current || archived) return;
+			const next =
+				typeof action === "function"
+					? (action as (prev: D) => D)(current.current)
+					: action;
+			if (Object.is(next, current.current)) return;
+			current.current = next;
+			version.current += 1;
+			setDraft(next);
+			setDirty(true);
+			scheduleAutoSave();
+		},
+		[archived, scheduleAutoSave],
+	);
+
 	return {
 		draft,
 		archived,
@@ -175,6 +267,6 @@ export function useScenario<
 		savedAt,
 		error,
 		blocker,
-		dirty: JSON.stringify(draft) !== saved.current,
+		dirty,
 	};
 }

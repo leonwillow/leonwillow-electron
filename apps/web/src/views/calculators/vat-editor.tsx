@@ -1,9 +1,9 @@
 /**
  * @file 增值税方案的汇总、筛选、录入与导出工作区。
- * 创建时间：2026-11-05；修改时间：2026-11-08。
- * 版本作用：表格填满统计卡下方的剩余空间，全部所属期通过虚拟滚动展示，工具栏筛选不改变全期间计算结果。
+ * 创建时间：2026-11-05；修改时间：2026-11-18。
+ * 版本作用：表格填满统计卡下方的剩余空间，全部所属期通过虚拟滚动展示；memo 化表格与插槽，隔离顶栏方案名输入重绘。
  * 被调用：CalculatorsView；调用：共享算法、方案保存 Hook、导入弹窗、Lattice Grid 业务适配。
- * 预期结果：四项增减分别保存，清空调整需确认，新备份保留四项金额并兼容恢复旧 V5 数据。
+ * 预期结果：四项增减分别保存，清空调整需确认，修改方案名不触发重型虚拟表格重绘。
  */
 
 import {
@@ -15,6 +15,7 @@ import {
 	resultCsv,
 	type VatData,
 } from "@leonwillow-electron/calculators";
+import type { InsertRowsRequest } from "@leonwillow-electron/lattice-grid";
 import { Button } from "@leonwillow-electron/ui/components/button";
 import { Checkbox } from "@leonwillow-electron/ui/components/checkbox";
 import {
@@ -55,7 +56,7 @@ import {
 	RotateCcwIcon,
 	UploadIcon,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
 	calculatorError,
@@ -67,6 +68,7 @@ import ImportDialog from "./import-dialog";
 import ScenarioHeader from "./scenario-header";
 import { useVatScenario } from "./use-vat-scenario";
 import VatCalculationNotes from "./vat-calculation-notes";
+import type { VatGridRow } from "./vat-grid-model";
 import VatTable from "./vat-table";
 
 export default function VatEditor({
@@ -77,7 +79,18 @@ export default function VatEditor({
 	onSaved: (row: VatScenario) => void;
 }) {
 	const editor = useVatScenario(record, onSaved);
-	const { draft } = editor;
+	const { draft, change: setDraft, readOnly } = editor;
+	const draftRef = useRef(draft);
+	draftRef.current = draft;
+
+	const vatData = useMemo<VatData>(
+		() => ({
+			source: draft.source,
+			history: draft.history,
+			adjustments: draft.adjustments,
+		}),
+		[draft.source, draft.history, draft.adjustments],
+	);
 	const result = useMemo(
 		() => calculate(draft.history, draft.adjustments),
 		[draft.history, draft.adjustments],
@@ -87,16 +100,21 @@ export default function VatEditor({
 	const [importing, setImporting] = useState(false);
 	const [clearing, setClearing] = useState(false);
 	const [revealRowId, setRevealRowId] = useState<string>();
-	const years = [
-		...new Set(
-			result.rows
-				.flatMap((row) => [
-					row.periodStart.slice(0, 4),
-					row.periodEnd.slice(0, 4),
-				])
-				.filter(Boolean),
-		),
-	].sort();
+
+	const years = useMemo(
+		() =>
+			[
+				...new Set(
+					result.rows
+						.flatMap((row) => [
+							row.periodStart.slice(0, 4),
+							row.periodEnd.slice(0, 4),
+						])
+						.filter(Boolean),
+				),
+			].sort(),
+		[result.rows],
+	);
 	const visible = useMemo(
 		() =>
 			result.rows.filter(
@@ -110,43 +128,67 @@ export default function VatEditor({
 			),
 		[result.rows, year, changedOnly],
 	);
-	const apply = async (data: VatData) => {
-		if (editor.readOnly) return false;
-		editor.change({ ...draft, ...data });
-		return editor.persist();
-	};
-	const insertRows = (
-		anchorId: string | null,
-		position: "above" | "below",
-		count = 1,
-	) => {
-		if (editor.readOnly) throw Error("当前方案不可编辑");
-		const ids = Array.from({ length: count }, () => randomUUID());
-		const next = insertVatRows(draft, anchorId, position, ids);
-		setYear("all");
-		setChangedOnly(false);
-		editor.change({ ...draft, ...next });
-		setRevealRowId(ids[0]);
-		toast.success(`已插入 ${count} 行`, {
-			description: "点击“所属期”，选择年份和月份或季度。",
-		});
-	};
-	const appendRow = () => {
+
+	const apply = useCallback(
+		async (data: VatData) => {
+			if (readOnly) return false;
+			setDraft((prev) => ({ ...prev, ...data }));
+			return editor.persist();
+		},
+		[readOnly, setDraft, editor.persist],
+	);
+
+	const insertRows = useCallback(
+		(anchorId: string | null, position: "above" | "below", count = 1) => {
+			if (readOnly) throw Error("当前方案不可编辑");
+			const ids = Array.from({ length: count }, () => randomUUID());
+			const current = draftRef.current;
+			const next = insertVatRows(current, anchorId, position, ids);
+			setYear("all");
+			setChangedOnly(false);
+			setDraft({ ...current, ...next });
+			setRevealRowId(ids[0]);
+			toast.success(`已插入 ${count} 行`, {
+				description: "点击“所属期”，选择年份和月份或季度。",
+			});
+		},
+		[readOnly, setDraft],
+	);
+
+	const appendRow = useCallback(() => {
 		try {
 			insertRows(null, "below");
 		} catch (error) {
 			toast.error("无法插入行", { description: calculatorError(error) });
 		}
-	};
-	const exportBackup = () =>
+	}, [insertRows]);
+
+	const handleGridInsert = useCallback(
+		({ rowId, position, count }: InsertRowsRequest<VatGridRow>) =>
+			insertRows(rowId, position, count),
+		[insertRows],
+	);
+
+	const handleGridChange = useCallback(
+		(data: VatData) => setDraft((prev) => ({ ...prev, ...data })),
+		[setDraft],
+	);
+
+	const handleNameChange = useCallback(
+		(name: string) => setDraft((prev) => ({ ...prev, name })),
+		[setDraft],
+	);
+
+	const exportBackup = useCallback(() => {
+		const current = draftRef.current;
 		downloadCalculation(
-			`${draft.name || "增值税测算"}.json`,
+			`${current.name || "增值税测算"}.json`,
 			JSON.stringify(
 				{
 					schema: RULES_VERSION,
-					source: draft.source,
-					history: draft.history,
-					adjustments: draft.adjustments,
+					source: current.source,
+					history: current.history,
+					adjustments: current.adjustments,
 					savedAt: new Date().toISOString(),
 				},
 				null,
@@ -154,130 +196,169 @@ export default function VatEditor({
 			),
 			"application/json",
 		);
-	const toolbarSlots = {
-		filters: (
-			<>
-				<Select
-					value={year}
-					onValueChange={(v) => {
-						setYear(v ?? "all");
-					}}
-				>
-					<SelectTrigger aria-label="筛选年度">
-						<SelectValue>
-							{year === "all" ? "全部年度" : `${year} 年`}
-						</SelectValue>
-					</SelectTrigger>
-					<SelectContent>
-						<SelectGroup>
-							<SelectItem value="all">全部年度</SelectItem>
-							{years.map((y) => (
-								<SelectItem key={y} value={y}>
-									{y} 年
-								</SelectItem>
-							))}
-						</SelectGroup>
-					</SelectContent>
-				</Select>
-				<Label className="flex items-center gap-2">
-					<Checkbox
-						checked={changedOnly}
-						onCheckedChange={(checked) => {
-							setChangedOnly(!!checked);
+	}, []);
+
+	const hasAdjustments = Object.keys(draft.adjustments).length > 0;
+	const toolbarSlots = useMemo(
+		() => ({
+			filters: (
+				<>
+					<Select
+						value={year}
+						onValueChange={(v) => {
+							setYear(v ?? "all");
 						}}
-					/>
-					仅看调整或联动
-				</Label>
-			</>
-		),
-		actions: (
-			<Button
-				variant="outline"
-				disabled={editor.readOnly}
-				disabledReason="当前方案不可编辑"
-				onClick={appendRow}
-			>
-				<CalendarPlusIcon data-icon="inline-start" />
-				新增一行
-			</Button>
-		),
-		actionsEnd: (
-			<Button
-				variant="warning"
-				disabled={editor.readOnly || !Object.keys(draft.adjustments).length}
-				disabledReason={editor.readOnly ? "当前方案不可编辑" : "当前没有调整"}
-				onClick={() => setClearing(true)}
-			>
-				<RotateCcwIcon data-icon="inline-start" />
-				清空调整
-			</Button>
-		),
-		exports: (
-			<DropdownMenu>
-				<DropdownMenuTrigger
-					openOnHover
-					delay={100}
-					closeDelay={150}
-					render={<Button variant="outline" />}
+					>
+						<SelectTrigger aria-label="筛选年度">
+							<SelectValue>
+								{year === "all" ? "全部年度" : `${year} 年`}
+							</SelectValue>
+						</SelectTrigger>
+						<SelectContent>
+							<SelectGroup>
+								<SelectItem value="all">全部年度</SelectItem>
+								{years.map((y) => (
+									<SelectItem key={y} value={y}>
+										{y} 年
+									</SelectItem>
+								))}
+							</SelectGroup>
+						</SelectContent>
+					</Select>
+					<Label className="flex items-center gap-2">
+						<Checkbox
+							checked={changedOnly}
+							onCheckedChange={(checked) => {
+								setChangedOnly(!!checked);
+							}}
+						/>
+						仅看调整或联动
+					</Label>
+				</>
+			),
+			actions: (
+				<Button
+					variant="outline"
+					disabled={readOnly}
+					disabledReason="当前方案不可编辑"
+					onClick={appendRow}
 				>
-					<DownloadIcon data-icon="inline-start" />
-					导出
-					<ChevronDownIcon data-icon="inline-end" />
-				</DropdownMenuTrigger>
-				<DropdownMenuContent align="end">
-					<DropdownMenuGroup>
-						<DropdownMenuItem onClick={exportBackup}>
-							<FileJsonIcon />
-							导出方案
-						</DropdownMenuItem>
-						<Tooltip
-							disabled={result.allReady && !!result.audit}
-							disableHoverablePopup
-						>
-							<TooltipTrigger
-								render={
-									<DropdownMenuItem
-										disabled={!result.allReady || !result.audit}
-										className="data-disabled:pointer-events-auto data-disabled:cursor-not-allowed"
-										onClick={() => {
-											try {
-												downloadCalculation(
-													`${draft.name}-测算明细.csv`,
-													resultCsv(result),
-													"text/csv;charset=utf-8",
-												);
-											} catch (error) {
-												toast.error(calculatorError(error));
-											}
-										}}
-									/>
-								}
+					<CalendarPlusIcon data-icon="inline-start" />
+					新增一行
+				</Button>
+			),
+			actionsEnd: (
+				<Button
+					variant="warning"
+					disabled={readOnly || !hasAdjustments}
+					disabledReason={readOnly ? "当前方案不可编辑" : "当前没有调整"}
+					onClick={() => setClearing(true)}
+				>
+					<RotateCcwIcon data-icon="inline-start" />
+					清空调整
+				</Button>
+			),
+			exports: (
+				<DropdownMenu>
+					<DropdownMenuTrigger
+						openOnHover
+						delay={100}
+						closeDelay={150}
+						render={<Button variant="outline" />}
+					>
+						<DownloadIcon data-icon="inline-start" />
+						导出
+						<ChevronDownIcon data-icon="inline-end" />
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align="end">
+						<DropdownMenuGroup>
+							<DropdownMenuItem onClick={exportBackup}>
+								<FileJsonIcon />
+								导出方案
+							</DropdownMenuItem>
+							<Tooltip
+								disabled={result.allReady && !!result.audit}
+								disableHoverablePopup
 							>
-								<DownloadIcon />
-								导出明细
-							</TooltipTrigger>
-							<TooltipContent>
-								全部所属期计算及金额平衡校验通过后可导出
-							</TooltipContent>
-						</Tooltip>
-					</DropdownMenuGroup>
-				</DropdownMenuContent>
-			</DropdownMenu>
+								<TooltipTrigger
+									render={
+										<DropdownMenuItem
+											disabled={!result.allReady || !result.audit}
+											className="data-disabled:pointer-events-auto data-disabled:cursor-not-allowed"
+											onClick={() => {
+												try {
+													downloadCalculation(
+														`${draftRef.current.name}-测算明细.csv`,
+														resultCsv(result),
+														"text/csv;charset=utf-8",
+													);
+												} catch (error) {
+													toast.error(calculatorError(error));
+												}
+											}}
+										/>
+									}
+								>
+									<DownloadIcon />
+									导出明细
+								</TooltipTrigger>
+								<TooltipContent>
+									全部所属期计算及金额平衡校验通过后可导出
+								</TooltipContent>
+							</Tooltip>
+						</DropdownMenuGroup>
+					</DropdownMenuContent>
+				</DropdownMenu>
+			),
+		}),
+		[
+			year,
+			years,
+			changedOnly,
+			readOnly,
+			appendRow,
+			hasAdjustments,
+			exportBackup,
+			result,
+		],
+	);
+
+	const emptyContent = useMemo(
+		() =>
+			!draft.history.length ? (
+				<div className="flex flex-col items-center gap-3">
+					<p>尚未录入历史数据</p>
+					<Button
+						variant="outline"
+						disabled={readOnly}
+						disabledReason="当前方案不可编辑"
+						onClick={appendRow}
+					>
+						插入第一行
+					</Button>
+				</div>
+			) : undefined,
+		[draft.history.length, readOnly, appendRow],
+	);
+
+	const helpNotes = useMemo(
+		() => (
+			<VatCalculationNotes opening={result.opening} source={draft.source} />
 		),
-	};
+		[result.opening, draft.source],
+	);
+
 	return (
 		<>
 			<ScenarioHeader
 				kind="vat"
 				name={draft.name}
-				onNameChange={(name) => editor.change({ ...draft, name })}
+				onNameChange={handleNameChange}
 				editor={editor}
-				help={
-					<VatCalculationNotes opening={result.opening} source={draft.source} />
-				}
+				help={helpNotes}
 			>
 				<Button
-					disabled={editor.readOnly}
+					disabled={readOnly}
 					disabledReason="请先在目录中恢复方案或等待当前操作结束"
 					onClick={() => setImporting(true)}
 				>
@@ -340,35 +421,19 @@ export default function VatEditor({
 					)}
 					<VatTable
 						revealRowId={revealRowId}
-						readOnly={editor.readOnly}
+						readOnly={readOnly}
 						rows={visible}
 						adjustments={draft.adjustments}
 						toolbarSlots={toolbarSlots}
-						emptyContent={
-							!draft.history.length ? (
-								<div className="flex flex-col items-center gap-3">
-									<p>尚未录入历史数据</p>
-									<Button
-										variant="outline"
-										disabled={editor.readOnly}
-										disabledReason="当前方案不可编辑"
-										onClick={appendRow}
-									>
-										插入第一行
-									</Button>
-								</div>
-							) : undefined
-						}
-						data={draft}
-						insert={({ rowId, position, count }) =>
-							insertRows(rowId, position, count)
-						}
-						change={(data) => editor.change({ ...draft, ...data })}
+						emptyContent={emptyContent}
+						data={vatData}
+						insert={handleGridInsert}
+						change={handleGridChange}
 					/>
 				</div>
 				{importing && (
 					<ImportDialog
-						data={draft}
+						data={vatData}
 						onClose={() => setImporting(false)}
 						onApply={apply}
 					/>
@@ -387,9 +452,9 @@ export default function VatEditor({
 							</Button>
 							<Button
 								variant="warning"
-								disabled={editor.saving || editor.readOnly}
+								disabled={editor.saving || readOnly}
 								onClick={async () => {
-									if (await apply({ ...draft, adjustments: {} })) {
+									if (await apply({ ...vatData, adjustments: {} })) {
 										setClearing(false);
 										toast.success("调整已清空并保存");
 									}

@@ -157,6 +157,11 @@ export function mergeHistory(
 	if (incoming.length > MAX_PERIODS)
 		throw Error(`最多支持 ${MAX_PERIODS} 条申报记录`);
 	const map = new Map(original.map((row) => [row.id, row]));
+	const byPeriod = new Map<string, HistoryRow>();
+	for (const row of original) {
+		if (row.periodStart && row.periodEnd)
+			byPeriod.set(`${row.periodStart}/${row.periodEnd}`, row);
+	}
 	const incomingIds = new Set<string>();
 	const ordered: string[] = [];
 	let added = 0;
@@ -164,14 +169,11 @@ export function mergeHistory(
 	let skipped = 0;
 	for (const value of incoming) {
 		let row = normalizeHistoryRow(value);
-		const samePeriod =
+		const periodKey =
 			row.periodStart && row.periodEnd
-				? [...map.values()].find(
-						(old) =>
-							old.periodStart === row.periodStart &&
-							old.periodEnd === row.periodEnd,
-					)
-				: undefined;
+				? `${row.periodStart}/${row.periodEnd}`
+				: "";
+		const samePeriod = periodKey ? byPeriod.get(periodKey) : undefined;
 		// 只有导入按期间去重；保存必须严格遵循行 ID，避免吞掉新插入的行。
 		if (!allowUpdates && !map.has(row.id) && samePeriod)
 			row = { ...row, id: samePeriod.id };
@@ -189,11 +191,15 @@ export function mergeHistory(
 					throw Error(
 						`${periodLabel(row)} 历史金额冲突：${differences.map((key) => `${labels[key]}（已有 ${old[key]}，本次 ${row[key]}）`).join("、")}。可在表格中手工修正原始申报。`,
 					);
+				if (old.periodStart && old.periodEnd)
+					byPeriod.delete(`${old.periodStart}/${old.periodEnd}`);
 				map.set(row.id, row);
+				if (periodKey) byPeriod.set(periodKey, row);
 				updated++;
 			} else skipped++;
 		} else {
 			map.set(row.id, row);
+			if (periodKey) byPeriod.set(periodKey, row);
 			added++;
 		}
 	}
@@ -206,7 +212,11 @@ export function mergeHistory(
 			: [...map.values()].sort((a, b) =>
 					a.periodStart.localeCompare(b.periodStart),
 				);
-	normalizeHistory(rows);
+	if (rows.length > MAX_PERIODS)
+		throw Error(`最多支持 ${MAX_PERIODS} 条申报记录`);
+	if (new Set(rows.map((r) => r.id)).size !== rows.length)
+		throw Error("存在重复申报行标识");
+	validatePeriods(rows);
 	return { rows, added, updated, skipped };
 }
 
@@ -218,10 +228,8 @@ export function insertVatRows(
 	ids: readonly string[],
 ): VatData {
 	if (!ids.length || ids.length > 100) throw Error("每次可插入1至100行");
-	if (
-		new Set(ids).size !== ids.length ||
-		ids.some((id) => data.history.some((r) => r.id === id))
-	)
+	const existingIds = new Set(data.history.map((r) => r.id));
+	if (new Set(ids).size !== ids.length || ids.some((id) => existingIds.has(id)))
 		throw Error("新增行标识重复");
 	const index =
 		anchorId === null

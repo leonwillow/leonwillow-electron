@@ -1,15 +1,17 @@
 /**
  * @file 滞纳金方案的录入、汇总、规则说明与保存工作区。
- * 创建时间：2026-11-05；修改时间：2026-11-07。
- * 版本作用：共享保存队列保护切换与刷新；所有结果通过同一领域算法计算。
+ * 创建时间：2026-11-05；修改时间：2026-11-18。
+ * 版本作用：按单笔税款粒度增量缓存计费结果并提供稳定回调，配合 memo 子卡片消除输入卡顿。
  * 被调用：LateFeesView；调用：LateFeeLiability、useScenario、共享控件与 Eden。
- * 预期结果：多税种、多次缴款可持久化，未完成录入不展示误导合计。
+ * 预期结果：多税种、多次缴款可持久化，修改方案名或单笔税款不重算、不重渲染无关税款。
  */
 
-import { money } from "@leonwillow-electron/calculators";
+import { exact, money } from "@leonwillow-electron/calculators";
 import {
-	calculateLateFees,
+	calculateLiability,
+	dayNumber,
 	LATE_FEE_RULES,
+	type LateFeeResult,
 	MAX_LIABILITIES,
 	type TaxLiability,
 } from "@leonwillow-electron/calculators/late-fees";
@@ -30,7 +32,7 @@ import {
 } from "@leonwillow-electron/ui/components/field";
 import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
 import { CalculatorIcon, FileJsonIcon, PlusIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { downloadCalculation } from "@/lib/calculators";
 import { type LateFeeScenario, saveLateFee } from "@/lib/late-fees";
@@ -38,6 +40,77 @@ import { randomUUID } from "@/lib/uuid";
 import LateFeeLiability, { firstDate, lastDate } from "./late-fee-liability";
 import ScenarioHeader from "./scenario-header";
 import { useScenario } from "./use-scenario";
+
+type CachedLiabilityRow = {
+	cutoff: string;
+	entry: LateFeeResult["rows"][number];
+};
+
+function computeIncrementalLateFees(
+	cutoff: string,
+	liabilities: readonly TaxLiability[],
+	cache: WeakMap<TaxLiability, CachedLiabilityRow>,
+): LateFeeResult {
+	let error: string | null = null;
+	try {
+		try {
+			dayNumber(cutoff);
+		} catch (cause) {
+			throw Error(
+				`测算截止日：${cause instanceof Error ? cause.message : "日期无效"}`,
+			);
+		}
+		if (!liabilities.length) throw Error("请添加至少一笔税款");
+		if (liabilities.length > MAX_LIABILITIES)
+			throw Error(`最多支持${MAX_LIABILITIES}笔税款`);
+		if (new Set(liabilities.map((r) => r.id)).size !== liabilities.length)
+			throw Error("税款标识重复");
+	} catch (cause) {
+		error = cause instanceof Error ? cause.message : "测算数据无效";
+	}
+	const rows = liabilities.map((row) => {
+		const hit = cache.get(row);
+		if (hit && hit.cutoff === cutoff) return hit.entry;
+		let entry: LateFeeResult["rows"][number];
+		try {
+			if (new Set(row.payments.map((p) => p.id)).size !== row.payments.length)
+				throw Error("缴款标识重复");
+			entry = {
+				id: row.id,
+				result: calculateLiability(row, cutoff),
+				error: null,
+			};
+		} catch (cause) {
+			entry = {
+				id: row.id,
+				result: null,
+				error: cause instanceof Error ? cause.message : "税款数据无效",
+			};
+		}
+		cache.set(row, { cutoff, entry });
+		return entry;
+	});
+	let totals: LateFeeResult["totals"] = null;
+	if (!error && rows.every((row) => row.result)) {
+		try {
+			const sum = { principal: 0, paid: 0, remaining: 0, fee: 0, total: 0 };
+			for (const row of rows) {
+				const r = row.result;
+				if (!r) continue;
+				sum.principal = exact(sum.principal + r.principal);
+				sum.paid = exact(sum.paid + r.paid);
+				sum.remaining = exact(sum.remaining + r.remaining);
+				sum.fee = exact(sum.fee + r.fee);
+				sum.total = exact(sum.total + r.total);
+			}
+			totals = sum;
+		} catch (cause) {
+			error = cause instanceof Error ? cause.message : "累计金额超出可计算范围";
+		}
+	}
+	return { rows, totals, error };
+}
+
 export default function LateFeeEditor({
 	record,
 	onSaved,
@@ -56,9 +129,42 @@ export default function LateFeeEditor({
 		onSaved,
 		"late-fees",
 	);
-	const { draft } = editor;
-	const result = useMemo(() => calculateLateFees(draft), [draft]);
+	const { draft, change: setDraft } = editor;
+	const rowCache = useRef(new WeakMap<TaxLiability, CachedLiabilityRow>());
+	const result = useMemo(
+		() =>
+			computeIncrementalLateFees(
+				draft.cutoff,
+				draft.liabilities,
+				rowCache.current,
+			),
+		[draft.cutoff, draft.liabilities],
+	);
 	const [removing, setRemoving] = useState<string | null>(null);
+
+	const handleNameChange = useCallback(
+		(name: string) => setDraft((prev) => ({ ...prev, name })),
+		[setDraft],
+	);
+	const handleCutoffChange = useCallback(
+		(cutoff: string) => setDraft((prev) => ({ ...prev, cutoff })),
+		[setDraft],
+	);
+	const handleLiabilityChange = useCallback(
+		(id: string, value: TaxLiability) =>
+			setDraft((prev) => ({
+				...prev,
+				liabilities: prev.liabilities.map((item) =>
+					item.id === id ? value : item,
+				),
+			})),
+		[setDraft],
+	);
+	const handleLiabilityRemove = useCallback(
+		(id: string) => setRemoving(id),
+		[],
+	);
+
 	const exportBackup = () =>
 		downloadCalculation(
 			`${draft.name || "滞纳金测算"}.json`,
@@ -101,14 +207,14 @@ export default function LateFeeEditor({
 			note: "",
 			payments: [],
 		};
-		editor.change({ ...draft, liabilities: [...draft.liabilities, row] });
+		setDraft((prev) => ({ ...prev, liabilities: [...prev.liabilities, row] }));
 	};
 	return (
 		<>
 			<ScenarioHeader
 				kind="late-fees"
 				name={draft.name}
-				onNameChange={(name) => editor.change({ ...draft, name })}
+				onNameChange={handleNameChange}
 				editor={editor}
 			>
 				<Button variant="outline" onClick={exportBackup}>
@@ -137,7 +243,7 @@ export default function LateFeeEditor({
 								startMonth={firstDate}
 								endMonth={lastDate}
 								value={draft.cutoff}
-								onValueChange={(cutoff) => editor.change({ ...draft, cutoff })}
+								onValueChange={handleCutoffChange}
 							/>
 						</Field>
 					</FieldGroup>
@@ -235,15 +341,8 @@ export default function LateFeeEditor({
 							row={row}
 							index={i}
 							result={result.rows[i]}
-							onChange={(value) =>
-								editor.change({
-									...draft,
-									liabilities: draft.liabilities.map((item) =>
-										item.id === row.id ? value : item,
-									),
-								})
-							}
-							onRemove={() => setRemoving(row.id)}
+							onChange={handleLiabilityChange}
+							onRemove={handleLiabilityRemove}
 						/>
 					))}
 				</div>
@@ -268,12 +367,12 @@ export default function LateFeeEditor({
 								variant="destructive"
 								disabled={editor.readOnly}
 								onClick={() => {
-									editor.change({
-										...draft,
-										liabilities: draft.liabilities.filter(
+									setDraft((prev) => ({
+										...prev,
+										liabilities: prev.liabilities.filter(
 											(row) => row.id !== removing,
 										),
-									});
+									}));
 									setRemoving(null);
 								}}
 							>

@@ -1,13 +1,14 @@
 /**
  * @file 增值税历史导入、新旧方案备份恢复弹窗。
- * 创建时间：2026-11-05；修改时间：2026-11-06。
- * 版本作用：共享组件承载读取、预览、确认三步；导入 HTML 只读取文本。
+ * 创建时间：2026-11-05；修改时间：2026-11-18。
+ * 版本作用：共享组件承载读取、预览、确认三步；非受控粘贴框与哈希索引消除大文本粘贴与合并卡顿。
  * 被调用：VatEditor；调用：共享领域解析、Dialog/Tabs/Table/ScrollArea 与 Sonner。
  * 预期结果：确认前不改变方案，冲突整体拒绝；恢复明确替换调整而保留旧历史。
  */
 import {
 	calculate,
 	fields,
+	type HistoryRow,
 	labels,
 	mergeHistory,
 	readBackup,
@@ -57,6 +58,7 @@ type Preview = {
 	issues: number;
 	restore: boolean;
 };
+
 async function fileText(file: File) {
 	if (file.size > 5 * 1024 * 1024) throw Error("文件不能超过5MB");
 	const bytes = new Uint8Array(await file.arrayBuffer());
@@ -73,6 +75,7 @@ async function fileText(file: File) {
 		return new TextDecoder("gb18030").decode(bytes);
 	}
 }
+
 function parseText(text: string) {
 	if (text.length > 5 * 1024 * 1024) throw Error("内容不能超过5MB");
 	if (/<table[\s>]/i.test(text)) {
@@ -87,6 +90,7 @@ function parseText(text: string) {
 	}
 	return gridToHistory(parseDelimited(text));
 }
+
 export default function ImportDialog({
 	data,
 	onClose,
@@ -97,14 +101,15 @@ export default function ImportDialog({
 	onApply: (data: VatData) => Promise<boolean>;
 }) {
 	const [tab, setTab] = useState("file");
-	const [text, setText] = useState("");
+	const pasteRef = useRef<HTMLTextAreaElement>(null);
+	const pasteDraftRef = useRef("");
 	const [file, setFile] = useState<File | null>(null);
 	const [preview, setPreview] = useState<Preview | null>(null);
 	const [busy, setBusy] = useState(false);
 	const generation = useRef(0);
 	const invalidate = () => {
 		generation.current++;
-		setPreview(null);
+		setPreview((prev) => (prev ? null : prev));
 	};
 	const read = async () => {
 		const token = ++generation.current;
@@ -114,23 +119,23 @@ export default function ImportDialog({
 			let incoming: VatData;
 			let excluded = 0;
 			let restore = false;
-			{
-				if (tab === "file" && !file)
-					throw Error("请先选择历史表或方案备份文件");
-				const content = tab === "file" && file ? await fileText(file) : text;
-				if (/^\s*\{/.test(content)) {
-					incoming = readBackup(JSON.parse(content));
-					restore = true;
-				} else {
-					const parsed = parseText(content);
-					excluded = parsed.excluded;
-					incoming = {
-						history: parsed.rows,
-						adjustments: data.adjustments,
-						source:
-							file && tab === "file" ? file.name.slice(0, 200) : "粘贴历史表",
-					};
-				}
+			if (tab === "file" && !file) throw Error("请先选择历史表或方案备份文件");
+			const content =
+				tab === "file" && file
+					? await fileText(file)
+					: (pasteRef.current?.value ?? pasteDraftRef.current);
+			if (/^\s*\{/.test(content)) {
+				incoming = readBackup(JSON.parse(content));
+				restore = true;
+			} else {
+				const parsed = parseText(content);
+				excluded = parsed.excluded;
+				incoming = {
+					history: parsed.rows,
+					adjustments: data.adjustments,
+					source:
+						file && tab === "file" ? file.name.slice(0, 200) : "粘贴历史表",
+				};
 			}
 			const merged = mergeHistory(
 				data.history,
@@ -141,14 +146,19 @@ export default function ImportDialog({
 			const adjustments = restore
 				? ({} as VatData["adjustments"])
 				: { ...data.adjustments };
+			const byId = new Map<string, HistoryRow>();
+			const byPeriod = new Map<string, HistoryRow>();
+			for (const row of merged.rows) {
+				byId.set(row.id, row);
+				if (row.periodStart && row.periodEnd)
+					byPeriod.set(`${row.periodStart}/${row.periodEnd}`, row);
+			}
 			for (const imported of incoming.history) {
-				const target = merged.rows.find(
-					(row) =>
-						row.id === imported.id ||
-						(row.periodStart &&
-							row.periodStart === imported.periodStart &&
-							row.periodEnd === imported.periodEnd),
-				);
+				const target =
+					byId.get(imported.id) ??
+					(imported.periodStart && imported.periodEnd
+						? byPeriod.get(`${imported.periodStart}/${imported.periodEnd}`)
+						: undefined);
 				const adjustment = incoming.adjustments[imported.id];
 				if (target && adjustment) adjustments[target.id] = adjustment;
 			}
@@ -196,6 +206,8 @@ export default function ImportDialog({
 				<Tabs
 					value={tab}
 					onValueChange={(v) => {
+						if (pasteRef.current)
+							pasteDraftRef.current = pasteRef.current.value;
 						setTab(String(v));
 						invalidate();
 					}}
@@ -225,13 +237,14 @@ export default function ImportDialog({
 						<Label htmlFor="vat-paste">含标题行的历史数据</Label>
 						<ScrollArea className="max-h-56" contentClassName="w-full min-w-0!">
 							<Textarea
+								ref={pasteRef}
 								id="vat-paste"
 								className="overflow-hidden"
 								placeholder="所属期起、所属期止、销项税额、进项税额、进项税额转出、应纳税额、期末留抵"
-								value={text}
+								defaultValue={pasteDraftRef.current}
 								disabled={busy}
 								onChange={(e) => {
-									setText(e.target.value);
+									pasteDraftRef.current = e.target.value;
 									invalidate();
 								}}
 							/>

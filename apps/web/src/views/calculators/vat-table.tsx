@@ -1,9 +1,9 @@
 /**
  * @file 以共享 Lattice Grid 呈现增值税所属期申报、调整及联动结果。
- * 创建时间：2026-11-05；修改时间：2026-11-08。
- * 版本作用：税务表格作为可复用 Grid 的业务消费者，保留分组、状态和补录入口。
+ * 创建时间：2026-11-05；修改时间：2026-11-18。
+ * 版本作用：memo 化隔离顶栏无关重绘，复用 onCommit 事务计算结果消除双倍 applyVatGridTransaction。
  * 被调用：VatEditor；调用：lattice-grid、VAT 列适配、共享按钮与 Tooltip。
- * 预期结果：原始申报与调整均可修改，批量粘贴、撤销与重做通过同一方案快照联动重算。
+ * 预期结果：原始申报与调整均可修改，批量粘贴、撤销与重做通过同一方案快照单次联动重算。
  */
 import {
 	type Adjustments,
@@ -28,7 +28,14 @@ import {
 	TooltipTrigger,
 } from "@leonwillow-electron/ui/components/tooltip";
 import { InfoIcon } from "lucide-react";
-import { type ReactNode, useEffect, useMemo, useRef } from "react";
+import {
+	memo,
+	type ReactNode,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+} from "react";
 import { toast } from "sonner";
 import {
 	applyVatGridTransaction,
@@ -44,6 +51,8 @@ function renderVatEditor(context: EditorContext<VatGridRow>) {
 		<VatPeriodEditor context={context} />
 	) : undefined;
 }
+
+const adjustmentFieldSet = new Set<string>(adjustmentFields);
 
 function renderVatCell({ row, column }: CellContext<VatGridRow>) {
 	const value = getCellValue(row, column);
@@ -77,7 +86,7 @@ function renderVatCell({ row, column }: CellContext<VatGridRow>) {
 			</div>
 		);
 	if (!row.h) return <span className="text-muted-foreground">—</span>;
-	if (adjustmentFields.some((key) => key === column.id))
+	if (adjustmentFieldSet.has(column.id))
 		return (
 			<span className="block text-right tabular-nums">
 				{column.format?.(value, row, "zh-CN")}
@@ -102,7 +111,14 @@ function renderVatCell({ row, column }: CellContext<VatGridRow>) {
 	return undefined;
 }
 
-export default function VatTable({
+type CachedCommit = {
+	source: VatData;
+	previousRows: readonly VatGridRow[];
+	rows: readonly VatGridRow[];
+	result: VatData;
+};
+
+function VatTableView({
 	rows,
 	adjustments,
 	change,
@@ -124,6 +140,7 @@ export default function VatTable({
 	emptyContent?: ReactNode;
 }) {
 	const grid = useRef<GridStore<VatGridRow>>(null);
+	const committed = useRef<CachedCommit | null>(null);
 	const revealCell = useMemo(
 		() => (revealRowId ? { rowId: revealRowId, columnId: "period" } : null),
 		[revealRowId],
@@ -138,6 +155,48 @@ export default function VatTable({
 	const data = useMemo(
 		() => vatGridRows(rows, adjustments, source.history),
 		[rows, adjustments, source.history],
+	);
+	const renderEmpty = useMemo(
+		() => (emptyContent ? () => emptyContent : undefined),
+		[emptyContent],
+	);
+	const handleCommit = useCallback(
+		(transaction: {
+			previousRows: readonly VatGridRow[];
+			rows: readonly VatGridRow[];
+		}) => {
+			committed.current = {
+				source,
+				previousRows: transaction.previousRows,
+				rows: transaction.rows,
+				result: applyVatGridTransaction(
+					source,
+					transaction.previousRows,
+					transaction.rows,
+				),
+			};
+		},
+		[source],
+	);
+	const handleRowsChange = useCallback(
+		(
+			next: readonly VatGridRow[],
+			transaction: { previousRows: readonly VatGridRow[] },
+		) => {
+			const cached = committed.current;
+			committed.current = null;
+			if (
+				cached &&
+				cached.source === source &&
+				cached.previousRows === transaction.previousRows &&
+				cached.rows === next
+			) {
+				change(cached.result);
+				return;
+			}
+			change(applyVatGridTransaction(source, transaction.previousRows, next));
+		},
+		[source, change],
 	);
 	return (
 		<DataGrid
@@ -154,20 +213,15 @@ export default function VatTable({
 			exportable={false}
 			statusBar={false}
 			toolbarSlots={toolbarSlots}
-			renderEmpty={emptyContent ? () => emptyContent : undefined}
+			renderEmpty={renderEmpty}
 			onInsertRows={insert}
-			onCommit={(transaction) => {
-				applyVatGridTransaction(
-					source,
-					transaction.previousRows,
-					transaction.rows,
-				);
-			}}
+			onCommit={handleCommit}
 			renderEditor={renderVatEditor}
-			onRowsChange={(next, transaction) => {
-				change(applyVatGridTransaction(source, transaction.previousRows, next));
-			}}
+			onRowsChange={handleRowsChange}
 			renderCell={renderVatCell}
 		/>
 	);
 }
+
+const VatTable = memo(VatTableView);
+export default VatTable;
