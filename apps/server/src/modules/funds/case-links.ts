@@ -15,10 +15,6 @@ import {
 import { and, desc, eq } from "drizzle-orm";
 import { getServerResources } from "../../server-resources";
 import { AccessError } from "../access/service";
-import { csvDocument, standardHeaders, standardRows } from "./export";
-import { saveOriginal } from "./file-store";
-import { digest } from "./parser";
-import { reconcile } from "./reconcile";
 import {
 	type Actor,
 	findCase,
@@ -27,7 +23,11 @@ import {
 	lockCase,
 	saveRevision,
 	sourcesFor,
-} from "./service";
+} from "./case-service";
+import { csvDocument, standardHeaders, standardRows } from "./export";
+import { saveOriginal } from "./file-store";
+import { digest } from "./parser";
+import { reconcile } from "./reconcile";
 import type { MatchDecision, ParsedSource } from "./types";
 
 /** 仅返回相同账号出现在哪个可访问案件；不返回交易、金额、余额、日期范围。 */

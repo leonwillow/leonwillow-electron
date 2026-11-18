@@ -11,9 +11,9 @@ import { CopyText } from "@leonwillow-electron/ui/components/copy-text";
 import { Separator } from "@leonwillow-electron/ui/components/separator";
 import type { ReactNode } from "react";
 import { accountName, type FundsAccount, formatFunds } from "@/lib/funds";
-import type { NodeMode } from "@/lib/funds-analysis";
-import type { GraphPresentation } from "@/lib/funds-graph-presentation";
-import type { GraphPreview } from "@/lib/funds-graph-preview";
+import type { NodeMode } from "./model/analysis";
+import type { GraphPresentation } from "./model/graph-presentation";
+import type { GraphPreview } from "./model/graph-preview";
 import NodeStatusTags from "./node-status-tags";
 
 function Fact({ label, children }: { label: string; children: ReactNode }) {

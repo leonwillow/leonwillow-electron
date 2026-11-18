@@ -3,7 +3,7 @@
  * 创建时间：2026-10-03（Git 首次收录）
  * 修改时间：2026-10-04
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
- * 被调用：apps/web/test/custom-themes.test.ts、utils/theme-script.ts、utils/theme/theme-style-generator.ts。
+ * 被调用：apps/web/test/custom-themes.test.ts、lib/theme-script.ts、utils/theme/theme-style-generator.ts。
  * 调用：types/theme、./color-converter。
  * 功能：组合偏移、模糊、扩散与透明度，生成单层和双层阴影。
  * 预期结果：预览和导出使用相同阴影计算，不在算法中写 DOM。

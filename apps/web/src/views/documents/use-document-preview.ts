@@ -22,7 +22,7 @@ type PreviewInput = {
 };
 
 /** 使用序列化草稿区分输入版本；取消定时器并忽略旧响应，不中断填写与保存。 */
-export default function useDocumentPreview(
+export function useDocumentPreview(
 	draft: DocumentDraft,
 	details: DocumentDetails | undefined,
 	changed: boolean,

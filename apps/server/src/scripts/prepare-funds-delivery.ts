@@ -3,7 +3,7 @@
  * 创建时间：2026-10-06
  * 修改时间：2026-10-07
  * 版本作用：生成可核对的中间表，供文档工具导出 CSV/Excel。
- * 被调用：bun src/prepare-funds-delivery.ts <源目录> <中间 JSON 路径>。
+ * 被调用：bun src/scripts/prepare-funds-delivery.ts <源目录> <中间 JSON 路径>。
  * 调用：文件系统、与正式导入一致的 parser/reconcile/export。
  * 预期结果：处理已符合出入方向契约的文件；原始银行表须先 AI 标准化，不猜测方向。
  */
@@ -15,9 +15,9 @@ import {
 	standardHeaders,
 	standardRows,
 	templateHeaders,
-} from "./modules/funds/export";
-import { parseStatement } from "./modules/funds/parser";
-import { reconcile } from "./modules/funds/reconcile";
+} from "../modules/funds/export";
+import { parseStatement } from "../modules/funds/parser";
+import { reconcile } from "../modules/funds/reconcile";
 
 const [directory, output] = process.argv.slice(2);
 if (!directory || !output) throw new Error("需要源目录和中间 JSON 输出路径");

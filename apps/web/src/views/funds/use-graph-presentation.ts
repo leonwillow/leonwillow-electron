@@ -13,7 +13,7 @@ import {
 	type GraphPresentation,
 	graphPresentationStorageKey,
 	type NodePresentation,
-} from "@/lib/funds-graph-presentation";
+} from "./model/graph-presentation";
 
 export function useGraphPresentation(userId: string, caseId: string) {
 	const key = graphPresentationStorageKey(userId, caseId);

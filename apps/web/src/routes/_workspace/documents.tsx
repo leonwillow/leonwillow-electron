@@ -6,6 +6,7 @@
  * 预期结果：父路由检查会话和 documents 授权，故障可重试。
  */
 import { createFileRoute } from "@tanstack/react-router";
+import { parseOptionalUuid } from "@/lib/uuid";
 import DocumentsView from "@/views/documents";
 import {
 	DocumentsErrorView,
@@ -16,7 +17,7 @@ export const Route = createFileRoute("/_workspace/documents")({
 	validateSearch: (
 		search: Record<string, unknown>,
 	): { typeId?: string; view?: "templates" } => ({
-		typeId: typeof search.typeId === "string" ? search.typeId : undefined,
+		typeId: parseOptionalUuid(search.typeId),
 		view: search.view === "templates" ? "templates" : undefined,
 	}),
 	loader: async () => {

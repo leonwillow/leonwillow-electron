@@ -16,7 +16,7 @@ import {
 	decodeCanvasBackground,
 	defaultCanvasBackground,
 	opaqueCanvasColor,
-} from "../src/lib/funds-canvas-background";
+} from "../src/views/funds/model/canvas-background";
 
 test("全部颜色纹理组合往返，账号存储隔离，只保留背景设置", () => {
 	for (const [tone] of canvasTones)

@@ -11,7 +11,7 @@ import {
 	type CanvasBackground,
 	canvasBackgroundStorageKey,
 	decodeCanvasBackground,
-} from "@/lib/funds-canvas-background";
+} from "./model/canvas-background";
 
 export function useCanvasBackground(userId: string) {
 	const key = canvasBackgroundStorageKey(userId);

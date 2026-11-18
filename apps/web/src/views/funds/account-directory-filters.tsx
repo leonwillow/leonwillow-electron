@@ -24,13 +24,13 @@ import {
 } from "@leonwillow-electron/ui/components/tooltip";
 import { ListFilterIcon } from "lucide-react";
 import { useId, useState } from "react";
+import FilterSelect from "./filter-select";
 import {
 	type DirectoryFilters,
 	directoryFilterCount,
 	directoryFilterError,
 	emptyDirectoryFilters,
-} from "@/lib/funds-directory";
-import FilterSelect from "./filter-select";
+} from "./model/directory";
 
 const fields = [
 	{

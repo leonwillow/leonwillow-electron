@@ -16,7 +16,7 @@ import {
 	TableRow,
 } from "@leonwillow-electron/ui/components/table";
 import { accountName, type FundsAccount, formatFunds } from "@/lib/funds";
-import type { AnalysisEdge } from "@/lib/funds-analysis";
+import type { AnalysisEdge } from "./model/analysis";
 export default function FlowTable({
 	edges,
 	nodes,

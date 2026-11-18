@@ -32,6 +32,7 @@ import {
 import { PaintBucketIcon } from "lucide-react";
 import { type CSSProperties, useContext, useId, useState } from "react";
 import { ColorSwatch } from "@/components/theme-editor/theme-color-panel";
+import { GraphToolbarContext } from "./graph-toolbar-context";
 import {
 	type CanvasBackground,
 	canvasInk,
@@ -39,8 +40,7 @@ import {
 	canvasTones,
 	defaultCanvasBackground,
 	opaqueCanvasColor,
-} from "@/lib/funds-canvas-background";
-import { GraphToolbarContext } from "./graph-toolbar-context";
+} from "./model/canvas-background";
 
 export function canvasBackgroundProps(background: CanvasBackground) {
 	const color = opaqueCanvasColor(background.customColor);

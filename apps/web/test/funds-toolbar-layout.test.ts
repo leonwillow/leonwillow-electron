@@ -14,7 +14,7 @@ import {
 	toolbarOrientation,
 	toolbarPlacement,
 	toolbarPositions,
-} from "../src/lib/funds-toolbar-layout";
+} from "../src/views/funds/model/toolbar-layout";
 
 test("八个停靠位置：四角支持两种方向，边中限制正确", () => {
 	expect(new Set(toolbarPositions.map(([position]) => position)).size).toBe(8);

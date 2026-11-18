@@ -14,8 +14,8 @@ import {
 	fundsSource,
 } from "@leonwillow-electron/db/schema";
 import { and, eq, isNotNull } from "drizzle-orm";
-import { ENV } from "./env";
-import { createFundsFileStore } from "./modules/funds/file-store";
+import { ENV } from "../env";
+import { createFundsFileStore } from "../modules/funds/file-store";
 
 const { db, pool } = createDatabase(ENV.DATABASE_URL);
 const store = createFundsFileStore(ENV);

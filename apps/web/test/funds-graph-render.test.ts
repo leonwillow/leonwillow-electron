@@ -7,8 +7,8 @@
  * 预期结果：全部项目恰好一次、有让出执行权、取消后不继续绘制。
  */
 import { expect, test } from "bun:test";
-import { drawInBatches } from "../src/lib/funds-graph-batches";
-import { fundsNodePositions } from "../src/lib/funds-graph-layout";
+import { drawInBatches } from "../src/views/funds/model/graph-batches";
+import { fundsNodePositions } from "../src/views/funds/model/graph-layout";
 
 test("整案 7357 条交易依次分批且完整，批次间可处理外部事件", async () => {
 	const source = Array.from({ length: 7357 }, (_, index) => index);

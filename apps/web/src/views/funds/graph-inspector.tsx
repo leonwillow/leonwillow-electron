@@ -9,12 +9,9 @@
  */
 import { Sheet, SheetContent } from "@leonwillow-electron/ui/components/sheet";
 import type { FundsAccount } from "@/lib/funds";
-import type { AnalysisEdge, NodeMode, RawGraph } from "@/lib/funds-analysis";
-import type {
-	NodeMark,
-	NodePresentation,
-} from "@/lib/funds-graph-presentation";
 import EdgeInspector from "./edge-inspector";
+import type { AnalysisEdge, NodeMode, RawGraph } from "./model/analysis";
+import type { NodeMark, NodePresentation } from "./model/graph-presentation";
 import NodeInspector from "./node-inspector";
 
 export type InspectorTarget =

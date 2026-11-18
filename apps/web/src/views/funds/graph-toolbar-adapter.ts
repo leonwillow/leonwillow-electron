@@ -7,13 +7,13 @@
  * 预期结果：各组工具清晰分区，停靠和折叠不改变滚轮、输入及历史的缩放读数。
  */
 import type { Graph, Toolbar } from "@antv/g6";
-import type { ToolbarLayout } from "@/lib/funds-toolbar-layout";
 import {
 	attachToolbarDock,
 	type ToolbarDock,
 	type ToolbarDockState,
 } from "./graph-toolbar-dock";
 import { createGraphZoomField } from "./graph-zoom-field";
+import type { ToolbarLayout } from "./model/toolbar-layout";
 
 export type GraphToolbarHint = { anchor: HTMLElement; text: string };
 export type GraphToolbarController = {

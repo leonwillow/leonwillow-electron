@@ -8,12 +8,13 @@
  * 预期结果：选择案件、导入和资料核对拥有独立地址。
  */
 import { createFileRoute } from "@tanstack/react-router";
+import { parseOptionalUuid } from "@/lib/uuid";
 import CasesView from "@/views/funds/cases-view";
 import { FundsErrorView, FundsPendingView } from "@/views/funds/route-states";
 
 export const Route = createFileRoute("/_workspace/funds_/cases")({
 	validateSearch: (search: Record<string, unknown>): { caseId?: string } => ({
-		caseId: typeof search.caseId === "string" ? search.caseId : undefined,
+		caseId: parseOptionalUuid(search.caseId),
 	}),
 	loader: async () => (await import("@/lib/funds")).listFundsCases(),
 	staleTime: 0,

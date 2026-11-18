@@ -7,9 +7,9 @@
  * 功能：校验存储、解析关联边标记、按币种统计收付与内部划转。
  * 预期结果：隐藏不减少账目，往返不抵销，重置标记保留原配置。
  */
-import { isColorValue } from "./custom-themes";
-import type { FundsTransaction } from "./funds";
-import type { NodeMode } from "./funds-analysis";
+import { isColorValue } from "@/lib/custom-themes";
+import type { FundsTransaction } from "@/lib/funds";
+import type { NodeMode } from "./analysis";
 
 export type NodeMark = {
 	shape: "circle" | "rect" | "diamond" | "triangle" | "hexagon";

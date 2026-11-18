@@ -17,10 +17,7 @@ import {
 } from "@leonwillow-electron/ui/components/radio-group";
 import { cn } from "@leonwillow-electron/ui/lib/utils";
 import { useId } from "react";
-import {
-	type ToolbarPosition,
-	toolbarPositions,
-} from "@/lib/funds-toolbar-layout";
+import { type ToolbarPosition, toolbarPositions } from "./model/toolbar-layout";
 
 export default function GraphDockPositionField({
 	value,

@@ -2,7 +2,7 @@
  * @file 类 Nuxt 架构与命名门禁的行为测试。
  * 创建时间：2026-11-18
  * 修改时间：2026-11-18
- * 版本作用：覆盖目录白名单、跨视图隔离、单向分层、Hook 命名、API 边界与样式防污染规则。
+ * 版本作用：覆盖目录白名单、跨视图隔离、lib/utils 边界、具名导出、单向分层、Hook 命名、API 边界与样式防污染规则。
  * 被调用：Bun 测试命令。
  * 调用：bun:test、node:path、./check-conventions。
  * 功能：验证合法源码通过检查，各类违规写法均被准确定位拒绝。
@@ -12,11 +12,12 @@ import { expect, test } from "bun:test";
 import { resolve } from "node:path";
 import {
 	checkFilenameConvention,
+	checkLibSharingConventions,
 	checkSourceConventions,
 	checkWorkspaceStructure,
 } from "./check-conventions";
 
-test("当前真实工作区目录结构完全符合白名单且无空目录", () => {
+test("当前真实工作区目录结构与 lib 共享边界完全符合白名单且无空目录", () => {
 	const root = resolve(import.meta.dir, "..");
 	expect(checkWorkspaceStructure(root)).toEqual([]);
 });
@@ -111,6 +112,94 @@ test("强制 Hook 文件以 use- 命名，放行 Context Provider 与 Zustand St
 		checkSourceConventions(
 			"export const useThemeStore = () => null;",
 			"apps/web/src/stores/theme-store.ts",
+		),
+	).toEqual([]);
+});
+
+test("强制 Hook 及底层模块使用具名导出，仅视图与组件允许默认导出", () => {
+	expect(
+		checkSourceConventions(
+			"export default function useDocumentPreview() { return null; }",
+			"apps/web/src/views/documents/use-document-preview.ts",
+		).length,
+	).toBeGreaterThan(0);
+
+	expect(
+		checkSourceConventions(
+			"const client = {}; export default client;",
+			"apps/web/src/lib/documents.ts",
+		).length,
+	).toBeGreaterThan(0);
+
+	expect(
+		checkSourceConventions(
+			"export function useDocumentPreview() { return null; }",
+			"apps/web/src/views/documents/use-document-preview.ts",
+		),
+	).toEqual([]);
+
+	expect(
+		checkSourceConventions(
+			"export default function DocumentsView() { return null; }",
+			"apps/web/src/views/documents/index.tsx",
+		),
+	).toEqual([]);
+});
+
+test("强制 utils 层保持无副作用纯函数，禁止访问浏览器或网络全局对象", () => {
+	expect(
+		checkSourceConventions(
+			'export function apply() { document.documentElement.classList.add("dark"); }',
+			"apps/web/src/utils/theme/dom.ts",
+		).length,
+	).toBeGreaterThan(0);
+
+	expect(
+		checkSourceConventions(
+			'export function load() { return localStorage.getItem("k"); }',
+			"apps/web/src/utils/theme/storage.ts",
+		).length,
+	).toBeGreaterThan(0);
+
+	expect(
+		checkSourceConventions(
+			"export function clamp(value: number) { return Math.max(0, value); }",
+			"apps/web/src/utils/theme/math.ts",
+		),
+	).toEqual([]);
+});
+
+test("阻止单一视图私有纯模型堆入 apps/web/src/lib，放行 API 客户端与跨层共享模块", () => {
+	expect(
+		checkLibSharingConventions(
+			new Map([
+				["apps/web/src/lib/funds-only.ts", "export const helper = () => 1;"],
+				[
+					"apps/web/src/views/funds/index.tsx",
+					'import { helper } from "@/lib/funds-only"; export default function View() { return helper(); }',
+				],
+			]),
+		).length,
+	).toBeGreaterThan(0);
+
+	expect(
+		checkLibSharingConventions(
+			new Map([
+				["apps/web/src/lib/api.ts", "export const api = {};"],
+				[
+					"apps/web/src/lib/funds.ts",
+					'import { api } from "./api"; export const list = () => api;',
+				],
+				["apps/web/src/lib/shared.ts", "export const id = () => 'x';"],
+				[
+					"apps/web/src/routes/_workspace/funds.tsx",
+					'import { id } from "@/lib/shared"; export const r = id;',
+				],
+				[
+					"apps/web/src/views/funds/index.tsx",
+					'import { list } from "@/lib/funds"; export default function View() { return list(); }',
+				],
+			]),
 		),
 	).toEqual([]);
 });

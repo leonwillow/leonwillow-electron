@@ -18,9 +18,9 @@ import {
 } from "@leonwillow-electron/ui/components/sheet";
 import { useMemo, useState } from "react";
 import { accountName, formatFunds } from "@/lib/funds";
-import type { AnalysisEdge, NodeMode, RawGraph } from "@/lib/funds-analysis";
 import { EvidenceContent } from "./evidence-dialog";
 import GraphPreviewContent from "./graph-preview-content";
+import type { AnalysisEdge, NodeMode, RawGraph } from "./model/analysis";
 
 export default function EdgeInspector({
 	edge,

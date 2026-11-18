@@ -11,7 +11,7 @@ import "varlock/auto-load";
 import { createAuth } from "@leonwillow-electron/auth";
 import { initializeAdmin } from "@leonwillow-electron/auth/bootstrap";
 import { createDatabase } from "@leonwillow-electron/db";
-import { ENV } from "./env";
+import { ENV } from "../env";
 
 const password = ENV.ADMIN_INITIAL_PASSWORD;
 if (!password || password.length < 8 || password.length > 128)

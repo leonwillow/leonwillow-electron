@@ -15,11 +15,11 @@ import {
 import { Separator } from "@leonwillow-electron/ui/components/separator";
 import { type ComponentProps, useMemo } from "react";
 import { accountName, type FundsAccount, formatFunds } from "@/lib/funds";
-import type { NodeMode, RawGraph } from "@/lib/funds-analysis";
+import type { NodeMode, RawGraph } from "./model/analysis";
 import {
 	type NodePresentation,
 	summarizeNode,
-} from "@/lib/funds-graph-presentation";
+} from "./model/graph-presentation";
 import NodeStatusTags from "./node-status-tags";
 
 type PreviewProps = {

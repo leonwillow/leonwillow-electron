@@ -1,14 +1,14 @@
 /**
- * @file 类 Nuxt 项目目录、命名、单向分层与全局样式防污染静态门禁。
+ * @file 类 Nuxt 项目目录、命名、单向分层、纯工具边界与全局样式防污染静态门禁。
  * 创建时间：2026-11-18
  * 修改时间：2026-11-18
- * 版本作用：将目录职责、跨视图隔离、Hook 命名、API 边界、路由纯净度与单文件体积固化为自动化 lint 约束。
+ * 版本作用：将前后端目录白名单、跨视图隔离、lib/utils 职责边界、具名导出、Hook 命名、API 边界与单文件体积固化为自动化 lint 约束。
  * 被调用：根 lint 命令、scripts/check-conventions.test.ts。
  * 调用：node:fs、node:path、typescript。
- * 功能：扫描工作区目录结构及 TS/TSX/CSS 源码 AST，定位越界依赖、违规命名与膨胀文件。
- * 预期结果：任何违反目录、命名或分层约定的改动在提交前以明确位置与修复建议失败退出。
+ * 功能：扫描工作区目录结构及 TS/TSX/CSS 源码 AST，定位越界依赖、违规导出、私有逻辑外溢与膨胀文件。
+ * 预期结果：任何违反目录、命名、导出或分层约定的改动在提交前以明确位置与修复建议失败退出。
  */
-import { readdirSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { basename, posix, relative, resolve } from "node:path";
 import ts from "typescript";
 
@@ -31,7 +31,16 @@ const WEB_TOP_FILES = new Set([
 	"routeTree.gen.ts",
 	"vite-env.d.ts",
 ]);
-const SERVER_TOP_DIRS = new Set(["modules"]);
+const SERVER_TOP_DIRS = new Set(["modules", "scripts"]);
+const SERVER_TOP_FILES = new Set([
+	"app.ts",
+	"auth-origins.ts",
+	"env.ts",
+	"funds-worker.ts",
+	"index.ts",
+	"lifecycle.ts",
+	"server-resources.ts",
+]);
 
 const LOWER_WEB_LAYERS = new Set([
 	"configs",
@@ -40,6 +49,25 @@ const LOWER_WEB_LAYERS = new Set([
 	"types",
 	"utils",
 ]);
+const NAMED_EXPORT_ONLY_LAYERS = new Set([
+	"configs",
+	"hooks",
+	"lib",
+	"stores",
+	"utils",
+]);
+const FORBIDDEN_UTILS_GLOBALS = new Set([
+	"document",
+	"fetch",
+	"localStorage",
+	"sessionStorage",
+	"window",
+]);
+const LIB_HOST_BRIDGES = new Set([
+	"apps/web/src/lib/api.ts",
+	"apps/web/src/lib/desktop.ts",
+]);
+
 const FORBIDDEN_GLOBALS_PREFIX =
 	/\.(?:vat|late-fee|calculator|funds|inquiry|workspace|lg|desktop)-[\w-]+/;
 
@@ -75,6 +103,25 @@ function webLayerInfo(targetPath: string) {
 	return { layer, segment };
 }
 
+function isPropertyNameOrTypePosition(node: ts.Identifier): boolean {
+	const parent = node.parent;
+	if (!parent) return false;
+	if (ts.isPropertyAccessExpression(parent) && parent.name === node)
+		return true;
+	if (ts.isPropertyAssignment(parent) && parent.name === node) return true;
+	if (ts.isPropertySignature(parent) && parent.name === node) return true;
+	if (ts.isParameter(parent) && parent.name === node) return true;
+	if (ts.isVariableDeclaration(parent) && parent.name === node) return true;
+	let current: ts.Node | undefined = parent;
+	while (current) {
+		if (ts.isTypeNode(current) || ts.isTypeAliasDeclaration(current)) {
+			return true;
+		}
+		current = current.parent;
+	}
+	return false;
+}
+
 /**
  * 检查单个文件的文件名约定。
  * @param filename 仓库相对 POSIX 路径。
@@ -100,7 +147,7 @@ export function checkFilenameConvention(filename: string): string[] {
 }
 
 /**
- * 检查单个 TS/TSX/CSS 源码的架构分层、命名、API 边界与体积约束。
+ * 检查单个 TS/TSX/CSS 源码的架构分层、命名、具名导出、纯函数边界、API 边界与体积约束。
  * @param source 文件文本。
  * @param filename 仓库相对 POSIX 路径。
  * @returns 违规说明列表。
@@ -174,7 +221,13 @@ export function checkSourceConventions(
 		normalized.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
 	);
 
+	const base = basename(normalized);
+	const isUseFile = base.startsWith("use-");
+	const forbidDefaultExport =
+		isUseFile || NAMED_EXPORT_ONLY_LAYERS.has(fromInfo.layer);
+
 	const exportedNames: { name: string; pos: number }[] = [];
+	let defaultExportPos: number | null = null;
 
 	const checkImportEdge = (
 		specifier: string,
@@ -234,12 +287,9 @@ export function checkSourceConventions(
 		}
 	};
 
-	const hasExportModifier = (node: ts.Node) =>
+	const hasModifier = (node: ts.Node, kind: ts.SyntaxKind) =>
 		ts.canHaveModifiers(node) &&
-		(ts
-			.getModifiers(node)
-			?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword) ??
-			false);
+		(ts.getModifiers(node)?.some((m) => m.kind === kind) ?? false);
 
 	const visit = (node: ts.Node) => {
 		if (
@@ -307,15 +357,44 @@ export function checkSourceConventions(
 		}
 
 		if (
+			fromInfo.layer === "utils" &&
+			ts.isIdentifier(node) &&
+			FORBIDDEN_UTILS_GLOBALS.has(node.text) &&
+			!isPropertyNameOrTypePosition(node)
+		) {
+			errors.push(
+				`${normalized}:${lineNumber(source, node.getStart(ast))} utils 层只允许存放无副作用纯算法，禁止访问浏览器或网络全局对象 "${node.text}"（DOM/存储/网络适配请放入 apps/web/src/lib/）。`,
+			);
+		}
+
+		if (defaultExportPos === null) {
+			if (ts.isExportAssignment(node)) {
+				defaultExportPos = node.getStart(ast);
+			} else if (hasModifier(node, ts.SyntaxKind.DefaultKeyword)) {
+				defaultExportPos = node.getStart(ast);
+			} else if (
+				ts.isExportDeclaration(node) &&
+				node.exportClause &&
+				ts.isNamedExports(node.exportClause) &&
+				node.exportClause.elements.some((el) => el.name.text === "default")
+			) {
+				defaultExportPos = node.getStart(ast);
+			}
+		}
+
+		if (
 			ts.isFunctionDeclaration(node) &&
 			node.name &&
-			hasExportModifier(node)
+			hasModifier(node, ts.SyntaxKind.ExportKeyword)
 		) {
 			exportedNames.push({
 				name: node.name.text,
 				pos: node.name.getStart(ast),
 			});
-		} else if (ts.isVariableStatement(node) && hasExportModifier(node)) {
+		} else if (
+			ts.isVariableStatement(node) &&
+			hasModifier(node, ts.SyntaxKind.ExportKeyword)
+		) {
 			for (const decl of node.declarationList.declarations) {
 				if (ts.isIdentifier(decl.name)) {
 					exportedNames.push({
@@ -345,8 +424,12 @@ export function checkSourceConventions(
 
 	visit(ast);
 
-	const base = basename(normalized);
-	const isUseFile = base.startsWith("use-");
+	if (forbidDefaultExport && defaultExportPos !== null) {
+		errors.push(
+			`${normalized}:${lineNumber(source, defaultExportPos)} Hook（use-*）及 ${[...NAMED_EXPORT_ONLY_LAYERS].join("/")} 层必须统一使用具名导出（Named Export），禁止 export default。`,
+		);
+	}
+
 	const isProviderFile =
 		base.endsWith("-provider.tsx") ||
 		base.endsWith("-provider.ts") ||
@@ -374,6 +457,112 @@ export function checkSourceConventions(
 	return errors;
 }
 
+/**
+ * 检查 apps/web/src/lib 中的模块是否具备跨层/跨视图共享职责或宿主通信边界，阻止单一视图私有模型堆入 lib。
+ * @param webSources 仓库相对路径 -> 文件源码映射。
+ */
+export function checkLibSharingConventions(
+	webSources: ReadonlyMap<string, string>,
+): string[] {
+	const errors: string[] = [];
+	const importersByLib = new Map<string, Set<string>>();
+	const libCallsApi = new Set<string>();
+
+	for (const filepath of webSources.keys()) {
+		if (filepath.startsWith("apps/web/src/lib/") && filepath.endsWith(".ts")) {
+			importersByLib.set(filepath, new Set());
+		}
+	}
+
+	const normalizeToTs = (resolved: string) =>
+		resolved.endsWith(".ts") || resolved.endsWith(".tsx")
+			? resolved
+			: `${resolved}.ts`;
+
+	for (const [filepath, source] of webSources) {
+		if (!filepath.startsWith("apps/web/src/") || filepath.endsWith(".css"))
+			continue;
+		if (filepath.endsWith("/routeTree.gen.ts")) continue;
+
+		const ast = ts.createSourceFile(
+			filepath,
+			source,
+			ts.ScriptTarget.Latest,
+			true,
+			filepath.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+		);
+
+		const recordSpec = (specifier: string) => {
+			const resolved = resolveWebSpecifier(filepath, specifier);
+			if (!resolved) return;
+			const targetTs = normalizeToTs(resolved);
+			if (
+				filepath.startsWith("apps/web/src/lib/") &&
+				targetTs === "apps/web/src/lib/api.ts"
+			) {
+				libCallsApi.add(filepath);
+			}
+			const bucket = importersByLib.get(targetTs);
+			if (bucket && targetTs !== filepath) {
+				bucket.add(filepath);
+			}
+		};
+
+		const walk = (node: ts.Node) => {
+			if (
+				ts.isImportDeclaration(node) &&
+				ts.isStringLiteral(node.moduleSpecifier)
+			) {
+				recordSpec(node.moduleSpecifier.text);
+			} else if (
+				ts.isExportDeclaration(node) &&
+				node.moduleSpecifier &&
+				ts.isStringLiteral(node.moduleSpecifier)
+			) {
+				recordSpec(node.moduleSpecifier.text);
+			} else if (
+				ts.isCallExpression(node) &&
+				node.expression.kind === ts.SyntaxKind.ImportKeyword &&
+				node.arguments[0] &&
+				ts.isStringLiteralLike(node.arguments[0])
+			) {
+				recordSpec(node.arguments[0].text);
+			}
+			ts.forEachChild(node, walk);
+		};
+		walk(ast);
+	}
+
+	for (const [libFile, importers] of importersByLib) {
+		if (LIB_HOST_BRIDGES.has(libFile) || libCallsApi.has(libFile)) continue;
+		if (importers.size === 0) {
+			errors.push(
+				`${libFile}:1 未被应用源码引用的孤立 lib 模块，请移除或接入实际调用方。`,
+			);
+			continue;
+		}
+		const viewSegments = new Set<string>();
+		let hasNonViewImporter = false;
+		for (const importer of importers) {
+			const info = webLayerInfo(importer);
+			if (!info) continue;
+			if (info.layer === "views" && info.segment) {
+				viewSegments.add(info.segment);
+			} else {
+				hasNonViewImporter = true;
+			}
+		}
+		if (!hasNonViewImporter && viewSegments.size === 1) {
+			const [onlyFeature] = viewSegments;
+			errors.push(
+				`${libFile}:1 仅被单一业务视图 views/${onlyFeature} 引用的纯逻辑模块禁止堆入共享 lib/，请就近移至 apps/web/src/views/${onlyFeature}/。`,
+			);
+		}
+	}
+
+	return errors;
+}
+
 function findEmptyDirectories(dir: string, root: string): string[] {
 	const entries = readdirSync(dir, { withFileTypes: true }).filter(
 		(entry) => entry.name !== ".DS_Store",
@@ -393,7 +582,7 @@ function findEmptyDirectories(dir: string, root: string): string[] {
 }
 
 /**
- * 检查工作区顶层目录白名单及空目录残留。
+ * 检查工作区顶层目录与顶层文件白名单、utils 分组结构、lib 共享边界及空目录残留。
  * @param root 仓库根目录绝对路径。
  */
 export function checkWorkspaceStructure(root: string): string[] {
@@ -415,12 +604,28 @@ export function checkWorkspaceStructure(root: string): string[] {
 		}
 	}
 
+	const webUtils = resolve(root, "apps/web/src/utils");
+	for (const entry of readdirSync(webUtils, { withFileTypes: true })) {
+		if (entry.name === ".DS_Store") continue;
+		if (!entry.isDirectory()) {
+			errors.push(
+				`apps/web/src/utils/${entry.name}:1 utils 根目录禁止平铺散落文件 "${entry.name}"，纯算法按子领域归入 utils/<domain>/，DOM/存储适配请放入 lib/。`,
+			);
+		}
+	}
+
 	const serverSrc = resolve(root, "apps/server/src");
 	for (const entry of readdirSync(serverSrc, { withFileTypes: true })) {
 		if (entry.name === ".DS_Store") continue;
-		if (entry.isDirectory() && !SERVER_TOP_DIRS.has(entry.name)) {
+		if (entry.isDirectory()) {
+			if (!SERVER_TOP_DIRS.has(entry.name)) {
+				errors.push(
+					`apps/server/src/${entry.name}:1 未登记的服务端顶层目录 "${entry.name}"，允许目录：${[...SERVER_TOP_DIRS].join(", ")}。`,
+				);
+			}
+		} else if (!SERVER_TOP_FILES.has(entry.name)) {
 			errors.push(
-				`apps/server/src/${entry.name}:1 服务端业务子目录统一放在 apps/server/src/modules/<feature> 下。`,
+				`apps/server/src/${entry.name}:1 禁止在 apps/server/src 根目录散落文件 "${entry.name}"，业务模块放入 modules/<feature>，离线脚本放入 scripts/。`,
 			);
 		}
 	}
@@ -439,6 +644,17 @@ export function checkWorkspaceStructure(root: string): string[] {
 	]) {
 		errors.push(...findEmptyDirectories(resolve(root, srcDir), root));
 	}
+
+	const webSources = new Map<string, string>();
+	for (const filepath of new Bun.Glob("**/*.{ts,tsx}").scanSync({
+		cwd: webSrc,
+		absolute: true,
+		onlyFiles: true,
+	})) {
+		const rel = toPosix(relative(root, filepath));
+		webSources.set(rel, readFileSync(filepath, "utf8"));
+	}
+	errors.push(...checkLibSharingConventions(webSources));
 
 	return errors;
 }
@@ -481,7 +697,7 @@ if (import.meta.main) {
 		process.exitCode = 1;
 	} else {
 		console.info(
-			"架构约定检查通过：目录白名单、kebab-case 命名、单向依赖、Hook 规范、API 边界与样式隔离均合规。",
+			"架构约定检查通过：目录白名单、kebab-case 命名、单向依赖、lib/utils 边界、具名导出、Hook 规范、API 边界与样式隔离均合规。",
 		);
 	}
 }

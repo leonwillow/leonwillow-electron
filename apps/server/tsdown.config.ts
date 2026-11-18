@@ -11,7 +11,11 @@
 import { defineConfig } from "tsdown";
 
 export default defineConfig({
-	entry: ["./src/index.ts", "./src/init-admin.ts", "./src/funds-worker.ts"],
+	entry: {
+		index: "./src/index.ts",
+		"init-admin": "./src/scripts/init-admin.ts",
+		"funds-worker": "./src/funds-worker.ts",
+	},
 	format: "esm",
 	outDir: "./dist",
 	clean: true,

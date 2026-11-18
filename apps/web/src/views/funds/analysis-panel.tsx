@@ -1,40 +1,17 @@
 /**
- * @file 账户/主体与逐笔/汇总四种资金视图和时间顺序追踪。
+ * @file 账户/主体与逐笔/汇总四种资金视图和时间顺序追踪协调容器。
  * 创建时间：2026-10-06
- * 修改时间：2026-11-05
- * 版本作用：整案为入口，办案人员自行选择账户、双方或任意付款。
- * 被调用：funds 工作台；调用：Eden、G6 画布、共享 Tabs/Table/Input/Button。
- * 功能：图与流水页签共用筛选范围，保留分页、选择、账户搜索和证据查看。
+ * 修改时间：2026-11-18
+ * 版本作用：整案为入口，协调关系图画布、控制条与流水明细子面板。
+ * 被调用：funds 工作台；调用：Eden、G6 画布、AccountDirectory、AnalysisControls、TransactionsPanel。
+ * 功能：图与流水页签共用筛选范围，管理分析历史、节点标记隐藏与追踪状态。
  * 预期结果：图与明细覆盖同一完整事实范围，仅见对手照常显示，路径只作为待研判关联。
  */
 
-import { Badge } from "@leonwillow-electron/ui/components/badge";
 import { Button } from "@leonwillow-electron/ui/components/button";
-import { Checkbox } from "@leonwillow-electron/ui/components/checkbox";
-import { Input } from "@leonwillow-electron/ui/components/input";
-import { Label } from "@leonwillow-electron/ui/components/label";
-import {
-	RadioGroup,
-	RadioGroupItem,
-} from "@leonwillow-electron/ui/components/radio-group";
 import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@leonwillow-electron/ui/components/table";
-import {
-	Tabs,
-	TabsContent,
-	TabsList,
-	TabsTrigger,
-} from "@leonwillow-electron/ui/components/tabs";
-import { TooltipText } from "@leonwillow-electron/ui/components/tooltip";
+import { Tabs, TabsContent } from "@leonwillow-electron/ui/components/tabs";
 import { getRouteApi } from "@tanstack/react-router";
-import { ArrowRightIcon } from "lucide-react";
 import {
 	useCallback,
 	useEffect,
@@ -48,32 +25,12 @@ import {
 	accountName,
 	type FundsGraph,
 	type FundsTransaction,
-	formatFunds,
 	fundsError,
 	getFundsGraph,
 	traceFunds,
 } from "@/lib/funds";
-import {
-	aggregateAnalysis,
-	type EdgeMode,
-	filterAnalysis,
-	type NodeMode,
-	projectAccounts,
-	projectTrace,
-} from "@/lib/funds-analysis";
-import {
-	type EdgeFilter,
-	emptyEdgeFilter,
-	emptyNodeFilter,
-	filterGraph,
-	type NodeFilter,
-} from "@/lib/funds-graph-filters";
-import {
-	type NodeMark,
-	nodePresentationKey,
-} from "@/lib/funds-graph-presentation";
 import AccountDirectory from "./account-directory";
-import FlowTable from "./flow-table";
+import AnalysisControls from "./analysis-controls";
 import GraphCanvas from "./graph-canvas";
 import GraphInspector, {
 	type InspectorSelection,
@@ -83,7 +40,24 @@ import GraphToolbar, {
 	emptyRelationFilter,
 	type RelationFilter,
 } from "./graph-toolbar";
+import {
+	aggregateAnalysis,
+	type EdgeMode,
+	filterAnalysis,
+	type NodeMode,
+	projectAccounts,
+	projectTrace,
+} from "./model/analysis";
+import {
+	type EdgeFilter,
+	emptyEdgeFilter,
+	emptyNodeFilter,
+	filterGraph,
+	type NodeFilter,
+} from "./model/graph-filters";
+import { type NodeMark, nodePresentationKey } from "./model/graph-presentation";
 import NodeActionMenu, { type NodeMenuTarget } from "./node-action-menu";
+import TransactionsPanel from "./transactions-panel";
 import { useGraphHistory } from "./use-graph-history";
 import { useGraphPresentation } from "./use-graph-presentation";
 
@@ -155,21 +129,21 @@ export default function AnalysisPanel({ caseId }: { caseId: string }) {
 		() => projectAccounts(result.data ?? emptyGraph, nodeMode),
 		[result.data, nodeMode],
 	);
-	const appearances = useMemo(
-		() =>
-			Object.fromEntries(
-				full.nodes.map((node) => [
+	const appearances = useMemo(() => {
+		const hiddenSet = new Set(view.hiddenKeys);
+		return Object.fromEntries(
+			full.nodes.map((node) => {
+				const key = nodePresentationKey(nodeMode, node.id);
+				return [
 					node.id,
 					{
-						...presentation.entries[nodePresentationKey(nodeMode, node.id)],
-						hidden: view.hiddenKeys.includes(
-							nodePresentationKey(nodeMode, node.id),
-						),
+						...presentation.entries[key],
+						hidden: hiddenSet.has(key),
 					},
-				]),
-			),
-		[full.nodes, nodeMode, presentation.entries, view.hiddenKeys],
-	);
+				];
+			}),
+		);
+	}, [full.nodes, nodeMode, presentation.entries, view.hiddenKeys]);
 	const hiddenNodes = full.nodes.filter((node) => appearances[node.id]?.hidden);
 	const source = useMemo(
 		() =>
@@ -219,11 +193,7 @@ export default function AnalysisPanel({ caseId }: { caseId: string }) {
 		? raw.edges.filter((t) => detailIds.has(t.id))
 		: raw.edges;
 	const showingFlows = edgeMode === "flow" && !flow;
-	const table = {
-		nodes: raw.nodes,
-		edges: detailEdges.slice(offset, offset + 50),
-		total: showingFlows ? graph.edges.length : detailEdges.length,
-	};
+	const total = showingFlows ? graph.edges.length : detailEdges.length;
 	const lookup = new Map(full.nodes.map((n) => [n.id, n]));
 	const clearTransient = () => {
 		traceRequest.current += 1;
@@ -423,138 +393,30 @@ export default function AnalysisPanel({ caseId }: { caseId: string }) {
 				}}
 				className="min-h-0 min-w-0 flex-1 gap-4 overflow-hidden p-workspace-gutter"
 			>
-				<ScrollArea
-					className="-mx-1 -mt-1 shrink-0 overscroll-x-contain"
-					contentClassName="p-1"
-				>
-					<fieldset
-						className="flex w-max min-w-full items-center gap-6"
-						aria-label="资金分析操作"
-					>
-						<TabsList aria-label="分析视图" className="shrink-0">
-							<TabsTrigger value="graph">资金关系图</TabsTrigger>
-							<TabsTrigger value="transactions">银行流水</TabsTrigger>
-						</TabsList>
-
-						<AnalysisMode
-							label="节点"
-							value={nodeMode}
-							options={[
-								["account", "按账户"],
-								["subject", "合并主体"],
-							]}
-							onChange={(value) => {
-								navigate({
-									nodeMode: value as NodeMode,
-									account: "",
-									counterparty: "",
-									traced: null,
-								});
-							}}
-						/>
-						<AnalysisMode
-							label="连线"
-							value={edgeMode}
-							options={[
-								["transaction", "逐笔交易"],
-								["flow", "汇总流向"],
-							]}
-							onChange={(value) => {
-								navigate({ edgeMode: value as EdgeMode });
-							}}
-						/>
-						<div className="flex shrink-0 items-center gap-2 whitespace-nowrap">
-							<Label htmlFor="trace-depth">追踪层数</Label>
-							<Input
-								id="trace-depth"
-								className="w-16"
-								type="number"
-								min={1}
-								max={4}
-								value={depth}
-								onChange={(event) =>
-									setDepth(
-										Math.max(1, Math.min(4, Number(event.target.value) || 1)),
-									)
-								}
-							/>
-							<Button
-								variant="outline"
-								disabled={!account || tracing}
-								onClick={() => void trace([])}
-							>
-								从此{nodeMode === "subject" ? "主体" : "账户"}向下追踪
-								<ArrowRightIcon />
-							</Button>
-							<Button
-								disabled={!selected.length || tracing}
-								onClick={() => void trace(selected)}
-							>
-								{tracing ? "正在追踪…" : `追踪所选 ${selected.length} 笔`}
-							</Button>
-							{traced && (
-								<Button
-									variant="ghost"
-									onClick={() => navigate({ traced: null })}
-								>
-									返回关系图
-								</Button>
-							)}
-						</div>
-					</fieldset>
-				</ScrollArea>
-				<ScrollArea
-					className="max-h-1/4 shrink-0 overscroll-contain"
-					contentClassName="space-y-4"
-				>
-					{account && (
-						<div className="flex flex-wrap items-start justify-between gap-3">
-							<div>
-								<h2 className="font-medium text-sm">
-									{accountName(currentAccount)}
-								</h2>
-								<p className="mt-1 break-all text-muted-foreground text-xs">
-									{nodeMode === "subject"
-										? `${currentAccount?.accountNumbers.length ?? 0} 个账户 · ${currentAccount?.basis ?? ""}`
-										: currentAccount?.number}
-								</p>
-							</div>
-							<Badge variant="outline">
-								{currentAccount?.hasStatement
-									? "已有本方流水"
-									: "对方流水待补充"}
-							</Badge>
-						</div>
-					)}
-					{nodeMode === "subject" && currentAccount && (
-						<details className="text-xs">
-							<summary className="cursor-pointer text-muted-foreground">
-								查看主体包含的账户与归属依据
-							</summary>
-							<p className="mt-2">
-								{currentAccount.basis}；可在案件管理的清洗核对中更正。
-							</p>
-							<ul className="mt-2 space-y-1">
-								{currentAccount.accounts.map((a) => (
-									<li key={a.id} className="break-all">
-										{a.number} ·{" "}
-										{(a.ownNames.length ? a.ownNames : a.names).join(" / ")} ·{" "}
-										{a.hasStatement ? "已有流水" : "仅见对手"}
-									</li>
-								))}
-							</ul>
-						</details>
-					)}
-					<p className="text-muted-foreground text-xs">
-						汇总按方向分别统计，不抵销往返金额。追踪仍按原账户与交易时间连续展开，主体内部划转照常保留。关联路径不等于同一笔钱，每个起点最多展示
-						200 条路径。
-					</p>
-					{traceError && (
-						<p role="alert" className="text-destructive text-xs">
-							{traceError}
-						</p>
-					)}
-				</ScrollArea>
+				<AnalysisControls
+					nodeMode={nodeMode}
+					edgeMode={edgeMode}
+					depth={depth}
+					account={account}
+					currentAccount={currentAccount}
+					selectedCount={selected.length}
+					tracing={tracing}
+					hasTraced={!!traced}
+					traceError={traceError}
+					onNodeModeChange={(nextMode) =>
+						navigate({
+							nodeMode: nextMode,
+							account: "",
+							counterparty: "",
+							traced: null,
+						})
+					}
+					onEdgeModeChange={(nextMode) => navigate({ edgeMode: nextMode })}
+					onDepthChange={setDepth}
+					onTraceAccount={() => void trace([])}
+					onTraceSelected={() => void trace(selected)}
+					onExitTrace={() => navigate({ traced: null })}
+				/>
 				{result.loading && !traced ? (
 					<ScrollArea
 						role="status"
@@ -679,205 +541,34 @@ export default function AnalysisPanel({ caseId }: { caseId: string }) {
 								</span>
 							</ScrollArea>
 						</TabsContent>
-						<TabsContent
-							value="transactions"
-							className="flex min-h-0 flex-col gap-4 overflow-hidden"
-						>
-							<ScrollArea
-								className="max-h-1/3 shrink-0 overscroll-contain"
-								contentClassName="space-y-4"
-							>
-								<div className="flex flex-wrap items-center gap-3">
-									<h3 className="font-medium text-sm">
-										{flow
-											? "流向包含的交易"
-											: showingFlows
-												? "资金流向汇总"
-												: traced
-													? "追踪结果明细"
-													: "交易明细"}{" "}
-										<span className="text-muted-foreground">
-											{table.total.toLocaleString("zh-CN")}{" "}
-											{showingFlows ? "条流向" : "笔"}
-										</span>
-									</h3>
-									{flow && (
-										<Button
-											variant="outline"
-											onClick={() => {
-												setFlowId("");
-												setOffset(0);
-												setSelected([]);
-											}}
-										>
-											返回流向汇总
-										</Button>
-									)}
-									{selected.length > 0 && (
-										<Button variant="ghost" onClick={() => setSelected([])}>
-											清空选择
-										</Button>
-									)}
-									<fieldset
-										className="ml-auto flex shrink-0 items-center gap-1"
-										aria-label="银行流水筛选工具"
-									>
-										{filterToolbar}
-									</fieldset>
-								</div>
-								{traced && (
-									<p className="text-muted-foreground text-xs">
-										这里列出画布中全部追踪交易，包含展开后的后续交易；同一笔交易只列一次，可逐条核对来源。
-									</p>
-								)}
-								{flow && (
-									<p className="text-sm">
-										{accountName(lookup.get(flow.from))} →{" "}
-										{accountName(lookup.get(flow.to))} ·{" "}
-										{formatFunds(flow.amountMinor, flow.currency)} ·{" "}
-										{flow.count} 笔
-										{flow.from === flow.to ? " · 主体内部划转" : ""}
-									</p>
-								)}
-							</ScrollArea>
-							{showingFlows ? (
-								<FlowTable
-									key={`${history.frame.id}:${flowId}:${offset}`}
-									edges={graph.edges.slice(offset, offset + 50)}
-									nodes={lookup}
-									onOpen={(id) => {
-										setFlowId(id);
-										setOffset(0);
-										setSelected([]);
-									}}
-								/>
-							) : (
-								<div className="min-h-0 flex-1 overflow-hidden rounded-lg border">
-									<Table
-										key={`${history.frame.id}:${flowId}:${offset}`}
-										containerProps={{
-											className: "h-full",
-											role: "region",
-											"aria-label": "银行流水数据",
-											tabIndex: 0,
-										}}
-									>
-										<TableHeader className="sticky top-0 z-10 bg-background">
-											<TableRow>
-												<TableHead>选择</TableHead>
-												<TableHead>交易时间</TableHead>
-												<TableHead>付款方 → 收款方</TableHead>
-												<TableHead className="text-right">金额</TableHead>
-												<TableHead>核对状态</TableHead>
-												<TableHead>来源</TableHead>
-											</TableRow>
-										</TableHeader>
-										<TableBody>
-											{table?.edges.map((t) => (
-												<TableRow key={t.id}>
-													<TableCell>
-														<Checkbox
-															aria-label={`选择 ${t.timestamp.slice(0, 19)} ${formatFunds(t.amountMinor)} 交易`}
-															checked={selected.some(
-																(item) => item.id === t.id,
-															)}
-															onCheckedChange={(checked) =>
-																setSelected(
-																	checked
-																		? [...selected, t]
-																		: selected.filter(
-																				(item) => item.id !== t.id,
-																			),
-																)
-															}
-														/>
-													</TableCell>
-													<TableCell className="whitespace-nowrap text-xs tabular-nums">
-														{t.timestamp.slice(0, 10)}
-														<br />
-														<span className="text-muted-foreground">
-															{t.timestamp.slice(11, 19)}
-														</span>
-													</TableCell>
-													<TableCell className="text-xs">
-														<TooltipText
-															content={`${accountName(lookup.get(t.from))} ${t.fromAccount} → ${accountName(lookup.get(t.to))} ${t.toAccount}`}
-														>
-															<div className="w-fit max-w-80 truncate">
-																{accountName(lookup.get(t.from))} →{" "}
-																{accountName(lookup.get(t.to))}
-															</div>
-														</TooltipText>
-														<TooltipText content={t.summary}>
-															<p className="w-fit max-w-80 truncate text-muted-foreground">
-																{t.summary || "摘要为空"}
-															</p>
-														</TooltipText>
-													</TableCell>
-													<TableCell className="text-right font-medium text-xs tabular-nums">
-														{formatFunds(t.amountMinor, t.currency)}
-													</TableCell>
-													<TableCell className="text-xs">
-														{t.reconciliation === "single"
-															? "单边记录"
-															: t.reconciliation === "mirror"
-																? "双边一致"
-																: "人工核对"}
-													</TableCell>
-													<TableCell>
-														<Button
-															size="sm"
-															variant="ghost"
-															onClick={() => inspectEdge(t.id)}
-														>
-															核对 {t.evidenceIds.length} 条
-														</Button>
-													</TableCell>
-												</TableRow>
-											))}
-											{table?.edges.length === 0 && (
-												<TableRow>
-													<TableCell
-														colSpan={6}
-														className="py-8 text-center text-muted-foreground"
-													>
-														当前条件没有交易。
-													</TableCell>
-												</TableRow>
-											)}
-										</TableBody>
-									</Table>
-								</div>
-							)}
-							<div className="flex shrink-0 flex-wrap items-center justify-between gap-2 text-muted-foreground text-xs">
-								<span>
-									{table?.total
-										? `${offset + 1}–${Math.min(offset + 50, table.total)} / ${table.total}`
-										: "0 条"}{" "}
-									· 时间采用银行本地时间（UTC+8）
-								</span>
-								<div className="flex gap-2">
-									<Button
-										variant="outline"
-										disabled={!offset || (!traced && result.loading)}
-										onClick={() => setOffset(Math.max(0, offset - 50))}
-									>
-										上一页
-									</Button>
-									<Button
-										variant="outline"
-										disabled={
-											!table ||
-											offset + 50 >= table.total ||
-											(!traced && result.loading)
-										}
-										onClick={() => setOffset(offset + 50)}
-									>
-										下一页
-									</Button>
-								</div>
-							</div>
-						</TabsContent>
+						<TransactionsPanel
+							frameId={history.frame.id}
+							flowId={flowId}
+							flow={flow}
+							showingFlows={showingFlows}
+							hasTraced={!!traced}
+							loading={result.loading}
+							offset={offset}
+							total={total}
+							flowEdges={graph.edges.slice(offset, offset + 50)}
+							transactionEdges={detailEdges.slice(offset, offset + 50)}
+							lookup={lookup}
+							selected={selected}
+							filterToolbar={filterToolbar}
+							onOpenFlow={(id) => {
+								setFlowId(id);
+								setOffset(0);
+								setSelected([]);
+							}}
+							onCloseFlow={() => {
+								setFlowId("");
+								setOffset(0);
+								setSelected([]);
+							}}
+							onSelectionChange={setSelected}
+							onOffsetChange={setOffset}
+							onInspectEdge={inspectEdge}
+						/>
 					</>
 				)}
 			</Tabs>
@@ -918,38 +609,6 @@ export default function AnalysisPanel({ caseId }: { caseId: string }) {
 					onEdge={inspectEdge}
 				/>
 			)}
-		</div>
-	);
-}
-
-/** 模式选项沿用单选语义，外观与同一工具行的视图页签保持一致。 */
-function AnalysisMode({
-	label,
-	value,
-	options,
-	onChange,
-}: {
-	label: string;
-	value: string;
-	options: [string, string][];
-	onChange: (value: string) => void;
-}) {
-	return (
-		<div className="flex shrink-0 items-center gap-2 whitespace-nowrap">
-			<span className="shrink-0 text-muted-foreground text-xs">{label}</span>
-			<RadioGroup
-				aria-label={label}
-				variant="tabs"
-				value={value}
-				onValueChange={(v) => onChange(String(v))}
-			>
-				{options.map(([id, text]) => (
-					<Label key={id}>
-						<RadioGroupItem value={id} className="sr-only absolute inset-0" />
-						{text}
-					</Label>
-				))}
-			</RadioGroup>
 		</div>
 	);
 }

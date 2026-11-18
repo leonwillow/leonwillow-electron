@@ -6,8 +6,8 @@
  * 被调用：AccountDirectory、目录测试；调用：资金视图与标记类型。
  * 预期结果：组合筛选覆盖完整案件目录，不截断，不发起额外请求。
  */
-import type { analysisDirectory } from "./funds-analysis";
-import type { GraphPresentation } from "./funds-graph-presentation";
+import type { analysisDirectory } from "./analysis";
+import type { GraphPresentation } from "./graph-presentation";
 
 export type DirectoryEntry = ReturnType<typeof analysisDirectory>[number];
 export type DirectoryFilters = {

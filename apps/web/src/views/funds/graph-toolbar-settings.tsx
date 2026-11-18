@@ -41,16 +41,16 @@ import {
 	Settings2Icon,
 } from "lucide-react";
 import { useContext, useId, useState } from "react";
+import GraphDockPositionField from "./graph-dock-position-field";
+import { GraphToolbarContext } from "./graph-toolbar-context";
+import type { ToolbarDockState } from "./graph-toolbar-dock";
 import {
 	defaultToolbarLayout,
 	type ToolbarLayout,
 	type ToolbarOrientation,
 	toolbarOrientation,
 	toolbarPlacement,
-} from "@/lib/funds-toolbar-layout";
-import GraphDockPositionField from "./graph-dock-position-field";
-import { GraphToolbarContext } from "./graph-toolbar-context";
-import type { ToolbarDockState } from "./graph-toolbar-dock";
+} from "./model/toolbar-layout";
 
 export function ToolbarFoldButton({
 	layout,

@@ -30,7 +30,7 @@ import {
 	lineDash,
 	type NodeMark,
 	validNodeMark,
-} from "@/lib/funds-graph-presentation";
+} from "./model/graph-presentation";
 
 const shapes = [
 	["circle", "圆形"],

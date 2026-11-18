@@ -42,7 +42,7 @@ import {
 import { randomUUID } from "@/lib/uuid";
 import DocumentPreview from "./document-preview";
 import FieldInput from "./field-input";
-import useDocumentPreview from "./use-document-preview";
+import { useDocumentPreview } from "./use-document-preview";
 
 export default function DocumentEditor({
 	type,

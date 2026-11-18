@@ -9,7 +9,7 @@
  */
 import { Badge } from "@leonwillow-electron/ui/components/badge";
 import type { FundsAccount } from "@/lib/funds";
-import type { NodePresentation } from "@/lib/funds-graph-presentation";
+import type { NodePresentation } from "./model/graph-presentation";
 
 export default function NodeStatusTags({
 	node,

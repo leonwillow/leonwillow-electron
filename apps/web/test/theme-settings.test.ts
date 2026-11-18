@@ -11,13 +11,13 @@
 import { expect, test } from "bun:test";
 import { themePresets } from "../src/configs/theme-presets";
 import { initialSettings } from "../src/configs/theme-settings";
+import { applyTheme } from "../src/lib/theme-script";
 import {
 	decodeStoredSettings,
 	encodeStoredSettings,
 	normalizeSettings,
 } from "../src/lib/theme-settings";
 import type { ThemePreferences } from "../src/types/theme";
-import { applyTheme } from "../src/utils/theme-script";
 
 test("旧版大档迁移为特大，保留其他偏好", () => {
 	expect(

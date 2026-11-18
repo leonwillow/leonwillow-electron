@@ -19,12 +19,12 @@ import {
 import { ArrowDownToLineIcon, EyeOffIcon, PaintbrushIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { accountName, type FundsAccount, formatFunds } from "@/lib/funds";
-import type { NodeMode, RawGraph } from "@/lib/funds-analysis";
+import type { NodeMode, RawGraph } from "./model/analysis";
 import {
 	type NodeMark,
 	type NodePresentation,
 	summarizeNode,
-} from "@/lib/funds-graph-presentation";
+} from "./model/graph-presentation";
 import NodeMarkEditor from "./node-mark-editor";
 import NodeStatusTags from "./node-status-tags";
 

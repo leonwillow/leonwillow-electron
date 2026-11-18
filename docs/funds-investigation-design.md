@@ -118,7 +118,7 @@ bun run --cwd apps/server worker
 
 ```sh
 cd apps/server
-bun src/submit-funds.ts /Users/leonwillow/Desktop/流水 admin 94a89dd4-9027-4023-ace1-b2ee263ae661
+bun src/scripts/submit-funds.ts /Users/leonwillow/Desktop/流水 admin 94a89dd4-9027-4023-ace1-b2ee263ae661
 ```
 
 `import-funds.ts` 是旧版已知表格解析工具，不是新的 AI 入口。标准化提示词和转换规则在 `modules/funds/ai-normalizer.ts`，无需另建个人 Skill。

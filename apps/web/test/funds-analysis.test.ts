@@ -13,15 +13,15 @@ import {
 	filterAnalysis,
 	projectAccounts,
 	projectTrace,
-} from "../src/lib/funds-analysis";
+} from "../src/views/funds/model/analysis";
 import {
 	amountToMinor,
 	edgeFilterError,
 	emptyEdgeFilter,
 	emptyNodeFilter,
 	filterGraph,
-} from "../src/lib/funds-graph-filters";
-import { fundsEdgeStyles } from "../src/lib/funds-graph-layout";
+} from "../src/views/funds/model/graph-filters";
+import { fundsEdgeStyles } from "../src/views/funds/model/graph-layout";
 import {
 	decodeGraphPresentation,
 	graphPresentationStorageKey,
@@ -30,13 +30,13 @@ import {
 	relatedEdgeMark,
 	summarizeNode,
 	validNodeMark,
-} from "../src/lib/funds-graph-presentation";
-import { createGraphPreviewIndex } from "../src/lib/funds-graph-preview";
+} from "../src/views/funds/model/graph-presentation";
+import { createGraphPreviewIndex } from "../src/views/funds/model/graph-preview";
 import {
 	createViewHistory,
 	moveView,
 	pushView,
-} from "../src/lib/funds-view-history";
+} from "../src/views/funds/model/view-history";
 
 const person = (id: string, ids: string[]): FundsAccount => ({
 	id,

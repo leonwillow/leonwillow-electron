@@ -12,7 +12,7 @@ import {
 	decodeToolbarLayout,
 	type ToolbarLayout,
 	toolbarLayoutStorageKey,
-} from "@/lib/funds-toolbar-layout";
+} from "./model/toolbar-layout";
 
 export function useToolbarLayout(userId: string) {
 	const key = toolbarLayoutStorageKey(userId);

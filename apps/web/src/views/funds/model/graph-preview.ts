@@ -7,9 +7,9 @@
  * 功能：一次构建邻接索引，节点统计按需缓存；往返及币种分别统计。
  * 预期结果：鼠标移动只读取内存，切换图数据时由组件替换整个索引。
  */
-import type { FundsAccount } from "./funds";
-import type { AnalysisEdge, AnalysisGraph } from "./funds-analysis";
-import { summarizeNode } from "./funds-graph-presentation";
+import type { FundsAccount } from "@/lib/funds";
+import type { AnalysisEdge, AnalysisGraph } from "./analysis";
+import { summarizeNode } from "./graph-presentation";
 
 export type GraphPreviewTarget = { kind: "node" | "edge"; id: string };
 export type GraphPreview =

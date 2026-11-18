@@ -6,15 +6,9 @@
  * 预期结果：案件和笔录可刷新直达，非法 ID 不触发业务请求。
  */
 import { createFileRoute } from "@tanstack/react-router";
+import { parseOptionalUuid } from "@/lib/uuid";
 import InquiriesView from "@/views/inquiries";
 
-const id = (value: unknown) =>
-	typeof value === "string" &&
-	/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-		value,
-	)
-		? value
-		: undefined;
 export const Route = createFileRoute("/_workspace/inquiries")({
 	validateSearch: (
 		search: Record<string, unknown>,
@@ -22,10 +16,13 @@ export const Route = createFileRoute("/_workspace/inquiries")({
 		inquiryCaseId?: string;
 		recordId?: string;
 		inquiryView?: "inquirers";
-	} => ({
-		inquiryCaseId: id(search.inquiryCaseId),
-		recordId: id(search.inquiryCaseId) ? id(search.recordId) : undefined,
-		inquiryView: search.inquiryView === "inquirers" ? "inquirers" : undefined,
-	}),
+	} => {
+		const inquiryCaseId = parseOptionalUuid(search.inquiryCaseId);
+		return {
+			inquiryCaseId,
+			recordId: inquiryCaseId ? parseOptionalUuid(search.recordId) : undefined,
+			inquiryView: search.inquiryView === "inquirers" ? "inquirers" : undefined,
+		};
+	},
 	component: InquiriesView,
 });

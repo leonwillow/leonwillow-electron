@@ -6,8 +6,8 @@
  * 被调用：analysis-panel、graph-toolbar 与测试；调用：资金视图类型。
  * 预期结果：图和明细一致，金额精确到分，筛选不改变案件事实。
  */
-import type { AnalysisGraph, EdgeMode } from "./funds-analysis";
-import type { NodePresentation } from "./funds-graph-presentation";
+import type { AnalysisGraph, EdgeMode } from "./analysis";
+import type { NodePresentation } from "./graph-presentation";
 
 export type NodeFilter = {
 	query: string;

@@ -3,7 +3,7 @@
  * 创建时间：2026-10-06
  * 修改时间：2026-10-06
  * 版本作用：运维离线入口，复用与 HTTP 上传一致的清洗/存储/投影管线。
- * 被调用：bun src/import-funds.ts <目录> <管理员用户名> [案件 ID]。
+ * 被调用：bun src/scripts/import-funds.ts <目录> <管理员用户名> [案件 ID]。
  * 调用：Varlock、认证/数据库工厂和 funds 服务。
  * 功能：导入目录顶层全部受支持文件；不选择预设付款，不递归混入辅助文件。
  * 预期结果：没有真实管理员时拒绝执行，不创建账户；打印整案导入报告。
@@ -15,21 +15,18 @@ import { createAuth } from "@leonwillow-electron/auth";
 import { createDatabase } from "@leonwillow-electron/db";
 import { user } from "@leonwillow-electron/db/schema";
 import { eq } from "drizzle-orm";
-import { ENV } from "./env";
-import { createFundsFileStore } from "./modules/funds/file-store";
-import { createFundsGraph } from "./modules/funds/graph";
-import {
-	analysisSummary,
-	caseDetails,
-	createCase,
-	importStatements,
-} from "./modules/funds/service";
-import { initializeServerResources } from "./server-resources";
+import { ENV } from "../env";
+import { analysisSummary } from "../modules/funds/analysis-service";
+import { caseDetails, createCase } from "../modules/funds/case-service";
+import { createFundsFileStore } from "../modules/funds/file-store";
+import { createFundsGraph } from "../modules/funds/graph";
+import { importStatements } from "../modules/funds/reconcile-service";
+import { initializeServerResources } from "../server-resources";
 
 const [directory, username, existingCaseId] = process.argv.slice(2);
 if (!directory || !username)
 	throw new Error(
-		"用法：bun src/import-funds.ts <目录> <管理员用户名> [案件 ID]",
+		"用法：bun src/scripts/import-funds.ts <目录> <管理员用户名> [案件 ID]",
 	);
 const { db, pool } = createDatabase(ENV.DATABASE_URL);
 const fundsFiles = createFundsFileStore(ENV);

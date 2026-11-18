@@ -66,13 +66,13 @@ apps/
       hooks/                   # 可复用的 React 行为和主题颜色解析
       assets/                  # 原导航与搜索数据、Logo、头像、本地字体
       styles/fonts.css         # next/font 的 Vite 本地字体适配及中文回退
-      lib/                     # Eden/认证客户端、主题库规则与快照编解码
+      lib/                     # Eden/桌面客户端、DOM/存储适配与跨层共享编解码
       types/                   # 布局及主题类型
-      utils/                   # 主题/CSS/颜色/阴影算法及 DOM 适配
+      utils/                   # 无副作用纯主题/CSS/颜色/阴影算法
   server/
     src/app.ts                 # 可测试 Elysia 工厂及 App 类型
     src/index.ts               # 环境装配、监听、信号与连接池生命周期
-    src/init-admin.ts          # 显式管理员初始化命令
+    src/scripts/init-admin.ts  # 显式管理员初始化命令
     src/modules/auth/          # 认证路由、接口契约与 Better Auth 适配
     test/                      # Bun + Eden 健康检查和认证测试
 packages/

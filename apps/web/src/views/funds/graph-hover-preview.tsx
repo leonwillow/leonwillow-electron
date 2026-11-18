@@ -36,14 +36,14 @@ import {
 	useRef,
 	useState,
 } from "react";
-import type { AnalysisGraph, NodeMode } from "@/lib/funds-analysis";
-import type { GraphPresentation } from "@/lib/funds-graph-presentation";
+import GraphPreviewContent from "./graph-preview-content";
+import GraphPreviewSettings from "./graph-preview-settings";
+import type { AnalysisGraph, NodeMode } from "./model/analysis";
+import type { GraphPresentation } from "./model/graph-presentation";
 import {
 	createGraphPreviewIndex,
 	type GraphPreviewTarget,
-} from "@/lib/funds-graph-preview";
-import GraphPreviewContent from "./graph-preview-content";
-import GraphPreviewSettings from "./graph-preview-settings";
+} from "./model/graph-preview";
 import { usePreviewLayout } from "./use-preview-layout";
 
 export type GraphHoverPreviewHandle = {

@@ -59,7 +59,7 @@
 最新文件由真实 AI 任务保存的标准 CSV 和转换报告导出，并与独立解析结果逐字段比较。`prepare-funds-delivery.ts` 是早期交付脚本，复用正式解析器生成中间表；现在只接受符合出入方向契约的文件，原始银行文件须先 AI 标准化。下述校验数量为 2026-10-06 的历史结果。全部编号列检查保存类型为文本、没有截断；逐文件 CSV 行数与解析结果一致。原始目录中的文件未改动。
 
 ```sh
-bun --cwd apps/server src/prepare-funds-delivery.ts <新标准文件目录> /tmp/funds-delivery.json
+bun --cwd apps/server src/scripts/prepare-funds-delivery.ts <新标准文件目录> /tmp/funds-delivery.json
 ```
 
 业务规则、存储及已实现边界见 [案件基础版本](./funds-investigation-design.md)。

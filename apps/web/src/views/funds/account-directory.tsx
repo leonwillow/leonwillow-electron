@@ -29,19 +29,19 @@ import { defaultRangeExtractor, useVirtualizer } from "@tanstack/react-virtual";
 import { SearchIcon } from "lucide-react";
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { FundsAccount } from "@/lib/funds";
+import AccountDirectoryFilters from "./account-directory-filters";
+import AccountDirectoryRow, { AccountPreview } from "./account-directory-row";
 import {
 	analysisDirectory,
 	type NodeMode,
 	type RawGraph,
-} from "@/lib/funds-analysis";
+} from "./model/analysis";
 import {
 	type DirectoryEntry,
 	emptyDirectoryFilters,
 	filterDirectory,
-} from "@/lib/funds-directory";
-import type { GraphPresentation } from "@/lib/funds-graph-presentation";
-import AccountDirectoryFilters from "./account-directory-filters";
-import AccountDirectoryRow, { AccountPreview } from "./account-directory-row";
+} from "./model/directory";
+import type { GraphPresentation } from "./model/graph-presentation";
 import type { NodeMenuTarget } from "./node-action-menu";
 
 type DirectoryActions = {

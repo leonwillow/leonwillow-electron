@@ -7,12 +7,8 @@
  * 预期结果：离开当前视图时捕获位置，切换案件或数据版本后历史重置。
  */
 import { useRef, useState } from "react";
-import {
-	createViewHistory,
-	moveView,
-	pushView,
-} from "@/lib/funds-view-history";
 import type { GraphCanvasHandle } from "./graph-canvas";
+import { createViewHistory, moveView, pushView } from "./model/view-history";
 
 export function useGraphHistory<T>(initial: T) {
 	const canvas = useRef<GraphCanvasHandle>(null);

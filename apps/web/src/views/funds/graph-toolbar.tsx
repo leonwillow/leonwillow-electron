@@ -30,7 +30,9 @@ import {
 	RotateCcwIcon,
 } from "lucide-react";
 import { useContext, useEffect, useId, useState } from "react";
-import type { EdgeMode } from "@/lib/funds-analysis";
+import FilterSelect from "./filter-select";
+import { GraphToolbarContext } from "./graph-toolbar-context";
+import type { EdgeMode } from "./model/analysis";
 import {
 	type EdgeFilter,
 	edgeFilterError,
@@ -39,10 +41,7 @@ import {
 	hasEdgeFilter,
 	hasNodeFilter,
 	type NodeFilter,
-} from "@/lib/funds-graph-filters";
-
-import FilterSelect from "./filter-select";
-import { GraphToolbarContext } from "./graph-toolbar-context";
+} from "./model/graph-filters";
 
 export type RelationFilter = {
 	from: string;

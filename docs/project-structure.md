@@ -10,14 +10,15 @@
 | `components/auth`、`components/theme-editor` | 跨页面认证展示、主题编辑界面 | 局部交互状态留在所属组件/局部 Hook |
 | `stores` | 跨组件、跨路由共享状态及明确的提交操作 | 说明持久化范围、草稿范围和同步责任；不把局部输入全部全局化 |
 | `hooks` | 跨功能复用的 React 行为 | 尚未跨功能复用的 Hook 就近维护 |
-| `lib` | 应用接口适配、领域规则和编解码 | 如 Eden 客户端、主题库规则和快照协议 |
-| `utils/theme` | 纯颜色、CSS 和阴影计算 | 不读写浏览器存储；已有 `utils/theme-script.ts` 是明确的 DOM 适配例外 |
+| `lib` | 宿主/API 接口适配、DOM/存储适配及跨层共享编解码 | Eden/桌面客户端、主题与菜单偏好编解码；单视图私有模型归入 `views/<feature>` |
+| `utils/theme` | 纯颜色、CSS 和阴影计算 | 无副作用纯算法，禁止访问 `window`、`document`、`localStorage` 或 `fetch` |
 | `configs`、`types` | 静态目录/默认值、多处共享类型 | 局部 Props 和单表单类型仍就近；类型优先从运行时模型推导 |
 | `assets`、`styles` | 字体/图片/来源数据、字体加载 | 排版和控件令牌统一在共享 UI 的 globals.css |
 | `apps/server/src/app.ts` | 无监听、无环境加载的 Elysia 工厂及 Eden 契约 | 健康检查可独立创建，无需数据库 |
 | `apps/server/src/index.ts` | 进程装配、信号与资源所有权 | 常规启动不创建账号、不执行数据库迁移 |
 | `apps/server/src/server-resources.ts` | 当前服务共用的 auth、db、可选 fundsGraph 和安全配置 | 启动时绑定一次，停止后解绑；不保存用户、会话或事务 |
 | `apps/server/src/modules/<feature>` | 功能 HTTP 边界、模型、服务和必要适配 | 纯计算不必变成 Elysia 插件；按实际职责新增文件 |
+| `apps/server/src/scripts` | 受控运维与离线批处理入口 | 显式初始化管理员、原件迁移与离线导数脚本，不与常驻进程入口混放 |
 | `apps/desktop` | Electron 窗口、preload、连接配置、会话隔离与协议转发 | 使用同一 Web 构建产物，不包含后端、数据库或另一套业务视图 |
 | `packages/desktop-bridge` | 桌面连接类型、地址校验与固定应用来源 | Web/主进程/后端共用的纯契约，不依赖 Electron、Node、UI 或应用运行时 |
 | `packages/ui` | Base UI 组件、语义样式、cn | 不依赖应用路由、账号或 Store |
@@ -47,7 +48,7 @@ UI 包的源码由 Vite 消费；内部包无需为形式统一各自创建 dist
 
 笔录功能的来源和行为见 [笔录功能](./inquiries-migration.md)。目录搜索、状态筛选、树行操作与导航 Provider 位于 `components/layout`；`inquiry-editor-actions.tsx` 协调目录操作前的保存和编辑锁，编辑、常用人员和 A4 实测分页位于 `views/inquiries`；Eden 适配位于 `lib/inquiries.ts`，HTTP/事务/校验/Word 导出位于 `modules/inquiries`，三张持久表及生成迁移位于 `packages/db`。笔录直接复用现有认证和 PostgreSQL，不依赖资金图或文件对象存储。
 
-资金调查的实现边界见 [案件基础版本](./funds-investigation-design.md) 与 [导入规范](./funds-import.md)。`modules/funds` 将纯解析、归并、字段导出和 Neo4j 适配分开；案件及来源表归 `packages/db`。`views/funds` 负责页面，`lib/funds.ts` 只做 Eden 调用和显示转换；图组件按需加载 G6，没有把测试流水打包进客户端。图连接由服务入口关闭，不影响独立健康检查。`ai-normalizer.ts` 管理版本化 AI 映射与确定性转换，`jobs.ts` 管理 PG 持久任务与租约，`canonical.ts` 负责稳定交易 ID 和案件主体，`case-links.ts` 负责明确确认的跨案快照。`apps/server/src/funds-worker.ts` 为独立后台入口，`submit-funds.ts` 将完整目录提交到同一队列。规范交易、任务、文件检查点和跨案纳入记录均归 `packages/db`；页面 `pipeline-panel.tsx`、`case-links-panel.tsx` 分别展示处理过程和跨案操作。
+资金调查的实现边界见 [案件基础版本](./funds-investigation-design.md) 与 [导入规范](./funds-import.md)。`modules/funds` 按职责拆分为 `case-service.ts`、`reconcile-service.ts`、`analysis-service.ts` 及纯解析、归并、字段导出和 Neo4j 适配；案件及来源表归 `packages/db`。`views/funds` 负责页面及视图私有分析/图排版模型（`views/funds/model/*`），`lib/funds.ts` 只做 Eden 调用和跨层显示转换；图组件按需加载 G6，没有把测试流水打包进客户端。图连接由服务入口关闭，不影响独立健康检查。`ai-normalizer.ts` 管理版本化 AI 映射与确定性转换，`jobs.ts` 管理 PG 持久任务与租约，`canonical.ts` 负责稳定交易 ID 和案件主体，`case-links.ts` 负责明确确认的跨案快照。`apps/server/src/funds-worker.ts` 为独立后台入口，`apps/server/src/scripts/submit-funds.ts` 将完整目录提交到同一队列。规范交易、任务、文件检查点和跨案纳入记录均归 `packages/db`；页面 `pipeline-panel.tsx`、`case-links-panel.tsx` 分别展示处理过程和跨案操作。
 
 资金调查页面按工作职责拆分：`views/funds/index.tsx` 只组织资金分析，`cases-view.tsx` 组织案件与资料管理；`routes/_workspace/funds_.cases.tsx` 使用 TanStack 非嵌套路由约定，地址为 `/funds/cases`，不嵌套分析视图。两页沿用同一案件 API 与授权，通过 `funds-header.tsx` 提供模块内部导航和统一页头，导航通过 URL 传递当前案件；全局侧栏只提供一个资金分析入口。
 
@@ -79,4 +80,5 @@ UI 包的源码由 Vite 消费；内部包无需为形式统一各自创建 dist
 
 - 二级菜单 Hook 统一正名为 `components/layout/use-{calculator,document-type,funds-case,inquiry-case}-menu.tsx` 具名导出，仅在对应路由激活或菜单首次悬停/展开时按需拉取目录（`useWorkspaceMenuActivated`），新建与重命名弹窗按需 `lazy` 加载。
 - 提炼 `packages/ui/src/components/tooltip-icon-button.tsx`、`apps/web/src/hooks/use-async-resource.ts` 及 `apps/web/src/lib/api.ts` 的 `unwrapApi` / `ApiRequestError`，彻底清零 `components/layout -> views/*` 反向依赖与跨视图私有引用；服务端计算器模块对称命名为 `vat-service.ts`、`late-fee-service.ts`、`directory-service.ts`。
-- 静态检查强制约束：`apps/web/src` 与 `apps/server/src` 顶层目录白名单及禁止空目录、小写 `kebab-case` 文件名、`routes -> views -> components -> hooks -> lib/stores/utils` 单向依赖与 `views/<feature>` 跨业务隔离、`use-*` Hook 文件命名、底层 `api` 实例限定在 `lib/` 内调用、薄路由行数以及 `globals.css` 禁止回流业务选择器。
+- 静态检查强制约束：`apps/web/src` 与 `apps/server/src` 顶层目录及顶层文件白名单与禁止空目录、小写 `kebab-case` 文件名、`routes -> views -> components -> hooks -> lib/stores/utils` 单向依赖与 `views/<feature>` 跨业务隔离、`lib` 禁止堆放单一视图私有模型、`utils` 强制纯函数且禁止访问浏览器/网络全局对象、`use-*` Hook 与底层模块统一具名导出、底层 `api` 实例限定在 `lib/` 内调用、薄路由行数以及 `globals.css` 禁止回流业务选择器。
+- 工作台侧边栏的常用主题弹层（`theme-customizer-panel.tsx`）与命令面板弹窗（`command-menu-dialog.tsx`）均改为打开或预热时按需懒加载，避免工作台首屏包静态打入重型调色盘、主题预设与 `cmdk` 搜索词库；各工作台路由统一通过 `lib/uuid.ts` 的 `parseOptionalUuid` 校验 URL 查询实体 ID。

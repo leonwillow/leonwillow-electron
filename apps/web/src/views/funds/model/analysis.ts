@@ -11,7 +11,7 @@ import type {
 	FundsFilter,
 	FundsGraph,
 	FundsTransaction,
-} from "./funds";
+} from "@/lib/funds";
 
 export type NodeMode = "account" | "subject";
 export type EdgeMode = "transaction" | "flow";

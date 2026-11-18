@@ -8,13 +8,13 @@
  */
 import { expect, test } from "bun:test";
 import type { FundsAccount } from "../src/lib/funds";
-import { analysisDirectory } from "../src/lib/funds-analysis";
+import { formatFunds } from "../src/lib/funds-money";
+import { analysisDirectory } from "../src/views/funds/model/analysis";
 import {
 	directoryFilterError,
 	emptyDirectoryFilters,
 	filterDirectory,
-} from "../src/lib/funds-directory";
-import { formatFunds } from "../src/lib/funds-money";
+} from "../src/views/funds/model/directory";
 
 const accounts: FundsAccount[] = Array.from({ length: 816 }, (_, index) => ({
 	id: `account-${index}`,

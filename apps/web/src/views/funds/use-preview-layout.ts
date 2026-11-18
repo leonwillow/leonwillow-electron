@@ -7,10 +7,7 @@
  * 预期结果：跨案与刷新复用布局，损坏存储回退，存储失败保留当前操作并提示。
  */
 import { useEffect, useState } from "react";
-import {
-	type ToolbarPosition,
-	toolbarPositions,
-} from "@/lib/funds-toolbar-layout";
+import { type ToolbarPosition, toolbarPositions } from "./model/toolbar-layout";
 
 export type PreviewLayout = { position: ToolbarPosition; collapsed: boolean };
 export const defaultPreviewLayout: PreviewLayout = {

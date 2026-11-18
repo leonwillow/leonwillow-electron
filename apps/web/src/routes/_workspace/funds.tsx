@@ -7,12 +7,13 @@
  * 预期结果：父级权限校验通过后显示完整案件，URL 保留案件选择。
  */
 import { createFileRoute } from "@tanstack/react-router";
+import { parseOptionalUuid } from "@/lib/uuid";
 import FundsView from "@/views/funds";
 import { FundsErrorView, FundsPendingView } from "@/views/funds/route-states";
 
 export const Route = createFileRoute("/_workspace/funds")({
 	validateSearch: (search: Record<string, unknown>): { caseId?: string } => ({
-		caseId: typeof search.caseId === "string" ? search.caseId : undefined,
+		caseId: parseOptionalUuid(search.caseId),
 	}),
 	loader: async () => (await import("@/lib/funds")).listFundsCases(),
 	staleTime: 0,

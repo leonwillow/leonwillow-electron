@@ -4,15 +4,15 @@
  * 修改时间：2026-11-06
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/layout/root-layout.tsx。
- * 调用：react、next-themes、stores/theme-store、utils/theme-script、lib/theme-transition。
+ * 调用：react、next-themes、stores/theme-store、lib/theme-script、lib/theme-transition。
  * 功能：应用 CSS 变量、解析明暗模式，挂载快捷键和跨窗口同步。
  * 预期结果：预览即时生效，根布局卸载后不遗留全局监听。
  */
 import { useTheme } from "next-themes";
 import { useEffect, useEffectEvent } from "react";
+import { applyTheme } from "@/lib/theme-script";
 import { toggleThemeTransition } from "@/lib/theme-transition";
 import { connectThemeSync, useThemeStore } from "@/stores/theme-store";
-import { applyTheme } from "@/utils/theme-script";
 
 // 输入和可编辑区域保留字母键的原生用途。
 const isTypingTarget = (target: EventTarget | null) =>

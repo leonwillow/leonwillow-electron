@@ -8,17 +8,17 @@
  */
 import type { EdgeData, Graph, NodeData } from "@antv/g6";
 import { accountName, formatFunds } from "@/lib/funds";
-import type { AnalysisGraph } from "@/lib/funds-analysis";
-import { canvasGraphPalette } from "@/lib/funds-canvas-background";
-import { drawInBatches } from "@/lib/funds-graph-batches";
-import { fundsEdgeStyles, fundsNodePositions } from "@/lib/funds-graph-layout";
+import type { GraphPaintController } from "./graph-paint-controller";
+import type { AnalysisGraph } from "./model/analysis";
+import { canvasGraphPalette } from "./model/canvas-background";
+import { drawInBatches } from "./model/graph-batches";
+import { fundsEdgeStyles, fundsNodePositions } from "./model/graph-layout";
 import {
 	type GraphPresentation,
 	lineDash,
 	relatedEdgeMark,
-} from "@/lib/funds-graph-presentation";
-import type { CanvasSnapshot } from "@/lib/funds-view-history";
-import type { GraphPaintController } from "./graph-paint-controller";
+} from "./model/graph-presentation";
+import type { CanvasSnapshot } from "./model/view-history";
 
 export type GraphProgress = { nodes: number; edges: number };
 

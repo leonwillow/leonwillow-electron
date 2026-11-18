@@ -25,10 +25,6 @@ import {
 	useState,
 } from "react";
 import { createPortal } from "react-dom";
-import type { AnalysisGraph, NodeMode } from "@/lib/funds-analysis";
-import type { NodePresentation } from "@/lib/funds-graph-presentation";
-import { toolbarPlacement } from "@/lib/funds-toolbar-layout";
-import type { CanvasSnapshot } from "@/lib/funds-view-history";
 import GraphBackgroundSettings, {
 	canvasBackgroundProps,
 } from "./graph-background-settings";
@@ -48,6 +44,10 @@ import type { ToolbarDockState } from "./graph-toolbar-dock";
 import GraphToolbarSettings, {
 	ToolbarFoldButton,
 } from "./graph-toolbar-settings";
+import type { AnalysisGraph, NodeMode } from "./model/analysis";
+import type { NodePresentation } from "./model/graph-presentation";
+import { toolbarPlacement } from "./model/toolbar-layout";
+import type { CanvasSnapshot } from "./model/view-history";
 import { useCanvasBackground } from "./use-canvas-background";
 import { useToolbarLayout } from "./use-toolbar-layout";
 

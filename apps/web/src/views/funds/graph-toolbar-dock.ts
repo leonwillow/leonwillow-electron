@@ -11,7 +11,7 @@ import {
 	type ToolbarLayout,
 	toolbarOrientation,
 	toolbarPlacement,
-} from "@/lib/funds-toolbar-layout";
+} from "./model/toolbar-layout";
 
 export type ToolbarDock = ReturnType<typeof attachToolbarDock>;
 export type ToolbarDockState = { expanded: boolean; moving: boolean };

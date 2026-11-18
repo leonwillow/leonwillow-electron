@@ -5,7 +5,7 @@
  * 预期结果：原生实现优先；仅有 getRandomValues 时仍生成合法、独立的实体 ID。
  */
 import { expect, test } from "bun:test";
-import { randomUUID } from "../src/lib/uuid";
+import { parseOptionalUuid, randomUUID } from "../src/lib/uuid";
 
 test("保留原生 UUID，普通 HTTP 环境使用安全随机字节", () => {
 	const native = crypto.randomUUID();
@@ -22,4 +22,17 @@ test("保留原生 UUID，普通 HTTP 环境使用安全随机字节", () => {
 			/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
 		);
 	expect(new Set(values).size).toBe(100);
+});
+
+test("路由查询参数只保留合法 UUID，拒绝伪造路径与空值", () => {
+	const valid = crypto.randomUUID();
+	expect(parseOptionalUuid(valid)).toBe(valid);
+	expect(parseOptionalUuid(valid.toUpperCase())).toBe(valid.toUpperCase());
+	expect(parseOptionalUuid("")).toBeUndefined();
+	expect(parseOptionalUuid("not-a-uuid")).toBeUndefined();
+	expect(
+		parseOptionalUuid("00000000-0000-0000-0000-000000000000"),
+	).toBeUndefined();
+	expect(parseOptionalUuid(123)).toBeUndefined();
+	expect(parseOptionalUuid(undefined)).toBeUndefined();
 });

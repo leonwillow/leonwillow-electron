@@ -9,11 +9,13 @@
  */
 import { Elysia, t } from "elysia";
 import { accessPlugin } from "../access/plugin";
+import * as analysisService from "./analysis-service";
 import * as links from "./case-links";
+import * as caseService from "./case-service";
 import { csvDocument, templateHeaders } from "./export";
 import * as jobs from "./jobs";
 import { FundsModel } from "./model";
-import * as service from "./service";
+import * as reconcileService from "./reconcile-service";
 
 export const fundsModule = new Elysia({ name: "funds", prefix: "/api/funds" })
 	.use(accessPlugin)
@@ -24,14 +26,18 @@ export const fundsModule = new Elysia({ name: "funds", prefix: "/api/funds" })
 			"attachment; filename=bank-statement-template.csv";
 		return csvDocument(templateHeaders, []);
 	})
-	.get("/cases", ({ access }) => service.listCases(access))
-	.post("/cases", ({ access, body }) => service.createCase(access, body.name), {
-		body: FundsModel.create,
-	})
+	.get("/cases", ({ access }) => caseService.listCases(access))
+	.post(
+		"/cases",
+		({ access, body }) => caseService.createCase(access, body.name),
+		{
+			body: FundsModel.create,
+		},
+	)
 	.patch(
 		"/cases/:caseId",
 		({ access, params, body }) =>
-			service.updateCase(access, params.caseId, body),
+			caseService.updateCase(access, params.caseId, body),
 		{
 			params: FundsModel.id,
 			body: t.Object({
@@ -42,13 +48,18 @@ export const fundsModule = new Elysia({ name: "funds", prefix: "/api/funds" })
 	)
 	.delete(
 		"/cases/:caseId",
-		({ access, params }) => service.deleteCase(access, params.caseId),
+		({ access, params }) => caseService.deleteCase(access, params.caseId),
 		{ params: FundsModel.id },
 	)
 	.post(
 		"/cases/:caseId/move",
 		({ access, params, body }) =>
-			service.moveCase(access, params.caseId, body.targetId, body.placement),
+			caseService.moveCase(
+				access,
+				params.caseId,
+				body.targetId,
+				body.placement,
+			),
 		{
 			params: FundsModel.id,
 			body: t.Object({
@@ -60,7 +71,11 @@ export const fundsModule = new Elysia({ name: "funds", prefix: "/api/funds" })
 	.get(
 		"/cases/:caseId/sources/:sourceId/original",
 		({ access, params }) =>
-			service.downloadSourceOriginal(access, params.caseId, params.sourceId),
+			caseService.downloadSourceOriginal(
+				access,
+				params.caseId,
+				params.sourceId,
+			),
 		{
 			params: t.Object({
 				caseId: t.String({ format: "uuid" }),
@@ -70,7 +85,7 @@ export const fundsModule = new Elysia({ name: "funds", prefix: "/api/funds" })
 	)
 	.get(
 		"/cases/:caseId",
-		({ access, params }) => service.caseDetails(access, params.caseId),
+		({ access, params }) => caseService.caseDetails(access, params.caseId),
 		{ params: FundsModel.id },
 	)
 	.get(
@@ -79,7 +94,7 @@ export const fundsModule = new Elysia({ name: "funds", prefix: "/api/funds" })
 			set.headers["content-type"] = "text/csv; charset=utf-8";
 			set.headers["content-disposition"] =
 				"attachment; filename=standardized-observations.csv";
-			return service.exportStandardized(access, params.caseId);
+			return caseService.exportStandardized(access, params.caseId);
 		},
 		{ params: FundsModel.id },
 	)
@@ -106,7 +121,7 @@ export const fundsModule = new Elysia({ name: "funds", prefix: "/api/funds" })
 	)
 	.get(
 		"/cases/:caseId/subjects",
-		({ access, params }) => service.subjectData(access, params.caseId),
+		({ access, params }) => reconcileService.subjectData(access, params.caseId),
 		{ params: FundsModel.id },
 	)
 	.post(
@@ -117,7 +132,12 @@ export const fundsModule = new Elysia({ name: "funds", prefix: "/api/funds" })
 	.post(
 		"/cases/:caseId/subjects",
 		({ access, params, body }) =>
-			service.adjustSubjects(access, params.caseId, body.revision, body),
+			reconcileService.adjustSubjects(
+				access,
+				params.caseId,
+				body.revision,
+				body,
+			),
 		{
 			params: FundsModel.id,
 			body: t.Object({
@@ -134,7 +154,7 @@ export const fundsModule = new Elysia({ name: "funds", prefix: "/api/funds" })
 	.delete(
 		"/cases/:caseId/subjects/:overrideId",
 		({ access, params, body }) =>
-			service.adjustSubjects(access, params.caseId, body.revision, {
+			reconcileService.adjustSubjects(access, params.caseId, body.revision, {
 				undo: params.overrideId,
 			}),
 		{
@@ -255,13 +275,14 @@ export const fundsModule = new Elysia({ name: "funds", prefix: "/api/funds" })
 	)
 	.get(
 		"/cases/:caseId/summary",
-		({ access, params }) => service.analysisSummary(access, params.caseId),
+		({ access, params }) =>
+			analysisService.analysisSummary(access, params.caseId),
 		{ params: FundsModel.id },
 	)
 	.get(
 		"/cases/:caseId/accounts",
 		({ access, params, query }) =>
-			service.listAccounts(access, params.caseId, query.search ?? ""),
+			analysisService.listAccounts(access, params.caseId, query.search ?? ""),
 		{
 			params: FundsModel.id,
 			query: t.Object({ search: t.Optional(t.String({ maxLength: 100 })) }),
@@ -270,25 +291,25 @@ export const fundsModule = new Elysia({ name: "funds", prefix: "/api/funds" })
 	.get(
 		"/cases/:caseId/graph",
 		({ access, params, query }) =>
-			service.caseGraph(access, params.caseId, query),
+			analysisService.caseGraph(access, params.caseId, query),
 		{ params: FundsModel.id, query: FundsModel.graph },
 	)
 	.get(
 		"/cases/:caseId/transactions",
 		({ access, params, query }) =>
-			service.listTransactions(access, params.caseId, query),
+			analysisService.listTransactions(access, params.caseId, query),
 		{ params: FundsModel.id, query: FundsModel.filter },
 	)
 	.post(
 		"/cases/:caseId/trace",
 		({ access, params, body }) =>
-			service.traceTransactions(access, params.caseId, body),
+			analysisService.traceTransactions(access, params.caseId, body),
 		{ params: FundsModel.id, body: FundsModel.trace },
 	)
 	.get(
 		"/cases/:caseId/review",
 		({ access, params, query }) =>
-			service.reviewData(
+			reconcileService.reviewData(
 				access,
 				params.caseId,
 				query.offset ?? 0,
@@ -299,7 +320,7 @@ export const fundsModule = new Elysia({ name: "funds", prefix: "/api/funds" })
 	.post(
 		"/cases/:caseId/review",
 		({ access, params, body }) =>
-			service.decideMatch(
+			reconcileService.decideMatch(
 				access,
 				params.caseId,
 				body.candidateId,
@@ -311,7 +332,7 @@ export const fundsModule = new Elysia({ name: "funds", prefix: "/api/funds" })
 	.get(
 		"/cases/:caseId/row",
 		({ access, params, query }) =>
-			service.sourceRow(
+			reconcileService.sourceRow(
 				access,
 				params.caseId,
 				query.sourceId,
@@ -323,7 +344,7 @@ export const fundsModule = new Elysia({ name: "funds", prefix: "/api/funds" })
 	.get(
 		"/cases/:caseId/evidence/:transactionId",
 		({ access, params }) =>
-			service.evidence(access, params.caseId, params.transactionId),
+			analysisService.evidence(access, params.caseId, params.transactionId),
 		{
 			params: t.Object({
 				caseId: t.String({ format: "uuid" }),

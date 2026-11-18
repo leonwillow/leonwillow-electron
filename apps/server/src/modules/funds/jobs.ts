@@ -22,18 +22,15 @@ import {
 	type NormalizationReport,
 	normalizeWithAi,
 } from "./ai-normalizer";
+import { type Actor, caseDetails, findCase, lockCase } from "./case-service";
 import { csvDocument, standardHeaders, standardRows } from "./export";
 import { originalResponse, readStoredFile, saveOriginal } from "./file-store";
 import { parseStatement } from "./parser";
 import {
-	type Actor,
-	caseDetails,
 	commitPreparedSources,
-	findCase,
-	lockCase,
 	rescanSubjects,
 	synchronize,
-} from "./service";
+} from "./reconcile-service";
 import type { ParsedSource } from "./types";
 
 type JobEvent = { at: string; stage: string; message: string };
