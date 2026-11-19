@@ -230,7 +230,7 @@ export default function InquiryRecordEditor({
 		previewStatus.error ||
 		(previewStatus.paginating
 			? "正在分页…"
-			: `共 ${previewStatus.pageCount} 页 · 点击内容定位编辑`);
+			: `点击内容定位编辑 · 共 ${previewStatus.pageCount} 页`);
 	const preview = (
 		<InquiryDocumentPreview
 			draft={draft}

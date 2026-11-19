@@ -333,7 +333,7 @@ export default function InquiryDocumentPages({
 					{error ||
 						(paginating
 							? "正在分页…"
-							: `共 ${pages.length} 页 · 点击内容定位编辑`)}
+							: `点击内容定位编辑 · 共 ${pages.length} 页`)}
 				</p>
 			)}
 			{!preview && error && <p role="alert">{error}</p>}
