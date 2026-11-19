@@ -2,11 +2,11 @@
  * @file 按语义分组的主题颜色编辑区域。
  * 创建时间：2026-10-03（Git 首次收录）
  * 修改时间：2026-11-19
- * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
- * 被调用：theme-line-settings、shadow-control、theme-control-panel。
- * 调用：ui 基础组件/样式、react、lib/custom-themes、types/theme、utils/theme/color-converter。
- * 功能：组合颜色字段、原生色盘及文本校验；延迟提交色盘拖动。
- * 预期结果：有效颜色进入草稿，无效输入保留在字段并报告给保存按钮。
+ * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现，颜色输入已切换至共享 ReUI ColorPicker。
+ * 被调用：shadow-control、theme-control-panel、graph-background-settings、node-mark-editor。
+ * 调用：ui Accordion/ColorPicker/Field/InputGroup、react、lib/custom-themes、types/theme、utils/theme/color-converter。
+ * 功能：组合 ReUI 可视化色盘弹层、格式自动保留与文本色值实时校验。
+ * 预期结果：有效颜色进入草稿并支持透明度，无效输入保留在字段并报告给保存按钮。
  */
 import {
 	Accordion,
@@ -15,14 +15,22 @@ import {
 	AccordionTrigger,
 } from "@leonwillow-electron/ui/components/accordion";
 import {
+	ColorPicker,
+	ColorPickerContent,
+	ColorPickerSwatch,
+	ColorPickerTrigger,
+} from "@leonwillow-electron/ui/components/color-picker";
+import {
 	Field,
 	FieldError,
 	FieldLabel,
 } from "@leonwillow-electron/ui/components/field";
-import { Input } from "@leonwillow-electron/ui/components/input";
-import { cn } from "@leonwillow-electron/ui/lib/utils";
-import type { InputHTMLAttributes } from "react";
-import { useEffect, useEffectEvent, useId, useState } from "react";
+import {
+	InputGroup,
+	InputGroupAddon,
+	InputGroupInput,
+} from "@leonwillow-electron/ui/components/input-group";
+import { useEffect, useId, useState } from "react";
 import { isColorValue } from "@/lib/custom-themes";
 import type { ThemeStyleProps } from "@/types/theme";
 
@@ -32,69 +40,26 @@ type ColorSwatchProps = {
 	label: string;
 	value: string;
 	size?: "default" | "lg";
+	alpha?: boolean;
 	onChange: (value: string) => void;
 	onValidityChange?: (valid: boolean) => void;
 };
 
-type DebouncedInputProps = {
-	value: string;
-	onChange: (value: string) => void;
-	debounce?: number;
-} & Omit<InputHTMLAttributes<HTMLInputElement>, "onChange">;
-
 /**
- * 原生调色盘拖动时延迟提交颜色，失焦时补交最后一次输入。
- * @param props value 为六位 HEX；debounce 以毫秒计，onChange 接收最后色值。
- * @returns 受控调色输入；effect 清理取消尚未执行的提交。
- */
-const DebouncedInput = ({
-	value: initialValue,
-	onChange,
-	debounce = 300,
-	...props
-}: DebouncedInputProps) => {
-	const [value, setValue] = useState(initialValue);
-
-	useEffect(() => {
-		setValue(initialValue);
-	}, [initialValue]);
-
-	const emitChange = useEffectEvent(onChange);
-	useEffect(() => {
-		if (value === initialValue) return;
-		const timeout = setTimeout(() => {
-			emitChange(value);
-		}, debounce);
-
-		return () => clearTimeout(timeout);
-	}, [value, initialValue, debounce]);
-
-	return (
-		<input
-			{...props}
-			type="color"
-			onBlur={() => {
-				if (value !== initialValue) emitChange(value);
-			}}
-			value={value}
-			onChange={(e) => setValue(e.target.value)}
-		/>
-	);
-};
-
-/**
- * 让原生色盘和文本色值共用一个字段，同时保留尚未输入完整的文本。
+ * 基于 ReUI ColorPicker 与 InputGroup 组合的颜色字段，同时支持可视化选色与原始色值文本校验。
  * @param props onChange 只接收有效颜色，onValidityChange 单独报告文本是否可保存。
- * @returns 带标签、色盘与错误提示的颜色字段。
+ * @returns 带标签、ReUI 色盘触发器与错误提示的颜色字段。
  */
 export const ColorSwatch = ({
 	label,
 	value,
 	size = "lg",
+	alpha = true,
 	onChange,
 	onValidityChange,
 }: ColorSwatchProps) => {
 	const [localValue, setLocalValue] = useState(value);
+	const [pickerOpen, setPickerOpen] = useState(false);
 	const id = useId();
 	const valid = isColorValue(localValue);
 
@@ -102,50 +67,61 @@ export const ColorSwatch = ({
 		setLocalValue(value);
 	}, [value]);
 
+	const activeColor = valid ? localValue : value;
 	const hexColor = valid ? colorFormatter(localValue, "hex") : "";
+	const pickerFormat = activeColor.trim().toLowerCase().startsWith("oklch")
+		? "oklch"
+		: "hex";
 
 	return (
 		<Field data-invalid={!valid} className="gap-1.5">
-			<div className="flex items-center justify-between">
+			<div className="flex items-center justify-between gap-2">
 				<FieldLabel htmlFor={id}>{label}</FieldLabel>
 				<span className="font-mono text-muted-foreground text-xs">
 					{hexColor}
 				</span>
 			</div>
-			<div className="flex items-center gap-2">
-				<div
-					className={cn(
-						"relative flex shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded border",
-						size === "lg" ? "size-control-lg" : "size-control-md",
-					)}
-					style={{ backgroundColor: valid ? localValue : value }}
-				>
-					<DebouncedInput
-						aria-label={`${label}调色盘`}
-						value={(hexColor || colorFormatter(value, "hex")).slice(0, 7)}
-						onChange={(localValue) => {
-							setLocalValue(localValue);
-							onChange(localValue);
-							onValidityChange?.(true);
+			<ColorPicker
+				open={pickerOpen}
+				onOpenChange={setPickerOpen}
+				value={activeColor || null}
+				alpha={alpha}
+				format={pickerFormat}
+				aria-label={`${label}调色盘`}
+				onValueChange={(nextColor) => {
+					if (!nextColor) return;
+					setLocalValue(nextColor);
+					onChange(nextColor);
+					onValidityChange?.(true);
+				}}
+			>
+				<InputGroup size={size}>
+					<InputGroupAddon align="inline-start">
+						<ColorPickerTrigger
+							variant="ghost"
+							size={size === "lg" ? "icon-sm" : "icon-xs"}
+							aria-label={`${label}调色盘`}
+						>
+							<ColorPickerSwatch />
+						</ColorPickerTrigger>
+					</InputGroupAddon>
+					<InputGroupInput
+						id={id}
+						type="text"
+						aria-invalid={!valid}
+						value={localValue}
+						onChange={(e) => {
+							const next = e.target.value;
+							setLocalValue(next);
+							const nextValid = isColorValue(next);
+							onValidityChange?.(nextValid);
+							if (nextValid) onChange(next);
 						}}
-						className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+						className="font-mono"
 					/>
-				</div>
-				<Input
-					id={id}
-					size={size}
-					type="text"
-					aria-invalid={!valid}
-					value={localValue}
-					onChange={(e) => {
-						setLocalValue(e.target.value);
-						const valid = isColorValue(e.target.value);
-						onValidityChange?.(valid);
-						if (valid) onChange(e.target.value);
-					}}
-					className="flex-1 font-mono"
-				/>
-			</div>
+				</InputGroup>
+				{pickerOpen && <ColorPickerContent />}
+			</ColorPicker>
 			{!valid && (
 				<FieldError>请输入有效的 HEX、OKLCH、HSL 或 RGB 颜色。</FieldError>
 			)}

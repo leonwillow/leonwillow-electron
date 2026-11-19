@@ -162,6 +162,7 @@ export default function GraphBackgroundSettings({
 						{draft.tone === "custom" && (
 							<ColorSwatch
 								label="自定义背景色"
+								alpha={false}
 								value={draft.customColor}
 								onChange={(color) => setDraft({ ...draft, customColor: color })}
 								onValidityChange={setValid}
