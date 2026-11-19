@@ -30,6 +30,7 @@
 	--lg-gutter-width: 3rem;
 	--lg-summary-height: 2.25rem;
 	--lg-selection-bg: color-mix(in oklch, var(--primary) 10%, var(--card));
+	--lg-cell-indicator-thickness: 2px;
 	--lg-frozen-shadow-width: 0.75rem;
 	--lg-frozen-shadow-color: color-mix(
 		in oklch,
@@ -340,7 +341,7 @@
 .lg-body {
 	position: relative;
 	flex: 1 0 auto;
-	/* 正文的选中框不能覆盖吸附表头或汇总。 */
+	z-index: 1;
 	isolation: isolate;
 }
 .lg-row {
@@ -393,37 +394,31 @@
 	background: var(--lg-selection-bg);
 	color: var(--primary);
 }
-.lg-header[data-selection-column]::after,
-.lg-gutter[data-selection-row]::after {
-	content: "";
-	position: absolute;
-	background: var(--primary);
-	pointer-events: none;
-}
-.lg-header[data-selection-column]::after {
-	inset-inline: 0;
-	bottom: calc(-1 * var(--ui-border-width));
-	height: 2px;
-}
-.lg-gutter[data-selection-row]::after {
-	inset-block: 0 calc(-1 * var(--ui-border-width));
-	right: calc(-1 * var(--ui-border-width));
-	width: 2px;
-}
 .lg-cell[aria-readonly="false"] {
 	cursor: text;
 }
-.lg-cell.lg-active {
+.lg-cell.lg-selected {
 	z-index: 1;
+}
+/* 尚未横滚时，普通格的左线也可以覆盖紧邻的冻结列或行号分隔线。 */
+.lg-scroller:not([data-overflow-x-start]) .lg-cell.lg-selected {
+	z-index: 3;
 }
 .lg-cell-indicator,
 .lg-range-outline,
 .lg-edit-outline {
-	--lg-cell-indicator-thickness: 2px;
 	position: absolute;
-	inset: 0 calc(-1 * var(--ui-border-width)) calc(-1 * var(--ui-border-width)) 0;
+	/* 绝对定位以 padding box 为准，右、下覆盖本格边线，左、上覆盖邻格边线。 */
+	inset: calc(-1 * var(--ui-border-width));
 	z-index: 1;
 	pointer-events: none;
+}
+/* 首行的固定区域盖住共用顶线，普通格的选中框随内容滚入它下方。 */
+.lg-scroller:not([data-overflow-y-start])
+	.lg-row:first-child
+	> :is(.lg-gutter, .lg-pinned) {
+	margin-top: calc(-1 * var(--ui-border-width));
+	border-top: var(--ui-border-width) solid var(--ui-line-color, var(--border));
 }
 .lg-cell-indicator {
 	--lg-cell-indicator-duration: 160ms;
@@ -558,7 +553,7 @@
 	position: sticky;
 	left: var(--lg-pin-left);
 }
-.lg-cell.lg-pinned.lg-active {
+.lg-cell.lg-pinned.lg-selected {
 	z-index: 3;
 }
 .lg-cell[data-align="end"] {
@@ -622,6 +617,11 @@
 	margin-top: calc(-1 * var(--ui-border-width));
 	background: var(--card);
 	border-top: var(--ui-border-width) solid var(--ui-line-color, var(--border));
+}
+/* 表头和汇总在自然位置让出与正文共用的边线，吸附后遮挡正文。 */
+.lg-scroller:not([data-overflow-y-start]) .lg-head,
+.lg-scroller:not([data-overflow-y-end]) .lg-summary {
+	z-index: 0;
 }
 .lg-summary-cell {
 	flex: none;

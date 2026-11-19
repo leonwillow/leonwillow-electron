@@ -1,7 +1,7 @@
 /**
  * @file 前端入口与路由权限策略的安全回归测试。
  * 创建时间：2026-10-04
- * 修改时间：2026-11-05
+ * 修改时间：2026-11-18
  * 版本作用：覆盖无授权、路径绕过和管理中心与个人设置隔离。
  * 被调用：bun run test:ui。
  * 调用：bun:test、共享权限目录、导航与搜索目录。
@@ -19,6 +19,7 @@ import {
 	adminNav,
 	primaryNav,
 	settingsHomeHref,
+	settingsNav,
 } from "../src/assets/data/navigation";
 import { searchData } from "../src/assets/data/search";
 
@@ -26,6 +27,7 @@ test("所有现有导航与搜索目标都显式登记访问规则", () => {
 	for (const path of [
 		...primaryNav.map((item) => item.href),
 		...adminNav.map((item) => item.href),
+		...settingsNav.map((item) => item.href),
 		...searchData.flatMap((group) => group.data.map((item) => item.href)),
 	])
 		expect(routeRequirement(path)).not.toBeNull();
@@ -99,7 +101,7 @@ test("两种身份共享个人设置，管理菜单与搜索只向管理员开�
 	expect(settingsHomeHref).toBe("/settings/profile");
 	for (const identity of [member, admin]) {
 		expect(canAccessPath(identity, settingsHomeHref)).toBe(true);
-		for (const item of personalSettings.data)
+		for (const item of [...settingsNav, ...personalSettings.data])
 			expect(canAccessPath(identity, item.href)).toBe(true);
 	}
 	for (const item of [...adminNav, ...adminSettings.data]) {

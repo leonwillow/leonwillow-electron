@@ -1,9 +1,9 @@
 /**
  * @file 命令面板的搜索目录。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-06
+ * 修改时间：2026-11-18
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
- * 被调用：components/layout/command-menu.tsx。
+ * 被调用：components/layout/command-menu-dialog.tsx。
  * 调用：@tanstack/react-router、lucide-react、导航目录。
  * 功能：为入口配置中文标题、图标与检索关键词，分开个人设置和管理中心。
  * 预期结果：命令面板按匹配程度展示并执行页面跳转。
@@ -101,9 +101,9 @@ export const searchData: SearchGroup[] = [
 			},
 			{
 				icon: BellIcon,
-				name: "通知",
+				name: "通知设置",
 				href: "/settings/notifications",
-				tags: ["email", "alerts", "preferences"],
+				tags: ["通知", "email", "alerts", "preferences"],
 			},
 		],
 	},

@@ -1,7 +1,7 @@
 /**
  * @file 工作台的固定图标导航。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-10
+ * 修改时间：2026-11-18
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/layout/workspace-layout.tsx。
  * 调用：共享 UI、路由、导航目录、工作台统一导航上下文、管理中心、搜索、品牌、主题与个人菜单。
@@ -25,8 +25,7 @@ import {
 	useLocation,
 	useSearch,
 } from "@tanstack/react-router";
-import { SettingsIcon } from "lucide-react";
-import { settingsHomeHref, sidebarNav } from "@/assets/data/navigation";
+import { sidebarNav } from "@/assets/data/navigation";
 import AdminMenu from "@/components/layout/admin-menu";
 import AppLogo from "@/components/layout/app-logo";
 import CommandMenu from "@/components/layout/command-menu";
@@ -47,9 +46,6 @@ const AppSidebar = () => {
 	const { caseId, typeId, inquiryCaseId, recordId, inquiryView } = useSearch({
 		strict: false,
 	});
-	const settingsActive = [settingsHomeHref, "/settings/notifications"].includes(
-		pathname,
-	);
 	const enterItem = (id: string) => {
 		menu.preview(isWorkspaceMenuId(id) ? id : null);
 	};
@@ -158,27 +154,6 @@ const AppSidebar = () => {
 			<div className="workspace-rail-group w-full">
 				<CommandMenu />
 				<AdminMenu />
-				<Tooltip>
-					<TooltipTrigger
-						render={
-							<Link
-								to={settingsHomeHref}
-								aria-label="个人设置"
-								aria-current={settingsActive ? "page" : undefined}
-								className={cn(
-									buttonVariants({
-										variant: "ghost",
-										size: "icon-workspace",
-									}),
-									"workspace-nav-item",
-								)}
-							>
-								<SettingsIcon />
-							</Link>
-						}
-					/>
-					<TooltipContent side="right">个人设置</TooltipContent>
-				</Tooltip>
 				<ThemeCustomizer />
 				<ModeToggle />
 				<FullscreenToggle />

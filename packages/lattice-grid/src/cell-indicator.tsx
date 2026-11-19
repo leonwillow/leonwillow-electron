@@ -1,6 +1,6 @@
 /**
  * @file 可编辑网格单元格共用的选中边框。
- * 创建时间：2026-11-06；修改时间：2026-11-17。
+ * 创建时间：2026-11-06；修改时间：2026-11-18。
  * 版本作用：边框通过 Portal 挂到当前单元格，原生跟随滚动、冻结及布局变化。
  * 被调用：DataGrid；调用：GridView、React Portal 与 Web Animations，不修改数据或选区。
  * 预期结果：仅单格点击或键盘切换时播放位移动画；拖选和多区域由 GridCell 绘制外周。
@@ -10,7 +10,7 @@ import { createPortal } from "react-dom";
 import type { GridView } from "./view-controller";
 
 /** 正文的行号/冻结分界；单元格自然滚动坐标不包含可见性裁剪。 */
-function cellClipLeft<T>(view: GridView<T>, cell: HTMLElement) {
+function cellClipLeft<T>(view: GridView<T>, cell: HTMLElement, line: number) {
 	const viewport = view.scroller;
 	if (!viewport) return 0;
 	const frozenWidth = view
@@ -19,10 +19,11 @@ function cellClipLeft<T>(view: GridView<T>, cell: HTMLElement) {
 			(width, column) => width + (column.pinned ? column.width : 0),
 			view.gutterWidth(),
 		);
-	return (
-		viewport.getBoundingClientRect().left +
-		(cell.classList.contains("lg-pinned") ? view.gutterWidth() : frozenWidth)
-	);
+	const pinned = cell.classList.contains("lg-pinned");
+	const edge = pinned ? view.gutterWidth() : frozenWidth;
+	// 冻结格始终可覆盖行号右线，普通格只在水平起点与冻结区共用分隔线。
+	const sharedLine = pinned || !viewport.scrollLeft ? line : 0;
+	return viewport.getBoundingClientRect().left + edge - sharedLine;
 }
 
 export function CellIndicator<T>({ view }: { view: GridView<T> }) {
@@ -61,7 +62,11 @@ export function CellIndicator<T>({ view }: { view: GridView<T> }) {
 			const clip = viewport.getBoundingClientRect();
 			const visibleLeft =
 				motionRef.current?.clip.getBoundingClientRect().left ??
-				cellClipLeft(view, anchor);
+				cellClipLeft(
+					view,
+					anchor,
+					Number.parseFloat(getComputedStyle(anchor).borderRightWidth),
+				);
 			if (
 				right > visibleLeft &&
 				left < clip.left + viewport.clientWidth &&
@@ -94,17 +99,26 @@ export function CellIndicator<T>({ view }: { view: GridView<T> }) {
 		// 真实边框仍留在目标格，滚动或动画全部结束时无缝接回。
 		const viewportRect = viewport.getBoundingClientRect();
 		const hostRect = host.getBoundingClientRect();
-		const left = viewportRect.left + view.gutterWidth();
-		const top = viewportRect.top + view.headHeight();
-		const targetClipLeft = cellClipLeft(view, anchor);
+		const line = Number.parseFloat(getComputedStyle(anchor).borderRightWidth);
+		const left = viewportRect.left + view.gutterWidth() - line;
+		const head =
+			view.headHeight() -
+			(viewport.hasAttribute("data-overflow-y-start") ? 0 : line);
+		const summary = Math.max(
+			0,
+			view.summaryHeight() -
+				(viewport.hasAttribute("data-overflow-y-end") ? 0 : line),
+		);
+		const top = viewportRect.top + head;
+		const targetClipLeft = cellClipLeft(view, anchor, line);
 		const layer = document.createElement("div");
 		layer.className = "lg-cell-transition";
 		layer.setAttribute("aria-hidden", "true");
 		Object.assign(layer.style, {
 			left: `${left - hostRect.left}px`,
 			top: `${top - hostRect.top}px`,
-			width: `${Math.max(0, viewport.clientWidth - view.gutterWidth())}px`,
-			height: `${Math.max(0, viewport.clientHeight - view.headHeight() - view.summaryHeight())}px`,
+			width: `${Math.max(0, viewport.clientWidth - view.gutterWidth() + line)}px`,
+			height: `${Math.max(0, viewport.clientHeight - head - summary)}px`,
 		});
 		const clip = document.createElement("div");
 		clip.className = "lg-cell-transition-clip";

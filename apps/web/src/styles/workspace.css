@@ -16,26 +16,38 @@
 	--workspace-content-min-size: 20rem;
 }
 
-/* 悬浮将主导航与右侧工作区分为两个表面；二级菜单和正文保留在同一分栏内。
- * 四周留白使用工作区令牌，圆角/边框/阴影跟随当前主题；短窗口继续由 ScrollArea 滚动。 */
+/* 悬浮外观的主导航、固定菜单和正文各自成框，外壳留白与分栏间距共用令牌。 */
 .workspace-shell {
-	--workspace-rail-gap: var(--spacing-workspace-gutter);
+	--workspace-panel-gap: var(--spacing-workspace-gutter);
 }
-.workspace-shell[data-sidebar-mode="floating"] > .workspace-rail {
-	margin: var(--workspace-rail-gap);
-	border: var(--ui-border-width) solid
-		var(--ui-line-color, var(--sidebar-border));
-	border-radius: var(--radius-xl);
-	box-shadow: var(--shadow-sm);
+.workspace-shell[data-sidebar-mode="floating"] {
+	gap: var(--workspace-panel-gap);
+	padding: var(--workspace-panel-gap);
 }
-.workspace-shell[data-sidebar-mode="floating"] > .workspace-surface {
-	margin-block: var(--workspace-rail-gap);
-	margin-inline-end: var(--workspace-rail-gap);
-	overflow: hidden;
+.workspace-shell[data-sidebar-mode="floating"]
+	:where(
+		.workspace-rail,
+		[data-slot="workspace-menu"][data-mode="docked"],
+		.workspace-content
+	) {
 	border: var(--ui-border-width) solid var(--ui-line-color, var(--border));
 	border-radius: var(--radius-xl);
-	background: var(--background);
 	box-shadow: var(--shadow-sm);
+}
+.workspace-shell[data-sidebar-mode="floating"] > .workspace-rail {
+	border-color: var(--ui-line-color, var(--sidebar-border));
+}
+.workspace-shell[data-sidebar-mode="floating"]
+	[data-slot="workspace-menu"][data-mode="docked"] {
+	overflow: clip;
+}
+.workspace-shell[data-sidebar-mode="floating"] .workspace-content {
+	background: var(--background);
+}
+/* 分隔条占满留白，拖动命中区和宽度偏好换算使用同一实际宽度。 */
+.workspace-shell[data-sidebar-mode="floating"] .workspace-menu-separator {
+	width: var(--workspace-panel-gap);
+	background: transparent;
 }
 .workspace-shell[data-sidebar-mode="floating"]
 	> .workspace-rail
@@ -44,7 +56,7 @@
 }
 @media (max-width: 40rem) {
 	.workspace-shell {
-		--workspace-rail-gap: calc(var(--spacing-workspace-gutter) / 2);
+		--workspace-panel-gap: calc(var(--spacing-workspace-gutter) / 2);
 	}
 }
 
@@ -72,6 +84,12 @@
 .workspace-nav-item[aria-current] {
 	background-color: color-mix(in oklab, var(--primary) 10%, transparent);
 	color: var(--primary);
+}
+
+.workspace-nav-item:is(:hover, [aria-expanded="true"], [aria-current])
+	[data-slot="avatar-fallback"] {
+	background-color: transparent;
+	color: currentColor;
 }
 
 .workspace-nav-item[aria-current]:focus-visible {

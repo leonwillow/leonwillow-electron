@@ -1,11 +1,11 @@
 /**
  * @file 已登录工作台的展示容器。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-10
+ * 修改时间：2026-11-18
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：routes/_workspace/route.tsx。
  * 调用：共享 UI、主图标栏、唯一菜单导航 Provider、文书/笔录资源 Provider 及菜单内容。
- * 功能：按模块授权组合二级菜单、Tooltip 和主内容区；悬浮模式为分栏整体提供外框。
+ * 功能：按模块授权组合二级菜单、Tooltip 和主内容区；菜单外观由共享外壳控制。
  * 预期结果：通过路由会话检查的页面共用固定导航与布局。
  */
 import { canAccessModule } from "@leonwillow-electron/access";
@@ -54,15 +54,13 @@ export default function WorkspaceLayout({ children }: { children: ReactNode }) {
 									className="workspace-shell flex h-dvh w-full min-w-0 overflow-hidden"
 								>
 									<AppSidebar />
-									<div className="workspace-surface flex min-h-0 min-w-0 flex-1">
-										<WorkspacePanels
-											menu={
-												<WorkspaceSecondaryMenu enabledMenus={enabledMenus} />
-											}
-										>
-											{children}
-										</WorkspacePanels>
-									</div>
+									<WorkspacePanels
+										menu={
+											<WorkspaceSecondaryMenu enabledMenus={enabledMenus} />
+										}
+									>
+										{children}
+									</WorkspacePanels>
 								</div>
 							</CalculatorNavigationProvider>
 						</InquiryNavigationProvider>
