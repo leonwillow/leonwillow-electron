@@ -8,6 +8,7 @@
  */
 
 import { Button } from "@leonwillow-electron/ui/components/button";
+import { HelpTip } from "@leonwillow-electron/ui/components/help-tip";
 import {
 	Table,
 	TableBody,
@@ -76,7 +77,7 @@ export default function ReviewPanel({
 			: (resource.data?.candidateTotal ?? 0);
 	return (
 		<section className="space-y-4">
-			<div className="flex flex-wrap gap-2">
+			<div className="flex flex-wrap items-center gap-2">
 				<Button
 					variant={mode === "issues" ? "secondary" : "ghost"}
 					onClick={() => {
@@ -101,16 +102,21 @@ export default function ReviewPanel({
 				>
 					主体归属
 				</Button>
+				{mode !== "subjects" && (
+					<HelpTip
+						label={mode === "issues" ? "清洗问题说明" : "双边配对候选说明"}
+						content={
+							mode === "issues"
+								? "待核记录保留银行原值，暂不计入图金额。对手账号缺失的合格交易使用独立待核节点。"
+								: "以下记录在整组自动匹配后仍有冲突，相关交易暂缓入图，避免重复计数。请核对两侧原文，再决定是否为同一交易。"
+						}
+					/>
+				)}
 			</div>
 			{mode === "subjects" ? (
 				<SubjectPanel record={record} onChanged={onChanged} />
 			) : (
 				<>
-					<p className="max-w-3xl text-muted-foreground text-sm">
-						{mode === "issues"
-							? "待核记录保留银行原值，暂不计入图金额。对手账号缺失的合格交易使用独立待核节点。"
-							: "以下记录在整组自动匹配后仍有冲突，相关交易暂缓入图，避免重复计数。请核对两侧原文，再决定是否为同一交易。"}
-					</p>
 					{mode === "issues" && (
 						<fieldset className="flex flex-wrap gap-2" aria-label="问题类型">
 							{Object.entries(issueNames).map(([value, name]) => (

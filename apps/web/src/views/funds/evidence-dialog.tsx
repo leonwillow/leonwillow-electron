@@ -1,7 +1,7 @@
 /**
  * @file 可复用的交易证据内容与异常原文核对弹窗。
  * 创建时间：2026-10-06
- * 修改时间：2026-11-05
+ * 修改时间：2026-11-19
  * 版本作用：显示全部来源证据，不覆盖原始字段。
  * 被调用：连线详情/清洗核对面板；调用：Eden 和共享 Dialog。
  * 预期结果：可定位文件、表、行、哈希，加载/失败均可关闭。
@@ -10,7 +10,6 @@ import { Button } from "@leonwillow-electron/ui/components/button";
 import {
 	Dialog,
 	DialogContent,
-	DialogDescription,
 	DialogHeader,
 	DialogTitle,
 } from "@leonwillow-electron/ui/components/dialog";
@@ -123,9 +122,6 @@ export default function EvidenceDialog({
 			>
 				<DialogHeader>
 					<DialogTitle>来源核对</DialogTitle>
-					<DialogDescription>
-						保留银行原文。金额、户名或时间不一致时，以来源逐项核对。
-					</DialogDescription>
 				</DialogHeader>
 				<EvidenceContent
 					key={JSON.stringify(target)}

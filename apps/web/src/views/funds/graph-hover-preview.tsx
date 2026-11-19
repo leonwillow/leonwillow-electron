@@ -1,7 +1,7 @@
 /**
  * @file 可停靠、可折叠的画布悬停速览。
  * 创建时间：2026-10-07
- * 修改时间：2026-11-05
+ * 修改时间：2026-11-19
  * 版本作用：独立于 G6 绘制生命周期，仅消费已加载数据；鼠标交互不重绘图谱。
  * 被调用：GraphCanvas 通过 ref.show 转交图元进入事件。
  * 功能：按帧合并目标、缓存本地摘要、点击切换展开与折叠、独立保存布局。
@@ -219,11 +219,6 @@ export default function GraphHoverPreview({
 									: data.nodes.length
 										? "将鼠标移到节点或连线上，查看基础信息。"
 										: "当前视图没有节点或连线。"}
-						</p>
-					)}
-					{preview && (
-						<p className="mt-3 text-caption text-muted-foreground">
-							最近悬停 · 当前视图
 						</p>
 					)}
 					{storageError && (

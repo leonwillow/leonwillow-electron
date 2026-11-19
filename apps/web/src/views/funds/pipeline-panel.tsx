@@ -1,7 +1,7 @@
 /**
  * @file 案件原始流水上传与后台处理记录。
  * 创建时间：2026-10-06
- * 修改时间：2026-11-05
+ * 修改时间：2026-11-19
  * 版本作用：AI 标准化是默认入口，已有模板可直接提交；结果可下载和核验。
  * 被调用：资金调查文件页签；调用：共享 UI、Eden 案件任务接口。
  * 预期结果：离开页面不停止任务，轮询不会把另一案件的结果带入当前页面。
@@ -15,6 +15,7 @@ import {
 	FieldGroup,
 	FieldLabel,
 } from "@leonwillow-electron/ui/components/field";
+import { HelpTip } from "@leonwillow-electron/ui/components/help-tip";
 import { Input } from "@leonwillow-electron/ui/components/input";
 import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
 import {
@@ -171,12 +172,12 @@ export default function PipelinePanel({
 				className="flex flex-col gap-4 rounded-lg border p-4 sm:p-5"
 				aria-label="流水标准化与导入"
 			>
-				<div className="flex flex-col gap-1">
+				<div className="flex items-center gap-1">
 					<h3 className="font-medium text-sm">从原始流水开始</h3>
-					<p className="text-muted-foreground text-xs">
-						上传这个案件的原始文件，AI 统一为 13
-						列标准表，后台继续完成入库、去重与资金图更新。
-					</p>
+					<HelpTip
+						label="原始流水导入说明"
+						content="上传这个案件的原始文件，AI 统一为 13 列标准表，后台继续完成入库、去重与资金图更新。上传完成后可离开页面，后台继续处理。"
+					/>
 				</div>
 				<Tabs value={mode} onValueChange={(v) => setMode(String(v))}>
 					<TabsList>
@@ -229,9 +230,6 @@ export default function PipelinePanel({
 								? "开始标准化并导入"
 								: "导入标准文件"}
 					</Button>
-					<span className="text-muted-foreground text-xs">
-						上传完成后可离开页面，后台继续处理。
-					</span>
 				</div>
 				{message ? (
 					<p role="status" className="text-sm">

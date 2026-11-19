@@ -1,6 +1,6 @@
 /**
  * @file 笔录案件文件夹的新建和重命名弹窗。
- * 创建时间：2026-11-04；修改时间：2026-11-05。
+ * 创建时间：2026-11-04；修改时间：2026-11-19。
  * 版本作用：沿用工作台共享表单和 Dialog，创建成功后展开目录中的案件。
  * 被调用：笔录案件侧栏与未选择引导；调用：Eden、Sonner、导航上下文。
  * 预期结果：创建文件夹不改变当前编辑笔录，失败保留输入并允许重试。
@@ -9,7 +9,6 @@ import { Button } from "@leonwillow-electron/ui/components/button";
 import {
 	Dialog,
 	DialogContent,
-	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
@@ -80,9 +79,6 @@ export default function InquiryCaseDialog({
 				>
 					<DialogHeader>
 						<DialogTitle>{row ? "重命名笔录案件" : "新建笔录案件"}</DialogTitle>
-						<DialogDescription>
-							以文件夹管理案件，在其中创建和整理询问笔录。
-						</DialogDescription>
 					</DialogHeader>
 					<FieldGroup>
 						<Field>

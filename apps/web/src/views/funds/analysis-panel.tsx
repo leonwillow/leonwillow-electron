@@ -1,7 +1,7 @@
 /**
  * @file 账户/主体与逐笔/汇总四种资金视图和时间顺序追踪协调容器。
  * 创建时间：2026-10-06
- * 修改时间：2026-11-18
+ * 修改时间：2026-11-19
  * 版本作用：整案为入口，协调关系图画布、控制条与流水明细子面板。
  * 被调用：funds 工作台；调用：Eden、G6 画布、AccountDirectory、AnalysisControls、TransactionsPanel。
  * 功能：图与流水页签共用筛选范围，管理分析历史、节点标记隐藏与追踪状态。
@@ -9,6 +9,7 @@
  */
 
 import { Button } from "@leonwillow-electron/ui/components/button";
+import { HelpTip } from "@leonwillow-electron/ui/components/help-tip";
 import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
 import { Tabs, TabsContent } from "@leonwillow-electron/ui/components/tabs";
 import { getRouteApi } from "@tanstack/react-router";
@@ -441,68 +442,67 @@ export default function AnalysisPanel({ caseId }: { caseId: string }) {
 							keepMounted
 							className="flex min-h-0 flex-col gap-4 overflow-hidden data-[hidden]:hidden"
 						>
-							<ScrollArea
-								className="max-h-1/4 shrink-0 overscroll-contain"
-								contentClassName="space-y-4"
-							>
-								<div className="flex shrink-0 flex-wrap items-center justify-between gap-2 text-muted-foreground text-xs">
-									<p>
-										单击节点查看详情，双击下钻，右键打开操作菜单。目录中可按
-										Shift + F10 打开菜单。
-									</p>
+							{(hiddenNodes.length > 0 || presentation.error) && (
+								<ScrollArea
+									className="max-h-1/4 shrink-0 overscroll-contain"
+									contentClassName="space-y-4"
+								>
 									{hiddenNodes.length > 0 && (
-										<Button
-											variant="outline"
-											onClick={() =>
-												navigate(
-													{
-														hiddenKeys: view.hiddenKeys.filter(
-															(key) =>
-																!hiddenNodes.some(
-																	(n) =>
-																		nodePresentationKey(nodeMode, n.id) === key,
-																),
-														),
-													},
-													true,
-												)
-											}
-										>
-											恢复全部隐藏节点（{hiddenNodes.length}）
-										</Button>
+										<div className="flex shrink-0 flex-wrap items-center justify-end gap-2 text-muted-foreground text-xs">
+											<Button
+												variant="outline"
+												onClick={() =>
+													navigate(
+														{
+															hiddenKeys: view.hiddenKeys.filter(
+																(key) =>
+																	!hiddenNodes.some(
+																		(n) =>
+																			nodePresentationKey(nodeMode, n.id) ===
+																			key,
+																	),
+															),
+														},
+														true,
+													)
+												}
+											>
+												恢复全部隐藏节点（{hiddenNodes.length}）
+											</Button>
+										</div>
 									)}
-								</div>
-								{hiddenNodes.length > 0 && (
-									<details className="text-xs">
-										<summary className="cursor-pointer text-muted-foreground">
-											查看已隐藏节点
-										</summary>
-										<ScrollArea
-											className="mt-2 max-h-40"
-											contentClassName="flex flex-wrap gap-2"
-										>
-											{hiddenNodes.map((n) => (
-												<Button
-													key={n.id}
-													variant="outline"
-													size="sm"
-													onClick={() => hideNode(n.id)}
-												>
-													恢复 {accountName(n)}
-													{nodeMode === "account"
-														? ` · ${n.number.slice(-4)}`
-														: ""}
-												</Button>
-											))}
-										</ScrollArea>
-									</details>
-								)}
-								{presentation.error && (
-									<p role="alert" className="text-destructive text-xs">
-										{presentation.error}
-									</p>
-								)}
-							</ScrollArea>
+									{hiddenNodes.length > 0 && (
+										<details className="text-xs">
+											<summary className="cursor-pointer text-muted-foreground">
+												查看已隐藏节点
+											</summary>
+											<ScrollArea
+												className="mt-2 max-h-40"
+												contentClassName="flex flex-wrap gap-2"
+											>
+												{hiddenNodes.map((n) => (
+													<Button
+														key={n.id}
+														variant="outline"
+														size="sm"
+														onClick={() => hideNode(n.id)}
+													>
+														恢复 {accountName(n)}
+														{nodeMode === "account"
+															? ` · ${n.number.slice(-4)}`
+															: ""}
+													</Button>
+												))}
+											</ScrollArea>
+										</details>
+									)}
+									{presentation.error && (
+										<p role="alert" className="text-destructive text-xs">
+											{presentation.error}
+										</p>
+									)}
+								</ScrollArea>
+							)}
 							<GraphCanvas
 								userId={user.id}
 								viewKey={history.frame.id}
@@ -519,11 +519,15 @@ export default function AnalysisPanel({ caseId }: { caseId: string }) {
 							/>
 							<ScrollArea
 								className="max-h-1/4 shrink-0 overscroll-contain text-muted-foreground text-xs"
-								contentClassName="flex flex-wrap justify-between gap-2"
+								contentClassName="flex flex-wrap items-center justify-between gap-2"
 							>
-								<span>
+								<span className="inline-flex items-center gap-1.5">
 									默认实心：已有流水 · 默认空心：对方流水待补 · 箭头：资金方向 ·
 									标记后可点选查看覆盖情况
+									<HelpTip
+										label="画布操作说明"
+										content="单击节点查看详情，双击下钻，右键打开操作菜单。目录中可按 Shift + F10 打开菜单。"
+									/>
 								</span>
 								<span>
 									{graph.nodes.length} 个

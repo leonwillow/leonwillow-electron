@@ -1,7 +1,7 @@
 /**
  * @file 节点特殊标记编辑器与几何预览。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-06
+ * 修改时间：2026-11-19
  * 版本作用：复用主题编辑器的色盘、滑块和共享表单控件。
  * 被调用：node-inspector；调用：图谱标记规则与共享 UI。
  * 功能：编辑节点形状、尺寸、填色、边框及相关资金连线。
@@ -170,9 +170,6 @@ export default function NodeMarkEditor({
 						)}
 					</g>
 				</svg>
-				<p className="text-center text-muted-foreground text-xs">
-					预览 · 保存后应用到图谱
-				</p>
 			</div>
 			<FieldSet>
 				<FieldLegend>节点图形</FieldLegend>
@@ -247,9 +244,6 @@ export default function NodeMarkEditor({
 					)}
 				</FieldGroup>
 			</FieldSet>
-			<p className="text-muted-foreground text-xs">
-				同一条连线被两端标记时，以最后保存且方向适用的设置为准。标记保存在当前浏览器，按用户、案件和节点模式区分。
-			</p>
 			<div className="sticky bottom-0 flex flex-wrap gap-2 border-t bg-background py-3">
 				<Button type="submit" disabled={Object.values(invalid).some(Boolean)}>
 					保存标记

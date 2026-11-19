@@ -168,24 +168,20 @@ export function ThemeLineSettings({ mode }: { mode: "light" | "dark" }) {
 									</div>
 								</div>
 								<ColorPickerFields />
-								<div className="flex flex-col gap-2">
-									<span
-										id={recentLabelId}
-										className="font-medium text-muted-foreground text-xs"
-									>
-										最近使用
-									</span>
-									{recent.length > 0 ? (
+								{recent.length > 0 && (
+									<div className="flex flex-col gap-2">
+										<span
+											id={recentLabelId}
+											className="font-medium text-muted-foreground text-xs"
+										>
+											最近使用
+										</span>
 										<ColorPickerSwatches
 											colors={recent}
 											aria-labelledby={recentLabelId}
 										/>
-									) : (
-										<p className="text-muted-foreground text-xs">
-											选择后显示最近使用的颜色。
-										</p>
-									)}
-								</div>
+									</div>
+								)}
 							</ColorPickerPanel>
 						</ColorPickerContent>
 					</ColorPicker>

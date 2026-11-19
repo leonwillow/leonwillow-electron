@@ -1,7 +1,7 @@
 /**
  * @file 图谱菜单栏、节点筛选和连线筛选。
  * 创建时间：2026-10-06
- * 修改时间：2026-11-05
+ * 修改时间：2026-11-19
  * 版本作用：复用原模板 FilterSelect 与共享 Popover，草稿提交后才改变视图。
  * 被调用：analysis-panel；调用：共享 UI、图谱筛选校验。
  * 预期结果：以紧凑图标扩展 G6 悬浮工具栏，悬停有中文提示，筛选草稿按需展开。
@@ -184,7 +184,6 @@ export default function GraphToolbar({
 				>
 					<PopoverHeader>
 						<PopoverTitle>筛选节点</PopoverTitle>
-						<PopoverDescription>在当前分析范围内查找节点。</PopoverDescription>
 					</PopoverHeader>
 					<form
 						className="space-y-4"
@@ -243,9 +242,6 @@ export default function GraphToolbar({
 								setNodeDraft({ ...nodeDraft, scope: v as NodeFilter["scope"] })
 							}
 						/>
-						<p className="text-muted-foreground text-xs">
-							多项条件同时满足；默认保留往来对手，便于查看资金进出。
-						</p>
 						<div className="flex justify-between gap-2">
 							<Button
 								type="button"
@@ -447,9 +443,6 @@ export default function GraphToolbar({
 								}
 							/>
 						</div>
-						<p className="text-muted-foreground text-xs">
-							日期先筛选再汇总；内部划转指同一展示节点内的交易。下钻节点后可指定收支方向。
-						</p>
 						{error && (
 							<p role="alert" className="text-destructive text-xs">
 								{error}

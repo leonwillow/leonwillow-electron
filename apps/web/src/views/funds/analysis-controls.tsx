@@ -1,7 +1,7 @@
 /**
  * @file 资金分析工作区的视图切换、追踪控制栏与当前账户/主体摘要头。
  * 创建时间：2026-11-18
- * 修改时间：2026-11-18
+ * 修改时间：2026-11-19
  * 版本作用：从 analysis-panel 拆分出顶部操作条与当前分析对象说明，保持单组件职责聚焦。
  * 被调用：views/funds/analysis-panel.tsx。
  * 调用：ui 基础组件、lib/funds、model/analysis。
@@ -10,6 +10,7 @@
  */
 import { Badge } from "@leonwillow-electron/ui/components/badge";
 import { Button } from "@leonwillow-electron/ui/components/button";
+import { HelpTip } from "@leonwillow-electron/ui/components/help-tip";
 import { Input } from "@leonwillow-electron/ui/components/input";
 import { Label } from "@leonwillow-electron/ui/components/label";
 import {
@@ -154,59 +155,63 @@ export default function AnalysisControls({
 								返回关系图
 							</Button>
 						)}
+						<HelpTip
+							label="资金汇总与追踪口径"
+							content="汇总按方向分别统计，不抵销往返金额。追踪按原账户与交易时间连续展开，主体内部划转照常保留；关联路径不等于同一笔钱，每个起点最多展示 200 条路径。"
+						/>
 					</div>
 				</fieldset>
 			</ScrollArea>
-			<ScrollArea
-				className="max-h-1/4 shrink-0 overscroll-contain"
-				contentClassName="space-y-4"
-			>
-				{account && (
-					<div className="flex flex-wrap items-start justify-between gap-3">
-						<div>
-							<h2 className="font-medium text-sm">
-								{accountName(currentAccount)}
-							</h2>
-							<p className="mt-1 break-all text-muted-foreground text-xs">
-								{nodeMode === "subject"
-									? `${currentAccount?.accountNumbers.length ?? 0} 个账户 · ${currentAccount?.basis ?? ""}`
-									: currentAccount?.number}
-							</p>
+			{(account || traceError) && (
+				<ScrollArea
+					className="max-h-1/4 shrink-0 overscroll-contain"
+					contentClassName="space-y-4"
+				>
+					{account && (
+						<div className="flex flex-wrap items-start justify-between gap-3">
+							<div>
+								<h2 className="font-medium text-sm">
+									{accountName(currentAccount)}
+								</h2>
+								<p className="mt-1 break-all text-muted-foreground text-xs">
+									{nodeMode === "subject"
+										? `${currentAccount?.accountNumbers.length ?? 0} 个账户 · ${currentAccount?.basis ?? ""}`
+										: currentAccount?.number}
+								</p>
+							</div>
+							<Badge variant="outline">
+								{currentAccount?.hasStatement
+									? "已有本方流水"
+									: "对方流水待补充"}
+							</Badge>
 						</div>
-						<Badge variant="outline">
-							{currentAccount?.hasStatement ? "已有本方流水" : "对方流水待补充"}
-						</Badge>
-					</div>
-				)}
-				{nodeMode === "subject" && currentAccount && (
-					<details className="text-xs">
-						<summary className="cursor-pointer text-muted-foreground">
-							查看主体包含的账户与归属依据
-						</summary>
-						<p className="mt-2">
-							{currentAccount.basis}；可在案件管理的清洗核对中更正。
+					)}
+					{nodeMode === "subject" && currentAccount && (
+						<details className="text-xs">
+							<summary className="cursor-pointer text-muted-foreground">
+								查看主体包含的账户与归属依据
+							</summary>
+							<p className="mt-2">
+								{currentAccount.basis}；可在案件管理的清洗核对中更正。
+							</p>
+							<ul className="mt-2 space-y-1">
+								{currentAccount.accounts.map((a) => (
+									<li key={a.id} className="break-all">
+										{a.number} ·{" "}
+										{(a.ownNames.length ? a.ownNames : a.names).join(" / ")} ·{" "}
+										{a.hasStatement ? "已有流水" : "仅见对手"}
+									</li>
+								))}
+							</ul>
+						</details>
+					)}
+					{traceError && (
+						<p role="alert" className="text-destructive text-xs">
+							{traceError}
 						</p>
-						<ul className="mt-2 space-y-1">
-							{currentAccount.accounts.map((a) => (
-								<li key={a.id} className="break-all">
-									{a.number} ·{" "}
-									{(a.ownNames.length ? a.ownNames : a.names).join(" / ")} ·{" "}
-									{a.hasStatement ? "已有流水" : "仅见对手"}
-								</li>
-							))}
-						</ul>
-					</details>
-				)}
-				<p className="text-muted-foreground text-xs">
-					汇总按方向分别统计，不抵销往返金额。追踪仍按原账户与交易时间连续展开，主体内部划转照常保留。关联路径不等于同一笔钱，每个起点最多展示
-					200 条路径。
-				</p>
-				{traceError && (
-					<p role="alert" className="text-destructive text-xs">
-						{traceError}
-					</p>
-				)}
-			</ScrollArea>
+					)}
+				</ScrollArea>
+			)}
 		</>
 	);
 }

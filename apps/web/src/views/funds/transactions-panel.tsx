@@ -1,7 +1,7 @@
 /**
  * @file 资金分析工作区的银行流水与汇总流向页签面板。
  * 创建时间：2026-11-18
- * 修改时间：2026-11-18
+ * 修改时间：2026-11-19
  * 版本作用：从 analysis-panel 拆分出汇总流向表、逐笔明细表、多选追踪勾选与分页栏。
  * 被调用：views/funds/analysis-panel.tsx。
  * 调用：ui 基础组件、FlowTable、lib/funds、model/analysis。
@@ -10,6 +10,7 @@
  */
 import { Button } from "@leonwillow-electron/ui/components/button";
 import { Checkbox } from "@leonwillow-electron/ui/components/checkbox";
+import { HelpTip } from "@leonwillow-electron/ui/components/help-tip";
 import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
 import {
 	Table,
@@ -80,18 +81,26 @@ export default function TransactionsPanel({
 				contentClassName="space-y-4"
 			>
 				<div className="flex flex-wrap items-center gap-3">
-					<h3 className="font-medium text-sm">
-						{flow
-							? "流向包含的交易"
-							: showingFlows
-								? "资金流向汇总"
-								: hasTraced
-									? "追踪结果明细"
-									: "交易明细"}{" "}
-						<span className="text-muted-foreground">
-							{total.toLocaleString("zh-CN")} {showingFlows ? "条流向" : "笔"}
-						</span>
-					</h3>
+					<div className="flex items-center gap-1">
+						<h3 className="font-medium text-sm">
+							{flow
+								? "流向包含的交易"
+								: showingFlows
+									? "资金流向汇总"
+									: hasTraced
+										? "追踪结果明细"
+										: "交易明细"}{" "}
+							<span className="text-muted-foreground">
+								{total.toLocaleString("zh-CN")} {showingFlows ? "条流向" : "笔"}
+							</span>
+						</h3>
+						{hasTraced && (
+							<HelpTip
+								label="追踪结果明细说明"
+								content="这里列出画布中全部追踪交易，包含展开后的后续交易；同一笔交易只列一次，可逐条核对来源。"
+							/>
+						)}
+					</div>
 					{flow && (
 						<Button variant="outline" onClick={onCloseFlow}>
 							返回流向汇总
@@ -109,11 +118,6 @@ export default function TransactionsPanel({
 						{filterToolbar}
 					</fieldset>
 				</div>
-				{hasTraced && (
-					<p className="text-muted-foreground text-xs">
-						这里列出画布中全部追踪交易，包含展开后的后续交易；同一笔交易只列一次，可逐条核对来源。
-					</p>
-				)}
 				{flow && (
 					<p className="text-sm">
 						{accountName(lookup.get(flow.from))} →{" "}

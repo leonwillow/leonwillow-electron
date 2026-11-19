@@ -1,6 +1,6 @@
 /**
  * @file 单笔税款、分次缴纳及计费明细表单。
- * 创建时间：2026-11-05；修改时间：2026-11-18。
+ * 创建时间：2026-11-05；修改时间：2026-11-19。
  * 版本作用：memo 化隔离跨笔录入重绘，计费分段表格在折叠展开时按需挂载。
  * 被调用：LateFeeEditor；调用：领域类型、共享表单及卡片组件。
  * 预期结果：录入本金与确认期限，分段结果可核对；编辑单笔税款不引起其余税款卡片重渲染。
@@ -86,9 +86,7 @@ function LateFeeLiabilityView({
 				<CardTitle>
 					第 {index + 1} 笔 · {taxTypes[row.taxType]}
 				</CardTitle>
-				<CardDescription>
-					{row.period || "填写所属期、税款本金与确认缴款期限"}
-				</CardDescription>
+				{row.period && <CardDescription>{row.period}</CardDescription>}
 				<CardAction>
 					<Tooltip disableHoverablePopup>
 						<TooltipTrigger

@@ -11,7 +11,6 @@ import { ConfirmDialog } from "@leonwillow-electron/ui/components/confirm-dialog
 import {
 	Dialog,
 	DialogContent,
-	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
@@ -93,9 +92,6 @@ function InquirerDialog({
 						<DialogTitle>
 							{row ? "编辑常用询问人" : "新增常用询问人"}
 						</DialogTitle>
-						<DialogDescription>
-							在笔录中选择姓名后，将自动填入检查证号。
-						</DialogDescription>
 					</DialogHeader>
 					<FieldGroup>
 						<Field>

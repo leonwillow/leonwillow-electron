@@ -1,7 +1,7 @@
 /**
  * @file 完整主题编辑器的浮动外壳。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-11-19
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/layout/root-layout.tsx。
  * 调用：ui 基础组件/样式、lucide-react、stores/theme-store、./theme-control-panel。
@@ -11,7 +11,6 @@
 import { Button } from "@leonwillow-electron/ui/components/button";
 import {
 	Dialog,
-	DialogDescription,
 	DialogHeader,
 	DialogTitle,
 } from "@leonwillow-electron/ui/components/dialog";
@@ -51,9 +50,6 @@ export default function ThemeEditor() {
 						</Button>
 						<DialogTitle>自定义主题</DialogTitle>
 					</div>
-					<DialogDescription>
-						为浅色和深色分别调色，实时预览。拖动标题栏可移动面板。
-					</DialogDescription>
 				</DialogHeader>
 				{open && (
 					<ThemeControlPanel onClose={() => setThemeEditorOpen(false)} />

@@ -1,7 +1,7 @@
 /**
  * @file 案件管理、流水导入与清洗核对页面。
  * 创建时间：2026-10-06
- * 修改时间：2026-11-05
+ * 修改时间：2026-11-19
  * 版本作用：将资料准备从资金分析中分离，保留既有导入与核对组件。
  * 被调用：funds_.cases 路由；调用：共享 UI、Eden、流水与核对面板。
  * 功能：案件选择/创建、文件导入/下载、处理进度、清洗与跨案资料管理。
@@ -10,6 +10,7 @@
 
 import { Badge } from "@leonwillow-electron/ui/components/badge";
 import { Button } from "@leonwillow-electron/ui/components/button";
+import { HelpTip } from "@leonwillow-electron/ui/components/help-tip";
 import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
 import {
 	Table,
@@ -204,7 +205,13 @@ function CaseWorkspace({ caseId }: { caseId: string }) {
 						/>
 						<section className="space-y-3">
 							<div className="flex flex-wrap items-center justify-between gap-3">
-								<h3 className="font-medium text-sm">已导入的全部文件</h3>
+								<div className="flex items-center gap-1">
+									<h3 className="font-medium text-sm">已导入的全部文件</h3>
+									<HelpTip
+										label="标准流水导出说明"
+										content="标准流水导出保留合格来源观测，含跨文件重叠和双边记录。图中交易已经归并；两者行数不同。"
+									/>
+								</div>
 								<Button
 									variant="outline"
 									disabled={!totals.sourceCount}
@@ -214,9 +221,6 @@ function CaseWorkspace({ caseId }: { caseId: string }) {
 									导出标准流水 CSV
 								</Button>
 							</div>
-							<p className="text-muted-foreground text-xs">
-								标准流水导出保留合格来源观测，含跨文件重叠和双边记录。图中交易已经归并；两者行数不同。
-							</p>
 							<div className="rounded-lg border">
 								<Table>
 									<TableHeader>

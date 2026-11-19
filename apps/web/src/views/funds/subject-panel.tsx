@@ -8,6 +8,7 @@
  */
 import { Button } from "@leonwillow-electron/ui/components/button";
 import { Checkbox } from "@leonwillow-electron/ui/components/checkbox";
+import { HelpTip } from "@leonwillow-electron/ui/components/help-tip";
 import { Input } from "@leonwillow-electron/ui/components/input";
 import { Label } from "@leonwillow-electron/ui/components/label";
 import { SearchInput } from "@leonwillow-electron/ui/components/search-input";
@@ -78,12 +79,13 @@ export default function SubjectPanel({
 		);
 	return (
 		<section className="space-y-4" aria-label="主体归属">
-			<div className="flex flex-wrap items-start justify-between gap-3">
-				<div className="space-y-1">
+			<div className="flex flex-wrap items-center justify-between gap-3">
+				<div className="flex items-center gap-1">
 					<h3 className="font-medium text-sm">账户归属识别</h3>
-					<p className="max-w-3xl text-muted-foreground text-xs">
-						证件一致优先；完整户名相同自动归组并标为推断。归属有误时可更正，原始账户及交易仍保留。
-					</p>
+					<HelpTip
+						label="账户归属识别规则"
+						content="证件一致优先；完整户名相同自动归组并标为推断。归属有误时可更正，原始账户及交易仍保留。"
+					/>
 				</div>
 				<Button
 					variant="outline"

@@ -185,7 +185,6 @@ export default function ThemeCustomizerPanel({
 						</Button>
 					</div>
 				</div>
-				<p className="text-muted-foreground text-sm">按照你的喜好调整主题。</p>
 			</div>
 
 			<div className="flex flex-col gap-1 px-3">

@@ -16,7 +16,6 @@ import { Button } from "@leonwillow-electron/ui/components/button";
 import {
 	Dialog,
 	DialogContent,
-	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
@@ -288,10 +287,6 @@ export function useCalculatorMenu(): WorkspaceMenuContent {
 							<DialogTitle>
 								{editing?.row ? "重命名方案" : "新建方案"}
 							</DialogTitle>
-							<DialogDescription>
-								{editing ? calculatorDirectory[editing.kind].title : "计算器"}
-								的方案独立保存到当前账号。
-							</DialogDescription>
 						</DialogHeader>
 						<form
 							className="flex flex-col gap-4"

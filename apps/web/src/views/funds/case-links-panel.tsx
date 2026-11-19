@@ -1,7 +1,7 @@
 /**
  * @file 跨案线索提示与资料纳入、排除操作。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-06
+ * 修改时间：2026-11-19
  * 版本作用：确认前仅显示账户线索，明确纳入来源、范围和快照版本。
  * 被调用：资金调查工作台；调用：共享 Dialog/Table 和案件关联 API。
  * 预期结果：未确认不读取外案明细，排除不会删除目标案已有来源。
@@ -11,10 +11,10 @@ import { Button } from "@leonwillow-electron/ui/components/button";
 import {
 	Dialog,
 	DialogContent,
-	DialogDescription,
 	DialogHeader,
 	DialogTitle,
 } from "@leonwillow-electron/ui/components/dialog";
+import { HelpTip } from "@leonwillow-electron/ui/components/help-tip";
 import {
 	Table,
 	TableBody,
@@ -87,11 +87,12 @@ export default function CaseLinksPanel({
 	};
 	return (
 		<section className="flex min-w-0 flex-col gap-4">
-			<div className="flex flex-col gap-1">
+			<div className="flex items-center gap-1">
 				<h3 className="font-medium text-sm">其他案件中的账户线索</h3>
-				<p className="text-muted-foreground text-sm">
-					只提示你有权访问的案件。确认纳入前，其他案件的流水不会出现在本案的查询、汇总或资金图中。
-				</p>
+				<HelpTip
+					label="跨案线索与纳入规则"
+					content="只提示你有权访问的案件，按完整账号匹配，不凭同名认定。确认纳入前外案流水不会进入本案查询、汇总或资金图；纳入的是所确认版本快照，来源案件后续更新不会自动加入，排除仅撤销本次纳入并保留本案独立资料。"
+				/>
 			</div>
 			{message ? (
 				<p role="status" className="text-sm">
@@ -182,15 +183,9 @@ export default function CaseLinksPanel({
 					</TableBody>
 				</Table>
 			) : null}
-			<p className="text-muted-foreground text-xs">
-				按完整账号提示，不仅凭同名认定同一人。纳入的是所确认版本中涉及该账户的资料快照；来源案件后续更新不会自动加入。排除只撤销这次纳入，保留本案独立取得的资料。
-			</p>
 			{unmatchedInclusions.length ? (
 				<div className="flex flex-col gap-3">
 					<h3 className="font-medium text-sm">仍在本案中的纳入资料</h3>
-					<p className="text-muted-foreground text-xs">
-						来源案件当前未返回相同账户线索；此前确认的资料快照仍可排除。
-					</p>
 					{unmatchedInclusions.map((i) => (
 						<div
 							key={i.id}
@@ -233,9 +228,6 @@ export default function CaseLinksPanel({
 				<DialogContent>
 					<DialogHeader>
 						<DialogTitle>将所选账户的流水纳入本案</DialogTitle>
-						<DialogDescription>
-							确认后才会把相关流水加入本案，后台会重新去重并更新资金图。
-						</DialogDescription>
 					</DialogHeader>
 					<div className="flex flex-col gap-3 text-sm">
 						<p>来源案件：{selected?.originCaseName}</p>

@@ -1,7 +1,7 @@
 /**
  * @file 一次主题编辑会话的草稿与操作面板。
  * 创建时间：未记录（现有文件尚无 Git 创建记录）
- * 修改时间：2026-11-07
+ * 修改时间：2026-11-19
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/theme-editor/theme-editor.tsx。
  * 调用：ui 基础组件/样式、lucide-react、next-themes、react、sonner、configs/fonts、configs/theme-settings、stores/theme-store、lib/custom-themes、types/theme、utils/theme/color-converter、utils/theme/css-import、utils/theme/theme-draft、utils/theme/theme-style-generator、./css-import-dialog、./shadow-control、./slider-with-input、./theme-color-panel、./theme-preset-select。
@@ -14,14 +14,12 @@ import { ConfirmDialog } from "@leonwillow-electron/ui/components/confirm-dialog
 import {
 	Dialog,
 	DialogContent,
-	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
 } from "@leonwillow-electron/ui/components/dialog";
 import {
 	Field,
-	FieldDescription,
 	FieldGroup,
 	FieldLabel,
 } from "@leonwillow-electron/ui/components/field";
@@ -243,9 +241,6 @@ export default function ThemeControlPanel({
 								}
 								placeholder="给主题起一个名字"
 							/>
-							<FieldDescription>
-								保存在当前浏览器。可导出 CSS 备份或转移到其他设备。
-							</FieldDescription>
 						</Field>
 					</FieldGroup>
 					<RadioGroup
@@ -506,9 +501,6 @@ export default function ThemeControlPanel({
 				>
 					<DialogHeader>
 						<DialogTitle>导出 CSS 主题</DialogTitle>
-						<DialogDescription>
-							包含浅色和深色语义变量。复制后可在自定义主题菜单中导入。
-						</DialogDescription>
 					</DialogHeader>
 					<Select
 						items={["oklch", "hex", "hsl", "rgb"].map((value) => ({

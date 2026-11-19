@@ -11,7 +11,6 @@ import { CopyText } from "@leonwillow-electron/ui/components/copy-text";
 import {
 	Dialog,
 	DialogContent,
-	DialogDescription,
 	DialogHeader,
 	DialogTitle,
 } from "@leonwillow-electron/ui/components/dialog";
@@ -419,9 +418,6 @@ export default function RecordsWorkspace({
 							{editing === "new" && !details ? "新增文书" : "文书详情"} ·{" "}
 							{type.name}
 						</DialogTitle>
-						<DialogDescription>
-							填写受询问人或事项即可取号；补充内容可折叠，右侧自动预览。
-						</DialogDescription>
 					</DialogHeader>
 					{editing && (details || (editing === "new" && canCreate)) ? (
 						<DocumentEditor

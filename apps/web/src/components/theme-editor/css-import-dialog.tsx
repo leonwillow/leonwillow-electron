@@ -1,7 +1,7 @@
 /**
  * @file 主题 CSS 的输入和错误反馈对话框。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-05
+ * 修改时间：2026-11-19
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/theme-editor/theme-control-panel.tsx。
  * 调用：ui 基础组件/样式、react。
@@ -80,8 +80,7 @@ const CssImportDialog = ({
 				<DialogHeader>
 					<DialogTitle className="text-foreground">导入 CSS 主题</DialogTitle>
 					<DialogDescription>
-						粘贴 shadcn Studio 或本项目导出的 :root 和 .dark
-						主题变量。导入后先预览，点击保存才会写入主题库。
+						粘贴 :root 与 .dark CSS 变量，预览确认后保存。
 					</DialogDescription>
 				</DialogHeader>
 

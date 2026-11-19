@@ -1,7 +1,7 @@
 /**
  * @file 账户目录的高级筛选弹窗。
  * 创建时间：2026-10-07
- * 修改时间：2026-11-05
+ * 修改时间：2026-11-19
  * 版本作用：搜索栏旁按需展开条件，应用后只筛选目录。
  * 被调用：AccountDirectory；调用：共享 Popover、FilterSelect、目录校验。
  * 预期结果：保留草稿、组合查询、校验笔数区间，支持一键重置。
@@ -12,7 +12,6 @@ import { Label } from "@leonwillow-electron/ui/components/label";
 import {
 	Popover,
 	PopoverContent,
-	PopoverDescription,
 	PopoverHeader,
 	PopoverTitle,
 	PopoverTrigger,
@@ -124,7 +123,6 @@ export default function AccountDirectoryFilters({
 			>
 				<PopoverHeader>
 					<PopoverTitle>筛选账户</PopoverTitle>
-					<PopoverDescription>筛选当前目录中的账户或主体。</PopoverDescription>
 				</PopoverHeader>
 				<form
 					className="space-y-4"

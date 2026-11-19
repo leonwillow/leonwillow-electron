@@ -1,6 +1,6 @@
 /**
  * @file 文书弹窗中的精简表单、补充字段和自动 Word 预览。
- * 创建时间：2026-10-10；修改时间：2026-11-07。
+ * 创建时间：2026-10-10；修改时间：2026-11-19。
  * 版本作用：同一表单完成取号和补填，选填信息可折叠，预览随输入更新。
  * 被调用：documents/records-workspace；调用：字段控件、预览器、Eden 文书客户端。
  * 功能与预期结果：只填对象即可取号；失败保留草稿，历史号码固定，普通人员只修改本人。
@@ -340,15 +340,13 @@ export default function DocumentEditor({
 					{error && <FieldError role="alert">{error}</FieldError>}
 				</ScrollArea>
 				<div className="flex shrink-0 flex-col gap-3 border-t p-workspace-gutter">
-					<p className="text-muted-foreground text-xs">
-						{missingFields.length > 0
-							? `${details ? "可保存未填完的信息" : "可先取号、稍后补填"}。下载 Word 前还需补充 ${missingFields.length} 项内容。`
-							: changed && details
-								? "保存修改后可下载 Word。"
-								: details
-									? "点击文号可复制，已保存的文书可下载 Word。"
-									: "填写对象即可取号，补充内容可稍后填写。"}
-					</p>
+					{(missingFields.length > 0 || (changed && details)) && (
+						<p className="text-muted-foreground text-xs">
+							{missingFields.length > 0
+								? `${details ? "可保存未填完的信息" : "可先取号、稍后补填"}。下载 Word 前还需补充 ${missingFields.length} 项内容。`
+								: "保存修改后可下载 Word。"}
+						</p>
+					)}
 					<div className="flex flex-wrap gap-2">
 						{canEdit && (
 							<Button type="submit" disabled={!!busy || !typeId}>

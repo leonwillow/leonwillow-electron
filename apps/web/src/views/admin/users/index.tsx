@@ -97,12 +97,7 @@ export default function UsersView() {
 		<div className="flex h-full min-h-0 flex-col">
 			<header className="shrink-0 border-b">
 				<div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 p-4 sm:px-6">
-					<div>
-						<h1 className="font-semibold text-lg">人员与权限</h1>
-						<p className="mt-1 text-muted-foreground text-xs">
-							统一管理内部账号，以及每个人可以进入的功能。
-						</p>
-					</div>
+					<h1 className="font-semibold text-lg">人员与权限</h1>
 					<Button onClick={() => setDialog({ kind: "create" })}>
 						<PlusIcon />
 						添加人员
@@ -244,18 +239,13 @@ export default function UsersView() {
 								</TableBody>
 							</Table>
 						</Card>
-						<p className="text-muted-foreground text-xs">
-							普通人员按功能授权，功能内的数据由有权限的成员共享。管理员可访问全部已启用功能。
-						</p>
 					</section>
 					<section aria-labelledby="audit-heading" className="space-y-3">
-						<div>
+						<div className="flex items-center justify-between gap-2">
 							<h2 id="audit-heading" className="font-medium text-sm">
 								最近管理操作
 							</h2>
-							<p className="mt-1 text-muted-foreground text-xs">
-								显示最近 100 条记录，时间按本机时区显示。
-							</p>
+							<span className="text-muted-foreground text-xs">最近 100 条</span>
 						</div>
 						<Card className="gap-0 overflow-hidden py-0 shadow-none">
 							{events.length ? (
