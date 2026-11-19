@@ -1,7 +1,7 @@
 /**
  * @file 询问笔录的实测分页、A4 预览和打印页面。
- * 创建时间：2026-11-04；修改时间：2026-11-05。
- * 版本作用：沿用 haoji 的字形测量和二分拆段，所有文字通过 React/textContent 输出。
+ * 创建时间：2026-11-04；修改时间：2026-11-19。
+ * 版本作用：沿用 haoji 的字形测量和二分拆段，所有文字通过 React/textContent 输出；向预览顶栏同步页数与分页状态。
  * 被调用：InquiryDocumentPreview、RecordEditor 打印 Portal；调用：文书共享 CSS、中文数字、浏览器字体与尺寸 API。
  * 预期结果：长问答跨页不断字、不丢文；预览点击定位字段，打印保持物理纸张尺寸。
  */
@@ -155,12 +155,20 @@ function FragmentLine({
 		<p className={className}>{children}</p>
 	);
 }
+export type InquiryPreviewStatus = {
+	pageCount: number;
+	paginating: boolean;
+	error: string;
+};
+
 export default function InquiryDocumentPages({
 	draft,
 	preview = true,
 	paused = false,
 	scale = 1,
+	showStatus = true,
 	focus,
+	onStatusChange,
 	onReady,
 	onError,
 }: {
@@ -168,7 +176,9 @@ export default function InquiryDocumentPages({
 	preview?: boolean;
 	paused?: boolean;
 	scale?: number;
+	showStatus?: boolean;
 	focus?: (id: string) => void;
+	onStatusChange?: (status: InquiryPreviewStatus) => void;
 	onReady?: () => void;
 	onError?: (message: string) => void;
 }) {
@@ -181,6 +191,15 @@ export default function InquiryDocumentPages({
 	readyRef.current = onReady;
 	const errorRef = useRef(onError);
 	errorRef.current = onError;
+	const statusRef = useRef(onStatusChange);
+	statusRef.current = onStatusChange;
+	useEffect(() => {
+		statusRef.current?.({
+			pageCount: pages.length,
+			paginating,
+			error,
+		});
+	}, [pages.length, paginating, error]);
 	useEffect(() => {
 		if (paused) return;
 		let cancelled = false;
@@ -309,12 +328,12 @@ export default function InquiryDocumentPages({
 	const c = draft.content;
 	return (
 		<div className="inquiry-document-pages">
-			{preview && (
+			{preview && showStatus && (
 				<p className="mb-2 text-muted-foreground text-xs" role="status">
 					{error ||
 						(paginating
 							? "正在分页…"
-							: `A4 文书 · 共 ${pages.length} 页 · 拖动查看 · 点击内容定位编辑`)}
+							: `共 ${pages.length} 页 · 点击内容定位编辑`)}
 				</p>
 			)}
 			{!preview && error && <p role="alert">{error}</p>}

@@ -22,6 +22,7 @@ import {
 	TabsList,
 	TabsTrigger,
 } from "@leonwillow-electron/ui/components/tabs";
+import { TooltipText } from "@leonwillow-electron/ui/components/tooltip";
 import { TooltipIconButton } from "@leonwillow-electron/ui/components/tooltip-icon-button";
 import { cn } from "@leonwillow-electron/ui/lib/utils";
 import {
@@ -47,7 +48,9 @@ import InquiryBasicFields, {
 	DEFAULT_BASIC_SECTIONS,
 	sectionForBasicField,
 } from "./basic-fields";
-import InquiryDocumentPages from "./document-pages";
+import InquiryDocumentPages, {
+	type InquiryPreviewStatus,
+} from "./document-pages";
 import InquiryDocumentPreview from "./document-preview";
 import InquiryQuestionFields from "./question-fields";
 import { useInquiryEditor } from "./use-inquiry-editor";
@@ -85,6 +88,11 @@ export default function InquiryRecordEditor({
 		...DEFAULT_BASIC_SECTIONS,
 	]);
 	const [previewOpen, setPreviewOpen] = useState(true);
+	const [previewStatus, setPreviewStatus] = useState<InquiryPreviewStatus>({
+		pageCount: 0,
+		paginating: true,
+		error: "",
+	});
 	const [exporting, setExporting] = useState(false);
 	const operationDisabledReason = editor.conflicted
 		? "笔录已在其他位置更新，请重新打开后操作"
@@ -218,11 +226,18 @@ export default function InquiryRecordEditor({
 			readOnly={editingDisabled}
 		/>
 	);
+	const previewMeta =
+		previewStatus.error ||
+		(previewStatus.paginating
+			? "正在分页…"
+			: `共 ${previewStatus.pageCount} 页 · 点击内容定位编辑`);
 	const preview = (
 		<InquiryDocumentPreview
 			draft={draft}
 			paused={wide && !previewOpen}
+			showStatus={false}
 			focus={focus}
+			onStatusChange={setPreviewStatus}
 		/>
 	);
 	return (
@@ -378,6 +393,13 @@ export default function InquiryRecordEditor({
 					<CollapsibleSidePanel
 						id="inquiry-preview-panel"
 						title="文书预览"
+						headerMeta={
+							<TooltipText content={previewMeta}>
+								<span role="status" className="block truncate">
+									{previewMeta}
+								</span>
+							</TooltipText>
+						}
 						label="笔录文书预览"
 						side="right"
 						open={previewOpen}
@@ -396,7 +418,7 @@ export default function InquiryRecordEditor({
 					<Tabs
 						value={tab}
 						onValueChange={(value) => setTab(String(value))}
-						className="shrink-0 border-b px-workspace-gutter py-2"
+						className="shrink-0 flex-row items-center justify-between gap-2 border-b px-workspace-gutter py-2"
 					>
 						<TabsList aria-label="笔录编辑分区">
 							<TabsTrigger value="basic">基础信息</TabsTrigger>
@@ -406,6 +428,16 @@ export default function InquiryRecordEditor({
 								文书预览
 							</TabsTrigger>
 						</TabsList>
+						{tab === "preview" && (
+							<TooltipText content={previewMeta}>
+								<span
+									role="status"
+									className="min-w-0 truncate text-muted-foreground text-xs"
+								>
+									{previewMeta}
+								</span>
+							</TooltipText>
+						)}
 					</Tabs>
 					{tab === "preview" ? (
 						<section

@@ -16,7 +16,10 @@ import {
 	useState,
 } from "react";
 import type { InquiryDocument } from "@/lib/inquiries";
-import InquiryDocumentPages, { INQUIRY_PAGE_WIDTH } from "./document-pages";
+import InquiryDocumentPages, {
+	INQUIRY_PAGE_WIDTH,
+	type InquiryPreviewStatus,
+} from "./document-pages";
 
 const MIN_SCALE = 0.1;
 const MAX_SCALE = 3;
@@ -37,11 +40,15 @@ type PanGesture = {
 export default function InquiryDocumentPreview({
 	draft,
 	paused = false,
+	showStatus = true,
 	focus,
+	onStatusChange,
 }: {
 	draft: InquiryDocument;
 	paused?: boolean;
+	showStatus?: boolean;
 	focus: (id: string) => void;
+	onStatusChange?: (status: InquiryPreviewStatus) => void;
 }) {
 	const viewport = useRef<HTMLDivElement>(null);
 	const content = useRef<HTMLDivElement>(null);
@@ -178,7 +185,9 @@ export default function InquiryDocumentPreview({
 					draft={draft}
 					paused={paused}
 					scale={scale}
+					showStatus={showStatus}
 					focus={focus}
+					onStatusChange={onStatusChange}
 				/>
 			</ScrollArea>
 			<div

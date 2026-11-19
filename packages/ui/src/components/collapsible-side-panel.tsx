@@ -1,7 +1,7 @@
 /**
  * @file 可调整宽度、带边缘折叠按钮的侧面板。
- * 创建时间：2026-11-04；修改时间：2026-11-05。
- * 版本作用：ReUI 管理分栏尺寸及还原宽度，Base UI 管理内容显隐和按钮语义。
+ * 创建时间：2026-11-04；修改时间：2026-11-19。
+ * 版本作用：ReUI 管理分栏尺寸及还原宽度，Base UI 管理内容显隐和按钮语义，支持标题栏右侧附加元信息。
  * 被调用：InquiryRecordEditor；调用：共享 Resizable、Collapsible、cn 和全局面板样式。
  * 预期结果：拖动仅在最小/最大宽度间调整，折叠按钮独立收起/恢复；折叠不占空间。
  */
@@ -22,6 +22,7 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 function CollapsibleSidePanel({
 	id,
 	title,
+	headerMeta,
 	label,
 	side,
 	open,
@@ -35,6 +36,7 @@ function CollapsibleSidePanel({
 }: {
 	id: string;
 	title: string;
+	headerMeta?: ReactNode;
 	label: string;
 	side: "left" | "right";
 	open: boolean;
@@ -92,8 +94,13 @@ function CollapsibleSidePanel({
 					render={<section aria-label={label} />}
 					className="flex h-full min-h-0 min-w-0 flex-col"
 				>
-					<div className="flex h-workspace-header shrink-0 items-center border-b px-workspace-gutter">
-						<h2 className="font-semibold text-sm">{title}</h2>
+					<div className="flex h-workspace-header shrink-0 items-center justify-between gap-2 border-b px-workspace-gutter">
+						<h2 className="shrink-0 font-semibold text-sm">{title}</h2>
+						{headerMeta && (
+							<div className="min-w-0 truncate text-right text-muted-foreground text-xs">
+								{headerMeta}
+							</div>
+						)}
 					</div>
 					{scrollable ? (
 						<ScrollArea
