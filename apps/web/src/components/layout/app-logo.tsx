@@ -31,6 +31,7 @@ const AppLogo = ({
 			aria-label={appConfig.name}
 		>
 			<span
+				data-slot="app-logo-mark"
 				className={cn(
 					"flex items-center justify-center overflow-hidden rounded-lg bg-primary text-primary-foreground",
 					variant === "rail" ? "size-workspace-icon" : "size-9",

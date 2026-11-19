@@ -1,7 +1,7 @@
 /**
  * @file 主题 Store 的持久化与窗口同步回归测试。
  * 创建时间：2026-10-04
- * 修改时间：2026-11-17
+ * 修改时间：2026-11-19
  * 版本作用：验证 Zustand 迁移后的行为，不进入产品构建。
  * 被调用：Bun 测试命令、test:ui。
  * 调用：bun:test、configs/theme-settings、configs/theme-variables、lib/theme-settings、stores/theme-store、types/theme。
@@ -98,18 +98,18 @@ test("连续操作基于最新状态，写回格式保持 v2 且能由启动入�
 	const { updateSettings } = useThemeStore.getState();
 	updateSettings({ scale: "lg" });
 	updateSettings({ mode: "dark" });
-	updateSettings({ sidebarMode: "floating" });
+	updateSettings({ sidebarMode: "floating-pill" });
 	expect(useThemeStore.getState().preferences.settings).toMatchObject({
 		scale: "lg",
 		mode: "dark",
-		sidebarMode: "floating",
+		sidebarMode: "floating-pill",
 	});
 	expect(JSON.parse(storage.get(THEME_STORAGE_KEY) ?? "null")).toEqual({
 		...initialSettings,
 		version: 2,
 		scale: "lg",
 		mode: "dark",
-		sidebarMode: "floating",
+		sidebarMode: "floating-pill",
 		customThemes: [],
 	});
 	expect(readThemePreferences()).toEqual(useThemeStore.getState().preferences);

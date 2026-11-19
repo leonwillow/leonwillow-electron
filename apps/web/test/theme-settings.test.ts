@@ -1,7 +1,7 @@
 /**
  * @file 主题偏好存储版本的回归测试。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-17
+ * 修改时间：2026-11-19
  * 版本作用：当前行为的回归约束，不进入产品构建。
  * 被调用：Bun 测试命令。
  * 调用：bun:test、主题预设与默认设置、主题编解码与 DOM 应用入口。
@@ -62,7 +62,7 @@ test("旧快照与无效菜单模式继续贴边，有效悬浮偏好往返后�
 			"docked",
 		);
 	}
-	for (const sidebarMode of ["docked", "floating"] as const) {
+	for (const sidebarMode of ["docked", "floating", "floating-pill"] as const) {
 		const settings = { ...initialSettings, sidebarMode, radius: "lg" as const };
 		expect(
 			decodeStoredSettings(

@@ -5,7 +5,7 @@
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/layout/workspace-layout.tsx。
  * 调用：共享 UI、路由、导航目录、工作台统一导航上下文、管理中心、搜索、品牌、主题与个人菜单。
- * 功能：按侧栏可见配置与授权展示入口；未固定时悬停预览，固定时点击或键盘激活入口才切换内容。
+ * 功能：按侧栏可见配置、菜单外观与授权展示入口；悬浮时尚拆为三段胶囊，未固定时悬停预览，固定时点击或键盘激活入口才切换内容。
  * 预期结果：图标提供中文名称，入口通过应用内路由跳转且不触发浏览器底部链接预览。
  */
 
@@ -18,6 +18,7 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@leonwillow-electron/ui/components/tooltip";
+import { cn } from "@leonwillow-electron/ui/lib/utils";
 import {
 	getRouteApi,
 	useLocation,
@@ -32,6 +33,7 @@ import ModeToggle from "@/components/layout/mode-toggle";
 import ProfileMenu from "@/components/layout/profile-menu";
 import ThemeCustomizer from "@/components/layout/theme-customizer";
 import { isWorkspaceMenuId } from "@/lib/workspace-menu-state";
+import { useThemeStore } from "@/stores/theme-store";
 import FullscreenToggle from "./fullscreen-toggle";
 import { useWorkspaceNavigation } from "./workspace-navigation-provider";
 
@@ -40,12 +42,19 @@ const isActive = (pathname: string, href: string) =>
 
 const AppSidebar = () => {
 	const menu = useWorkspaceNavigation();
+	const sidebarMode = useThemeStore(
+		(state) => state.preferences.settings.sidebarMode,
+	);
+	const pillMode = sidebarMode === "floating-pill";
 	const { user, moduleIds } = getRouteApi("/_workspace").useRouteContext();
 	const pathname = useLocation({ select: (location) => location.pathname });
 	const navigate = useNavigate();
 	const { caseId, typeId, inquiryCaseId, recordId, inquiryView } = useSearch({
 		strict: false,
 	});
+	const visibleNav = sidebarNav.filter((item) =>
+		canAccessModule({ role: user.role, moduleIds }, item.id),
+	);
 	const enterItem = (id: string) => {
 		menu.preview(isWorkspaceMenuId(id) ? id : null);
 	};
@@ -57,22 +66,27 @@ const AppSidebar = () => {
 			render={<aside />}
 		>
 			<div
-				data-slot="workspace-header"
-				className="flex h-workspace-header w-full shrink-0 items-center justify-center border-border border-b"
+				data-slot={pillMode ? undefined : "workspace-header"}
+				className={
+					pillMode
+						? "workspace-rail-pill workspace-rail-group"
+						: "flex h-workspace-header w-full shrink-0 items-center justify-center border-border border-b"
+				}
 			>
 				<AppLogo variant="rail" />
+				{pillMode && <CommandMenu />}
 			</div>
 
-			<nav
-				aria-label="主导航"
-				className="workspace-rail-group w-full flex-1"
-				ref={menu.navigationRef}
-			>
-				{sidebarNav
-					.filter((item) =>
-						canAccessModule({ role: user.role, moduleIds }, item.id),
-					)
-					.map((item) => {
+			{(!pillMode || visibleNav.length > 0) && (
+				<nav
+					aria-label="主导航"
+					className={cn(
+						"workspace-rail-group",
+						pillMode ? "workspace-rail-pill" : "w-full flex-1",
+					)}
+					ref={menu.navigationRef}
+				>
+					{visibleNav.map((item) => {
 						const active = isActive(pathname, item.href);
 						const menuId = isWorkspaceMenuId(item.id) ? item.id : null;
 						const expanded =
@@ -146,10 +160,16 @@ const AppSidebar = () => {
 							</Tooltip>
 						);
 					})}
-			</nav>
+				</nav>
+			)}
 
-			<div className="workspace-rail-group w-full">
-				<CommandMenu />
+			<div
+				className={cn(
+					"workspace-rail-group",
+					pillMode ? "workspace-rail-pill" : "w-full",
+				)}
+			>
+				{!pillMode && <CommandMenu />}
 				<AdminMenu />
 				<ThemeCustomizer />
 				<ModeToggle />

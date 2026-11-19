@@ -1,12 +1,12 @@
 /**
  * @file 常用外观设置弹层的按需加载面板内容。
  * 创建时间：2026-11-18
- * 修改时间：2026-11-18
+ * 修改时间：2026-11-19
  * 版本作用：将重型色盘、字体选择器与预设列表从工作台首屏拆出，打开或预热时再加载。
  * 被调用：components/layout/theme-customizer.tsx。
- * 调用：ui 基础组件、ThemeLineSettings、ThemePresetSelect、主题 Store 与字体配置。
+ * 调用：ui 基础组件、next-themes、ThemeLineSettings、ThemePresetSelect、主题过渡、主题 Store 与字体配置。
  * 功能：组合预设、字体、明暗、圆角、线条、缩放、菜单外观及重置控件。
- * 预期结果：保持原面板全部无障碍语义、即时预览持久化与编辑器跳转行为。
+ * 预期结果：保持原面板全部无障碍语义、明暗渐变过渡、即时预览持久化与编辑器跳转行为。
  */
 import { Button } from "@leonwillow-electron/ui/components/button";
 import { Label } from "@leonwillow-electron/ui/components/label";
@@ -34,10 +34,12 @@ import {
 	RefreshCcwIcon,
 	SettingsIcon,
 } from "lucide-react";
+import { useTheme } from "next-themes";
 import { ThemeLineSettings } from "@/components/layout/theme-line-settings";
 import ThemePresetSelect from "@/components/theme-editor/theme-preset-select";
 import { FONT_CONFIG, FONT_GROUPS, type FontKey } from "@/configs/fonts";
 import { initialSettings } from "@/configs/theme-settings";
+import { resolveThemeMode, runThemeTransition } from "@/lib/theme-transition";
 import { useThemeStore } from "@/stores/theme-store";
 import type { Mode, Radius, Scale, SidebarMode } from "@/types/theme";
 
@@ -64,6 +66,7 @@ const RADII: { value: Radius; label: string; tooltip: string }[] = [
 const SIDEBAR_MODES: { value: SidebarMode; label: string }[] = [
 	{ value: "docked", label: "贴边" },
 	{ value: "floating", label: "悬浮" },
+	{ value: "floating-pill", label: "悬浮时尚" },
 ];
 
 const FONT_ITEMS: { label: string; value: FontKey }[] = (
@@ -79,10 +82,39 @@ export default function ThemeCustomizerPanel({
 }) {
 	const settings = useThemeStore((state) => state.preferences.settings);
 	const updateSettings = useThemeStore((state) => state.updateSettings);
+	const { forcedTheme, setTheme, systemTheme } = useTheme();
 
 	const hasChanges = (
 		Object.keys(initialSettings) as (keyof typeof initialSettings)[]
 	).some((key) => settings[key] !== initialSettings[key]);
+
+	const switchColorMode = (nextMode: Mode) => {
+		const commit = () => {
+			updateSettings({ mode: nextMode });
+			setTheme(nextMode);
+		};
+		if (forcedTheme) {
+			commit();
+			return;
+		}
+		runThemeTransition(mode, resolveThemeMode(nextMode, systemTheme), commit);
+	};
+
+	const resetTheme = () => {
+		const commit = () => {
+			updateSettings(initialSettings);
+			setTheme(initialSettings.mode);
+		};
+		if (forcedTheme) {
+			commit();
+			return;
+		}
+		runThemeTransition(
+			mode,
+			resolveThemeMode(initialSettings.mode, systemTheme),
+			commit,
+		);
+	};
 
 	return (
 		<PopoverContent
@@ -139,7 +171,7 @@ export default function ThemeCustomizerPanel({
 							variant="ghost"
 							aria-label="重置主题"
 							className="relative"
-							onClick={() => updateSettings(initialSettings)}
+							onClick={resetTheme}
 						>
 							<RefreshCcwIcon />
 							{hasChanges && (
@@ -222,7 +254,7 @@ export default function ThemeCustomizerPanel({
 					size="default"
 					className="grid-cols-3"
 					value={settings.mode}
-					onValueChange={(v) => updateSettings({ mode: v as Mode })}
+					onValueChange={(v) => switchColorMode(v as Mode)}
 				>
 					{MODES.map(({ value, label }) => (
 						<RadioGroupSegmentedItem
@@ -300,7 +332,7 @@ export default function ThemeCustomizerPanel({
 					aria-label="菜单外观"
 					variant="segmented"
 					size="default"
-					className="grid-cols-2"
+					className="grid-cols-3"
 					value={settings.sidebarMode}
 					onValueChange={(value) =>
 						updateSettings({ sidebarMode: value as SidebarMode })
