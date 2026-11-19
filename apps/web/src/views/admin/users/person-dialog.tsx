@@ -1,7 +1,7 @@
 /**
  * @file 人员创建、身份和功能授权弹窗。
  * 创建时间：2026-10-04
- * 修改时间：2026-11-05
+ * 修改时间：2026-11-19
  * 版本作用：适配原模板 teammate-form-dialog 的表单与弹窗结构。
  * 被调用：人员管理视图。
  * 调用：共享 UI、React Hook Form、Eden 管理客户端、person-schema。
@@ -87,6 +87,7 @@ export default function PersonDialog({
 		},
 	});
 	const role = watch("role");
+	const moduleIds = watch("moduleIds");
 	const onSubmit = async (values: PersonFormValues) => {
 		try {
 			const profile = {
@@ -132,11 +133,11 @@ export default function PersonDialog({
 			>
 				<DialogHeader>
 					<DialogTitle>{person ? "编辑人员与权限" : "添加人员"}</DialogTitle>
-					<DialogDescription>
-						{person
-							? "保存后权限立即生效；停用或变更身份会使该人员退出登录。"
-							: "创建内部账号，并选择这个人可以进入的功能。"}
-					</DialogDescription>
+					{person && (
+						<DialogDescription>
+							保存后权限立即生效；停用或变更身份会使该人员退出登录。
+						</DialogDescription>
+					)}
 				</DialogHeader>
 				<form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
 					<FieldGroup>
@@ -211,12 +212,13 @@ export default function PersonDialog({
 									</Select>
 								)}
 							/>
-							<FieldDescription>
-								{role === "admin"
-									? "管理员可以管理人员与权限，并访问全部已启用功能。"
-									: "普通人员只能进入下方勾选的功能。"}
-								{isSelf && " 当前管理员不能修改自己的身份。"}
-							</FieldDescription>
+							{(isSelf || role === "admin") && (
+								<FieldDescription>
+									{isSelf
+										? "当前管理员不能修改自己的身份。"
+										: "可管理人员与权限，并访问全部已启用功能。"}
+								</FieldDescription>
+							)}
 						</Field>
 						<FieldSet>
 							<FieldLegend variant="label">可访问的功能</FieldLegend>
@@ -254,11 +256,11 @@ export default function PersonDialog({
 									</FieldGroup>
 								)}
 							/>
-							<FieldDescription>
-								{role === "admin"
-									? "管理员无需逐项分配。"
-									: "未勾选任何功能时，该人员登录后会看到待授权提示。"}
-							</FieldDescription>
+							{role !== "admin" && moduleIds.length === 0 && (
+								<FieldDescription>
+									未勾选功能时，登录后将显示待授权提示。
+								</FieldDescription>
+							)}
 						</FieldSet>
 						{person && (
 							<Field orientation="horizontal">

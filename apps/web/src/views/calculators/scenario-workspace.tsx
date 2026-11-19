@@ -1,6 +1,6 @@
 /**
  * @file 从路由读取单份方案的计算器工作区。
- * 创建时间：2026-11-05；修改时间：2026-11-05。
+ * 创建时间：2026-11-05；修改时间：2026-11-19。
  * 版本作用：方案管理交给二级目录；编辑器持有顶栏及业务操作，避免重复操作行。
  * 被调用：两种计算器视图；调用：Eden 读取、目录摘要同步、共享标题与编辑器。
  * 预期结果：过期请求不切换错方案，未选择时引导目录，错误通过 Sonner 反馈。
@@ -8,6 +8,7 @@
 import { Button } from "@leonwillow-electron/ui/components/button";
 import { type ComponentType, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { WorkspaceEmptyState } from "@/components/layout/async-state";
 import { useCalculatorNavigation } from "@/components/layout/calculator-navigation-provider";
 import {
 	WorkspaceHeader,
@@ -88,26 +89,23 @@ export default function ScenarioWorkspace<R extends CalculatorSummary>({
 							正在读取方案…
 						</p>
 					) : (
-						<div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 p-workspace-gutter text-center">
-							<h2 className="font-semibold text-lg">
-								{error ? "暂时无法读取" : "选择或新建一份方案"}
-							</h2>
-							<p className="text-muted-foreground text-sm">
-								{error
-									? "请重试加载，已保存数据不会受影响。"
-									: "从左侧计算器目录选择方案，或在对应计算器下新建方案。"}
-							</p>
-							<Button
-								variant="outline"
-								onClick={() =>
-									error
-										? setReload((value) => value + 1)
-										: navigation.focusPanel("calculators")
-								}
-							>
-								{error ? "重新加载" : "打开计算器目录"}
-							</Button>
-						</div>
+						<WorkspaceEmptyState
+							icon={config.icon}
+							title={error ? "暂时无法读取" : "选择或新建方案"}
+							description={error ? "已保存数据不会受影响。" : undefined}
+							actions={
+								<Button
+									variant="outline"
+									onClick={() =>
+										error
+											? setReload((value) => value + 1)
+											: navigation.focusPanel("calculators")
+									}
+								>
+									{error ? "重新加载" : "打开计算器目录"}
+								</Button>
+							}
+						/>
 					)}
 				</>
 			)}

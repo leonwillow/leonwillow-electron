@@ -11,7 +11,9 @@
 import { Button } from "@leonwillow-electron/ui/components/button";
 import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
 import { getRouteApi, useNavigate } from "@tanstack/react-router";
+import { WaypointsIcon } from "lucide-react";
 import { useCallback, useEffect } from "react";
+import { WorkspaceEmptyState } from "@/components/layout/async-state";
 import { useFundsNavigation } from "@/components/layout/funds-navigation-provider";
 import { useAsyncResource } from "@/hooks/use-async-resource";
 import { getFundsCase, listFundsCases } from "@/lib/funds";
@@ -126,15 +128,15 @@ export default function FundsView() {
 					onCasesReload={menu.cases.reload}
 				/>
 			) : (
-				<div className="mx-auto flex w-full max-w-2xl flex-1 flex-col items-start justify-center gap-4 p-6">
-					<h2 className="font-semibold text-xl">选择案件，开始资金分析</h2>
-					<p className="text-muted-foreground text-sm">
-						从左侧选择案件，或点击案件菜单顶部的加号新增案件。
-					</p>
-					<Button variant="outline" onClick={menu.focusPanel}>
-						选择案件
-					</Button>
-				</div>
+				<WorkspaceEmptyState
+					icon={WaypointsIcon}
+					title="选择案件开始分析"
+					actions={
+						<Button variant="outline" onClick={menu.focusPanel}>
+							选择案件
+						</Button>
+					}
+				/>
 			)}
 		</div>
 	);

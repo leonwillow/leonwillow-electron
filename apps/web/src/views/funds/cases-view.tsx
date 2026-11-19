@@ -28,8 +28,9 @@ import {
 } from "@leonwillow-electron/ui/components/tabs";
 import { TooltipText } from "@leonwillow-electron/ui/components/tooltip";
 import { getRouteApi } from "@tanstack/react-router";
-import { DownloadIcon, RefreshCwIcon } from "lucide-react";
+import { DownloadIcon, RefreshCwIcon, WaypointsIcon } from "lucide-react";
 import { useCallback, useState } from "react";
+import { WorkspaceEmptyState } from "@/components/layout/async-state";
 import { useFundsNavigation } from "@/components/layout/funds-navigation-provider";
 import { useAsyncResource } from "@/hooks/use-async-resource";
 import {
@@ -374,13 +375,15 @@ export default function CasesView() {
 			{caseId ? (
 				<CaseWorkspace key={caseId} caseId={caseId} />
 			) : (
-				<div className="mx-auto flex max-w-2xl flex-1 flex-col items-start justify-center gap-4 p-6">
-					<h2 className="font-semibold text-xl">选择案件，管理流水资料</h2>
-					<p className="text-muted-foreground text-sm">
-						从左侧案件列表选择案件，或点击菜单顶部的加号新增案件。
-					</p>
-					<Button onClick={menu.focusPanel}>选择案件</Button>
-				</div>
+				<WorkspaceEmptyState
+					icon={WaypointsIcon}
+					title="选择案件管理资料"
+					actions={
+						<Button variant="outline" onClick={menu.focusPanel}>
+							选择案件
+						</Button>
+					}
+				/>
 			)}
 		</div>
 	);

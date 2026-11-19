@@ -1,6 +1,6 @@
 /**
  * @file 管理员导入模板、配置字段及年度序号的弹窗。
- * 创建时间：2026-10-10；修改时间：2026-11-05。
+ * 创建时间：2026-10-10；修改时间：2026-11-19。
  * 版本作用：沿用原 collection-dialog 的共享 Dialog 与表单结构，适配真实 API。
  * 被调用：template-panel；调用：共享 UI、文书客户端。
  * 功能与预期结果：上传只接收 DOCX，已有模板设置带版本校验，取号起点可向前调整。
@@ -24,6 +24,7 @@ import {
 	FieldLegend,
 	FieldSet,
 } from "@leonwillow-electron/ui/components/field";
+import { HelpTip } from "@leonwillow-electron/ui/components/help-tip";
 import { Input } from "@leonwillow-electron/ui/components/input";
 import {
 	Select,
@@ -151,11 +152,11 @@ export default function TemplateDialog({
 								? "导入询问通知书示例"
 								: "导入 Word 模板"}
 					</DialogTitle>
-					<DialogDescription>
-						{type
-							? "设置只影响之后取号的文书。历史文书保留原模板和字段。"
-							: "文号按文书类型与年份独立递增，首次可接续已有序号。"}
-					</DialogDescription>
+					{type && (
+						<DialogDescription>
+							设置仅影响后续取号，历史文书保留原模板和字段。
+						</DialogDescription>
+					)}
 				</DialogHeader>
 				<form onSubmit={submit} className="flex flex-col gap-5">
 					<FieldGroup>
@@ -187,7 +188,13 @@ export default function TemplateDialog({
 						</Field>
 					</FieldGroup>
 					<FieldSet>
-						<FieldLegend>年度序号</FieldLegend>
+						<FieldLegend className="flex items-center gap-1">
+							<span>年度序号</span>
+							<HelpTip
+								label="年度序号规则"
+								content="文号按类型与年份独立递增，新年份默认从 1 开始；已有年度仅支持调大，删除文书不会回收号码。"
+							/>
+						</FieldLegend>
 						<FieldGroup className="grid grid-cols-2">
 							<Field>
 								<FieldLabel htmlFor="template-year">年份</FieldLabel>
@@ -216,9 +223,6 @@ export default function TemplateDialog({
 								/>
 							</Field>
 						</FieldGroup>
-						<FieldDescription>
-							新年份默认从 1 开始。已有年度只能向前调整；删除文书不会回收号码。
-						</FieldDescription>
 						{type && (
 							<Button
 								type="button"
@@ -278,12 +282,13 @@ export default function TemplateDialog({
 					)}
 					{type && (
 						<FieldSet>
-							<FieldLegend>填写字段 · 模板 v{type.version}</FieldLegend>
-							<FieldDescription>
-								字段名称来自 Word
-								占位符，可调整显示名称、输入类型、默认值。必填只在下载 Word
-								时校验，取号与保存不受影响。
-							</FieldDescription>
+							<FieldLegend className="flex items-center gap-1">
+								<span>填写字段 · 模板 v{type.version}</span>
+								<HelpTip
+									label="填写字段说明"
+									content="字段名称来自 Word 占位符，可调整显示名称、输入类型和默认值。必填仅在下载 Word 时校验，取号与保存不受影响。"
+								/>
+							</FieldLegend>
 							{fields.map((field) => (
 								<FieldSet key={field.key} className="rounded-lg border p-3">
 									<FieldLegend variant="label">{`{${field.key}}`}</FieldLegend>
