@@ -14,6 +14,7 @@ import { PopoverContent } from "@leonwillow-electron/ui/components/popover";
 import {
 	RadioGroup,
 	RadioGroupSegmentedItem,
+	RadioGroupTileItem,
 } from "@leonwillow-electron/ui/components/radio-group";
 import {
 	Select,
@@ -65,6 +66,7 @@ const RADII: { value: Radius; label: string; tooltip: string }[] = [
 
 const SIDEBAR_MODES: { value: SidebarMode; label: string }[] = [
 	{ value: "docked", label: "贴边" },
+	{ value: "wide", label: "宽菜单" },
 	{ value: "floating", label: "悬浮" },
 	{ value: "floating-pill", label: "悬浮时尚" },
 ];
@@ -119,8 +121,9 @@ export default function ThemeCustomizerPanel({
 	return (
 		<PopoverContent
 			aria-label="主题设置"
+			side="right"
 			align="end"
-			sideOffset={8}
+			sideOffset={14}
 			scrollable
 			className="max-h-[calc(100vh-10rem)] w-72 text-sm"
 			scrollContentClassName="gap-5 px-0 py-3"
@@ -330,23 +333,23 @@ export default function ThemeCustomizerPanel({
 				<RadioGroup
 					id="sidebar-mode"
 					aria-label="菜单外观"
-					variant="segmented"
+					variant="grid"
 					size="default"
-					className="grid-cols-3"
+					className="grid-cols-2"
 					value={settings.sidebarMode}
 					onValueChange={(value) =>
 						updateSettings({ sidebarMode: value as SidebarMode })
 					}
 				>
 					{SIDEBAR_MODES.map(({ value, label }) => (
-						<RadioGroupSegmentedItem
+						<RadioGroupTileItem
 							key={value}
 							id={`sidebar-${value}`}
 							value={value}
 							aria-label={label}
 						>
 							{label}
-						</RadioGroupSegmentedItem>
+						</RadioGroupTileItem>
 					))}
 				</RadioGroup>
 			</div>

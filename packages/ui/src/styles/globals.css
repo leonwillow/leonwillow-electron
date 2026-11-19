@@ -66,6 +66,7 @@
 	/* 顶部 Logo 四向留白一致，二级菜单和业务页头共用分隔线基线。 */
 	--spacing-workspace-header: var(--spacing-workspace-rail);
 	--spacing-workspace-rail: 3rem;
+	--spacing-workspace-rail-wide: 13.5rem;
 	/* 图标区域占栏宽的黄金比例；扣除右侧分隔线后等分两边留白。 */
 	--spacing-workspace-icon: calc(var(--spacing-workspace-rail) * 0.61803398875);
 	--spacing-workspace-rail-inset: calc(

@@ -5,7 +5,7 @@
  * 版本作用：随 WorkspaceLayout 按需加载，不在登录等外部公开路由加载。
  * 被调用：apps/web/src/components/layout/workspace-layout.tsx。
  * 调用：共享 CSS 语义令牌。
- * 功能：定义工作台菜单宽度约束、贴边/悬浮/悬浮时尚导航外壳、导航状态色及二级目录同行悬停操作。
+ * 功能：定义工作台菜单宽度约束、贴边/宽菜单/悬浮/悬浮时尚导航外壳、导航状态色及二级目录同行悬停操作。
  * 预期结果：工作台布局与目录交互一致，与基础 UI 组件库解耦。
  */
 :root {
@@ -19,6 +19,24 @@
 /* 悬浮与悬浮时尚外观的主导航、固定菜单和正文各自成框，外壳留白与分栏间距共用令牌。 */
 .workspace-shell {
 	--workspace-panel-gap: var(--spacing-workspace-gutter);
+}
+.workspace-rail {
+	transition: width 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+	.workspace-rail {
+		transition: none;
+	}
+}
+/* 宽菜单在贴边基础上横向展开；窄视口下自动回落为紧凑图标栏，避免挤占正文。 */
+@media (min-width: 40rem) {
+	.workspace-shell[data-sidebar-mode="wide"] > .workspace-rail {
+		width: var(--spacing-workspace-rail-wide);
+	}
+}
+.workspace-profile-trigger {
+	height: auto;
+	padding-block: 0.375rem;
 }
 .workspace-shell:is(
 	[data-sidebar-mode="floating"],

@@ -63,7 +63,12 @@ test("旧快照与无效菜单模式继续贴边，有效悬浮偏好往返后�
 			"docked",
 		);
 	}
-	for (const sidebarMode of ["docked", "floating", "floating-pill"] as const) {
+	for (const sidebarMode of [
+		"docked",
+		"wide",
+		"floating",
+		"floating-pill",
+	] as const) {
 		const settings = { ...initialSettings, sidebarMode, radius: "lg" as const };
 		expect(
 			decodeStoredSettings(

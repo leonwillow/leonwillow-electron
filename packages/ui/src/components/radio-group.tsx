@@ -1,8 +1,8 @@
 /**
- * @file 普通及分段外观的单选组基础组件。
+ * @file 普通、分段与网格外观的单选组基础组件。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-18
- * 版本作用：共享 UI 基础层，随工作区维护，提供 RadioGroupSegmentedItem 消除分段单选重复样板。
+ * 修改时间：2026-11-19
+ * 版本作用：共享 UI 基础层，随工作区维护，提供分段单选与网格单选项。
  * 被调用：主题弹层、线条设置、主题编辑器及资金画布设置。
  * 调用：@base-ui/react、ui/components/label、ui/lib/utils。
  * 功能：组合底层控件和语义样式，透传对应属性并提供稳定 data-slot。
@@ -20,7 +20,7 @@ function RadioGroup({
 	size = "default",
 	...props
 }: RadioGroupPrimitive.Props & {
-	variant?: "default" | "segmented" | "tabs";
+	variant?: "default" | "segmented" | "grid" | "tabs";
 	size?: "sm" | "default" | "lg";
 }) {
 	return (
@@ -33,6 +33,8 @@ function RadioGroup({
 				// 分段项由外层 Label 提供边框和选中背景，此处只管理尺寸与焦点。
 				variant === "segmented" &&
 					"gap-0 rounded-md data-[size=default]:h-control-md data-[size=lg]:h-control-lg data-[size=sm]:h-control-sm [&>label]:font-normal [&>label]:text-control/relaxed [&>label]:has-focus-visible:border-ring [&>label]:has-focus-visible:ring-3 [&>label]:has-focus-visible:ring-ring/50 [&>label_svg]:size-3.5 [&>label_svg]:shrink-0",
+				variant === "grid" &&
+					"gap-1.5 [&>label]:font-normal [&>label]:text-control/relaxed [&>label]:has-focus-visible:border-ring [&>label]:has-focus-visible:ring-3 [&>label]:has-focus-visible:ring-ring/50 data-[size=default]:[&>label]:h-control-md data-[size=lg]:[&>label]:h-control-lg data-[size=sm]:[&>label]:h-control-sm [&>label_svg]:size-3.5 [&>label_svg]:shrink-0",
 				// 与默认 Tabs 同一外观，保留 Label > Radio 的表单语义及方向键行为。
 				variant === "tabs" && [
 					"inline-flex h-8 w-fit items-center justify-center gap-0 rounded-lg bg-muted p-0.5 text-muted-foreground",
@@ -101,4 +103,43 @@ function RadioGroupSegmentedItem({
 	);
 }
 
-export { RadioGroup, RadioGroupItem, RadioGroupSegmentedItem };
+/** 与 RadioGroup variant="grid" 配对使用的多行网格单选项。 */
+function RadioGroupTileItem({
+	id,
+	value,
+	"aria-label": ariaLabel,
+	className,
+	children,
+	...labelProps
+}: Omit<ComponentProps<typeof Label>, "id" | "htmlFor"> & {
+	id?: string;
+	value: string;
+	"aria-label"?: string;
+	children: ReactNode;
+}) {
+	return (
+		<Label
+			htmlFor={id}
+			className={cn(
+				"relative flex cursor-pointer items-center justify-center gap-1.5 rounded-md border px-2 text-center text-foreground shadow-xs outline-none transition-[color,background-color,border-color,box-shadow] hover:bg-muted/50 has-data-checked:border-primary/40 has-data-checked:bg-accent",
+				className,
+			)}
+			{...labelProps}
+		>
+			<RadioGroupItem
+				id={id}
+				value={value}
+				aria-label={ariaLabel}
+				className="sr-only absolute inset-0"
+			/>
+			{children}
+		</Label>
+	);
+}
+
+export {
+	RadioGroup,
+	RadioGroupItem,
+	RadioGroupSegmentedItem,
+	RadioGroupTileItem,
+};

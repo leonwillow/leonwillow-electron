@@ -27,23 +27,37 @@ const AppLogo = ({
 		<button
 			type="button"
 			onClick={() => void navigate({ to: "/" })}
-			className={cn("flex items-center gap-2", className)}
+			className={cn(
+				"flex min-w-0 items-center gap-2.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+				variant === "rail" && "rounded-lg",
+				className,
+			)}
 			aria-label={appConfig.name}
 		>
 			<span
 				data-slot="app-logo-mark"
 				className={cn(
-					"flex items-center justify-center overflow-hidden rounded-lg bg-primary text-primary-foreground",
+					"flex shrink-0 items-center justify-center overflow-hidden rounded-lg bg-primary text-primary-foreground",
 					variant === "rail" ? "size-workspace-icon" : "size-9",
 				)}
 			>
 				<IconLogo className="block size-full" />
 			</span>
-			{showName && (
-				<span className="font-semibold text-lg md:text-2xl">
-					{appConfig.name}
-				</span>
-			)}
+			{showName &&
+				(variant === "rail" ? (
+					<span className="flex min-w-0 flex-col">
+						<span className="truncate font-semibold text-sidebar-foreground text-sm leading-tight">
+							{appConfig.name}
+						</span>
+						<span className="truncate text-caption text-muted-foreground leading-tight">
+							{appConfig.workspaceName}
+						</span>
+					</span>
+				) : (
+					<span className="font-semibold text-lg md:text-2xl">
+						{appConfig.name}
+					</span>
+				))}
 		</button>
 	);
 };

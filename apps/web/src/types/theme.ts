@@ -75,7 +75,7 @@ export type ThemePreset = {
 export type Mode = "light" | "dark" | "system";
 export type Radius = "none" | "sm" | "md" | "lg";
 export type Scale = "sm" | "md" | "lg" | "xl";
-export type SidebarMode = "docked" | "floating" | "floating-pill";
+export type SidebarMode = "docked" | "wide" | "floating" | "floating-pill";
 export type BorderWidth = 0.5 | 1 | 1.5 | 2;
 
 export type Settings = {

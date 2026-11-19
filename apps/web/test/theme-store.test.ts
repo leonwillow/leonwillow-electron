@@ -98,18 +98,18 @@ test("连续操作基于最新状态，写回格式保持 v2 且能由启动入�
 	const { updateSettings } = useThemeStore.getState();
 	updateSettings({ scale: "lg" });
 	updateSettings({ mode: "dark" });
-	updateSettings({ sidebarMode: "floating-pill" });
+	updateSettings({ sidebarMode: "wide" });
 	expect(useThemeStore.getState().preferences.settings).toMatchObject({
 		scale: "lg",
 		mode: "dark",
-		sidebarMode: "floating-pill",
+		sidebarMode: "wide",
 	});
 	expect(JSON.parse(storage.get(THEME_STORAGE_KEY) ?? "null")).toEqual({
 		...initialSettings,
 		version: 2,
 		scale: "lg",
 		mode: "dark",
-		sidebarMode: "floating-pill",
+		sidebarMode: "wide",
 		customThemes: [],
 	});
 	expect(readThemePreferences()).toEqual(useThemeStore.getState().preferences);

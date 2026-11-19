@@ -58,6 +58,7 @@ export function normalizeSettings(value: unknown): Settings {
 				: initialSettings.scale,
 		sidebarMode:
 			input.sidebarMode === "docked" ||
+			input.sidebarMode === "wide" ||
 			input.sidebarMode === "floating" ||
 			input.sidebarMode === "floating-pill"
 				? input.sidebarMode

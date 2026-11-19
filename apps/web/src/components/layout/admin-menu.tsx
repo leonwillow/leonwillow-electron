@@ -25,10 +25,10 @@ import {
 } from "@leonwillow-electron/ui/components/tooltip";
 import { cn } from "@leonwillow-electron/ui/lib/utils";
 import { getRouteApi, useLocation, useNavigate } from "@tanstack/react-router";
-import { ShieldCheckIcon } from "lucide-react";
+import { ChevronRightIcon, ShieldCheckIcon } from "lucide-react";
 import { adminNav } from "@/assets/data/navigation";
 
-export default function AdminMenu() {
+export default function AdminMenu({ wide = false }: { wide?: boolean }) {
 	const role = getRouteApi("/_workspace").useRouteContext({
 		select: ({ user }) => user.role,
 	});
@@ -39,19 +39,33 @@ export default function AdminMenu() {
 
 	return (
 		<DropdownMenu>
-			<Tooltip>
+			<Tooltip disabled={wide}>
 				<TooltipTrigger
 					render={
 						<DropdownMenuTrigger
 							render={
 								<Button
 									variant="ghost"
-									size="icon-workspace"
+									size={wide ? "lg" : "icon-workspace"}
 									aria-label="管理中心"
 									aria-current={active ? "location" : undefined}
-									className="workspace-nav-item"
+									className={cn(
+										"workspace-nav-item",
+										wide && "w-full justify-start gap-2.5 px-2.5",
+									)}
 								>
-									<ShieldCheckIcon />
+									<ShieldCheckIcon aria-hidden="true" />
+									{wide && (
+										<>
+											<span className="min-w-0 flex-1 truncate text-left">
+												管理中心
+											</span>
+											<ChevronRightIcon
+												className="size-3.5 text-muted-foreground/60"
+												aria-hidden="true"
+											/>
+										</>
+									)}
 								</Button>
 							}
 						/>
@@ -62,7 +76,7 @@ export default function AdminMenu() {
 			<DropdownMenuContent
 				side="right"
 				align="end"
-				sideOffset={8}
+				sideOffset={14}
 				className="w-52"
 			>
 				<DropdownMenuGroup>

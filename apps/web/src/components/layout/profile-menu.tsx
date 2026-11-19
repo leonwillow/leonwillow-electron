@@ -30,7 +30,7 @@ import {
 } from "@leonwillow-electron/ui/components/tooltip";
 import { cn } from "@leonwillow-electron/ui/lib/utils";
 import { getRouteApi, useLocation, useRouter } from "@tanstack/react-router";
-import { LogOutIcon } from "lucide-react";
+import { ChevronsUpDownIcon, LogOutIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { settingsNav } from "@/assets/data/navigation";
@@ -39,7 +39,7 @@ import { authErrorMessage, logout } from "@/lib/auth";
 // 按路由 ID 取得类型化 API，避免菜单反向导入挂载它的路由模块。
 const workspaceRoute = getRouteApi("/_workspace");
 
-const ProfileMenu = () => {
+const ProfileMenu = ({ wide = false }: { wide?: boolean }) => {
 	const user = workspaceRoute.useRouteContext({ select: ({ user }) => user });
 	const pathname = useLocation({ select: (location) => location.pathname });
 	const initials = Array.from(user.name).slice(0, 2).join("").toUpperCase();
@@ -60,15 +60,20 @@ const ProfileMenu = () => {
 
 	return (
 		<DropdownMenu>
-			<Tooltip>
+			<Tooltip disabled={wide}>
 				<TooltipTrigger
 					render={
 						<DropdownMenuTrigger
 							render={
 								<Button
 									variant="ghost"
-									size="icon-workspace"
-									className="workspace-nav-item rounded-full p-0"
+									size={wide ? "lg" : "icon-workspace"}
+									className={cn(
+										"workspace-nav-item",
+										wide
+											? "workspace-profile-trigger w-full justify-start gap-2.5 rounded-lg px-2"
+											: "rounded-full p-0",
+									)}
 									aria-label="打开个人菜单"
 									aria-current={settingsActive ? "location" : undefined}
 								/>
@@ -76,19 +81,35 @@ const ProfileMenu = () => {
 						/>
 					}
 				>
-					<Avatar className="size-full">
+					<Avatar className={wide ? "size-7 shrink-0" : "size-full"}>
 						<AvatarImage src={user.image ?? undefined} alt={user.name} />
 						<AvatarFallback className="font-medium text-xs transition-colors">
 							{initials}
 						</AvatarFallback>
 					</Avatar>
+					{wide && (
+						<>
+							<span className="flex min-w-0 flex-1 flex-col text-left leading-tight">
+								<span className="truncate font-medium text-xs">
+									{user.name}
+								</span>
+								<span className="truncate text-caption text-muted-foreground">
+									@{user.username}
+								</span>
+							</span>
+							<ChevronsUpDownIcon
+								className="ml-auto size-3.5 shrink-0 text-muted-foreground"
+								aria-hidden="true"
+							/>
+						</>
+					)}
 				</TooltipTrigger>
 				<TooltipContent side="right">个人菜单</TooltipContent>
 			</Tooltip>
 			<DropdownMenuContent
 				side="right"
 				align="end"
-				sideOffset={8}
+				sideOffset={14}
 				className="w-60"
 			>
 				<div className="flex items-center gap-2.5 px-2 py-1.5">
