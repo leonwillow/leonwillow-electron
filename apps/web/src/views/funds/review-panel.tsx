@@ -1,7 +1,7 @@
 /**
  * @file 归并候选、清洗问题与主体归属核对面板。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-07
+ * 修改时间：2026-11-19
  * 版本作用：不确定配对由人员决定，原值可追溯。
  * 被调用：funds 工作台；调用：Eden 和证据弹窗。
  * 预期结果：决定带版本提交，过期提示刷新，不静默覆盖新增证据。
@@ -190,6 +190,16 @@ export default function ReviewPanel({
 											</TableCell>
 										</TableRow>
 									))}
+									{!resource.loading && !resource.error && total === 0 && (
+										<TableRow>
+											<TableCell
+												colSpan={4}
+												className="py-8 text-center text-muted-foreground"
+											>
+												当前分类没有待核对记录。
+											</TableCell>
+										</TableRow>
+									)}
 								</TableBody>
 							</Table>
 						</div>
@@ -244,12 +254,12 @@ export default function ReviewPanel({
 									</div>
 								</article>
 							))}
+							{!resource.loading && !resource.error && total === 0 && (
+								<p className="rounded-lg border p-8 text-center text-muted-foreground text-sm">
+									当前分类没有待核对记录。
+								</p>
+							)}
 						</div>
-					)}
-					{!resource.loading && !resource.error && total === 0 && (
-						<p className="rounded-lg border p-8 text-center text-muted-foreground text-sm">
-							当前分类没有待核对记录。
-						</p>
 					)}
 					<div className="flex items-center justify-between text-muted-foreground text-xs">
 						<span>

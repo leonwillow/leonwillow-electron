@@ -2,7 +2,7 @@
 // biome-ignore-all lint/a11y/useFocusableInteractive: The grid owns keyboard focus and exposes its active cell through aria-activedescendant; nested controls keep their own focus behavior.
 /**
  * @file Lattice Grid 的 React / ReUI 可复用表格视图。
- * 创建时间：2026-11-05；修改时间：2026-11-18。
+ * 创建时间：2026-11-05；修改时间：2026-11-19。
  * 版本作用：保留原引擎与选择、编辑、虚拟化控制器，使用当前共享控件与主题呈现。
  * 被调用：业务页面；调用：GridStore、GridView、共享 Base UI 控件与 Sonner。
  * 预期结果：稳定行 ID、受控数据和提交回调与业务解耦；可填满父级剩余高度，汇总始终位于滚动口底部。
@@ -11,16 +11,12 @@ import "./lattice-grid.css";
 import { Button } from "@leonwillow-electron/ui/components/button";
 import { Checkbox } from "@leonwillow-electron/ui/components/checkbox";
 import {
-	InputGroup,
-	InputGroupAddon,
-	InputGroupInput,
-} from "@leonwillow-electron/ui/components/input-group";
-import {
 	Popover,
 	PopoverContent,
 	PopoverTrigger,
 } from "@leonwillow-electron/ui/components/popover";
 import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
+import { SearchInput } from "@leonwillow-electron/ui/components/search-input";
 import {
 	Select,
 	SelectContent,
@@ -42,7 +38,6 @@ import {
 	PinIcon,
 	Redo2Icon,
 	RotateCcwIcon,
-	SearchIcon,
 	Undo2Icon,
 	XIcon,
 } from "lucide-react";
@@ -380,21 +375,16 @@ export function DataGrid<T>(props: DataGridProps<T>) {
 					{props.toolbar !== false && (
 						<section className="lg-toolbar" aria-label="表格工具栏">
 							<div className="lg-toolbar-filters">
-								<InputGroup className="lg-search">
-									<InputGroupInput
-										type="search"
-										aria-label={m.search}
-										placeholder={m.search}
-										value={s.state.search}
-										onChange={(e) => {
-											store.setState({ search: e.target.value }, "search");
-											if (view.scroller) view.scroller.scrollTop = 0;
-										}}
-									/>
-									<InputGroupAddon>
-										<SearchIcon aria-hidden />
-									</InputGroupAddon>
-								</InputGroup>
+								<SearchInput
+									className="lg-search"
+									aria-label={m.search}
+									placeholder={m.search}
+									value={s.state.search}
+									onValueChange={(value) => {
+										store.setState({ search: value }, "search");
+										if (view.scroller) view.scroller.scrollTop = 0;
+									}}
+								/>
 								{props.toolbarContent != null && (
 									<div className="lg-toolbar-content">
 										{props.toolbarContent}

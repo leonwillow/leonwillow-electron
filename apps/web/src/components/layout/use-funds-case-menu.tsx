@@ -1,10 +1,10 @@
 /**
  * @file 资金案件菜单的内容、操作及弹窗。
  * 创建时间：2026-10-06
- * 修改时间：2026-11-05
- * 版本作用：为统一菜单框 组织案件菜单，保留置顶、归档、排序及标记删除。
+ * 修改时间：2026-11-19
+ * 版本作用：为统一菜单框组织案件菜单，保留置顶、归档、排序及标记删除。
  * 被调用：WorkspaceSecondaryMenu；调用：useFundsNavigation、Eden、共享 UI、FundsCaseRow。
- * 功能：显式搜索、创建、置顶、拖放排序、独立归档视图和删除确认。
+ * 功能：即时关键词搜索、创建、置顶、拖放排序、独立归档视图和删除确认。
  * 预期结果：无默认选案或关闭按钮；删除不清除原始资料；浮层关闭不丢失对话框状态。
  */
 
@@ -38,7 +38,6 @@ export function useFundsCaseMenu(): WorkspaceMenuContent {
 	const pathname = useLocation({ select: (location) => location.pathname });
 	const navigate = useNavigate();
 	const [creating, setCreating] = useState(false);
-	const [draft, setDraft] = useState("");
 	const [search, setSearch] = useState("");
 	const [archived, setArchived] = useState(false);
 	const [changed, setChanged] = useState<Record<string, CaseRecord>>({});
@@ -150,7 +149,6 @@ export function useFundsCaseMenu(): WorkspaceMenuContent {
 	};
 	const switchView = () => {
 		setArchived(!archived);
-		setDraft("");
 		setSearch("");
 		setError("");
 		setMessage("");
@@ -201,14 +199,10 @@ export function useFundsCaseMenu(): WorkspaceMenuContent {
 		children: (
 			<>
 				<WorkspaceMenuSearch
-					formLabel="案件搜索"
 					label="搜索案件"
 					placeholder={archived ? "搜索已归档案件" : "搜索案件"}
-					submitLabel="执行案件搜索"
-					value={draft}
-					onChange={setDraft}
-					onSubmit={() => setSearch(draft)}
-					onClear={() => setSearch("")}
+					value={search}
+					onChange={setSearch}
 				/>
 				<p id="case-sort-help" className="sr-only">
 					拖拽调整分组内顺序，或按 Alt 加上、下方向键移动案件。
@@ -317,11 +311,11 @@ export function useFundsCaseMenu(): WorkspaceMenuContent {
 							</section>
 						))}
 					{!cases.loading && !cases.error && visible.length === 0 && (
-						<p className="p-2 text-muted-foreground text-sm">
+						<p className="p-2 text-muted-foreground text-xs">
 							{search.trim()
-								? "没有匹配的案件"
+								? "没有匹配的案件。"
 								: archived
-									? "暂无归档案件"
+									? "暂无归档案件。"
 									: "还没有案件，点击上方加号创建。"}
 						</p>
 					)}
@@ -337,7 +331,6 @@ export function useFundsCaseMenu(): WorkspaceMenuContent {
 							onOpenChange={setCreating}
 							onCreated={() => {
 								setArchived(false);
-								setDraft("");
 								setSearch("");
 								void cases.reload();
 								menu.dismiss();

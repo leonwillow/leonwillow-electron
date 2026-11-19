@@ -1,9 +1,9 @@
 /**
  * @file 笔录目录的 Headless Tree 数据、分页和路由选中适配。
- * 创建时间：2026-11-04；修改时间：2026-11-05。
+ * 创建时间：2026-11-04；修改时间：2026-11-19。
  * 版本作用：持续挂载的菜单 Hook 持有目录页缓存，请求仅在文件夹展开后发起。
  * 被调用：useInquiryCaseMenu；调用：笔录导航上下文、Eden、Headless Tree。
- * 预期结果：浮窗关闭不丢失展开与分页，旧请求不能覆盖新版目录，点击叶子立即打开。
+ * 预期结果：浮窗关闭不丢失展开与分页，旧请求不能覆盖新版目录，点击叶子立即打开，筛选重载不触发树状态循环渲染。
  */
 import {
 	type FeatureImplementation,
@@ -299,9 +299,13 @@ export function useInquiryTree(
 		return { nodes, children };
 	}, [rows, pages, offsets, filterKey, filtered]);
 	const previousNodes = useRef(model.nodes);
-	const expandedItems = useMemo(
-		() => [...visibleExpandedCases].map(folderId),
+	const expandedKey = useMemo(
+		() => [...visibleExpandedCases].map(folderId).join("\0"),
 		[visibleExpandedCases],
+	);
+	const expandedItems = useMemo(
+		() => (expandedKey ? expandedKey.split("\0") : []),
+		[expandedKey],
 	);
 	const selectedItems = useMemo(
 		() =>

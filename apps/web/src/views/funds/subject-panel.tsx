@@ -1,7 +1,7 @@
 /**
  * @file 案件主体自动识别报告及账户归属更正。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-06
+ * 修改时间：2026-11-19
  * 版本作用：展示归组依据，支持跨组人工合并、拆分及软撤销。
  * 被调用：review-panel；调用：主体 Eden API 与共享控件。
  * 预期结果：有版本校验且保留调整历史，后台完成后资金图使用新归属。
@@ -10,6 +10,7 @@ import { Button } from "@leonwillow-electron/ui/components/button";
 import { Checkbox } from "@leonwillow-electron/ui/components/checkbox";
 import { Input } from "@leonwillow-electron/ui/components/input";
 import { Label } from "@leonwillow-electron/ui/components/label";
+import { SearchInput } from "@leonwillow-electron/ui/components/search-input";
 import { useCallback, useState } from "react";
 import { useAsyncResource } from "@/hooks/use-async-resource";
 import {
@@ -100,12 +101,12 @@ export default function SubjectPanel({
 				</p>
 			)}
 			<div className="flex flex-wrap items-center gap-3">
-				<Input
-					className="max-w-sm"
+				<SearchInput
+					className="w-full max-w-sm"
 					aria-label="搜索主体归属"
 					placeholder="搜索户名或账号"
 					value={search}
-					onChange={(e) => setSearch(e.target.value)}
+					onValueChange={setSearch}
 				/>
 				<Label>
 					<Checkbox checked={all} onCheckedChange={(v) => setAll(!!v)} />

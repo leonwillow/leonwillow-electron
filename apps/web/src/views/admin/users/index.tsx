@@ -1,7 +1,7 @@
 /**
  * @file 人员与权限管理页面。
  * 创建时间：2026-10-04
- * 修改时间：2026-11-05
+ * 修改时间：2026-11-19
  * 版本作用：复用原模板 teammates 的页头、表格和弹窗组织方式。
  * 被调用：admin.users 路由。
  * 调用：共享 UI、路由加载数据、人员编辑和密码弹窗。
@@ -24,8 +24,8 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@leonwillow-electron/ui/components/dropdown-menu";
-import { Input } from "@leonwillow-electron/ui/components/input";
 import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
+import { SearchInput } from "@leonwillow-electron/ui/components/search-input";
 import {
 	Table,
 	TableBody,
@@ -117,11 +117,12 @@ export default function UsersView() {
 								<label htmlFor="people-search" className="sr-only">
 									搜索姓名或账号
 								</label>
-								<Input
+								<SearchInput
 									id="people-search"
+									aria-label="搜索姓名或账号"
 									placeholder="搜索姓名或账号"
 									value={query}
-									onChange={(event) => setQuery(event.target.value)}
+									onValueChange={setQuery}
 								/>
 							</div>
 							<div className="flex items-center gap-3">

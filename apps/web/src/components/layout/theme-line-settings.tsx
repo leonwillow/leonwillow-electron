@@ -1,6 +1,6 @@
 /**
  * @file 常用主题面板中的全局线条外观设置。
- * 创建时间：2026-11-17；修改时间：2026-11-17。
+ * 创建时间：2026-11-17；修改时间：2026-11-19。
  * 版本作用：复用分段单选与 ReUI 最近颜色色盘，按明暗模式保存线条颜色。
  * 被调用：ThemeCustomizer；调用：主题 Store、共享 ColorPicker、RadioGroup。
  * 预期结果：粗细与有效颜色即时持久化，跟随主题时保留原语义色及透明度。
@@ -55,7 +55,6 @@ export function ThemeLineSettings({ mode }: { mode: "light" | "dark" }) {
 	const colorLabel = `线条颜色（${mode === "dark" ? "深色" : "浅色"}）`;
 	const colorId = `${id}-color`;
 	const colorLabelId = `${colorId}-label`;
-	const colorStateId = `${colorId}-state`;
 	const recentLabelId = `${colorId}-recent`;
 	const restoreDefault = () => {
 		updateSettings({ [colorKey]: null });
@@ -114,13 +113,23 @@ export function ThemeLineSettings({ mode }: { mode: "light" | "dark" }) {
 						</RadioGroupSegmentedItem>
 					))}
 				</RadioGroup>
-				<p className="text-muted-foreground text-xs">统一界面边框和分隔线。</p>
 			</div>
 			{themeBorder && (
 				<div className="flex flex-col gap-1">
-					<Label id={colorLabelId} htmlFor={colorId}>
-						{colorLabel}
-					</Label>
+					<div className="flex items-center justify-between gap-2">
+						<Label id={colorLabelId} htmlFor={colorId}>
+							{colorLabel}
+						</Label>
+						<Button
+							variant="ghost"
+							size="xs"
+							aria-label={`${colorLabel}恢复默认`}
+							disabled={customColor === null}
+							onClick={restoreDefault}
+						>
+							默认
+						</Button>
+					</div>
 					<ColorPicker
 						id={colorId}
 						open={pickerOpen}
@@ -129,7 +138,6 @@ export function ThemeLineSettings({ mode }: { mode: "light" | "dark" }) {
 						alpha
 						format="hex"
 						aria-labelledby={colorLabelId}
-						aria-describedby={colorStateId}
 						onValueChange={(value) => {
 							if (value) updateSettings({ [colorKey]: value });
 						}}
@@ -181,20 +189,6 @@ export function ThemeLineSettings({ mode }: { mode: "light" | "dark" }) {
 							</ColorPickerPanel>
 						</ColorPickerContent>
 					</ColorPicker>
-					<div className="flex items-center justify-between gap-2">
-						<span id={colorStateId} className="text-muted-foreground text-xs">
-							{customColor === null ? "当前使用主题默认色" : "自定义颜色"}
-						</span>
-						<Button
-							variant="ghost"
-							size="sm"
-							aria-label={`${colorLabel}恢复默认`}
-							disabled={customColor === null}
-							onClick={restoreDefault}
-						>
-							默认
-						</Button>
-					</div>
 				</div>
 			)}
 		</div>

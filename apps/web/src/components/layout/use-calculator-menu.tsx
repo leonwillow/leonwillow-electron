@@ -1,9 +1,9 @@
 /**
  * @file 计算器方案的树目录及新建、改名、归档与恢复操作。
- * 创建时间：2026-11-05；修改时间：2026-11-07。
+ * 创建时间：2026-11-05；修改时间：2026-11-19。
  * 版本作用：目录统一管理两类方案，弹窗独立于浮动菜单，写操作先协调当前编辑器。
  * 被调用：WorkspaceSecondaryMenu；调用：ReUI Tree、目录 Provider、Eden 和 Sonner。
- * 预期结果：路由决定选择，悬停显示同行操作；保存失败保留输入，停用方案通过归档管理。
+ * 预期结果：路由决定选择，悬停显示同行操作；保存失败保留输入，搜索无结果时提示统一空态。
  */
 
 import {
@@ -135,6 +135,8 @@ export function useCalculatorMenu(): WorkspaceMenuContent {
 		const children = new Map<string, string[]>([
 			["root", [...calculatorKinds]],
 		]);
+		let matchedRecords = 0;
+		let loadingOrError = false;
 		for (const kind of calculatorKinds) {
 			const config = calculatorDirectory[kind];
 			nodes.set(kind, { kind, type: "group", name: config.title });
@@ -149,9 +151,11 @@ export function useCalculatorMenu(): WorkspaceMenuContent {
 			)) {
 				const id = recordId(kind, row.id);
 				ids.push(id);
+				matchedRecords += 1;
 				nodes.set(id, { kind, type: "record", name: row.name, row });
 			}
 			if (resource.error || resource.loading) {
+				loadingOrError = true;
 				const id = `${kind}:status`;
 				ids.push(id);
 				nodes.set(id, {
@@ -162,7 +166,7 @@ export function useCalculatorMenu(): WorkspaceMenuContent {
 			}
 			children.set(kind, ids);
 		}
-		return { nodes, children };
+		return { nodes, children, matchedRecords, loadingOrError };
 	}, [directory.resources, directory.archived, query]);
 	const tree = useTree<CalculatorNode>({
 		rootItemId: "root",
@@ -238,28 +242,36 @@ export function useCalculatorMenu(): WorkspaceMenuContent {
 					className="min-h-0 flex-1"
 					contentClassName="w-full min-w-0! px-workspace-gutter pb-workspace-gutter"
 				>
-					<Tree tree={tree} aria-label="计算器目录">
-						{tree.getItems().map((item) => {
-							const node = item.getItemData();
-							const selected =
-								node.type === "record" &&
-								pathname === calculatorDirectory[node.kind].to &&
-								search.scenarioId === node.row?.id;
-							return (
-								<CalculatorTreeItem
-									key={item.getId()}
-									item={item}
-									selected={selected}
-									busy={busy}
-									onCreate={create}
-									onRename={rename}
-									onArchive={(kind, row) =>
-										void mutate(kind, row, { archived: !row.archived })
-									}
-								/>
-							);
-						})}
-					</Tree>
+					{query.trim() &&
+					!model.loadingOrError &&
+					model.matchedRecords === 0 ? (
+						<p className="p-2 text-muted-foreground text-xs">
+							没有匹配的测算方案。
+						</p>
+					) : (
+						<Tree tree={tree} aria-label="计算器目录">
+							{tree.getItems().map((item) => {
+								const node = item.getItemData();
+								const selected =
+									node.type === "record" &&
+									pathname === calculatorDirectory[node.kind].to &&
+									search.scenarioId === node.row?.id;
+								return (
+									<CalculatorTreeItem
+										key={item.getId()}
+										item={item}
+										selected={selected}
+										busy={busy}
+										onCreate={create}
+										onRename={rename}
+										onArchive={(kind, row) =>
+											void mutate(kind, row, { archived: !row.archived })
+										}
+									/>
+								);
+							})}
+						</Tree>
+					)}
 				</ScrollArea>
 			</>
 		),

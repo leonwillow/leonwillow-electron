@@ -39,6 +39,7 @@ const InquiryCaseDialog = lazy(() => import("./inquiry-case-dialog"));
 const InquiryRecordNameDialog = lazy(
 	() => import("./inquiry-record-name-dialog"),
 );
+const EMPTY_INQUIRY_CASES: InquiryCase[] = [];
 
 export function useInquiryCaseMenu(): WorkspaceMenuContent {
 	const menu = useInquiryNavigation();
@@ -61,7 +62,7 @@ export function useInquiryCaseMenu(): WorkspaceMenuContent {
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState("");
 	const lock = useRef(false);
-	const rows = menu.cases.data ?? [];
+	const rows = menu.cases.data ?? EMPTY_INQUIRY_CASES;
 	const { tree } = useInquiryTree(rows, {
 		onOpenRecord: (caseId, recordId) => {
 			if (lock.current) return;
@@ -202,7 +203,7 @@ export function useInquiryCaseMenu(): WorkspaceMenuContent {
 						</p>
 					)}
 					{!menu.cases.loading && !menu.cases.error && !rows.length && (
-						<p className="p-2 text-muted-foreground text-sm">
+						<p className="p-2 text-muted-foreground text-xs">
 							{search.trim()
 								? "没有匹配的笔录或文件夹。"
 								: archived

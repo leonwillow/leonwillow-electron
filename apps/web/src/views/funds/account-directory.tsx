@@ -1,9 +1,9 @@
 /**
  * @file 当前案件账户/主体目录、搜索、筛选与虚拟滚动。
  * 创建时间：2026-10-07
- * 修改时间：2026-11-05
+ * 修改时间：2026-11-19
  * 版本作用：完整目录可浏览，DOM 只保留可见条目与键盘焦点条目。
- * 被调用：AnalysisPanel；调用：TanStack Virtual、AccountDirectoryRow、目录筛选。
+ * 被调用：AnalysisPanel；调用：TanStack Virtual、AccountDirectoryRow、共享 SearchInput、目录筛选。
  * 功能：宽屏以共享菜单宽度固定目录和分隔线；列表独立滚动，键盘翻阅全部账户。
  * 预期结果：不截断账户，不改变图谱分析范围，悬停和筛选不追加网络请求。
  */
@@ -13,20 +13,9 @@ import {
 	HoverCard,
 	HoverCardContent,
 } from "@leonwillow-electron/ui/components/hover-card";
-import {
-	InputGroup,
-	InputGroupAddon,
-	InputGroupButton,
-	InputGroupInput,
-} from "@leonwillow-electron/ui/components/input-group";
 import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipTrigger,
-} from "@leonwillow-electron/ui/components/tooltip";
+import { SearchInput } from "@leonwillow-electron/ui/components/search-input";
 import { defaultRangeExtractor, useVirtualizer } from "@tanstack/react-virtual";
-import { SearchIcon } from "lucide-react";
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { FundsAccount } from "@/lib/funds";
 import AccountDirectoryFilters from "./account-directory-filters";
@@ -263,39 +252,17 @@ export default function AccountDirectory({
 			aria-label="案件账户"
 		>
 			<div className="flex shrink-0 items-center gap-2">
-				<form
+				<SearchInput
 					className="min-w-0 flex-1"
-					aria-label="账户搜索"
-					onSubmit={(event) => {
-						event.preventDefault();
-						setTerm(search);
-					}}
-				>
-					<InputGroup>
-						<InputGroupInput
-							aria-label="搜索账户或户名"
-							placeholder="搜索户名或完整账号"
-							value={search}
-							onChange={(event) => setSearch(event.target.value)}
-						/>
-						<InputGroupAddon align="inline-end">
-							<Tooltip>
-								<TooltipTrigger
-									render={
-										<InputGroupButton
-											type="submit"
-											size="icon-sm"
-											aria-label="搜索账户"
-										>
-											<SearchIcon />
-										</InputGroupButton>
-									}
-								/>
-								<TooltipContent>搜索账户</TooltipContent>
-							</Tooltip>
-						</InputGroupAddon>
-					</InputGroup>
-				</form>
+					formLabel="账户搜索"
+					aria-label="搜索账户或户名"
+					placeholder="搜索户名或完整账号"
+					submitLabel="搜索账户"
+					value={search}
+					onValueChange={setSearch}
+					onSubmit={() => setTerm(search)}
+					onClear={() => setTerm("")}
+				/>
 				<AccountDirectoryFilters value={filters} onChange={setFilters} />
 			</div>
 			{loading ? (

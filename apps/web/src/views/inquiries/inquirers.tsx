@@ -1,8 +1,8 @@
 /**
  * @file 当前人员的常用询问人管理。
- * 创建时间：2026-11-04；修改时间：2026-11-05。
+ * 创建时间：2026-11-04；修改时间：2026-11-19。
  * 版本作用：沿用 haoji 姓名和检查证号目录，编辑时可直接填入。
- * 被调用：笔录工作区；调用：Eden、Sonner、共享表格/表单/弹窗。
+ * 被调用：笔录工作区；调用：Eden、Sonner、共享表格/表单/搜索/弹窗。
  * 预期结果：支持新增、修改、删除和搜索，历史笔录中的人员快照不受影响。
  */
 
@@ -23,6 +23,7 @@ import {
 } from "@leonwillow-electron/ui/components/field";
 import { Input } from "@leonwillow-electron/ui/components/input";
 import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
+import { SearchInput } from "@leonwillow-electron/ui/components/search-input";
 import {
 	Table,
 	TableBody,
@@ -182,12 +183,12 @@ export default function InquiryInquirers() {
 					新增询问人
 				</Button>
 			</div>
-			<Input
+			<SearchInput
 				className="w-full sm:w-72"
 				aria-label="搜索常用询问人"
 				placeholder="搜索姓名、检查证号"
 				value={search}
-				onChange={(e) => setSearch(e.target.value)}
+				onValueChange={setSearch}
 			/>
 			<AsyncStatusBlock
 				compact
@@ -229,15 +230,20 @@ export default function InquiryInquirers() {
 							</TableCell>
 						</TableRow>
 					))}
+					{!resource.loading && !resource.error && !rows.length && (
+						<TableRow>
+							<TableCell
+								colSpan={3}
+								className="py-8 text-center text-muted-foreground"
+							>
+								{search
+									? "没有匹配的询问人。"
+									: "还没有常用询问人，点击上方按钮新增。"}
+							</TableCell>
+						</TableRow>
+					)}
 				</TableBody>
 			</Table>
-			{!resource.loading && !resource.error && !rows.length && (
-				<p className="py-8 text-center text-muted-foreground text-sm">
-					{search
-						? "没有匹配的询问人。"
-						: "还没有常用询问人，点击上方按钮新增。"}
-				</p>
-			)}
 			{editing && (
 				<InquirerDialog
 					row={editing === "new" ? undefined : editing}

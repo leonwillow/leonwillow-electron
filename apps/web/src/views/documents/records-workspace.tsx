@@ -1,8 +1,8 @@
 /**
  * @file 单一文书类型的记录表格、新增入口和文书编辑容器。
- * 创建时间：2026-10-11；修改时间：2026-11-05。
+ * 创建时间：2026-10-11；修改时间：2026-11-19。
  * 版本作用：类型内检索和分页；新增、查看和编辑在弹窗完成，原列表和筛选保留。
- * 被调用：documents/index；调用：共享表格、document-editor、Eden 文书客户端。
+ * 被调用：documents/index；调用：共享表格、SearchInput、document-editor、Eden 文书客户端。
  * 功能与预期结果：切换类型不混入旧记录；普通人员可查看全部、修改本人，管理员可删除。
  */
 import { Button } from "@leonwillow-electron/ui/components/button";
@@ -16,6 +16,7 @@ import {
 	DialogTitle,
 } from "@leonwillow-electron/ui/components/dialog";
 import { Input } from "@leonwillow-electron/ui/components/input";
+import { SearchInput } from "@leonwillow-electron/ui/components/search-input";
 import {
 	Select,
 	SelectContent,
@@ -190,12 +191,16 @@ export default function RecordsWorkspace({
 	return (
 		<>
 			<div className="flex shrink-0 flex-wrap items-center gap-2 border-b p-workspace-gutter">
-				<Input
+				<SearchInput
 					aria-label="搜索当前类型的文书"
 					placeholder="搜索文号、受询问人或取号人"
 					maxLength={160}
 					value={search}
-					onChange={(event) => setSearch(event.target.value)}
+					onValueChange={setSearch}
+					onClear={() => {
+						setQuery("");
+						setPage(0);
+					}}
 					className="w-full sm:w-64"
 				/>
 				<Select
@@ -359,7 +364,7 @@ export default function RecordsWorkspace({
 								<TableRow>
 									<TableCell
 										colSpan={5}
-										className="p-workspace-gutter text-center text-muted-foreground"
+										className="py-8 text-center text-muted-foreground"
 									>
 										{query || year || scope === "mine"
 											? "没有符合条件的文书。"

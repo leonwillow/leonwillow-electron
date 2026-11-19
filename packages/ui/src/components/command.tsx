@@ -1,7 +1,7 @@
 /**
  * @file 命令搜索、分组与键盘选择的基础组件。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-17
+ * 修改时间：2026-11-19
  * 版本作用：共享 UI 基础层，随工作区维护。
  * 被调用：components/layout/command-menu.tsx。
  * 调用：ui 基础组件/样式、ui/lib/utils、cmdk、lucide-react、react。
@@ -79,17 +79,17 @@ function CommandInput({
 }: React.ComponentProps<typeof CommandPrimitive.Input>) {
 	return (
 		<div data-slot="command-input-wrapper" className="p-1 pb-0">
-			<InputGroup className="h-8! bg-input/20 dark:bg-input/30">
+			<InputGroup size="lg" className="bg-input/20 dark:bg-input/30">
 				<CommandPrimitive.Input
 					data-slot="command-input"
 					className={cn(
-						"w-full text-xs/relaxed outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
+						"w-full text-control/relaxed outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
 						className,
 					)}
 					{...props}
 				/>
-				<InputGroupAddon>
-					<SearchIcon className="size-3.5 shrink-0 opacity-50" />
+				<InputGroupAddon align="inline-start">
+					<SearchIcon aria-hidden="true" />
 				</InputGroupAddon>
 			</InputGroup>
 		</div>
@@ -119,7 +119,10 @@ function CommandEmpty({
 	return (
 		<CommandPrimitive.Empty
 			data-slot="command-empty"
-			className={cn("py-6 text-center text-xs/relaxed", className)}
+			className={cn(
+				"py-6 text-center text-muted-foreground text-xs/relaxed",
+				className,
+			)}
 			{...props}
 		/>
 	);
