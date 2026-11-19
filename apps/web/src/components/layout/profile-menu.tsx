@@ -1,12 +1,12 @@
 /**
  * @file 当前用户身份信息、个人设置与账号操作菜单。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-18
+ * 修改时间：2026-11-19
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/layout/app-sidebar.tsx。
  * 调用：ui 基础组件/样式、@tanstack/react-router、lucide-react、react、sonner、assets/data/navigation、lib/auth。
  * 功能：展示真实姓名、登录账号与角色标签，承载个人设置入口并执行危险色退出登录。
- * 预期结果：处于个人设置路由时标记菜单触发器与对应项，退出成功后返回登录，失败时提示错误。
+ * 预期结果：通过路由命令跳转避免浏览器左下角链接预览遮挡，退出成功后返回登录，失败时提示错误。
  */
 import {
 	Avatar,
@@ -29,12 +29,7 @@ import {
 	TooltipTrigger,
 } from "@leonwillow-electron/ui/components/tooltip";
 import { cn } from "@leonwillow-electron/ui/lib/utils";
-import {
-	getRouteApi,
-	Link,
-	useLocation,
-	useRouter,
-} from "@tanstack/react-router";
+import { getRouteApi, useLocation, useRouter } from "@tanstack/react-router";
 import { LogOutIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -123,12 +118,8 @@ const ProfileMenu = () => {
 						return (
 							<DropdownMenuItem
 								key={item.href}
-								render={
-									<Link
-										to={item.href}
-										aria-current={active ? "page" : undefined}
-									/>
-								}
+								aria-current={active ? "page" : undefined}
+								onClick={() => void router.navigate({ to: item.href })}
 								className={cn(active && "bg-accent text-accent-foreground")}
 							>
 								<item.icon />

@@ -1,7 +1,7 @@
 /**
  * @file 已登录工作台外壳、主导航栏与二级菜单目录行样式。
  * 创建时间：2026-11-18
- * 修改时间：2026-11-18
+ * 修改时间：2026-11-19
  * 版本作用：随 WorkspaceLayout 按需加载，不在登录等外部公开路由加载。
  * 被调用：apps/web/src/components/layout/workspace-layout.tsx。
  * 调用：共享 CSS 语义令牌。
@@ -68,6 +68,12 @@
 	align-items: center;
 	gap: var(--spacing-workspace-rail-inset);
 	padding-block: var(--spacing-workspace-rail-inset);
+}
+
+/* 窄图标栏的纵向滚动条收在右侧留白内，避免溢出时盖住图标按钮右缘。 */
+.workspace-rail > .scroll-area-scrollbar[data-orientation="vertical"] {
+	width: 0.375rem;
+	padding: 1px;
 }
 
 /* 仅限工作台导航：展开状态与路由选中共用主色，避免 ghost 的灰色覆盖选中色。 */

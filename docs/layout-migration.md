@@ -88,3 +88,5 @@ Web 默认资源 base 为 `/`。子路径构建使用 Vite `--base=/desk/`，Rou
 2026-11-18：四个二级菜单内容入口统一正名为 `use-{calculator,document-type,funds-case,inquiry-case}-menu.tsx`，并通过 `useWorkspaceMenuActivated` 实现按需激活（仅当前路由所属模块或首次悬停/展开对应菜单时请求目录列表），工作台壳层样式迁至 `apps/web/src/styles/workspace.css`，目录新建与重命名弹窗按需懒加载。
 
 2026-11-18：移除侧栏底部独立的「个人设置」齿轮图标，将其收拢至头像 `ProfileMenu`（由 `settingsNav` 统一提供「个人资料」与「通知设置」入口，不显示多余分组小标题；当前路由命中时在菜单项与头像触发器同步标记选中态）。菜单头部改为展示真实姓名、`@username` 登录账号及角色 `Badge`，移除写死的「在线」状态绿点与静态「工作区」展示行；「退出登录」切换为共享 `DropdownMenuItem` 的 `destructive` 危险色变体。侧栏头像回退文字在悬停、展开及激活态下透出 `workspace-nav-item` 语义底色与前景色。
+
+2026-11-19：已登录工作台内的主导航、Logo、个人菜单、管理中心菜单、二级目录与资金内部导航统一改用按钮/菜单项配合 `navigate()` 跳转，与命令面板和树形目录保持一致，避免在浏览器中悬停菜单项时左下角弹出原生链接地址预览条遮挡界面；登录与注册页的文本互链保留原生 `<Link>`。

@@ -1,7 +1,7 @@
 /**
  * @file 案件列表行及其提示按钮。
  * 创建时间：2026-10-06
- * 修改时间：2026-11-05
+ * 修改时间：2026-11-19
  * 版本作用：案件操作仅在悬停/键盘操作时显示，原生拖放调整分组内顺序。
  * 被调用：FundsCaseSidebar；调用：共享 Button/Tooltip、目录摘要预览、TanStack Router。
  * 预期结果：点击选择不留下操作图标；拖动不触发导航，键盘 Alt+方向键亦可排序。
@@ -9,7 +9,7 @@
 import { buttonVariants } from "@leonwillow-electron/ui/components/button";
 import { TooltipIconButton } from "@leonwillow-electron/ui/components/tooltip-icon-button";
 import { cn } from "@leonwillow-electron/ui/lib/utils";
-import { Link } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import {
 	ArchiveIcon,
 	ArchiveRestoreIcon,
@@ -70,6 +70,7 @@ export default function FundsCaseRow({
 	) => void;
 	onDelete: (record: CaseRecord) => void;
 }) {
+	const navigate = useNavigate();
 	return (
 		<li
 			data-menu-row
@@ -87,17 +88,19 @@ export default function FundsCaseRow({
 						: "before:bottom-0"),
 			)}
 		>
-			<Link
-				to={to}
-				search={{ caseId: record.id }}
-				activeOptions={{ exact: true }}
+			<button
+				type="button"
 				aria-current={selected ? "page" : undefined}
 				draggable={!busy}
 				onDragStart={(e) => onDragStart(record, e)}
 				onDragEnd={onDragEnd}
 				onClick={(e) => {
-					if (dragging) e.preventDefault();
-					else onSelect();
+					if (dragging) {
+						e.preventDefault();
+						return;
+					}
+					onSelect();
+					void navigate({ to, search: { caseId: record.id } });
 				}}
 				onKeyDown={(e) => {
 					if (e.altKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
@@ -118,7 +121,7 @@ export default function FundsCaseRow({
 					category="资金分析案件"
 					status={archived ? "已归档" : record.pinned ? "已置顶" : "使用中"}
 				/>
-			</Link>
+			</button>
 
 			<div className="pointer-events-none absolute right-1 flex opacity-0 group-hover/case:pointer-events-auto group-hover/case:opacity-100 group-has-[:focus-visible]/case:pointer-events-auto group-has-[:focus-visible]/case:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:opacity-100">
 				{!archived && (

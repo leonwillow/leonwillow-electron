@@ -1,12 +1,12 @@
 /**
  * @file 触发器的提示说明的基础组件。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-18
+ * 修改时间：2026-11-19
  * 版本作用：共享 UI 基础层，随工作区维护。
  * 被调用：布局图标、主题设置、资金图谱原生工具栏与分析操作。
  * 调用：@base-ui/react、ui/lib/utils。
- * 功能：支持外部 DOM 锚点、截断文字和 Portal 归属；锚点失效时关闭提示，悬停策略由调用方指定。
- * 预期结果：气泡只依附可见锚点，动画不遮挡触发器或漂移；保留父浮层与受控打开状态的协作。
+ * 功能：支持外部 DOM 锚点、截断文字和 Portal 归属；锚点失效时关闭提示，定位前首帧禁用指针命中。
+ * 预期结果：气泡只依附可见锚点，动画和未定位首帧不遮挡触发器或漂移；保留父浮层与受控打开状态的协作。
  */
 import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip";
 import { cn } from "@leonwillow-electron/ui/lib/utils";
@@ -126,6 +126,7 @@ function Tooltip({
 function TooltipPositionerGuard({
 	open,
 	anchorHidden,
+	style,
 	...props
 }: ComponentPropsWithRef<"div"> &
 	Pick<TooltipPrimitive.Positioner.State, "open" | "anchorHidden">) {
@@ -135,7 +136,13 @@ function TooltipPositionerGuard({
 		const frame = requestAnimationFrame(() => actions?.current?.close());
 		return () => cancelAnimationFrame(frame);
 	}, [open, anchorHidden, actions]);
-	return <div {...props} />;
+	const unpositioned = style?.opacity === 0 || style?.opacity === "0";
+	return (
+		<div
+			{...props}
+			style={unpositioned ? { ...style, pointerEvents: "none" } : style}
+		/>
+	);
 }
 
 function TooltipTrigger({ ...props }: TooltipPrimitive.Trigger.Props) {

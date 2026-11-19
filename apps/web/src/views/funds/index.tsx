@@ -1,20 +1,16 @@
 /**
  * @file 当前案件的资金分析页面。
  * 创建时间：2026-10-06
- * 修改时间：2026-11-05
+ * 修改时间：2026-11-19
  * 版本作用：资料管理独立后，仅组织资金图、交易明细与追踪。
  * 被调用：funds 路由；调用：AnalysisPanel、Eden、案件读取 Hook。
  * 功能：按 URL 案件加载分析；无资料或图未就绪时提供案件管理入口。
  * 预期结果：分析界面不显示选案、导入、清洗统计及后台任务控件。
  */
 
-import {
-	Button,
-	buttonVariants,
-} from "@leonwillow-electron/ui/components/button";
+import { Button } from "@leonwillow-electron/ui/components/button";
 import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
-import { cn } from "@leonwillow-electron/ui/lib/utils";
-import { getRouteApi, Link } from "@tanstack/react-router";
+import { getRouteApi, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect } from "react";
 import { useFundsNavigation } from "@/components/layout/funds-navigation-provider";
 import { useAsyncResource } from "@/hooks/use-async-resource";
@@ -30,6 +26,7 @@ function CaseAnalysis({
 	caseId: string;
 	onCasesReload: () => Promise<unknown>;
 }) {
+	const navigate = useNavigate();
 	const details = useAsyncResource(
 		useCallback(() => getFundsCase(caseId), [caseId]),
 	);
@@ -95,13 +92,14 @@ function CaseAnalysis({
 								? "处理完成后将自动显示资金关系。"
 								: "先到案件管理导入已取得的银行流水，再开始分析。"}
 						</p>
-						<Link
-							to="/funds/cases"
-							search={{ caseId }}
-							className={cn(buttonVariants({ variant: "outline" }))}
+						<Button
+							variant="outline"
+							onClick={() =>
+								void navigate({ to: "/funds/cases", search: { caseId } })
+							}
 						>
 							{waitingForGraph ? "查看处理进度" : "前往案件管理"}
-						</Link>
+						</Button>
 					</ScrollArea>
 				) : (
 					<AnalysisPanel key={`${caseId}:${record.revision}`} caseId={caseId} />

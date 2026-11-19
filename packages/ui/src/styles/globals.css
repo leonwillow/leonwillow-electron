@@ -1,7 +1,7 @@
 /**
  * @file 全局语义令牌、排版缩放与基础 UI 组件共享样式。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-18
+ * 修改时间：2026-11-19
  * 版本作用：共享 UI 基础层唯一全局样式入口，禁止塞入具体业务模块样式。
  * 被调用：apps/web/src/main.tsx。
  * 调用：tailwindcss、tw-animate-css、shadcn、./tokens.css。
@@ -299,6 +299,7 @@ input[type="number"]::-webkit-outer-spin-button {
 	user-select: none;
 	padding: 2px;
 	opacity: 0;
+	pointer-events: none;
 	transition: opacity 150ms;
 }
 .scroll-area-scrollbar[data-orientation="vertical"] {
@@ -310,6 +311,7 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 .scroll-area-scrollbar:is([data-hovering], [data-scrolling]) {
 	opacity: 1;
+	pointer-events: auto;
 }
 .scroll-area-thumb {
 	flex: 1;

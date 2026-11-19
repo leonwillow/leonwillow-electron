@@ -1,7 +1,7 @@
 /**
  * @file 仅管理员可见的管理中心菜单。
  * 创建时间：2026-10-04
- * 修改时间：2026-10-08
+ * 修改时间：2026-11-19
  * 版本作用：在工作台图标栏提供独立于个人设置的管理入口。
  * 被调用：components/layout/app-sidebar.tsx。
  * 调用：共享 UI、权限目录、工作台路由上下文、assets/data/navigation。
@@ -24,7 +24,7 @@ import {
 	TooltipTrigger,
 } from "@leonwillow-electron/ui/components/tooltip";
 import { cn } from "@leonwillow-electron/ui/lib/utils";
-import { getRouteApi, Link, useLocation } from "@tanstack/react-router";
+import { getRouteApi, useLocation, useNavigate } from "@tanstack/react-router";
 import { ShieldCheckIcon } from "lucide-react";
 import { adminNav } from "@/assets/data/navigation";
 
@@ -33,6 +33,7 @@ export default function AdminMenu() {
 		select: ({ user }) => user.role,
 	});
 	const pathname = useLocation({ select: (location) => location.pathname });
+	const navigate = useNavigate();
 	if (role !== "admin") return null;
 	const active = routeRequirement(pathname) === "admin";
 
@@ -69,12 +70,8 @@ export default function AdminMenu() {
 					{adminNav.map((item) => (
 						<DropdownMenuItem
 							key={item.href}
-							render={
-								<Link
-									to={item.href}
-									aria-current={pathname === item.href ? "page" : undefined}
-								/>
-							}
+							aria-current={pathname === item.href ? "page" : undefined}
+							onClick={() => void navigate({ to: item.href })}
 							className={cn(
 								pathname === item.href && "bg-accent text-accent-foreground",
 							)}

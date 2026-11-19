@@ -1,6 +1,6 @@
 /**
  * @file 笔录案件文件夹菜单的内容、操作及弹窗。
- * 创建时间：2026-11-04；修改时间：2026-11-05。
+ * 创建时间：2026-11-04；修改时间：2026-11-19。
  * 版本作用：为统一菜单框提供独立笔录、可折叠案件目录及常用询问人入口。
  * 被调用：WorkspaceSecondaryMenu；调用：笔录资源上下文、Eden、共享控件。
  * 预期结果：点击文件夹展开/折叠，点击叶子笔录打开编辑；行操作不再另占一行。
@@ -10,7 +10,7 @@ import { Button } from "@leonwillow-electron/ui/components/button";
 import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
 import { TooltipIconButton } from "@leonwillow-electron/ui/components/tooltip-icon-button";
 import { Tree } from "@leonwillow-electron/ui/components/tree";
-import { Link, useNavigate, useRouter } from "@tanstack/react-router";
+import { useNavigate, useRouter } from "@tanstack/react-router";
 import {
 	ArchiveIcon,
 	FilePlus2Icon,
@@ -237,16 +237,15 @@ export function useInquiryCaseMenu(): WorkspaceMenuContent {
 				</ScrollArea>
 				<div className="border-t p-workspace-gutter">
 					<Button
-						nativeButton={false}
 						variant="ghost"
 						className="w-full justify-start"
-						render={
-							<Link
-								to="/inquiries"
-								search={{ inquiryView: "inquirers" }}
-								onClick={menu.dismiss}
-							/>
-						}
+						onClick={() => {
+							menu.dismiss();
+							void navigate({
+								to: "/inquiries",
+								search: { inquiryView: "inquirers" },
+							});
+						}}
 					>
 						<UsersIcon data-icon="inline-start" />
 						常用询问人

@@ -1,7 +1,7 @@
 /**
  * @file 功能访问被拒绝时的说明视图。
  * 创建时间：2026-10-04
- * 修改时间：2026-10-04
+ * 修改时间：2026-11-19
  * 版本作用：工作台权限空状态。
  * 被调用：access-denied 路由。
  * 调用：共享 Button、Router、功能目录。
@@ -10,7 +10,7 @@
  */
 import { firstAccessiblePath } from "@leonwillow-electron/access";
 import { Button } from "@leonwillow-electron/ui/components/button";
-import { getRouteApi, Link, useRouter } from "@tanstack/react-router";
+import { getRouteApi, useRouter } from "@tanstack/react-router";
 import { ShieldOffIcon } from "lucide-react";
 
 export default function AccessDeniedView() {
@@ -36,8 +36,7 @@ export default function AccessDeniedView() {
 				{home !== "/access-denied" && (
 					<Button
 						variant="outline"
-						nativeButton={false}
-						render={<Link to={home} />}
+						onClick={() => void router.navigate({ to: home })}
 					>
 						进入可用功能
 					</Button>

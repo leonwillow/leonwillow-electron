@@ -1,6 +1,6 @@
 /**
  * @file 工作台唯一二级菜单框的悬停、固定及焦点控制器。
- * 创建时间：2026-10-13；修改时间：2026-11-05。
+ * 创建时间：2026-10-13；修改时间：2026-11-19。
  * 版本作用：只由工作台 Provider 创建一次，模块切换只替换 activeMenu。
  * 被调用：WorkspaceNavigationProvider；调用：共享状态转换、React、路由及浏览器事件。
  * 功能与预期结果：共享固定和展开状态；固定时忽略导航预览，点击切换，窄窗仍可临时收起。
@@ -44,10 +44,10 @@ export function useWorkspaceMenu({
 	const [wide, setWide] = useState(
 		() => window.matchMedia("(min-width: 48rem)").matches,
 	);
-	const fundsTrigger = useRef<HTMLAnchorElement>(null);
-	const documentsTrigger = useRef<HTMLAnchorElement>(null);
-	const inquiriesTrigger = useRef<HTMLAnchorElement>(null);
-	const calculatorsTrigger = useRef<HTMLAnchorElement>(null);
+	const fundsTrigger = useRef<HTMLButtonElement>(null);
+	const documentsTrigger = useRef<HTMLButtonElement>(null);
+	const inquiriesTrigger = useRef<HTMLButtonElement>(null);
+	const calculatorsTrigger = useRef<HTMLButtonElement>(null);
 	const triggerRefs = {
 		funds: fundsTrigger,
 		documents: documentsTrigger,

@@ -1,12 +1,12 @@
 /**
  * @file 文书类型菜单的内容和模板入口。
- * 创建时间：2026-10-11；修改时间：2026-11-05。
- * 版本作用：为统一菜单框 提供文书类型标题、模板操作及类型列表。
+ * 创建时间：2026-10-11；修改时间：2026-11-19。
+ * 版本作用：为统一菜单框提供文书类型标题、模板操作及类型列表。
  * 被调用：WorkspaceSecondaryMenu；调用：DocumentNavigationProvider、目录摘要预览、共享控件、路由。
  * 功能与预期结果：未固定时选类型收起，固定偏好按用户保留，窄窗回到浮层。
  */
 
-import { buttonVariants } from "@leonwillow-electron/ui/components/button";
+import { Button } from "@leonwillow-electron/ui/components/button";
 import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
 import {
 	Tooltip,
@@ -14,7 +14,7 @@ import {
 	TooltipTrigger,
 } from "@leonwillow-electron/ui/components/tooltip";
 import { cn } from "@leonwillow-electron/ui/lib/utils";
-import { getRouteApi, Link, useSearch } from "@tanstack/react-router";
+import { getRouteApi, useNavigate, useSearch } from "@tanstack/react-router";
 import { FileTextIcon, Settings2Icon } from "lucide-react";
 import { useState } from "react";
 import { AsyncStatusBlock } from "./async-state";
@@ -26,6 +26,7 @@ import { WorkspaceMenuSearch } from "./workspace-menu-search";
 export function useDocumentTypeMenu(): WorkspaceMenuContent {
 	const menu = useDocumentNavigation();
 	const { typeId, view } = useSearch({ strict: false });
+	const navigate = useNavigate();
 	const { user } = getRouteApi("/_workspace").useRouteContext();
 	const [search, setSearch] = useState("");
 	const types = (menu.catalog ?? []).filter((type) =>
@@ -38,12 +39,17 @@ export function useDocumentTypeMenu(): WorkspaceMenuContent {
 			<Tooltip>
 				<TooltipTrigger
 					render={
-						<Link
-							to="/documents"
-							search={{ view: "templates" }}
+						<Button
+							variant="ghost"
+							size="icon"
 							aria-label="管理文书模板"
-							onClick={menu.dismiss}
-							className={buttonVariants({ variant: "ghost", size: "icon" })}
+							onClick={() => {
+								menu.dismiss();
+								void navigate({
+									to: "/documents",
+									search: { view: "templates" },
+								});
+							}}
 						/>
 					}
 				>
@@ -92,20 +98,22 @@ export function useDocumentTypeMenu(): WorkspaceMenuContent {
 										<ul className="flex flex-col gap-1">
 											{group.map((type) => (
 												<li key={type.id} data-menu-row>
-													<Link
-														to="/documents"
-														search={{ typeId: type.id }}
+													<Button
+														variant="ghost"
+														size="lg"
 														aria-current={
 															view !== "templates" && typeId === type.id
 																? "page"
 																: undefined
 														}
-														onClick={menu.selectType}
+														onClick={() => {
+															menu.selectType();
+															void navigate({
+																to: "/documents",
+																search: { typeId: type.id },
+															});
+														}}
 														className={cn(
-															buttonVariants({
-																variant: "ghost",
-																size: "lg",
-															}),
 															"w-full justify-start",
 															view !== "templates" &&
 																typeId === type.id &&
@@ -126,7 +134,7 @@ export function useDocumentTypeMenu(): WorkspaceMenuContent {
 																{ label: "文号前缀", value: type.prefix },
 															]}
 														/>
-													</Link>
+													</Button>
 												</li>
 											))}
 										</ul>

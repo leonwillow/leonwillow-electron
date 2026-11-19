@@ -1,16 +1,16 @@
 /**
  * @file 工作台的固定图标导航。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-18
+ * 修改时间：2026-11-19
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/layout/workspace-layout.tsx。
  * 调用：共享 UI、路由、导航目录、工作台统一导航上下文、管理中心、搜索、品牌、主题与个人菜单。
  * 功能：按侧栏可见配置与授权展示入口；未固定时悬停预览，固定时点击或键盘激活入口才切换内容。
- * 预期结果：图标提供中文名称，入口可通过键盘和路由访问。
+ * 预期结果：图标提供中文名称，入口通过应用内路由跳转且不触发浏览器底部链接预览。
  */
 
 import { canAccessModule } from "@leonwillow-electron/access";
-import { buttonVariants } from "@leonwillow-electron/ui/components/button";
+import { Button } from "@leonwillow-electron/ui/components/button";
 import { HoverCardTrigger } from "@leonwillow-electron/ui/components/hover-card";
 import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
 import {
@@ -18,11 +18,10 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@leonwillow-electron/ui/components/tooltip";
-import { cn } from "@leonwillow-electron/ui/lib/utils";
 import {
 	getRouteApi,
-	Link,
 	useLocation,
+	useNavigate,
 	useSearch,
 } from "@tanstack/react-router";
 import { sidebarNav } from "@/assets/data/navigation";
@@ -43,6 +42,7 @@ const AppSidebar = () => {
 	const menu = useWorkspaceNavigation();
 	const { user, moduleIds } = getRouteApi("/_workspace").useRouteContext();
 	const pathname = useLocation({ select: (location) => location.pathname });
+	const navigate = useNavigate();
 	const { caseId, typeId, inquiryCaseId, recordId, inquiryView } = useSearch({
 		strict: false,
 	});
@@ -77,14 +77,28 @@ const AppSidebar = () => {
 						const menuId = isWorkspaceMenuId(item.id) ? item.id : null;
 						const expanded =
 							!!menuId && menu.visible && menu.activeMenu === menuId;
-						const link = (
-							<Link
+						const trigger = (
+							<Button
 								ref={menuId ? menu.triggerRefs[menuId] : undefined}
+								variant="ghost"
+								size="icon-workspace"
 								aria-controls={menuId ? "workspace-menu" : undefined}
 								aria-expanded={menuId ? expanded : undefined}
 								onPointerEnter={menuId ? undefined : () => enterItem(item.id)}
 								onFocus={menuId ? undefined : () => enterItem(item.id)}
-								onClick={menuId ? () => menu.show(menuId) : undefined}
+								onClick={() => {
+									if (menuId) menu.show(menuId);
+									if (item.id === "funds")
+										void navigate({ to: "/funds", search: { caseId } });
+									else if (item.id === "documents")
+										void navigate({ to: "/documents", search: { typeId } });
+									else if (item.id === "inquiries")
+										void navigate({
+											to: "/inquiries",
+											search: { inquiryCaseId, recordId, inquiryView },
+										});
+									else void navigate({ to: item.href });
+								}}
 								onKeyDown={
 									menuId
 										? (event) => {
@@ -101,29 +115,12 @@ const AppSidebar = () => {
 											}
 										: undefined
 								}
-								to={item.href}
-								activeOptions={{ exact: false }}
-								search={
-									item.id === "funds"
-										? { caseId }
-										: item.id === "documents"
-											? { typeId }
-											: item.id === "inquiries"
-												? { inquiryCaseId, recordId, inquiryView }
-												: undefined
-								}
 								aria-label={item.title}
 								aria-current={active ? "page" : undefined}
-								className={cn(
-									buttonVariants({
-										variant: "ghost",
-										size: "icon-workspace",
-									}),
-									"workspace-nav-item",
-								)}
+								className="workspace-nav-item"
 							>
 								<item.icon />
-							</Link>
+							</Button>
 						);
 						return menuId ? (
 							<Tooltip key={item.href} disabled={!menu.pinned}>
@@ -136,7 +133,7 @@ const AppSidebar = () => {
 											payload={menuId}
 											delay={150}
 											closeDelay={180}
-											render={link}
+											render={trigger}
 										/>
 									}
 								/>
@@ -144,7 +141,7 @@ const AppSidebar = () => {
 							</Tooltip>
 						) : (
 							<Tooltip key={item.href}>
-								<TooltipTrigger render={link} />
+								<TooltipTrigger render={trigger} />
 								<TooltipContent side="right">{item.title}</TooltipContent>
 							</Tooltip>
 						);
