@@ -1,7 +1,7 @@
 /**
  * @file 案件笔录的三栏编辑工作区。
- * 创建时间：2026-11-04；修改时间：2026-11-05。
- * 版本作用：顶部合并笔录操作，三栏支持拖动分隔线调宽；边缘按钮控制侧栏显隐。
+ * 创建时间：2026-11-04；修改时间：2026-11-19。
+ * 版本作用：顶部合并笔录操作，三栏支持拖动分隔线调宽；边缘按钮控制侧栏显隐，文书定位同步展开对应基础信息折叠分组。
  * 被调用：InquiriesView；调用：编辑 Hook、基础/问答表单、A4 页面、Eden。
  * 预期结果：宽屏独立滚动和折叠，窄屏页签切换；离开/导出前保存，失败不误报成功。
  */
@@ -42,7 +42,11 @@ import {
 	inquiryError,
 	saveInquiryFile,
 } from "@/lib/inquiries";
-import InquiryBasicFields from "./basic-fields";
+import InquiryBasicFields, {
+	type BasicSectionKey,
+	DEFAULT_BASIC_SECTIONS,
+	sectionForBasicField,
+} from "./basic-fields";
 import InquiryDocumentPages from "./document-pages";
 import InquiryDocumentPreview from "./document-preview";
 import InquiryQuestionFields from "./question-fields";
@@ -77,6 +81,9 @@ export default function InquiryRecordEditor({
 		};
 	});
 	const [basicOpen, setBasicOpen] = useState(true);
+	const [basicSections, setBasicSections] = useState<BasicSectionKey[]>(() => [
+		...DEFAULT_BASIC_SECTIONS,
+	]);
 	const [previewOpen, setPreviewOpen] = useState(true);
 	const [exporting, setExporting] = useState(false);
 	const operationDisabledReason = editor.conflicted
@@ -176,7 +183,15 @@ export default function InquiryRecordEditor({
 	const focus = useCallback((id: string) => {
 		const isQuestion = id.startsWith("question-") || id.startsWith("answer-");
 		setTab(isQuestion ? "questions" : "basic");
-		if (!isQuestion) setBasicOpen(true);
+		if (!isQuestion) {
+			setBasicOpen(true);
+			const section = sectionForBasicField(id);
+			if (section) {
+				setBasicSections((current) =>
+					current.includes(section) ? current : [...current, section],
+				);
+			}
+		}
 		requestAnimationFrame(() =>
 			requestAnimationFrame(() => {
 				const element = root.current?.querySelector<HTMLElement>(
@@ -192,6 +207,8 @@ export default function InquiryRecordEditor({
 			content={draft.content}
 			onChange={contentChange}
 			readOnly={editingDisabled}
+			openSections={basicSections}
+			onOpenSectionsChange={setBasicSections}
 		/>
 	);
 	const questions = (

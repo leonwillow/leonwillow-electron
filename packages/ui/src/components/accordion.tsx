@@ -1,11 +1,11 @@
 /**
  * @file 可折叠内容组的基础组件。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-11-19
  * 版本作用：共享 UI 基础层，随工作区维护。
- * 被调用：components/theme-editor/shadow-control.tsx、components/theme-editor/theme-color-panel.tsx。
+ * 被调用：components/theme-editor/{shadow-control,theme-color-panel}.tsx、views/inquiries/basic-fields.tsx。
  * 调用：@base-ui/react、ui/lib/utils、lucide-react。
- * 功能：组合底层控件和语义样式，透传对应属性并提供稳定 data-slot。
+ * 功能：组合底层控件和语义样式，透传对应属性并提供稳定 data-slot；将内边距放在面板子容器以兼容 hidden="until-found"。
  * 预期结果：业务调用方负责内容与事件，基础层不依赖应用路由或账号接口。
  */
 import { Accordion as AccordionPrimitive } from "@base-ui/react/accordion";
@@ -72,12 +72,12 @@ function AccordionContent({
 	return (
 		<AccordionPrimitive.Panel
 			data-slot="accordion-content"
-			className="overflow-hidden px-2 text-xs/relaxed data-closed:animate-accordion-up data-open:animate-accordion-down"
+			className="overflow-hidden text-xs/relaxed data-closed:animate-accordion-up data-open:animate-accordion-down"
 			{...props}
 		>
 			<div
 				className={cn(
-					"h-(--accordion-panel-height) pt-0 pb-4 data-ending-style:h-0 data-starting-style:h-0 [&_a]:underline [&_a]:underline-offset-3 [&_a]:hover:text-foreground [&_p:not(:last-child)]:mb-4",
+					"h-(--accordion-panel-height) px-2 pt-0 pb-4 data-ending-style:h-0 data-starting-style:h-0 [&_a]:underline [&_a]:underline-offset-3 [&_a]:hover:text-foreground [&_p:not(:last-child)]:mb-4",
 					className,
 				)}
 			>
