@@ -1,7 +1,7 @@
 /**
  * @file 按语义分组的主题颜色编辑区域。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-17
+ * 修改时间：2026-11-19
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：theme-line-settings、shadow-control、theme-control-panel。
  * 调用：ui 基础组件/样式、react、lib/custom-themes、types/theme、utils/theme/color-converter。
@@ -216,6 +216,59 @@ const ThemeColorPanel = ({
 							onChange={(value) => updateColor("destructive-foreground", value)}
 							onValidityChange={(valid) =>
 								onValidityChange("destructive-foreground", valid)
+							}
+						/>
+					</AccordionContent>
+				</AccordionItem>
+
+				<AccordionItem value="status" className="rounded-lg border px-4">
+					<AccordionTrigger className="cursor-pointer py-3 font-medium text-base">
+						状态语义
+					</AccordionTrigger>
+					<AccordionContent
+						keepMounted
+						className="flex flex-col gap-3 pt-2 pb-4"
+					>
+						<ColorSwatch
+							label="信息色"
+							value={currentTheme?.info || ""}
+							onChange={(value) => updateColor("info", value)}
+							onValidityChange={(valid) => onValidityChange("info", valid)}
+						/>
+						<ColorSwatch
+							label="信息前景"
+							value={currentTheme?.["info-foreground"] || ""}
+							onChange={(value) => updateColor("info-foreground", value)}
+							onValidityChange={(valid) =>
+								onValidityChange("info-foreground", valid)
+							}
+						/>
+						<ColorSwatch
+							label="成功色"
+							value={currentTheme?.success || ""}
+							onChange={(value) => updateColor("success", value)}
+							onValidityChange={(valid) => onValidityChange("success", valid)}
+						/>
+						<ColorSwatch
+							label="成功前景"
+							value={currentTheme?.["success-foreground"] || ""}
+							onChange={(value) => updateColor("success-foreground", value)}
+							onValidityChange={(valid) =>
+								onValidityChange("success-foreground", valid)
+							}
+						/>
+						<ColorSwatch
+							label="警告色"
+							value={currentTheme?.warning || ""}
+							onChange={(value) => updateColor("warning", value)}
+							onValidityChange={(valid) => onValidityChange("warning", valid)}
+						/>
+						<ColorSwatch
+							label="警告前景"
+							value={currentTheme?.["warning-foreground"] || ""}
+							onChange={(value) => updateColor("warning-foreground", value)}
+							onValidityChange={(valid) =>
+								onValidityChange("warning-foreground", valid)
 							}
 						/>
 					</AccordionContent>

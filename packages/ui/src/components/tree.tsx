@@ -1,7 +1,7 @@
 /**
  * @file 基于 ReUI 与 Headless Tree 的共享树组件。
  * 创建时间：2026-11-04
- * 修改时间：2026-11-05
+ * 修改时间：2026-11-19
  * 版本作用：共享 UI 基础层，提供树容器、节点、标签及拖放指示线。
  * 被调用：Web 笔录目录和计算器菜单。
  * 调用：Base UI、Headless Tree、Lucide、共享样式工具与尺寸令牌。
@@ -103,7 +103,7 @@ function TreeItem<T>({
 		"data-drag-target": item.isDragTarget?.() ?? false,
 		"data-search-match": item.isMatchingSearch?.() ?? false,
 		className: cn(
-			"group/tree-item relative min-w-0 select-none ps-(--tree-padding) text-start outline-hidden data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+			"group/tree-item relative min-w-0 select-none py-0.5 ps-(--tree-padding) text-start outline-hidden data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
 			className,
 		),
 		style: {

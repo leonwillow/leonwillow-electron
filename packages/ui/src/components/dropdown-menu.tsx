@@ -1,7 +1,7 @@
 /**
  * @file 下拉菜单、分组、子菜单与选择项的基础组件。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-17
+ * 修改时间：2026-11-19
  * 版本作用：共享 UI 基础层，随工作区维护。
  * 被调用：components/layout/profile-menu.tsx、components/layout/auth-links-menu.tsx。
  * 调用：@base-ui/react、ui/lib/utils、lucide-react、react。
@@ -59,7 +59,10 @@ function DropdownMenuContent({
 					)}
 					{...props}
 				>
-					<ScrollArea className="min-h-0" contentClassName="p-1">
+					<ScrollArea
+						className="min-h-0"
+						contentClassName="flex flex-col gap-0.5 p-1"
+					>
 						{children}
 					</ScrollArea>
 				</MenuPrimitive.Popup>
@@ -68,8 +71,14 @@ function DropdownMenuContent({
 	);
 }
 
-function DropdownMenuGroup({ ...props }: MenuPrimitive.Group.Props) {
-	return <MenuPrimitive.Group data-slot="dropdown-menu-group" {...props} />;
+function DropdownMenuGroup({ className, ...props }: MenuPrimitive.Group.Props) {
+	return (
+		<MenuPrimitive.Group
+			data-slot="dropdown-menu-group"
+			className={cn("flex flex-col gap-0.5", className)}
+			{...props}
+		/>
+	);
 }
 
 function DropdownMenuLabel({
@@ -247,7 +256,10 @@ function DropdownMenuSeparator({
 	return (
 		<MenuPrimitive.Separator
 			data-slot="dropdown-menu-separator"
-			className={cn("-mx-1 my-1 h-(--ui-border-width) bg-border/50", className)}
+			className={cn(
+				"-mx-1 my-0.5 h-(--ui-border-width) bg-border/50",
+				className,
+			)}
 			{...props}
 		/>
 	);

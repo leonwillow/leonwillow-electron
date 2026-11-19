@@ -1,15 +1,16 @@
 /**
  * @file 主题草稿的 CSS 导出。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-11-19
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：apps/web/test/custom-themes.test.ts、components/theme-editor/theme-control-panel.tsx。
  * 调用：lib/custom-themes、types/theme、./color-converter、./shadows。
  * 功能：输出浅深色变量、字体、圆角及需要的阴影令牌。
  * 预期结果：复制的文本可供本项目导入，界面缩放规则保持独立。
  */
+import { STATUS_COLOR_KEYS } from "@/configs/theme-variables";
 import { hasCustomShadow } from "@/lib/custom-themes";
-import type { ThemeStyles } from "@/types/theme";
+import type { ThemeStyleProps, ThemeStyles } from "@/types/theme";
 import type { ColorFormat } from "./color-converter";
 import { colorFormatter } from "./color-converter";
 import { getShadowMap } from "./shadows";
@@ -42,6 +43,10 @@ export const generateThemeCode = (
 
 	const formatColor = (color: string | undefined) =>
 		color ? colorFormatter(color, colorFormat) : "";
+	const formatStatusLines = (modeStyles: Partial<ThemeStyleProps>) =>
+		STATUS_COLOR_KEYS.filter((key) => modeStyles[key])
+			.map((key) => `\n  --${key}: ${formatColor(modeStyles[key])};`)
+			.join("");
 
 	return `:root {
   --background: ${formatColor(styles.light.background)};
@@ -59,7 +64,7 @@ export const generateThemeCode = (
   --accent: ${formatColor(styles.light.accent)};
   --accent-foreground: ${formatColor(styles.light["accent-foreground"])};
   --destructive: ${formatColor(styles.light.destructive)};
-  --destructive-foreground: ${formatColor(styles.light["destructive-foreground"])};
+  --destructive-foreground: ${formatColor(styles.light["destructive-foreground"])};${formatStatusLines(styles.light)}
   --border: ${formatColor(styles.light.border)};
   --input: ${formatColor(styles.light.input)};
   --ring: ${formatColor(styles.light.ring)};
@@ -107,7 +112,7 @@ export const generateThemeCode = (
   --accent: ${formatColor(styles.dark.accent)};
   --accent-foreground: ${formatColor(styles.dark["accent-foreground"])};
   --destructive: ${formatColor(styles.dark.destructive)};
-  --destructive-foreground: ${formatColor(styles.dark["destructive-foreground"])};
+  --destructive-foreground: ${formatColor(styles.dark["destructive-foreground"])};${formatStatusLines(styles.dark)}
   --border: ${formatColor(styles.dark.border)};
   --input: ${formatColor(styles.dark.input)};
   --ring: ${formatColor(styles.dark.ring)};

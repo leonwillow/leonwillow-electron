@@ -9,6 +9,7 @@
  * 预期结果：新版大档不会重复迁移为特大。
  */
 import { expect, test } from "bun:test";
+import chroma from "chroma-js";
 import { themePresets } from "../src/configs/theme-presets";
 import { initialSettings } from "../src/configs/theme-settings";
 import { applyTheme } from "../src/lib/theme-script";
@@ -77,7 +78,7 @@ test("旧快照补齐默认线宽和跟随主题的浅深色，不改变已有�
 		decodeStoredSettings({
 			version: 2,
 			mode: "dark",
-			themePreset: "caffeine",
+			themePreset: "vuexy",
 			radius: "sm",
 			scale: "lg",
 			font: "inter",
@@ -86,7 +87,7 @@ test("旧快照补齐默认线宽和跟随主题的浅深色，不改变已有�
 	).toEqual({
 		...initialSettings,
 		mode: "dark",
-		themePreset: "caffeine",
+		themePreset: "vuexy",
 		radius: "sm",
 		scale: "lg",
 		font: "inter",
@@ -95,6 +96,83 @@ test("旧快照补齐默认线宽和跟随主题的浅深色，不改变已有�
 		borderColorLight: null,
 		borderColorDark: null,
 	});
+});
+
+test("已下线的旧内置预设安全回退到默认，保留其他外观偏好", () => {
+	for (const removed of [
+		"caffeine",
+		"ghibli-studio",
+		"marvel",
+		"pastel-dreams",
+	]) {
+		expect(
+			decodeStoredSettings({
+				version: 2,
+				mode: "dark",
+				themePreset: removed,
+				sidebarMode: "floating-pill",
+			}),
+		).toMatchObject({
+			mode: "dark",
+			themePreset: "default",
+			sidebarMode: "floating-pill",
+		});
+	}
+});
+
+test("所有内置预设的正文、按钮、语义状态色与微底色对比度及 sRGB 色域全部达标", () => {
+	const pairs: ReadonlyArray<[string, string, number]> = [
+		["foreground", "background", 7],
+		["card-foreground", "card", 7],
+		["popover-foreground", "popover", 7],
+		["sidebar-foreground", "sidebar", 7],
+		["muted-foreground", "background", 4.5],
+		["muted-foreground", "card", 4.5],
+		["muted-foreground", "muted", 4.5],
+		["primary-foreground", "primary", 4.5],
+		["primary", "background", 4.5],
+		["primary", "card", 4.5],
+		["secondary-foreground", "secondary", 4.5],
+		["accent-foreground", "accent", 4.5],
+		["sidebar-accent-foreground", "sidebar-accent", 4.5],
+		["destructive", "background", 4.5],
+		["destructive", "card", 4.5],
+		["destructive-foreground", "card", 4.5],
+		["info-foreground", "card", 4.5],
+		["success-foreground", "card", 4.5],
+		["warning-foreground", "card", 4.5],
+	];
+	for (const [id, preset] of Object.entries(themePresets)) {
+		for (const mode of ["light", "dark"] as const) {
+			const styles = preset.styles[mode] as Record<string, string>;
+			for (const [key, value] of Object.entries(styles)) {
+				expect(chroma(value).clipped(), `${id}.${mode}.${key} 越出 sRGB`).toBe(
+					false,
+				);
+			}
+			for (const [fg, bg, minContrast] of pairs) {
+				expect(
+					chroma.contrast(styles[fg] ?? "", styles[bg] ?? ""),
+					`${id}.${mode}: ${fg} on ${bg}`,
+				).toBeGreaterThanOrEqual(minContrast);
+			}
+			for (const [fgKey, tintKey, alpha] of [
+				["info-foreground", "info", 0.1],
+				["success-foreground", "success", 0.1],
+				["warning-foreground", "warning", 0.1],
+				["destructive", "destructive", mode === "dark" ? 0.2 : 0.1],
+				["primary", "primary", 0.1],
+			] as const) {
+				const surface = chroma
+					.mix(styles.card ?? "", styles[tintKey] ?? "", alpha, "rgb")
+					.hex();
+				expect(
+					chroma.contrast(styles[fgKey] ?? "", surface),
+					`${id}.${mode}: ${fgKey} on ${tintKey}/${alpha * 100}%`,
+				).toBeGreaterThanOrEqual(4.2);
+			}
+		}
+	}
 });
 
 test("四种线宽与各自的浅深色覆盖独立往返，空值保留跟随主题语义", () => {
@@ -185,7 +263,7 @@ test("DOM 按模式应用线条覆盖而不替换主题语义色，跟随主题�
 		const preferences: ThemePreferences = {
 			settings: {
 				...initialSettings,
-				themePreset: "caffeine",
+				themePreset: "vuexy",
 				borderWidth: 1.5,
 				borderColorLight: "#cbd5e1",
 				borderColorDark: null,
@@ -195,9 +273,16 @@ test("DOM 按模式应用线条覆盖而不替换主题语义色，跟随主题�
 		applyTheme(preferences, "light");
 		expect(variables.get("--ui-border-width")).toBe("1.5px");
 		expect(variables.get("--ui-line-color")).toBe("#cbd5e1");
-		for (const key of ["border", "input", "sidebar-border"] as const)
+		for (const key of [
+			"border",
+			"input",
+			"sidebar-border",
+			"info",
+			"success",
+			"warning",
+		] as const)
 			expect(variables.get(`--${key}`)).toBe(
-				themePresets.caffeine.styles.light[key],
+				themePresets.vuexy.styles.light[key],
 			);
 
 		applyTheme(preferences, "dark");
@@ -222,6 +307,9 @@ test("DOM 按模式应用线条覆盖而不替换主题语义色，跟随主题�
 		applyTheme({ settings: { ...initialSettings }, customThemes: [] }, "light");
 		expect(variables.get("--ui-border-width")).toBe("1px");
 		expect(variables.has("--ui-line-color")).toBe(false);
+		expect(variables.has("--info")).toBe(false);
+		expect(variables.has("--success")).toBe(false);
+		expect(variables.has("--warning")).toBe(false);
 	} finally {
 		if (originalDocument)
 			Object.defineProperty(globalThis, "document", originalDocument);

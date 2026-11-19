@@ -1,12 +1,12 @@
 /**
  * @file 主题编辑与导入允许操作的变量集合。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-11-19
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：lib/theme-script.ts、utils/theme/parse-css-input.ts、lib/custom-themes.ts。
  * 调用：无模块依赖。
- * 功能：区分语义色、阴影参数和生成后的阴影令牌。
- * 预期结果：导入和存储校验不会开放额外字号、间距或任意 CSS 属性。
+ * 功能：区分基础语义色、可选状态语义色、阴影参数和生成后的阴影令牌。
+ * 预期结果：导入和存储校验兼容旧自定义主题，不开放额外字号、间距或任意 CSS 属性。
  */
 export const COLOR_KEYS = [
 	"primary",
@@ -43,6 +43,15 @@ export const COLOR_KEYS = [
 	"chart-5",
 ] as const;
 
+export const STATUS_COLOR_KEYS = [
+	"info",
+	"info-foreground",
+	"success",
+	"success-foreground",
+	"warning",
+	"warning-foreground",
+] as const;
+
 const SHADOW_KEYS = [
 	"shadow-color",
 	"shadow-opacity",
@@ -65,6 +74,7 @@ export const SHADOW_VARS = [
 
 export const EDITABLE_STYLE_KEYS = [
 	...COLOR_KEYS,
+	...STATUS_COLOR_KEYS,
 	...SHADOW_KEYS,
 	"letter-spacing",
 ] as const;

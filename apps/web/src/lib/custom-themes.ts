@@ -1,7 +1,7 @@
 /**
  * @file 自定义主题库的校验与变更规则。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-06
+ * 修改时间：2026-11-19
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：apps/web/test、contexts、utils、utils/theme、components/theme-editor、lib。
  * 调用：chroma-js、configs/fonts、configs/theme-presets、configs/theme-settings、configs/theme-variables、types/theme。
@@ -12,7 +12,11 @@ import chroma from "chroma-js";
 import { FONT_CONFIG } from "@/configs/fonts";
 import { themePresets } from "@/configs/theme-presets";
 import { initialSettings } from "@/configs/theme-settings";
-import { COLOR_KEYS, EDITABLE_STYLE_KEYS } from "@/configs/theme-variables";
+import {
+	COLOR_KEYS,
+	EDITABLE_STYLE_KEYS,
+	STATUS_COLOR_KEYS,
+} from "@/configs/theme-variables";
 import type {
 	CustomTheme,
 	CustomThemeId,
@@ -49,7 +53,11 @@ export function isColorValue(value: string) {
  */
 export function isStyleValue(key: string, value: unknown): value is string {
 	if (typeof value !== "string") return false;
-	if ((COLOR_KEYS as readonly string[]).includes(key) || key === "shadow-color")
+	if (
+		(COLOR_KEYS as readonly string[]).includes(key) ||
+		(STATUS_COLOR_KEYS as readonly string[]).includes(key) ||
+		key === "shadow-color"
+	)
 		return isColorValue(value);
 	if (key === "shadow-opacity")
 		return (

@@ -28,6 +28,12 @@ export type ThemeStyleProps = {
 	"accent-foreground": string;
 	destructive: string;
 	"destructive-foreground": string;
+	info?: string;
+	"info-foreground"?: string;
+	success?: string;
+	"success-foreground"?: string;
+	warning?: string;
+	"warning-foreground"?: string;
 	border: string;
 	input: string;
 	ring: string;

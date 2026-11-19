@@ -1,7 +1,7 @@
 /**
  * @file 下拉选择、分组与滚动入口的基础组件。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-17
+ * 修改时间：2026-11-19
  * 版本作用：按 ReUI c-select-1 统一弹出方向、控件令牌与 ScrollArea 列表，提供 cell 内联变体。
  * 被调用：components/layout/theme-customizer.tsx、components/theme-editor/theme-preset-select.tsx、components/theme-editor/theme-control-panel.tsx。
  * 调用：@base-ui/react、ui/lib/utils、lucide-react、react。
@@ -21,7 +21,7 @@ function SelectGroup({ className, ...props }: SelectPrimitive.Group.Props) {
 	return (
 		<SelectPrimitive.Group
 			data-slot="select-group"
-			className={cn("scroll-my-1 p-1", className)}
+			className={cn("flex scroll-my-1 flex-col gap-0.5 p-1", className)}
 			{...props}
 		/>
 	);

@@ -1,7 +1,7 @@
 /**
  * @file 内置和自定义主题的统一选择器。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-06
+ * 修改时间：2026-11-19
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/layout/theme-customizer.tsx、components/theme-editor/theme-control-panel.tsx。
  * 调用：ui 基础组件/样式、configs/theme-presets、stores/theme-store、types/theme。
@@ -21,8 +21,8 @@ import { useThemeStore } from "@/stores/theme-store";
 import type { Settings } from "@/types/theme";
 
 const DEFAULT_PRIMARY = {
-	light: "oklch(0.52 0.105 223.128)",
-	dark: "oklch(0.45 0.085 224.283)",
+	light: "oklch(0.205 0 0)",
+	dark: "oklch(0.922 0 0)",
 };
 
 type Props = {
@@ -66,7 +66,7 @@ export default function ThemePresetSelect({
 		>
 			<SelectTrigger className="w-full">
 				<span
-					className="size-2.5 shrink-0 rounded-full"
+					className="size-2.5 shrink-0 rounded-full ring-1 ring-foreground/15 ring-inset"
 					style={{
 						background: current?.styles[mode].primary ?? DEFAULT_PRIMARY[mode],
 					}}
@@ -80,7 +80,7 @@ export default function ThemePresetSelect({
 					<SelectLabel>内置主题</SelectLabel>
 					<SelectItem value="default" className="[&>div]:items-center">
 						<span
-							className="size-2 shrink-0 rounded-full"
+							className="size-2 shrink-0 rounded-full ring-1 ring-foreground/15 ring-inset"
 							style={{ background: DEFAULT_PRIMARY[mode] }}
 						/>
 						默认
@@ -92,7 +92,7 @@ export default function ThemePresetSelect({
 							className="[&>div]:items-center"
 						>
 							<span
-								className="size-2 shrink-0 rounded-full"
+								className="size-2 shrink-0 rounded-full ring-1 ring-foreground/15 ring-inset"
 								style={{ background: preset.styles[mode].primary }}
 							/>
 							{preset.label}
@@ -109,7 +109,7 @@ export default function ThemePresetSelect({
 								className="[&>div]:items-center"
 							>
 								<span
-									className="size-2 shrink-0 rounded-full"
+									className="size-2 shrink-0 rounded-full ring-1 ring-foreground/15 ring-inset"
 									style={{ background: preset.styles[mode].primary }}
 								/>
 								{preset.label}
