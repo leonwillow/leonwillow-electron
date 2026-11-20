@@ -1,19 +1,23 @@
 /**
  * @file 桌面资源与网络隔离的回归测试。
- * 创建时间：2026-11-10；修改时间：2026-11-10。
+ * 创建时间：2026-11-10；修改时间：2026-11-20。
  * 被调用：Bun test；功能：拒绝伪似来源、目录穿越与伪造凭据请求头。
  */
 import { expect, test } from "bun:test";
 import {
 	isAppUrl,
+	isNavigableAppUrl,
 	rendererFile,
 	rendererHeaders,
 	upstreamHeaders,
 } from "../src/request-policy";
 
-test("IPC只接受应用来源，变更服务器仅允许登录页", () => {
+test("IPC只接受应用来源，变更服务器仅允许登录页，且禁止导航至 /api/*", () => {
 	expect(isAppUrl("aidesk://app/login", true)).toBe(true);
 	expect(isAppUrl("aidesk://app/calculators")).toBe(true);
+	expect(isNavigableAppUrl("aidesk://app/calculators")).toBe(true);
+	expect(isNavigableAppUrl("aidesk://app/api")).toBe(false);
+	expect(isNavigableAppUrl("aidesk://app/api/auth/session")).toBe(false);
 	for (const value of [
 		"aidesk://app/calculators",
 		"aidesk://app.evil/login",
@@ -67,4 +71,8 @@ test("网络会话独占凭据，不信任renderer传入的Cookie或来源", () 
 	expect(response.has("set-cookie")).toBe(false);
 	expect(response.has("content-encoding")).toBe(false);
 	expect(response.get("x-request-id")).toBe("test");
+	expect(response.get("x-content-type-options")).toBe("nosniff");
+	expect(response.get("content-security-policy")).toBe(
+		"default-src 'none'; sandbox",
+	);
 });

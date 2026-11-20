@@ -1,6 +1,6 @@
 /**
  * @file Electron 主进程与服务器配置的生命周期。
- * 创建时间：2026-11-10；修改时间：2026-11-10。
+ * 创建时间：2026-11-10；修改时间：2026-11-20。
  * 版本作用：加载已打包的共用 Web 前端，不在客户端运行数据库或业务服务。
  * 被调用：桌面 start/打包入口；调用：Electron、连接存储和协议代理。
  * 预期结果：登录页可配置服务器，切换服务器隔离会话，默认地址由构建注入。
@@ -24,7 +24,11 @@ import {
 } from "electron";
 import { createConnectionStore } from "./connection-store";
 import { createProtocolHandler } from "./protocol-handler";
-import { isAppUrl, networkPartition } from "./request-policy";
+import {
+	isAppUrl,
+	isNavigableAppUrl,
+	networkPartition,
+} from "./request-policy";
 import { sessionRequest } from "./session-request";
 
 protocol.registerSchemesAsPrivileged([
@@ -188,14 +192,14 @@ async function start() {
 		});
 		window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
 		window.webContents.on("will-navigate", (event, url) => {
-			if (!isAppUrl(url)) event.preventDefault();
+			if (!isNavigableAppUrl(url)) event.preventDefault();
 		});
 		window.webContents.on("will-redirect", (event, url) => {
-			if (!isAppUrl(url)) event.preventDefault();
+			if (!isNavigableAppUrl(url)) event.preventDefault();
 		});
 		window.webContents.on("will-frame-navigate", (event) => {
 			if (
-				!isAppUrl(event.url) &&
+				!isNavigableAppUrl(event.url) &&
 				!["about:blank", "about:srcdoc"].includes(event.url)
 			)
 				event.preventDefault();

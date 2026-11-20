@@ -1,7 +1,7 @@
 /**
  * @file 公共接口与认证模块隔离的回归测试。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-05
+ * 修改时间：2026-11-20
  * 版本作用：当前行为的回归约束，不进入产品构建。
  * 被调用：Bun 测试命令。
  * 调用：bun:test、@elysiajs/eden、../src/app。
@@ -49,6 +49,9 @@ test("健康检查允许 Web renderer 跨域访问", async () => {
 	expect(response.headers.get("access-control-allow-origin")).toBe(
 		"http://localhost:3001",
 	);
+	expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+	expect(response.headers.get("x-frame-options")).toBe("DENY");
+	expect(response.headers.get("referrer-policy")).toBe("no-referrer");
 });
 
 test("缺少认证配置时返回 503，认证和权限插件不影响后续公共路由", async () => {

@@ -1,6 +1,6 @@
 /**
  * @file 滞纳金方案的录入、汇总、规则说明与保存工作区。
- * 创建时间：2026-11-05；修改时间：2026-11-18。
+ * 创建时间：2026-11-05；修改时间：2026-11-20。
  * 版本作用：按单笔税款粒度增量缓存计费结果并提供稳定回调，配合 memo 子卡片消除输入卡顿。
  * 被调用：LateFeesView；调用：LateFeeLiability、useScenario、共享控件与 Eden。
  * 预期结果：多税种、多次缴款可持久化，修改方案名或单笔税款不重算、不重渲染无关税款。
@@ -290,7 +290,7 @@ export default function LateFeeEditor({
 									className="underline"
 									href="https://www.samr.gov.cn/zw/zfxxgk/fdzdgknr/bgt/art/2023/art_1dbea81872cb4fda9ab3ccc45c627531.html"
 									target="_blank"
-									rel="noreferrer"
+									rel="noopener noreferrer"
 								>
 									税收征管法第三十二条
 								</a>
@@ -299,7 +299,7 @@ export default function LateFeeEditor({
 									className="underline"
 									href="https://www.chinatax.gov.cn/chinatax/n810214/c102374/c102377/c102378/c3575330/content.html"
 									target="_blank"
-									rel="noreferrer"
+									rel="noopener noreferrer"
 								>
 									实施细则第七十五条
 								</a>

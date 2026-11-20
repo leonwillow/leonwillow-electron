@@ -1,6 +1,6 @@
 /**
  * @file 桌面静态资源与受控 API 转发。
- * 创建时间：2026-11-10；修改时间：2026-11-10。
+ * 创建时间：2026-11-10；修改时间：2026-11-20。
  * 版本作用：本地前端与远端 API 分离，Cookie 只存于各服务器独立的 Chromium 会话。
  * 被调用：main；调用：Node fs/path、请求边界函数和主进程注入的网络会话。
  * 预期结果：不加载远程页面代码，不泄露服务器 Cookie；切换服务器可中止旧请求。
@@ -54,7 +54,10 @@ export function createProtocolHandler(options: {
 				return new Response("Not found", { status: 404 });
 			const url = new URL(request.url);
 			if (url.pathname.startsWith("/api/")) {
-				if (request.initiatorOrigin !== DESKTOP_ORIGIN)
+				if (
+					request.mode === "navigate" ||
+					request.initiatorOrigin !== DESKTOP_ORIGIN
+				)
 					return new Response("Forbidden", { status: 403 });
 				const target = options.getTarget();
 				const controller = new AbortController();

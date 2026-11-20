@@ -1,6 +1,6 @@
 /**
  * @file 桌面资源路径、IPC 来源及 API 代理头的边界。
- * 创建时间：2026-11-10；修改时间：2026-11-10。
+ * 创建时间：2026-11-10；修改时间：2026-11-20。
  * 版本作用：纯函数供主进程与 Bun 回归测试复用。
  * 被调用：main/protocol-handler；调用：desktop-bridge 和 Node path。
  * 预期结果：只能读取打包资源和当前服务器 API，renderer 不能指定凭据或代理来源头。
@@ -26,6 +26,13 @@ export function isAppUrl(value: string, loginOnly = false) {
 	} catch {
 		return false;
 	}
+}
+
+/** 仅允许导航到本地 SPA 路由，禁止将 /api/* 代理响应作为文档或子框架加载。 */
+export function isNavigableAppUrl(value: string) {
+	if (!isAppUrl(value)) return false;
+	const { pathname } = new URL(value);
+	return pathname !== "/api" && !pathname.startsWith("/api/");
 }
 
 /** 返回资源根目录内的路径；编码斜线、NUL 和越界路径均拒绝。 */
@@ -73,5 +80,7 @@ export function rendererHeaders(input: Headers) {
 	])
 		headers.delete(key);
 	headers.set("cache-control", "no-store");
+	headers.set("x-content-type-options", "nosniff");
+	headers.set("content-security-policy", "default-src 'none'; sandbox");
 	return headers;
 }

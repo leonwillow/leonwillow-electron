@@ -1,7 +1,7 @@
 /**
  * @file 浏览器二进制与文本文件下载的共享适配工具。
  * 创建时间：2026-11-18
- * 修改时间：2026-11-18
+ * 修改时间：2026-11-20
  * 版本作用：统一各业务模块的对象 URL 下载、文件名安全清洗与 UTF-8 BOM CSV 导出。
  * 被调用：lib/calculators、lib/documents、lib/funds、lib/inquiries。
  * 调用：浏览器 Blob / URL / DOM Anchor API。
@@ -26,12 +26,12 @@ export function sanitizeDownloadFilename(
 	return cleaned.replace(/[\\/:*?"<>|]/g, "_").trim() || fallback;
 }
 
-/** 触发 Blob 浏览器下载并在触发后延迟释放临时 Object URL。 */
+/** 触发 Blob 浏览器下载并自动清洗文件名，触发后延迟释放临时 Object URL。 */
 export function downloadBlob(blob: Blob, filename: string): void {
 	const url = URL.createObjectURL(blob);
 	const link = document.createElement("a");
 	link.href = url;
-	link.download = filename;
+	link.download = sanitizeDownloadFilename(filename);
 	document.body.append(link);
 	link.click();
 	link.remove();

@@ -1,6 +1,6 @@
 /**
  * @file 桌面 API 转发和静态文件的集成回归。
- * 创建时间：2026-11-10；修改时间：2026-11-10。
+ * 创建时间：2026-11-10；修改时间：2026-11-20。
  * 被调用：Bun test；功能：真实Request/Response验证输入来源、二进制响应及服务器切换。
  */
 import { expect, test } from "bun:test";
@@ -47,6 +47,12 @@ test("本地SPA资源和API请求分开处理，源站只能来自配置", async
 			(await handler.handle(new Request("aidesk://app/api/auth/session")))
 				.status,
 		).toBe(403);
+		const navRequest = Object.assign(
+			new Request("aidesk://app/api/auth/session"),
+			{ initiatorOrigin: "aidesk://app" },
+		);
+		Object.defineProperty(navRequest, "mode", { value: "navigate" });
+		expect((await handler.handle(navRequest)).status).toBe(403);
 		const response = await handler.handle(
 			apiRequest("/api/inquiries/file?name=test"),
 		);
@@ -54,6 +60,10 @@ test("本地SPA资源和API请求分开处理，源站只能来自配置", async
 			new Uint8Array([0, 255, 100]),
 		);
 		expect(response.headers.has("set-cookie")).toBe(false);
+		expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+		expect(response.headers.get("content-security-policy")).toBe(
+			"default-src 'none'; sandbox",
+		);
 		target = "https://api.example.com:8443";
 		await (await handler.handle(apiRequest("/api/health"))).arrayBuffer();
 		expect(requested).toEqual([

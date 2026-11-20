@@ -1,6 +1,6 @@
 /**
  * @file Electron 登录页的服务器连接设置。
- * 创建时间：2026-11-10；修改时间：2026-11-18。
+ * 创建时间：2026-11-10；修改时间：2026-11-20。
  * 版本作用：复用现有 Dialog/Field/Input，仅在桌面 preload 提供配置接口时按需加载。
  * 被调用：LoginForm；调用：desktop-bridge、lib/desktop、共享 UI 和 Sonner。
  * 功能：读取当前地址、修改地址与端口、无凭据测试、恢复默认及保存后重新登录。
@@ -29,12 +29,27 @@ import {
 	FieldLabel,
 } from "@leonwillow-electron/ui/components/field";
 import { Input } from "@leonwillow-electron/ui/components/input";
-import { ServerCogIcon } from "lucide-react";
+import { AlertTriangleIcon, ServerCogIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { getDesktopBridge, restartDesktopLogin } from "@/lib/desktop";
 
 type Operation = "load" | "test" | "save" | null;
+
+const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
+
+function isRemotePlaintextHttp(urlString: string | null) {
+	if (!urlString) return false;
+	try {
+		const url = new URL(urlString);
+		return (
+			url.protocol === "http:" &&
+			!LOOPBACK_HOSTS.has(url.hostname.toLowerCase())
+		);
+	} catch {
+		return false;
+	}
+}
 
 export default function ServerConnectionSettings({
 	disabled,
@@ -148,6 +163,16 @@ export default function ServerConnectionSettings({
 	};
 
 	const busy = operation !== null || disabled;
+	const candidateUrl = (() => {
+		if (!status) return null;
+		if (useDefault) return status.defaultUrl;
+		try {
+			return normalizeConnection(draft);
+		} catch {
+			return null;
+		}
+	})();
+	const showPlaintextWarning = isRemotePlaintextHttp(candidateUrl);
 	return (
 		<Dialog open={open} onOpenChange={changeOpen}>
 			<div className="flex min-w-0 items-center gap-3">
@@ -253,6 +278,21 @@ export default function ServerConnectionSettings({
 								</FieldDescription>
 							</Field>
 						</FieldGroup>
+						{showPlaintextWarning && (
+							<div
+								role="alert"
+								className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-warning-foreground text-xs"
+							>
+								<AlertTriangleIcon
+									className="mt-0.5 size-3.5 shrink-0"
+									aria-hidden="true"
+								/>
+								<span>
+									当前填写的是非本机明文 HTTP 地址，登录账号与会话 Cookie
+									将在网络中明文传输，远程部署建议改用 HTTPS。
+								</span>
+							</div>
+						)}
 						<p className="break-all text-muted-foreground text-xs">
 							默认服务器：{status.defaultUrl}
 							{useDefault

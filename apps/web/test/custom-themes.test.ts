@@ -270,3 +270,11 @@ test("标记删除主题不占名称，历史超过百条仍保留且不能被�
 		"该主题已删除",
 	);
 });
+
+test("线性 CSS 解析器面对超长畸形变量输入不触发正则回溯", () => {
+	const pathological = `:root { ${"--".repeat(60_000)} --primary: #6750a4; }`;
+	const start = performance.now();
+	const { lightColors } = parseCssInput(pathological);
+	expect(performance.now() - start).toBeLessThan(200);
+	expect(lightColors.primary).toBeUndefined();
+});

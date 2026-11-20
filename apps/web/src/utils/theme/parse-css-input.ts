@@ -1,7 +1,7 @@
 /**
  * @file 主题变量文本的轻量提取器。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-11-20
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：apps/web/test/custom-themes.test.ts、utils/theme/theme-draft.ts、utils/theme/css-import.ts。
  * 调用：configs/theme-variables、types/theme。
@@ -60,30 +60,52 @@ const extractCssBlockContent = (
 	return input.match(regex)?.[1]?.trim() || null;
 };
 
+/** 线性扫描去除 CSS 块注释，避免正则回溯。 */
+const stripCssComments = (input: string) => {
+	let result = "";
+	let index = 0;
+	while (index < input.length) {
+		const start = input.indexOf("/*", index);
+		if (start === -1) {
+			result += input.slice(index);
+			break;
+		}
+		result += input.slice(index, start);
+		const end = input.indexOf("*/", start + 2);
+		if (end === -1) break;
+		index = end + 2;
+	}
+	return result;
+};
+
+/** 线性拆分分号声明并提取 --name: value，避免全局回溯型正则。 */
+const extractDeclarations = (cssContent: string) => {
+	const entries: Array<[string, string]> = [];
+	for (const raw of stripCssComments(cssContent).split(";")) {
+		const colon = raw.indexOf(":");
+		if (colon === -1) continue;
+		const key = raw.slice(0, colon).trim();
+		const value = raw.slice(colon + 1).trim();
+		if (!key.startsWith(VARIABLE_PREFIX) || !value) continue;
+		const cleanName = key.slice(VARIABLE_PREFIX.length);
+		if (/^[a-z0-9-]+$/i.test(cleanName)) entries.push([cleanName, value]);
+	}
+	return entries;
+};
+
 const parseColorVariables = (
 	cssContent: string,
 	target: Partial<ThemeStyleProps>,
 	validNames: string[],
 ) => {
-	const variableDeclarations = cssContent.match(/--[^:]+:\s*[^;]+/g) || [];
-
-	variableDeclarations.forEach((declaration) => {
-		const [name, value] = declaration.split(":").map((part) => part.trim());
-		if (name === undefined || value === undefined) return;
-		const cleanName = name.replace(VARIABLE_PREFIX, "");
-
-		if (validNames.includes(cleanName)) {
-			if (NON_COLOR_VARIABLES.includes(cleanName)) {
-				target[cleanName as keyof ThemeStyleProps] = value;
-
-				return;
-			}
-
-			const colorValue = processColorValue(value);
-
-			target[cleanName as keyof ThemeStyleProps] = colorValue;
+	for (const [cleanName, value] of extractDeclarations(cssContent)) {
+		if (!validNames.includes(cleanName)) continue;
+		if (NON_COLOR_VARIABLES.includes(cleanName)) {
+			target[cleanName as keyof ThemeStyleProps] = value;
+			continue;
 		}
-	});
+		target[cleanName as keyof ThemeStyleProps] = processColorValue(value);
+	}
 };
 
 const processColorValue = (value: string): string => {
@@ -137,13 +159,19 @@ export const parseShadowVariables = (cssContent: string) => {
  * @param target 要写入的样式对象；缺省阴影参数采用本地默认值。
  * @returns 无返回值；此简写解析仅覆盖项目支持的阴影格式。
  */
+const DIRECT_SHADOW_KEYS = new Set([
+	"shadow-color",
+	"shadow-opacity",
+	"shadow-blur",
+	"shadow-spread",
+	"shadow-offset-x",
+	"shadow-offset-y",
+]);
+
 const extractBasicShadowProperties = (
 	cssContent: string,
 	target: Partial<ThemeStyleProps>,
 ) => {
-	const directPropertiesRegex =
-		/--shadow-(color|opacity|blur|spread|offset-x|offset-y):\s*([^;]+);/g;
-
 	target["shadow-offset-x"] = "0";
 	target["shadow-offset-y"] = "1px";
 	target["shadow-blur"] = "3px";
@@ -151,14 +179,12 @@ const extractBasicShadowProperties = (
 	target["shadow-color"] = "hsl(0 0% 0%)";
 	target["shadow-opacity"] = "0.1";
 
+	const declarations = extractDeclarations(cssContent);
 	let foundDirectProperties = false;
 
-	for (const match of cssContent.matchAll(directPropertiesRegex)) {
-		if (match[1] === undefined || match[2] === undefined) continue;
-		const property = `shadow-${match[1]}`;
-		const value = match[2].trim();
-
-		target[property as keyof ThemeStyleProps] = value;
+	for (const [name, value] of declarations) {
+		if (!DIRECT_SHADOW_KEYS.has(name)) continue;
+		target[name as keyof ThemeStyleProps] = value;
 		foundDirectProperties = true;
 	}
 
@@ -166,17 +192,13 @@ const extractBasicShadowProperties = (
 		return;
 	}
 
-	const shadowRegex = /--shadow(?:-[a-z0-9]+)?:\s*([^;]+);/g;
-	const shadowValues = [];
-
-	for (const match of cssContent.matchAll(shadowRegex)) {
-		if (match[1] === undefined) continue;
-		shadowValues.push({
-			value: match[1],
-			hasComma: match[1].includes(","),
-			name: match[0].match(/--([^:]+):/)?.[1] || "",
-		});
-	}
+	const shadowValues = declarations
+		.filter(([name]) => /^shadow(?:-[a-z0-9]+)?$/.test(name))
+		.map(([name, value]) => ({
+			value,
+			hasComma: value.includes(","),
+			name,
+		}));
 
 	if (shadowValues.length === 0) {
 		return;

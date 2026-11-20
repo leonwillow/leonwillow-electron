@@ -1,7 +1,7 @@
 /**
  * @file 应用共享的主题偏好与编辑器会话状态。
  * 创建时间：2026-10-04
- * 修改时间：2026-11-07
+ * 修改时间：2026-11-20
  * 版本作用：Zustand 状态入口，沿用主题快照 v2。
  * 被调用：main.tsx、components/layout、components/theme-editor、test/theme-store.test.ts。
  * 调用：zustand、React ref 类型、configs/theme-settings、lib/theme-settings、lib/custom-themes、types/theme、浏览器存储与消息 API。
@@ -16,6 +16,7 @@ import { deleteCustomTheme, saveCustomTheme } from "@/lib/custom-themes";
 import {
 	decodeThemePreferences,
 	encodeThemePreferences,
+	normalizeSettings,
 	readThemePreferences,
 } from "@/lib/theme-settings";
 import { randomUUID } from "@/lib/uuid";
@@ -83,16 +84,23 @@ export const useThemeStore = create<ThemeState>()((set, get) => {
 			const selected = preferences.customThemes.find(
 				(theme) => !theme.deletedAt && theme.id === settings.themePreset,
 			);
+			const nextSettings = normalizeSettings({
+				...preferences.settings,
+				...(selected ? { font: selected.font, radius: selected.radius } : {}),
+				...settings,
+			});
 			persistPreferences({
 				...preferences,
-				settings: {
-					...preferences.settings,
-					...(selected ? { font: selected.font, radius: selected.radius } : {}),
-					...settings,
-				},
+				settings: nextSettings,
 			});
 		},
-		setThemePreview: (preview) => set({ preview }),
+		setThemePreview: (preview) =>
+			set({
+				preview:
+					preview && (preview.mode === "light" || preview.mode === "dark")
+						? preview
+						: null,
+			}),
 		saveTheme: (draft, id = `custom:${randomUUID()}`) => {
 			persistPreferences(saveCustomTheme(get().preferences, draft, id), true);
 			set({ preview: null });

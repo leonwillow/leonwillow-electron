@@ -211,25 +211,62 @@ test("默认主题与所有内置预设的正文、按钮、语义状态色与�
 					`${id}.${mode}: ${fg} on ${bg}`,
 				).toBeGreaterThanOrEqual(minContrast);
 			}
-			for (const [fgKey, tintKey, alpha, minContrast] of [
-				["info-foreground", "info", 0.1, 4.5],
-				["success-foreground", "success", 0.1, 4.5],
-				["warning-foreground", "warning", 0.1, 4.5],
+			for (const [fgKey, tintKey, baseKey, alpha, minContrast] of [
+				["info-foreground", "info", "card", 0.1, 4.5],
+				["success-foreground", "success", "card", 0.1, 4.5],
+				["warning-foreground", "warning", "card", 0.1, 4.5],
 				[
 					"destructive-foreground",
 					"destructive",
+					"card",
 					mode === "dark" ? 0.2 : 0.1,
 					4.5,
 				],
-				["primary", "primary", 0.1, 4.2],
+				["primary", "primary", "card", 0.1, 4.5],
+				["primary", "primary", "sidebar", 0.1, 4.5],
 			] as const) {
 				const surface = chroma
-					.mix(styles.card ?? "", styles[tintKey] ?? "", alpha, "rgb")
+					.mix(styles[baseKey] ?? "", styles[tintKey] ?? "", alpha, "rgb")
 					.hex();
 				expect(
 					chroma.contrast(styles[fgKey] ?? "", surface),
-					`${id}.${mode}: ${fgKey} on ${tintKey}/${alpha * 100}%`,
+					`${id}.${mode}: ${fgKey} on ${baseKey}+${tintKey}/${alpha * 100}%`,
 				).toBeGreaterThanOrEqual(minContrast);
+			}
+			for (const chartKey of [
+				"chart-1",
+				"chart-2",
+				"chart-3",
+				"chart-4",
+				"chart-5",
+			] as const) {
+				expect(
+					chroma.contrast(styles[chartKey] ?? "", styles.card ?? ""),
+					`${id}.${mode}: ${chartKey} on card`,
+				).toBeGreaterThanOrEqual(3);
+			}
+			if (id !== "default") {
+				const oklchHue = (value: string) => {
+					const match = value.match(/oklch\([\d.]+\s+[\d.]+\s+([\d.]+)/);
+					return match ? Number(match[1]) : null;
+				};
+				const primaryHue = oklchHue(styles.primary ?? "");
+				for (const statusKey of [
+					"info",
+					"success",
+					"warning",
+					"destructive",
+				] as const) {
+					const statusHue = oklchHue(styles[statusKey] ?? "");
+					if (primaryHue !== null && statusHue !== null) {
+						const raw = Math.abs(primaryHue - statusHue) % 360;
+						const diff = raw > 180 ? 360 - raw : raw;
+						expect(
+							diff,
+							`${id}.${mode}: primary(${primaryHue}°) vs ${statusKey}(${statusHue}°)`,
+						).toBeGreaterThanOrEqual(25);
+					}
+				}
 			}
 		}
 	}
