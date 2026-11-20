@@ -1,24 +1,24 @@
 /**
  * @file 工作台现有功能和访问规则的共享目录。
  * 创建时间：2026-10-04
- * 修改时间：2026-11-05
+ * 修改时间：2026-11-20
  * 版本作用：首次接入按功能授权；不包含业务实现或服务端依赖。
  * 被调用：服务端 access/admin 模块、Web 导航与路由。
  * 调用：无外部运行时依赖。
  * 功能：统一功能标识、中文名称、入口和路由访问规则。
- * 预期结果：新增入口必须明确登记权限，浏览器与后端使用相同标识。
+ * 预期结果：新增入口必须明确登记权限，浏览器与后端使用相同标识，未实现模板模块保持关闭。
  */
 const definitions = {
-	funds: { name: "资金调查", enabled: true },
+	funds: { name: "资金分析", enabled: true },
 	documents: { name: "文书取号", enabled: true },
 	inquiries: { name: "笔录", enabled: true },
 	calculators: { name: "计算器", enabled: true },
-	inbox: { name: "收件箱", enabled: true },
-	tickets: { name: "工单", enabled: true },
-	contacts: { name: "联系人", enabled: true },
-	"knowledge-base": { name: "知识库", enabled: true },
-	"ai-agent": { name: "AI 助手", enabled: true },
-	reports: { name: "报表", enabled: true },
+	inbox: { name: "收件箱", enabled: false },
+	tickets: { name: "工单", enabled: false },
+	contacts: { name: "联系人", enabled: false },
+	"knowledge-base": { name: "知识库", enabled: false },
+	"ai-agent": { name: "AI 助手", enabled: false },
+	reports: { name: "报表", enabled: false },
 } as const;
 
 export type ModuleId = keyof typeof definitions;
@@ -29,35 +29,25 @@ export const modules = (Object.keys(definitions) as ModuleId[]).map((id) => ({
 	path: `/${id}` as const,
 }));
 
+export const enabledModules = modules.filter((module) => module.enabled);
+
 export type SystemRole = "admin" | "user";
 export type AccessRequirement = "session" | "admin" | ModuleId;
 export type AccessIdentity = { role: SystemRole; moduleIds: readonly string[] };
 
 export const isModuleId = (value: string): value is ModuleId =>
-	modules.some((module) => module.id === value);
+	enabledModules.some((module) => module.id === value);
 
 /** 检查已启用功能；管理员自动拥有全部启用功能，普通人员必须显式授权。 */
 export function canAccessModule(identity: AccessIdentity, id: string) {
-	return modules.some(
+	return enabledModules.some(
 		(module) =>
 			module.id === id &&
-			module.enabled &&
 			(identity.role === "admin" || identity.moduleIds.includes(id)),
 	);
 }
 
-const adminPaths = new Set([
-	"/admin/users",
-	"/settings/general",
-	"/settings/teammates",
-	"/settings/office-hours",
-	"/settings/security",
-	"/settings/assignments",
-	"/settings/saved-replies",
-	"/settings/messenger",
-	"/settings/billing",
-	"/settings/tags",
-]);
+const adminPaths = new Set(["/admin/users", "/settings/teammates"]);
 
 /** 未登记地址返回 null，禁止把未知页面当成默认公开入口。 */
 export function routeRequirement(path: string): AccessRequirement | null {

@@ -1,7 +1,7 @@
 /**
  * @file 下拉菜单、分组、子菜单与选择项的基础组件。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-19
+ * 修改时间：2026-11-20
  * 版本作用：共享 UI 基础层，随工作区维护。
  * 被调用：components/layout/profile-menu.tsx、components/layout/auth-links-menu.tsx。
  * 调用：@base-ui/react、ui/lib/utils、lucide-react、react。
@@ -116,7 +116,7 @@ function DropdownMenuItem({
 			data-inset={inset}
 			data-variant={variant}
 			className={cn(
-				"group/dropdown-menu-item relative flex min-h-7 cursor-default select-none items-center gap-2 rounded-md px-2 py-1 text-xs/relaxed outline-hidden focus:bg-accent focus:text-accent-foreground not-data-[variant=destructive]:focus:**:text-accent-foreground data-disabled:pointer-events-none data-inset:pl-7.5 data-[variant=destructive]:text-destructive data-disabled:opacity-50 data-[variant=destructive]:focus:bg-destructive/10 data-[variant=destructive]:focus:text-destructive dark:data-[variant=destructive]:focus:bg-destructive/20 [&_svg:not([class*='size-'])]:size-3.5 [&_svg]:pointer-events-none [&_svg]:shrink-0 data-[variant=destructive]:*:[svg]:text-destructive",
+				"group/dropdown-menu-item relative flex min-h-7 cursor-default select-none items-center gap-2 rounded-md px-2 py-1 text-xs/relaxed outline-hidden focus:bg-accent focus:text-accent-foreground not-data-[variant=destructive]:focus:**:text-accent-foreground data-disabled:pointer-events-none data-inset:pl-7.5 data-[variant=destructive]:text-destructive-foreground data-disabled:opacity-50 data-[variant=destructive]:focus:bg-destructive/10 data-[variant=destructive]:focus:text-destructive-foreground dark:data-[variant=destructive]:focus:bg-destructive/20 [&_svg:not([class*='size-'])]:size-3.5 [&_svg]:pointer-events-none [&_svg]:shrink-0 data-[variant=destructive]:*:[svg]:text-destructive-foreground",
 				className,
 			)}
 			{...props}

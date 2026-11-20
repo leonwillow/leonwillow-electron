@@ -1,7 +1,7 @@
 /**
  * @file 人员管理与越权防护的数据库集成测试。
  * 创建时间：2026-10-04
- * 修改时间：2026-11-05
+ * 修改时间：2026-11-20
  * 版本作用：验证权限真实边界和事务一致性。
  * 被调用：bun run test:api。
  * 调用：真实 PostgreSQL 独立 schema、Better Auth、Eden、应用工厂。
@@ -111,7 +111,7 @@ describe("统一工作台权限", () => {
 				name: "测试人员",
 				password,
 				role: "user",
-				moduleIds: ["inbox"],
+				moduleIds: ["funds"],
 			},
 			adminHeaders(),
 		);
@@ -137,12 +137,13 @@ describe("统一工作台权限", () => {
 			api.api.admin.users.get(memberHeaders),
 		]);
 		expect(admin.data?.user.id).toBe(adminId);
+		expect(admin.data?.moduleIds).toContain("funds");
 		expect(admin.data?.moduleIds).toContain("documents");
 		expect(admin.data?.moduleIds).toContain("inquiries");
 		expect(admin.data?.moduleIds).toContain("calculators");
-		expect(admin.data?.moduleIds).toHaveLength(10);
+		expect(admin.data?.moduleIds).toHaveLength(4);
 		expect(member.data?.user.id).toBe(person.id);
-		expect(member.data?.moduleIds).toEqual(["inbox"]);
+		expect(member.data?.moduleIds).toEqual(["funds"]);
 		expect(anonymous.status).toBe(401);
 		expect(allowed.status).toBe(200);
 		expect(denied.status).toBe(403);
@@ -166,13 +167,15 @@ describe("统一工作台权限", () => {
 		);
 	});
 
-	test("管理员拥有全部功能，普通人员默认拒绝越权，未知功能也拒绝", async () => {
+	test("管理员拥有全部功能，普通人员默认拒绝越权，未知与停用功能也拒绝", async () => {
 		expect((await api.api.access.get()).status).toBe(401);
 		expect((await api.api.admin.users.get()).status).toBe(401);
 		const admin = await api.api.access.get(adminHeaders());
+		expect(admin.data?.moduleIds).toContain("funds");
+		expect(admin.data?.moduleIds).toContain("documents");
 		expect(admin.data?.moduleIds).toContain("inquiries");
 		expect(admin.data?.moduleIds).toContain("calculators");
-		expect(admin.data?.moduleIds).toHaveLength(10);
+		expect(admin.data?.moduleIds).toHaveLength(4);
 		expect(admin.data).not.toHaveProperty("sessionId");
 		const { cookie } = await createPerson();
 		const memberAccess = await api.api.access.get({ headers: { cookie } });
@@ -196,20 +199,24 @@ describe("统一工作台权限", () => {
 		).toBe(403);
 		expect(
 			(await api.api.access.get({ headers: { cookie } })).data?.moduleIds,
-		).toEqual(["inbox"]);
+		).toEqual(["funds"]);
 		expect(
 			(
 				await api.api.access
-					.modules({ moduleId: "inbox" })
+					.modules({ moduleId: "funds" })
 					.get({ headers: { cookie } })
 			).status,
 		).toBe(200);
 		expect(
 			(
 				await api.api.access
-					.modules({ moduleId: "reports" })
+					.modules({ moduleId: "documents" })
 					.get({ headers: { cookie } })
 			).status,
+		).toBe(403);
+		expect(
+			(await api.api.access.modules({ moduleId: "inbox" }).get(adminHeaders()))
+				.status,
 		).toBe(403);
 		expect(
 			(
@@ -295,7 +302,7 @@ describe("统一工作台权限", () => {
 		expect(
 			(
 				await api.api.access
-					.modules({ moduleId: "inbox" })
+					.modules({ moduleId: "funds" })
 					.get({ headers: { cookie } })
 			).status,
 		).toBe(403);
@@ -307,13 +314,13 @@ describe("统一工作台权限", () => {
 				name: person.name,
 				role: "user",
 				disabled: false,
-				moduleIds: ["inbox"],
+				moduleIds: ["funds"],
 			},
 			adminHeaders(),
 		);
 		expect(
 			(await api.api.access.get({ headers: { cookie } })).data?.moduleIds,
-		).toEqual(["inbox"]);
+		).toEqual(["funds"]);
 		expect(await database.db.select().from(userModuleAccess)).toHaveLength(1);
 	});
 
@@ -323,7 +330,7 @@ describe("统一工作台权限", () => {
 			name: person.name,
 			role: "user" as const,
 			disabled: true,
-			moduleIds: ["inbox" as const],
+			moduleIds: ["funds" as const],
 		};
 		expect(
 			(
@@ -481,7 +488,7 @@ describe("统一工作台权限", () => {
 				name: "回滚",
 				password,
 				role: "user",
-				moduleIds: ["inbox"],
+				moduleIds: ["funds"],
 			},
 			adminHeaders(),
 		);

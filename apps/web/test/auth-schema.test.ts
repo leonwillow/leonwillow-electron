@@ -83,7 +83,7 @@ describe("账号密码表单", () => {
 				...values,
 				username: "leon_01",
 				name: " 人员 ",
-				moduleIds: ["inbox"],
+				moduleIds: ["funds"],
 			}).password,
 		).toBe(values.password);
 	});

@@ -1,7 +1,7 @@
 /**
  * @file 主题偏好到根元素样式的应用边界。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-17
+ * 修改时间：2026-11-20
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：main.tsx、components/layout/theme-effects.tsx。
  * 调用：configs/fonts、configs/theme-settings、configs/theme-variables、lib/custom-themes、types/theme、utils/theme/shadows。
@@ -38,6 +38,7 @@ export function applyTheme(
 	const root = document.documentElement;
 	for (const key of [...EDITABLE_STYLE_KEYS, ...SHADOW_VARS, "spacing"])
 		root.style.removeProperty(`--${key}`);
+	for (const key of SHADOW_VARS) root.style.removeProperty(`--ui-${key}`);
 	const draft = preview ?? getPreset(preferences);
 	const styles: Partial<ThemeStyleProps> | undefined = draft?.styles[mode];
 	if (styles) {
@@ -45,13 +46,13 @@ export function applyTheme(
 			if (value !== undefined && key !== "radius" && key !== "spacing")
 				root.style.setProperty(`--${key}`, value);
 		}
-		// 自定义主题使用可编辑的阴影参数；内置主题保留自身的阴影样式。
+		// 自定义主题使用可编辑的阴影参数；写入 --ui-shadow-* 同步驱动 Tailwind 浮层与手写样式。
 		if (
 			(preview || isCustomThemeId(preferences.settings.themePreset)) &&
 			hasCustomShadow(styles)
 		) {
 			for (const [key, value] of Object.entries(getShadowMap(styles)))
-				root.style.setProperty(`--${key}`, value);
+				root.style.setProperty(`--ui-${key}`, value);
 		}
 	}
 	const settings = preferences.settings;

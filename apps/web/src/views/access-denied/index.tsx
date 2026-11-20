@@ -1,17 +1,18 @@
 /**
  * @file 功能访问被拒绝时的说明视图。
  * 创建时间：2026-10-04
- * 修改时间：2026-11-19
+ * 修改时间：2026-11-20
  * 版本作用：工作台权限空状态。
  * 被调用：access-denied 路由。
- * 调用：共享 Button、Router、功能目录。
- * 功能：提示联系管理员并提供刷新授权和可用入口。
- * 预期结果：首次未授权和权限撤销都有清晰、可操作的反馈。
+ * 调用：共享 Button、Router、功能目录、权限缓存清理。
+ * 功能：提示联系管理员并提供实时刷新授权和可用入口。
+ * 预期结果：首次未授权和权限撤销都有清晰、可操作的反馈，刷新不被短时缓存阻挡。
  */
 import { firstAccessiblePath } from "@leonwillow-electron/access";
 import { Button } from "@leonwillow-electron/ui/components/button";
 import { getRouteApi, useRouter } from "@tanstack/react-router";
 import { ShieldOffIcon } from "lucide-react";
+import { clearAccessCache } from "@/lib/access";
 
 export default function AccessDeniedView() {
 	const { user, moduleIds } = getRouteApi("/_workspace").useRouteContext();
@@ -30,7 +31,12 @@ export default function AccessDeniedView() {
 				请联系管理员调整你的功能权限。权限分配后，刷新即可进入。
 			</p>
 			<div className="flex flex-wrap justify-center gap-2">
-				<Button onClick={() => router.navigate({ to: "/", replace: true })}>
+				<Button
+					onClick={() => {
+						clearAccessCache();
+						void router.navigate({ to: "/", replace: true });
+					}}
+				>
 					刷新权限
 				</Button>
 				{home !== "/access-denied" && (

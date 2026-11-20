@@ -153,18 +153,14 @@ export default function ThemeCustomizerPanel({
 							>
 								<CircleQuestionMarkIcon />
 							</TooltipTrigger>
-							<TooltipContent side="bottom" className="max-w-62">
+							<TooltipContent
+								side="bottom"
+								className="max-w-62 leading-relaxed"
+							>
 								<p>
-									查看
-									<a
-										href="https://shadcnstudio.com/docs/documentation-admin/customization#theme-config"
-										target="_blank"
-										className="inline font-medium underline"
-										rel="noopener"
-									>
-										主题文档
-									</a>{" "}
-									了解详细的主题设置说明。
+									按 D
+									键快速切换明暗模式；点击「设置」进入完整主题编辑器，支持自定义调色及导入导出
+									CSS 变量。
 								</p>
 							</TooltipContent>
 						</Tooltip>

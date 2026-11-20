@@ -1,7 +1,7 @@
 /**
  * @file 命令搜索与页面快捷跳转的按需弹窗主体。
  * 创建时间：2026-11-18
- * 修改时间：2026-11-18
+ * 修改时间：2026-11-20
  * 版本作用：将 cmdk 搜索组件与导航词条数据从工作台首屏包拆出，打开时按需加载。
  * 被调用：components/layout/command-menu.tsx。
  * 调用：ui Command 组件、@leonwillow-electron/access、@tanstack/react-router、assets/data/search。
@@ -21,7 +21,13 @@ import {
 } from "@leonwillow-electron/ui/components/command";
 import { getRouteApi, useNavigate, useSearch } from "@tanstack/react-router";
 import { Fragment, useCallback, useState } from "react";
-import { searchData } from "@/assets/data/search";
+import { type SearchItem, searchData } from "@/assets/data/search";
+
+function itemKey(item: SearchItem) {
+	return item.search
+		? `${item.href}?${new URLSearchParams(item.search).toString()}`
+		: item.href;
+}
 
 export default function CommandMenuDialog({
 	open,
@@ -34,8 +40,10 @@ export default function CommandMenuDialog({
 	const groups = searchData
 		.map((group) => ({
 			...group,
-			data: group.data.filter((item) =>
-				canAccessPath({ role: user.role, moduleIds }, item.href),
+			data: group.data.filter(
+				(item) =>
+					(!item.adminOnly || user.role === "admin") &&
+					canAccessPath({ role: user.role, moduleIds }, item.href),
 			),
 		}))
 		.filter((group) => group.data.length);
@@ -50,6 +58,22 @@ export default function CommandMenuDialog({
 			command();
 		},
 		[onOpenChange],
+	);
+
+	const navigateToItem = useCallback(
+		(item: SearchItem) => {
+			const nextSearch =
+				item.href === "/funds" || item.href === "/funds/cases"
+					? { caseId }
+					: item.search;
+			runCommand(() =>
+				navigate({
+					to: item.href,
+					search: nextSearch as never,
+				}),
+			);
+		},
+		[caseId, navigate, runCommand],
 	);
 
 	return (
@@ -95,21 +119,10 @@ export default function CommandMenuDialog({
 								<CommandGroup heading={searchGroup.title}>
 									{searchGroup.data.map((item) => (
 										<CommandItem
-											key={item.href}
+											key={itemKey(item)}
 											value={item.name}
 											keywords={item.tags}
-											onSelect={() =>
-												runCommand(() =>
-													navigate({
-														to: item.href,
-														search:
-															item.href === "/funds" ||
-															item.href === "/funds/cases"
-																? { caseId }
-																: undefined,
-													}),
-												)
-											}
+											onSelect={() => navigateToItem(item)}
 										>
 											<item.icon />
 											<span>{item.name}</span>
@@ -126,19 +139,8 @@ export default function CommandMenuDialog({
 								.slice(0, 4)
 								.map((item) => (
 									<CommandItem
-										key={item.href}
-										onSelect={() =>
-											runCommand(() =>
-												navigate({
-													to: item.href,
-													search:
-														item.href === "/funds" ||
-														item.href === "/funds/cases"
-															? { caseId }
-															: undefined,
-												}),
-											)
-										}
+										key={itemKey(item)}
+										onSelect={() => navigateToItem(item)}
 									>
 										<item.icon />
 										<span>{item.name}</span>

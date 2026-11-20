@@ -1,7 +1,7 @@
 /**
  * @file 主题库与 CSS 往返的回归测试。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-06
+ * 修改时间：2026-11-20
  * 版本作用：当前行为的回归约束，不进入产品构建。
  * 被调用：Bun 测试命令。
  * 调用：bun:test、chroma-js、../src/configs/theme-settings、../src/lib/custom-themes、../src/lib/theme-settings、../src/types/theme、../src/utils/theme/color-converter、../src/utils/theme/css-import、../src/utils/theme/parse-css-input、../src/utils/theme/shadows、../src/utils/theme/theme-style-generator。
@@ -234,6 +234,17 @@ test("CSS 导出可重新导入颜色、透明度、阴影参数及项目字体/
 	expect(Object.values(getShadowMap(styled.styles.light)).join()).not.toContain(
 		"/ 1.75)",
 	);
+	const hexShadows = getShadowMap(
+		{
+			"shadow-color": "#000000",
+			"shadow-opacity": "0.2",
+			"shadow-blur": "4px",
+		},
+		"hex",
+	);
+	expect(hexShadows["shadow-sm"]).toContain("#00000033");
+	expect(hexShadows["shadow-2xs"]).toContain("#0000001a");
+	expect(hexShadows["shadow-2xl"]).toContain("16px 24px");
 });
 
 test("标记删除主题不占名称，历史超过百条仍保留且不能被旧选择重新激活", () => {

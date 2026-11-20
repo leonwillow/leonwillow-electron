@@ -1,7 +1,7 @@
 /**
  * @file 身份和状态标记组件。
  * 创建时间：2026-10-04
- * 修改时间：2026-11-06
+ * 修改时间：2026-11-20
  * 版本作用：从原模板迁入共享 UI。
  * 被调用：Web 人员管理页面、资金节点预览与详情。
  * 调用：React、共享样式工具。
@@ -19,6 +19,7 @@ const badgeVariants = cva(
 		variants: {
 			variant: {
 				default: "bg-primary text-primary-foreground [a]:hover:bg-primary/80",
+				info: "bg-info/10 text-info-foreground [a]:hover:bg-info/20",
 				success:
 					"bg-success/10 text-success-foreground [a]:hover:bg-success/20",
 				warning:
@@ -26,7 +27,7 @@ const badgeVariants = cva(
 				secondary:
 					"bg-secondary text-secondary-foreground [a]:hover:bg-secondary/80",
 				destructive:
-					"bg-destructive/10 text-destructive focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:focus-visible:ring-destructive/40 [a]:hover:bg-destructive/20",
+					"bg-destructive/10 text-destructive-foreground focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:focus-visible:ring-destructive/40 [a]:hover:bg-destructive/20",
 				outline:
 					"border-border bg-input/20 text-foreground dark:bg-input/30 [a]:hover:bg-muted [a]:hover:text-muted-foreground",
 				ghost:

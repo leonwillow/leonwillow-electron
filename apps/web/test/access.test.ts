@@ -33,9 +33,9 @@ test("所有现有导航与搜索目标都显式登记访问规则", () => {
 		expect(routeRequirement(path)).not.toBeNull();
 });
 
-test("案件管理和资金分析共享资金调查授权，未授权与相似子路径仍拒绝", () => {
+test("案件管理和资金分析共享资金分析授权，未授权与相似子路径仍拒绝", () => {
 	const allowed = { role: "user" as const, moduleIds: ["funds"] };
-	const denied = { role: "user" as const, moduleIds: ["inbox"] };
+	const denied = { role: "user" as const, moduleIds: ["documents"] };
 	for (const path of ["/funds", "/funds/cases", "/funds/cases/"]) {
 		expect(canAccessPath(allowed, path)).toBe(true);
 		expect(canAccessPath(denied, path)).toBe(false);
@@ -46,17 +46,34 @@ test("案件管理和资金分析共享资金调查授权，未授权与相似�
 	}
 });
 
-test("未授权人员只能访问个人设置与权限说明，不会默认进入收件箱", () => {
+test("未授权人员只能访问个人设置与权限说明，未启用模板模块全员拒绝", () => {
 	const identity = { role: "user" as const, moduleIds: [] };
+	const admin = { role: "admin" as const, moduleIds: [] };
 	expect(firstAccessiblePath(identity)).toBe("/access-denied");
 	for (const path of [
 		"/inbox",
+		"/tickets",
+		"/contacts",
+		"/knowledge-base",
+		"/knowledge-base/collections",
+		"/ai-agent",
+		"/reports",
 		"/admin/users",
 		"/settings/teammates",
 		"/settings/security",
-		"/knowledge-base/collections",
 	])
 		expect(canAccessPath(identity, path)).toBe(false);
+	for (const path of [
+		"/inbox",
+		"/tickets",
+		"/contacts",
+		"/knowledge-base",
+		"/knowledge-base/collections",
+		"/ai-agent",
+		"/reports",
+		"/settings/security",
+	])
+		expect(canAccessPath(admin, path)).toBe(false);
 	for (const path of [
 		"/",
 		"/access-denied",
@@ -69,19 +86,23 @@ test("未授权人员只能访问个人设置与权限说明，不会默认进�
 test("按功能选择首个入口，授权覆盖已登记子页但不自动开放相似或未知地址", () => {
 	const identity = {
 		role: "user" as const,
-		moduleIds: ["knowledge-base", "reports"],
+		moduleIds: ["documents", "calculators"],
 	};
-	expect(firstAccessiblePath(identity)).toBe("/knowledge-base");
-	expect(canAccessPath(identity, "/knowledge-base/collections/")).toBe(true);
+	expect(firstAccessiblePath(identity)).toBe("/documents");
+	expect(canAccessPath(identity, "/calculators/late-fees/")).toBe(true);
 	for (const path of [
-		"/knowledge-base-secret",
-		"/knowledge-base/unknown",
+		"/documents-secret",
+		"/documents/unknown",
 		"/admin/users",
 		"/settings/teammates",
+		"/inquiries",
 		"/inbox",
 	])
 		expect(canAccessPath(identity, path)).toBe(false);
 	expect(canAccessModule({ role: "admin", moduleIds: [] }, "unknown")).toBe(
+		false,
+	);
+	expect(canAccessModule({ role: "admin", moduleIds: [] }, "inbox")).toBe(
 		false,
 	);
 	expect(

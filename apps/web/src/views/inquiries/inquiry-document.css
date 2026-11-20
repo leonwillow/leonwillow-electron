@@ -1,7 +1,7 @@
 /**
  * @file 笔录工作区分栏尺寸、问答重排动效与 A4 仿宋文书物理排版样式。
  * 创建时间：2026-11-18
- * 修改时间：2026-11-18
+ * 修改时间：2026-11-20
  * 版本作用：随笔录视图按需加载，将 3.8MB 仿宋字体与物理打印规则限定在笔录模块。
  * 被调用：apps/web/src/views/inquiries/index.tsx。
  * 调用：apps/web/src/assets/fonts/inquiry-fangsong.ttf、共享语义令牌。
@@ -224,6 +224,13 @@
 .inquiry-document-focus-target:focus-visible {
 	outline: 1px solid var(--primary);
 	outline-offset: 1px;
+}
+.inquiry-document-focus-target:focus-visible {
+	outline-width: 2px;
+}
+.dark .inquiry-document-focus-target:is(:hover, :focus-visible) {
+	/* 纸张在深色模式下恒为纯白，混入深色确保轮廓对比度 ≥ 3:1。 */
+	outline-color: color-mix(in oklch, var(--primary) 52%, #000);
 }
 .inquiry-document-signature-footer {
 	position: absolute;

@@ -1,7 +1,7 @@
 /**
  * @file 当前模式的阴影参数编辑区域。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-11-20
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/theme-editor/theme-control-panel.tsx。
  * 调用：ui 基础组件/样式、./slider-with-input、./theme-color-panel。
@@ -51,6 +51,7 @@ const ShadowControl = (props: ShadowControlProps) => {
 						<div>
 							<ColorSwatch
 								value={shadowColor}
+								alpha={false}
 								onChange={(color) => onChange("shadow-color", color)}
 								label="阴影颜色"
 								onValidityChange={(valid) =>

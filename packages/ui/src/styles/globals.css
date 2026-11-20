@@ -1,7 +1,7 @@
 /**
  * @file 全局语义令牌、排版缩放与基础 UI 组件共享样式。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-19
+ * 修改时间：2026-11-20
  * 版本作用：共享 UI 基础层唯一全局样式入口，禁止塞入具体业务模块样式。
  * 被调用：apps/web/src/main.tsx。
  * 调用：tailwindcss、tw-animate-css、shadcn、./tokens.css。
@@ -151,6 +151,13 @@
 	--radius-2xl: calc(var(--radius) * 1.8);
 	--radius-3xl: calc(var(--radius) * 2.2);
 	--radius-4xl: calc(var(--radius) * 2.6);
+	--shadow-2xs: var(--ui-shadow-2xs);
+	--shadow-xs: var(--ui-shadow-xs);
+	--shadow-sm: var(--ui-shadow-sm);
+	--shadow-md: var(--ui-shadow-md);
+	--shadow-lg: var(--ui-shadow-lg);
+	--shadow-xl: var(--ui-shadow-xl);
+	--shadow-2xl: var(--ui-shadow-2xl);
 }
 
 /* 统一 rem 缩放：覆盖所有字号、间距、图标、控件和圆角，禁止逐个改 --text-*。 */

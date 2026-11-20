@@ -1,7 +1,7 @@
 /**
  * @file 工作台路由、视图面板与二级菜单共用的异步加载及错误重试展示组件。
  * 创建时间：2026-11-18
- * 修改时间：2026-11-19
+ * 修改时间：2026-11-20
  * 版本作用：统一各处分散的 route-states、InquiryState、工作区空白引导及二级菜单加载/错误状态样板。
  * 被调用：admin.users 路由、各业务工作区视图及二级菜单。
  * 调用：ui Button、@tanstack/react-router。
@@ -11,6 +11,7 @@
 import { Button } from "@leonwillow-electron/ui/components/button";
 import { cn } from "@leonwillow-electron/ui/lib/utils";
 import { useRouter } from "@tanstack/react-router";
+import { CompassIcon } from "lucide-react";
 import type { ComponentType, ReactNode } from "react";
 
 /** 面板或二级菜单内联使用的加载与错误重试块；正常且非加载态时返回 null。 */
@@ -134,5 +135,26 @@ export function WorkspaceEmptyState({
 			) : null}
 			{footer}
 		</div>
+	);
+}
+
+/** 未匹配任何路由时的全局 404 兜底视图。 */
+export function WorkspaceNotFound() {
+	const router = useRouter();
+	return (
+		<main className="flex min-h-dvh w-full flex-col">
+			<WorkspaceEmptyState
+				icon={CompassIcon}
+				title="页面不存在"
+				description="你访问的地址无效或已被移除。"
+				actions={
+					<Button
+						onClick={() => void router.navigate({ to: "/", replace: true })}
+					>
+						返回工作台
+					</Button>
+				}
+			/>
+		</main>
 	);
 }

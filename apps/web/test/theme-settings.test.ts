@@ -1,7 +1,7 @@
 /**
  * @file 主题偏好存储版本的回归测试。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-19
+ * 修改时间：2026-11-20
  * 版本作用：当前行为的回归约束，不进入产品构建。
  * 被调用：Bun 测试命令。
  * 调用：bun:test、主题预设与默认设置、主题编解码与 DOM 应用入口。
@@ -19,6 +19,12 @@ import {
 	normalizeSettings,
 } from "../src/lib/theme-settings";
 import type { ThemePreferences } from "../src/types/theme";
+import { parseCssInput } from "../src/utils/theme/parse-css-input";
+
+const defaultTokensCss = await Bun.file(
+	new URL("../../../packages/ui/src/styles/tokens.css", import.meta.url),
+).text();
+const defaultTokens = parseCssInput(defaultTokensCss);
 
 test("旧版大档迁移为特大，保留其他偏好", () => {
 	expect(
@@ -125,7 +131,7 @@ test("已下线的旧内置预设安全回退到默认，保留其他外观偏�
 	}
 });
 
-test("所有内置预设的正文、按钮、语义状态色与微底色对比度及 sRGB 色域全部达标", () => {
+test("默认主题与所有内置预设的正文、按钮、语义状态色与微底色对比度及 sRGB 色域全部达标", () => {
 	const pairs: ReadonlyArray<[string, string, number]> = [
 		["foreground", "background", 7],
 		["card-foreground", "card", 7],
@@ -137,6 +143,8 @@ test("所有内置预设的正文、按钮、语义状态色与微底色对比�
 		["primary-foreground", "primary", 4.5],
 		["primary", "background", 4.5],
 		["primary", "card", 4.5],
+		["sidebar-primary", "sidebar", 4.5],
+		["sidebar-primary-foreground", "sidebar-primary", 4.5],
 		["secondary-foreground", "secondary", 4.5],
 		["accent-foreground", "accent", 4.5],
 		["sidebar-accent-foreground", "sidebar-accent", 4.5],
@@ -147,10 +155,52 @@ test("所有内置预设的正文、按钮、语义状态色与微底色对比�
 		["success-foreground", "card", 4.5],
 		["warning-foreground", "card", 4.5],
 	];
-	for (const [id, preset] of Object.entries(themePresets)) {
+	const allThemes: Array<
+		[
+			string,
+			{
+				styles: { light: Record<string, string>; dark: Record<string, string> };
+			},
+		]
+	> = [
+		[
+			"default",
+			{
+				styles: {
+					light: defaultTokens.lightColors as Record<string, string>,
+					dark: {
+						...defaultTokens.lightColors,
+						...defaultTokens.darkColors,
+					} as Record<string, string>,
+				},
+			},
+		],
+		...Object.entries(themePresets).map(
+			([id, preset]) =>
+				[
+					id,
+					{
+						styles: {
+							light: preset.styles.light as Record<string, string>,
+							dark: preset.styles.dark as Record<string, string>,
+						},
+					},
+				] as [
+					string,
+					{
+						styles: {
+							light: Record<string, string>;
+							dark: Record<string, string>;
+						};
+					},
+				],
+		),
+	];
+	for (const [id, preset] of allThemes) {
 		for (const mode of ["light", "dark"] as const) {
-			const styles = preset.styles[mode] as Record<string, string>;
+			const styles = preset.styles[mode];
 			for (const [key, value] of Object.entries(styles)) {
+				if (key === "radius" || key === "font-sans") continue;
 				expect(chroma(value).clipped(), `${id}.${mode}.${key} 越出 sRGB`).toBe(
 					false,
 				);
@@ -161,12 +211,17 @@ test("所有内置预设的正文、按钮、语义状态色与微底色对比�
 					`${id}.${mode}: ${fg} on ${bg}`,
 				).toBeGreaterThanOrEqual(minContrast);
 			}
-			for (const [fgKey, tintKey, alpha] of [
-				["info-foreground", "info", 0.1],
-				["success-foreground", "success", 0.1],
-				["warning-foreground", "warning", 0.1],
-				["destructive", "destructive", mode === "dark" ? 0.2 : 0.1],
-				["primary", "primary", 0.1],
+			for (const [fgKey, tintKey, alpha, minContrast] of [
+				["info-foreground", "info", 0.1, 4.5],
+				["success-foreground", "success", 0.1, 4.5],
+				["warning-foreground", "warning", 0.1, 4.5],
+				[
+					"destructive-foreground",
+					"destructive",
+					mode === "dark" ? 0.2 : 0.1,
+					4.5,
+				],
+				["primary", "primary", 0.1, 4.2],
 			] as const) {
 				const surface = chroma
 					.mix(styles.card ?? "", styles[tintKey] ?? "", alpha, "rgb")
@@ -174,7 +229,7 @@ test("所有内置预设的正文、按钮、语义状态色与微底色对比�
 				expect(
 					chroma.contrast(styles[fgKey] ?? "", surface),
 					`${id}.${mode}: ${fgKey} on ${tintKey}/${alpha * 100}%`,
-				).toBeGreaterThanOrEqual(4.2);
+				).toBeGreaterThanOrEqual(minContrast);
 			}
 		}
 	}
@@ -303,15 +358,20 @@ test("DOM 按模式应用线条覆盖而不替换主题语义色，跟随主题�
 				label: "临时预览",
 				font: "inter",
 				radius: "lg",
-				styles: { light: {}, dark: { border: "#445566" } },
+				styles: {
+					light: {},
+					dark: { border: "#445566", "shadow-blur": "12px" },
+				},
 			},
 		);
 		expect(variables.get("--ui-line-color")).toBe("#112233");
 		expect(variables.get("--border")).toBe("#445566");
+		expect(variables.get("--ui-shadow-md")).toContain("12px");
 
 		applyTheme({ settings: { ...initialSettings }, customThemes: [] }, "light");
 		expect(variables.get("--ui-border-width")).toBe("1px");
 		expect(variables.has("--ui-line-color")).toBe(false);
+		expect(variables.has("--ui-shadow-md")).toBe(false);
 		expect(variables.has("--info")).toBe(false);
 		expect(variables.has("--success")).toBe(false);
 		expect(variables.has("--warning")).toBe(false);

@@ -1,17 +1,17 @@
 /**
- * @file 默认明暗主题语义色板令牌。
+ * @file 默认明暗主题语义色板与动态阴影基础令牌。
  * 创建时间：2026-11-18
- * 修改时间：2026-11-18
- * 版本作用：共享 UI 基础层默认色值的单一来源，供 globals.css 与主题编辑器草稿读取。
- * 被调用：packages/ui/src/styles/globals.css、apps/web/src/utils/theme/theme-draft.ts、apps/web/test/custom-themes.test.ts。
+ * 修改时间：2026-11-20
+ * 版本作用：共享 UI 基础层默认色值与明暗阴影的单一来源，供 globals.css 与主题编辑器草稿读取。
+ * 被调用：packages/ui/src/styles/globals.css、apps/web/src/utils/theme/theme-draft.ts、apps/web/test/custom-themes.test.ts、apps/web/test/theme-settings.test.ts。
  * 调用：无模块依赖。
- * 功能：声明 ReUI Neutral 默认浅色和深色 OKLCH 语义令牌。
- * 预期结果：主题草稿只需解析此轻量色板文件，无需将全站样式打包进脚本。
+ * 功能：声明 ReUI Neutral 默认浅色和深色 OKLCH 语义令牌及全站动态阴影令牌。
+ * 预期结果：浅深默认主题对比度达标，Tailwind 与手写 CSS 共用同一套动态阴影管线。
  */
 :root {
-	/* ReUI 扩展色使用其 Tailwind 色值；显式值也供主题编辑器读取。 */
-	--info: oklch(0.606 0.25 292.717);
-	--info-foreground: oklch(0.38 0.189 293.745);
+	/* 信息蓝与其余 14 套预设保持一致，避免深色紫色低对比与语义漂移。 */
+	--info: oklch(0.58 0.17 248);
+	--info-foreground: oklch(0.41 0.14 248);
 	--success: oklch(0.696 0.17 162.48);
 	--success-foreground: oklch(0.378 0.077 168.94);
 	--warning: oklch(0.795 0.184 86.047);
@@ -32,18 +32,18 @@
 	--secondary: oklch(0.97 0 0);
 	--secondary-foreground: oklch(0.205 0 0);
 	--muted: oklch(0.97 0 0);
-	--muted-foreground: oklch(0.556 0 0);
+	--muted-foreground: oklch(0.51 0 0);
 	--accent: oklch(0.97 0 0);
 	--accent-foreground: oklch(0.205 0 0);
 	--destructive: oklch(0.577 0.245 27.325);
 	--border: oklch(0.922 0 0);
 	--input: oklch(0.922 0 0);
 	--ring: oklch(0.708 0 0);
-	--chart-1: oklch(0.87 0 0);
-	--chart-2: oklch(0.556 0 0);
-	--chart-3: oklch(0.439 0 0);
-	--chart-4: oklch(0.371 0 0);
-	--chart-5: oklch(0.269 0 0);
+	--chart-1: oklch(0.65 0 0);
+	--chart-2: oklch(0.55 0 0);
+	--chart-3: oklch(0.45 0 0);
+	--chart-4: oklch(0.36 0 0);
+	--chart-5: oklch(0.26 0 0);
 	--radius: 0.625rem;
 	--sidebar: oklch(0.985 0 0);
 	--sidebar-foreground: oklch(0.145 0 0);
@@ -55,14 +55,39 @@
 	--sidebar-ring: oklch(0.708 0 0);
 	--background: oklch(1 0 0);
 	--foreground: oklch(0.145 0 0);
+	/* 动态阴影基础令牌；自定义主题写入 --ui-shadow-* 即可同步更新 Tailwind 浮层与手写样式。 */
+	--ui-shadow-2xs: 0 1px 0 0 oklch(0 0 0 / 0.05);
+	--ui-shadow-xs: 0 1px 2px 0 oklch(0 0 0 / 0.05);
+	--ui-shadow-sm:
+		0 1px 3px 0 oklch(0 0 0 / 0.1), 0 1px 2px -1px oklch(0 0 0 / 0.1);
+	--ui-shadow:
+		0 1px 3px 0 oklch(0 0 0 / 0.1), 0 1px 2px -1px oklch(0 0 0 / 0.1);
+	--ui-shadow-md:
+		0 4px 6px -1px oklch(0 0 0 / 0.1), 0 2px 4px -2px oklch(0 0 0 / 0.1);
+	--ui-shadow-lg:
+		0 10px 15px -3px oklch(0 0 0 / 0.1), 0 4px 6px -4px oklch(0 0 0 / 0.1);
+	--ui-shadow-xl:
+		0 20px 25px -5px oklch(0 0 0 / 0.1), 0 8px 10px -6px oklch(0 0 0 / 0.1);
+	--ui-shadow-2xl: 0 25px 50px -12px oklch(0 0 0 / 0.25);
+	--shadow-2xs: var(--ui-shadow-2xs);
+	--shadow-xs: var(--ui-shadow-xs);
+	--shadow-sm: var(--ui-shadow-sm);
+	--shadow: var(--ui-shadow);
+	--shadow-md: var(--ui-shadow-md);
+	--shadow-lg: var(--ui-shadow-lg);
+	--shadow-xl: var(--ui-shadow-xl);
+	--shadow-2xl: var(--ui-shadow-2xl);
 }
 
 .dark {
-	--info-foreground: oklch(0.541 0.281 293.009);
-	--success-foreground: oklch(0.596 0.145 163.225);
-	--warning-foreground: oklch(0.681 0.162 75.834);
+	--info: oklch(0.72 0.14 245);
+	--info-foreground: oklch(0.82 0.115 245);
+	--success: oklch(0.74 0.15 162.48);
+	--success-foreground: oklch(0.81 0.13 162);
+	--warning: oklch(0.82 0.15 84);
+	--warning-foreground: oklch(0.85 0.13 82);
 	--invert: oklch(0.37 0.013 285.805);
-	--destructive-foreground: oklch(0.577 0.245 27.325);
+	--destructive-foreground: oklch(0.81 0.145 24);
 	--background: oklch(0.145 0 0);
 	--foreground: oklch(0.985 0 0);
 	--card: oklch(0.205 0 0);
@@ -81,17 +106,31 @@
 	--border: oklch(1 0 0 / 10%);
 	--input: oklch(1 0 0 / 15%);
 	--ring: oklch(0.556 0 0);
-	--chart-1: oklch(0.87 0 0);
-	--chart-2: oklch(0.556 0 0);
-	--chart-3: oklch(0.439 0 0);
-	--chart-4: oklch(0.371 0 0);
-	--chart-5: oklch(0.269 0 0);
+	--chart-1: oklch(0.88 0 0);
+	--chart-2: oklch(0.78 0 0);
+	--chart-3: oklch(0.69 0 0);
+	--chart-4: oklch(0.6 0 0);
+	--chart-5: oklch(0.51 0 0);
 	--sidebar: oklch(0.205 0 0);
 	--sidebar-foreground: oklch(0.985 0 0);
-	--sidebar-primary: oklch(0.488 0.243 264.376);
-	--sidebar-primary-foreground: oklch(0.985 0 0);
+	--sidebar-primary: oklch(0.922 0 0);
+	--sidebar-primary-foreground: oklch(0.205 0 0);
 	--sidebar-accent: oklch(0.269 0 0);
 	--sidebar-accent-foreground: oklch(0.985 0 0);
 	--sidebar-border: oklch(1 0 0 / 10%);
 	--sidebar-ring: oklch(0.556 0 0);
+	/* 深色表面提高阴影不透明度，保持弹层、菜单与卡片的纵深层次。 */
+	--ui-shadow-2xs: 0 1px 0 0 oklch(0 0 0 / 0.28);
+	--ui-shadow-xs: 0 1px 2px 0 oklch(0 0 0 / 0.32);
+	--ui-shadow-sm:
+		0 1px 3px 0 oklch(0 0 0 / 0.4), 0 1px 2px -1px oklch(0 0 0 / 0.36);
+	--ui-shadow:
+		0 1px 3px 0 oklch(0 0 0 / 0.4), 0 1px 2px -1px oklch(0 0 0 / 0.36);
+	--ui-shadow-md:
+		0 4px 6px -1px oklch(0 0 0 / 0.44), 0 2px 4px -2px oklch(0 0 0 / 0.38);
+	--ui-shadow-lg:
+		0 10px 15px -3px oklch(0 0 0 / 0.48), 0 4px 6px -4px oklch(0 0 0 / 0.4);
+	--ui-shadow-xl:
+		0 20px 25px -5px oklch(0 0 0 / 0.54), 0 8px 10px -6px oklch(0 0 0 / 0.44);
+	--ui-shadow-2xl: 0 25px 50px -12px oklch(0 0 0 / 0.65);
 }

@@ -1,7 +1,7 @@
 /**
  * @file 随主题变化的全局通知容器的基础组件。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-17
+ * 修改时间：2026-11-20
  * 版本作用：普通边线跟随全局设置，成功、错误、警告和信息保留语义配色。
  * 被调用：components/layout/root-layout.tsx。
  * 调用：next-themes、sonner。
@@ -33,7 +33,7 @@ const Toaster = ({ toastOptions, ...props }: ToasterProps) => {
 						"color-mix(in oklab, var(--success) 25%, var(--border))",
 					"--error-bg":
 						"color-mix(in oklab, var(--destructive) 4%, var(--popover))",
-					"--error-text": "var(--destructive)",
+					"--error-text": "var(--destructive-foreground)",
 					"--error-border":
 						"color-mix(in oklab, var(--destructive) 30%, var(--border))",
 					"--warning-bg":

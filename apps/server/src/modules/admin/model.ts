@@ -1,19 +1,19 @@
 /**
  * @file 人员管理的请求模型。
  * 创建时间：2026-10-04
- * 修改时间：2026-10-04
+ * 修改时间：2026-11-20
  * 版本作用：账号创建、资料授权更新和密码重置契约。
  * 被调用：admin 路由和服务，Eden 推导前端类型。
  * 调用：Elysia、共享功能目录。
- * 功能：限制可写字段、角色、账号格式和已登记功能。
- * 预期结果：客户端无法通过额外字段写入认证凭据或任意角色。
+ * 功能：限制可写字段、角色、账号格式和已启用功能。
+ * 预期结果：客户端无法通过额外字段写入认证凭据、任意角色或未启用模块。
  */
-import { type ModuleId, modules } from "@leonwillow-electron/access";
+import { enabledModules, type ModuleId } from "@leonwillow-electron/access";
 import { t } from "elysia";
 
-// TypeBox 的 Union 需要非空元组才能保留静态类型；目录已固定为非空。
+// TypeBox 的 Union 需要非空元组才能保留静态类型；已启用目录已固定为非空。
 const moduleSchema = t.Union(
-	modules.map((module) => t.Literal(module.id)) as [
+	enabledModules.map((module) => t.Literal(module.id)) as [
 		ReturnType<typeof t.Literal<ModuleId>>,
 		...ReturnType<typeof t.Literal<ModuleId>>[],
 	],
@@ -23,7 +23,7 @@ const profile = {
 	role: t.Union([t.Literal("admin"), t.Literal("user")]),
 	moduleIds: t.Array(moduleSchema, {
 		uniqueItems: true,
-		maxItems: modules.length,
+		maxItems: enabledModules.length,
 	}),
 };
 export const AdminModel = {

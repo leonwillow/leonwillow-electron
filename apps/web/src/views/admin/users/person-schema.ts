@@ -1,14 +1,14 @@
 /**
  * @file 人员管理表单的输入校验。
  * 创建时间：2026-10-04
- * 修改时间：2026-10-04
+ * 修改时间：2026-11-20
  * 版本作用：管理表单共用规则，密码保持原始输入。
  * 被调用：人员编辑弹窗和表单测试。
  * 调用：Zod、功能目录。
- * 功能：校验姓名、账号、角色、密码与授权选项。
- * 预期结果：创建要求密码，编辑资料不隐式修改密码。
+ * 功能：校验姓名、账号、角色、密码与已启用授权选项。
+ * 预期结果：创建要求密码，编辑资料不隐式修改密码，拒绝未启用模块。
  */
-import { modules } from "@leonwillow-electron/access";
+import { enabledModules } from "@leonwillow-electron/access";
 import { z } from "zod";
 
 export const managedPasswordSchema = z
@@ -35,6 +35,6 @@ export const personFormSchema = (editing: boolean) =>
 		password: editing ? z.string() : managedPasswordSchema,
 		role: z.enum(["user", "admin"]),
 		disabled: z.boolean(),
-		moduleIds: z.array(z.enum(modules.map((module) => module.id))),
+		moduleIds: z.array(z.enum(enabledModules.map((module) => module.id))),
 	});
 export type PersonFormValues = z.infer<ReturnType<typeof personFormSchema>>;
