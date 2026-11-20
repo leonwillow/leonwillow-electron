@@ -1,0 +1,94 @@
+# 文件意义：远程 Docker 后端整套服务编排（API、资金后台 Worker、Neo4j、RustFS，并接入既有 PostgreSQL）。
+# 创建时间：2026-11-20；修改时间：2026-11-20。
+# 说明：与远程 1Panel-postgresql-Hcex 共用 1panel-network，数据持久保存在独立命名卷中。
+
+name: leonwillow-aidesk
+
+services:
+  rustfs:
+    image: rustfs/rustfs:1.0.1
+    container_name: aidesk-rustfs
+    command: /data
+    environment:
+      RUSTFS_ACCESS_KEY: ${RUSTFS_ACCESS_KEY:-aidesk-funds}
+      RUSTFS_SECRET_KEY: ${RUSTFS_SECRET_KEY:?请在 .env.server 中配置 RUSTFS_SECRET_KEY}
+      RUSTFS_ADDRESS: ":9000"
+      RUSTFS_CONSOLE_ADDRESS: ":9001"
+      RUSTFS_CONSOLE_ENABLE: "true"
+    ports:
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - aidesk_rustfs_data:/data
+    networks:
+      - aidesk-backend
+    restart: unless-stopped
+
+  neo4j:
+    image: neo4j:2026.09.0
+    container_name: aidesk-neo4j
+    environment:
+      NEO4J_AUTH: ${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:?请在 .env.server 中配置 NEO4J_PASSWORD}
+      NEO4J_server_memory_heap_initial__size: 256m
+      NEO4J_server_memory_heap_max__size: 512m
+      NEO4J_server_memory_pagecache_size: 256m
+    volumes:
+      - aidesk_neo4j_data:/data
+    networks:
+      - aidesk-backend
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:7474 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+  server:
+    image: leonwillow-aidesk-server:latest
+    container_name: aidesk-server
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    env_file:
+      - ./.env.server
+    ports:
+      - "${SERVER_BIND_HOST:-0.0.0.0}:${PORT:-3000}:3000"
+    depends_on:
+      rustfs:
+        condition: service_started
+      neo4j:
+        condition: service_started
+    networks:
+      - aidesk-backend
+      - 1panel-network
+    restart: unless-stopped
+
+  funds-worker:
+    image: leonwillow-aidesk-server:latest
+    container_name: aidesk-funds-worker
+    command: ["bun", "run", "dist/funds-worker.mjs"]
+    env_file:
+      - ./.env.server
+    healthcheck:
+      disable: true
+    depends_on:
+      server:
+        condition: service_healthy
+      rustfs:
+        condition: service_started
+      neo4j:
+        condition: service_started
+    networks:
+      - aidesk-backend
+      - 1panel-network
+    restart: unless-stopped
+
+networks:
+  aidesk-backend:
+    driver: bridge
+  1panel-network:
+    external: true
+
+volumes:
+  aidesk_rustfs_data:
+  aidesk_neo4j_data:

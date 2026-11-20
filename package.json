@@ -30,6 +30,7 @@
 		"check-types": "turbo run check-types && tsc --noEmit -p tsconfig.json",
 		"dev:web": "turbo run dev -F web --",
 		"dev:server": "turbo run dev -F server --",
+		"deploy:server": "bash scripts/deploy-server.sh",
 		"db:push": "turbo run db:push -F @leonwillow-electron/db --",
 		"db:studio": "turbo run db:studio -F @leonwillow-electron/db --",
 		"db:generate": "turbo run db:generate -F @leonwillow-electron/db --",

@@ -15,6 +15,7 @@ local.db-*
 
 # Environment variables
 .env
+.env.server
 .env*.local
 
 # IDEs and editors
