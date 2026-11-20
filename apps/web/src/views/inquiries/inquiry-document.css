@@ -28,6 +28,7 @@
 	min-width: 0;
 	min-height: 0;
 	overflow: hidden;
+	background: color-mix(in oklab, var(--muted) 30%, transparent);
 }
 .inquiry-document-preview-content {
 	/* Base UI 默认 fit-content；覆盖其 min-width，禁止纸张反向撑大测量层。 */
@@ -125,6 +126,7 @@
 	width: 210mm;
 	height: 297mm;
 	overflow: clip;
+	border: var(--ui-border-width) solid var(--ui-line-color, var(--border));
 	box-shadow: var(--shadow-md);
 }
 .inquiry-document-page {
@@ -144,6 +146,7 @@
 	font-family: var(--inquiry-document-font);
 	font-size: 14pt;
 	font-weight: 400;
+	letter-spacing: normal;
 	line-height: 31.7pt;
 }
 .inquiry-document-page-header {
@@ -287,6 +290,7 @@
 	}
 	.inquiry-print-root .inquiry-document-page-frame {
 		overflow: visible;
+		border: 0;
 		box-shadow: none;
 		break-after: page;
 		page-break-after: always;

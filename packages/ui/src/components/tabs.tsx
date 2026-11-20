@@ -1,7 +1,7 @@
 /**
  * @file 选项卡列表及对应内容的基础组件。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-11-20
  * 版本作用：共享 UI 基础层，随工作区维护。
  * 被调用：components/theme-editor/theme-control-panel.tsx。
  * 调用：@base-ui/react、ui/lib/utils、class-variance-authority。
@@ -31,7 +31,7 @@ function Tabs({
 }
 
 const tabsListVariants = cva(
-	"group/tabs-list inline-flex w-fit items-center justify-center rounded-lg p-0.5 text-muted-foreground data-[variant=line]:rounded-none group-data-horizontal/tabs:h-8 group-data-vertical/tabs:h-fit group-data-vertical/tabs:flex-col",
+	"group/tabs-list inline-flex w-fit items-center justify-center rounded-lg p-0.5 text-muted-foreground data-[variant=line]:rounded-none group-data-horizontal/tabs:h-control-lg group-data-vertical/tabs:h-fit group-data-vertical/tabs:flex-col",
 	{
 		variants: {
 			variant: {

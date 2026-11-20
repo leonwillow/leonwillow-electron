@@ -1,7 +1,7 @@
 /**
  * @file 共享主题状态与浏览器显示之间的生命周期连接。
  * 创建时间：2026-10-04
- * 修改时间：2026-11-06
+ * 修改时间：2026-11-20
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/layout/root-layout.tsx。
  * 调用：react、next-themes、stores/theme-store、lib/theme-script、lib/theme-transition。
@@ -32,11 +32,16 @@ export default function ThemeEffects() {
 		setTheme(preferences.settings.mode);
 	}, [preferences.settings.mode, setTheme]);
 	useEffect(() => {
-		applyTheme(
-			preferences,
-			preview?.mode ?? (resolvedTheme === "dark" ? "dark" : "light"),
-			preview?.draft,
-		);
+		const activeMode =
+			preview?.mode ??
+			(resolvedTheme === "dark" || resolvedTheme === "light"
+				? resolvedTheme
+				: preferences.settings.mode === "dark" ||
+						(preferences.settings.mode === "system" &&
+							window.matchMedia("(prefers-color-scheme: dark)").matches)
+					? "dark"
+					: "light");
+		applyTheme(preferences, activeMode, preview?.draft);
 	}, [preferences, preview, resolvedTheme]);
 
 	const toggleMode = useEffectEvent(() => {

@@ -125,7 +125,7 @@ export default function ThemeCustomizerPanel({
 			align="end"
 			sideOffset={14}
 			scrollable
-			className="max-h-[calc(100vh-10rem)] w-72 text-sm"
+			className="max-h-(--available-height) w-72 text-sm"
 			scrollContentClassName="gap-5 px-0 py-3"
 		>
 			<div className="flex flex-col gap-1 px-3">

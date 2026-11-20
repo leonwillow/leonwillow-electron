@@ -364,9 +364,18 @@ test("DOM 按模式应用线条覆盖而不替换主题语义色，跟随主题�
 				},
 			},
 		);
-		expect(variables.get("--ui-line-color")).toBe("#112233");
+		expect(variables.has("--ui-line-color")).toBe(false);
 		expect(variables.get("--border")).toBe("#445566");
 		expect(variables.get("--ui-shadow-md")).toContain("12px");
+
+		applyTheme(
+			{
+				...preferences,
+				settings: { ...preferences.settings, borderColorDark: "#112233" },
+			},
+			"dark",
+		);
+		expect(variables.get("--ui-line-color")).toBe("#112233");
 
 		applyTheme({ settings: { ...initialSettings }, customThemes: [] }, "light");
 		expect(variables.get("--ui-border-width")).toBe("1px");

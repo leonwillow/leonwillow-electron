@@ -1,7 +1,7 @@
 /**
  * @file 按语义分组的主题颜色编辑区域。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-19
+ * 修改时间：2026-11-20
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现，颜色输入已切换至共享 ReUI ColorPicker。
  * 被调用：shadow-control、theme-control-panel、graph-background-settings、node-mark-editor。
  * 调用：ui Accordion/ColorPicker/Field/InputGroup、react、lib/custom-themes、types/theme、utils/theme/color-converter。
@@ -141,7 +141,11 @@ const ThemeColorPanel = ({
 }: ThemeColorPanelProps) => {
 	return (
 		<div className="flex flex-col gap-6">
-			<Accordion multiple defaultValue={["brand"]} className="w-full gap-4">
+			<Accordion
+				multiple
+				defaultValue={["brand"]}
+				className="w-full gap-4 overflow-visible rounded-none border-0"
+			>
 				<AccordionItem value="brand" className="rounded-lg border px-4">
 					<AccordionTrigger className="cursor-pointer py-3 font-medium text-base">
 						品牌颜色

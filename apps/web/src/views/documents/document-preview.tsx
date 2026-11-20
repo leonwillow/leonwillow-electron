@@ -1,6 +1,6 @@
 /**
  * @file 同窗 Word 文书预览与页面适宽。
- * 创建时间：2026-10-10；修改时间：2026-11-05。
+ * 创建时间：2026-10-10；修改时间：2026-11-20。
  * 版本作用：按需加载 docx-preview，在无脚本的独立 iframe 内保留文书排版。
  * 被调用：document-editor；调用：docx-preview、浏览器 ResizeObserver。
  * 功能与预期结果：模板样式不污染应用，切换内容不会显示过期结果，窄窗适宽。
@@ -46,6 +46,7 @@ export default function DocumentPreview({ blob }: { blob: Blob | null }) {
 			doc.body.replaceChildren(body);
 			doc.body.style.margin = "0";
 			doc.documentElement.style.overflow = "hidden";
+			doc.documentElement.style.background = "white";
 			doc.body.style.background = "white";
 			// 预览使用 Word 自带字号；这里只缩放整张纸，不改变 UI 的 rem 令牌。
 			const wrapper = body.querySelector<HTMLElement>(".docx-wrapper");
@@ -102,7 +103,7 @@ export default function DocumentPreview({ blob }: { blob: Blob | null }) {
 					ref={frameRef}
 					title="Word 文书预览"
 					sandbox="allow-same-origin"
-					className="min-h-80 w-full border-0 bg-background lg:min-h-0"
+					className="block w-full border-0 bg-transparent"
 					style={{ height: frameHeight || undefined }}
 					hidden={!ready}
 				/>

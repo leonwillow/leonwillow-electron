@@ -1,7 +1,7 @@
 /**
  * @file 输入控件与图标、按钮装饰的组合的基础组件。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-11-20
  * 版本作用：共享 UI 基础层，随工作区维护。
  * 被调用：components/command.tsx、components/auth/password-field.tsx。
  * 调用：ui 基础组件/样式、ui/lib/utils、class-variance-authority、react。
@@ -91,10 +91,10 @@ const inputGroupButtonVariants = cva(
 	{
 		variants: {
 			size: {
-				xs: "h-control-xs gap-1 rounded-[calc(var(--radius-sm)-2px)] px-1 [&>svg:not([class*='size-'])]:size-3",
+				xs: "h-control-xs gap-1 rounded-[calc(var(--radius-sm)-2px)] px-1 text-control/relaxed [&>svg:not([class*='size-'])]:size-3",
 				sm: "gap-1",
-				"icon-xs": "size-6 p-0 has-[>svg]:p-0",
-				"icon-sm": "size-7 p-0 has-[>svg]:p-0",
+				"icon-xs": "size-control-xs p-0 has-[>svg]:p-0",
+				"icon-sm": "size-control-sm p-0 has-[>svg]:p-0",
 			},
 		},
 		defaultVariants: {
@@ -118,6 +118,7 @@ function InputGroupButton({
 			type={type}
 			data-size={size}
 			variant={variant}
+			size={size ?? "xs"}
 			className={cn(inputGroupButtonVariants({ size }), className)}
 			{...props}
 		/>

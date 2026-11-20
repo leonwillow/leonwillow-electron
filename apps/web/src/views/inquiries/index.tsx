@@ -1,6 +1,6 @@
 /**
  * @file 笔录模块的编辑、未选择引导和常用人员工作区入口。
- * 创建时间：2026-11-04；修改时间：2026-11-19。
+ * 创建时间：2026-11-04；修改时间：2026-11-20。
  * 版本作用：路由选择案件和笔录，业务展示位于专用视图。
  * 被调用：inquiries 文件路由；调用：共享工作台顶栏、Eden 资源和笔录视图。
  * 预期结果：目录笔录直接进入编辑，未选择时提供引导，不再重复展示案件笔录表格。
@@ -75,7 +75,9 @@ export default function InquiriesView() {
 	return (
 		<div className="flex min-h-0 min-w-0 flex-1 flex-col">
 			{(inquiryView === "inquirers" || !inquiryCaseId || !recordId) && (
-				<InquiryWorkspaceHeader />
+				<InquiryWorkspaceHeader
+					subtitle={inquiryView === "inquirers" ? "常用询问人" : undefined}
+				/>
 			)}
 			{inquiryView === "inquirers" ? (
 				<InquiryInquirers />

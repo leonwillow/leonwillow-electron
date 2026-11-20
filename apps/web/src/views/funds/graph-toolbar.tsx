@@ -1,12 +1,13 @@
 /**
  * @file 图谱菜单栏、节点筛选和连线筛选。
  * 创建时间：2026-10-06
- * 修改时间：2026-11-19
+ * 修改时间：2026-11-20
  * 版本作用：复用原模板 FilterSelect 与共享 Popover，草稿提交后才改变视图。
  * 被调用：analysis-panel；调用：共享 UI、图谱筛选校验。
  * 预期结果：以紧凑图标扩展 G6 悬浮工具栏，悬停有中文提示，筛选草稿按需展开。
  */
 import { Button } from "@leonwillow-electron/ui/components/button";
+import { DatePicker } from "@leonwillow-electron/ui/components/date-picker";
 import { Input } from "@leonwillow-electron/ui/components/input";
 import { Label } from "@leonwillow-electron/ui/components/label";
 import {
@@ -319,25 +320,26 @@ export default function GraphToolbar({
 						<div className="grid grid-cols-2 gap-3">
 							<div className="space-y-1.5">
 								<Label htmlFor={`${id}-from`}>开始日期</Label>
-								<Input
+								<DatePicker
 									id={`${id}-from`}
-									type="date"
+									aria-label="开始日期"
+									placeholder="不限"
+									clearable
 									value={rangeDraft.from}
-									onChange={(e) =>
-										setRangeDraft({ ...rangeDraft, from: e.target.value })
+									onValueChange={(from) =>
+										setRangeDraft({ ...rangeDraft, from })
 									}
 								/>
 							</div>
 							<div className="space-y-1.5">
 								<Label htmlFor={`${id}-to`}>结束日期</Label>
-								<Input
+								<DatePicker
 									id={`${id}-to`}
-									type="date"
-									min={rangeDraft.from}
+									aria-label="结束日期"
+									placeholder="不限"
+									clearable
 									value={rangeDraft.to}
-									onChange={(e) =>
-										setRangeDraft({ ...rangeDraft, to: e.target.value })
-									}
+									onValueChange={(to) => setRangeDraft({ ...rangeDraft, to })}
 								/>
 							</div>
 							<div className="space-y-1.5">

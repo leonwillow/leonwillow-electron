@@ -1,7 +1,7 @@
 /**
  * @file 已登录工作台外壳、主导航栏与二级菜单目录行样式。
  * 创建时间：2026-11-18
- * 修改时间：2026-11-19
+ * 修改时间：2026-11-20
  * 版本作用：随 WorkspaceLayout 按需加载，不在登录等外部公开路由加载。
  * 被调用：apps/web/src/components/layout/workspace-layout.tsx。
  * 调用：共享 CSS 语义令牌。
@@ -14,6 +14,8 @@
 	--workspace-menu-min-size: 12rem;
 	--workspace-menu-max-size: 28rem;
 	--workspace-content-min-size: 20rem;
+	/* 当前生效的主导航栏宽度，供 Portal 内的悬浮二级菜单准确计算可用宽度。 */
+	--workspace-active-rail: var(--spacing-workspace-rail);
 }
 
 /* 悬浮与悬浮时尚外观的主导航、固定菜单和正文各自成框，外壳留白与分栏间距共用令牌。 */
@@ -30,6 +32,9 @@
 }
 /* 宽菜单在贴边基础上横向展开；窄视口下自动回落为紧凑图标栏，避免挤占正文。 */
 @media (min-width: 40rem) {
+	:root:has(.workspace-shell[data-sidebar-mode="wide"]) {
+		--workspace-active-rail: var(--spacing-workspace-rail-wide);
+	}
 	.workspace-shell[data-sidebar-mode="wide"] > .workspace-rail {
 		width: var(--spacing-workspace-rail-wide);
 	}
@@ -134,6 +139,16 @@
 	) {
 	border-radius: 9999px;
 }
+:root[data-theme-radius="none"]
+	.workspace-shell[data-sidebar-mode="floating-pill"]
+	:where(
+		.workspace-rail-pill,
+		.workspace-nav-item,
+		[data-slot="app-logo-mark"],
+		button:has(> [data-slot="app-logo-mark"])
+	) {
+	border-radius: 0;
+}
 @media (max-width: 40rem) {
 	.workspace-shell {
 		--workspace-panel-gap: calc(var(--spacing-workspace-gutter) / 2);
@@ -191,7 +206,7 @@
 		var(--available-width),
 		calc(
 			100vw -
-			var(--spacing-workspace-rail) -
+			var(--workspace-active-rail) -
 			var(--spacing-workspace-gutter) *
 			2
 		)
@@ -201,7 +216,7 @@
 	overflow: hidden;
 }
 
-/* 操作贴右显示；未悬停时释放整列宽度，只有实际溢出的名称才在行尾渐隐。 */
+/* 操作贴右显示；未悬停且未聚焦时释放整列宽度，键盘焦点也可触达行内操作。 */
 .menu-row-actions {
 	display: none;
 	flex-shrink: 0;
@@ -213,6 +228,6 @@
 	width: calc(var(--spacing) * 3);
 	height: calc(var(--spacing) * 3);
 }
-[data-menu-row]:hover .menu-row-actions {
+[data-menu-row]:is(:hover, :focus-within) .menu-row-actions {
 	display: flex;
 }

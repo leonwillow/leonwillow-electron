@@ -1,7 +1,7 @@
 /**
  * @file 内置和自定义主题的统一选择器。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-19
+ * 修改时间：2026-11-20
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/layout/theme-customizer.tsx、components/theme-editor/theme-control-panel.tsx。
  * 调用：ui 基础组件/样式、configs/theme-presets、stores/theme-store、types/theme。
@@ -27,6 +27,7 @@ const DEFAULT_PRIMARY = {
 
 type Props = {
 	id?: string;
+	size?: "sm" | "default" | "lg";
 	value: Settings["themePreset"];
 	mode: "light" | "dark";
 	onValueChange: (value: Settings["themePreset"]) => void;
@@ -34,6 +35,7 @@ type Props = {
 
 export default function ThemePresetSelect({
 	id,
+	size = "default",
 	value,
 	mode,
 	onValueChange,
@@ -64,7 +66,7 @@ export default function ThemePresetSelect({
 				if (next) onValueChange(next as Settings["themePreset"]);
 			}}
 		>
-			<SelectTrigger className="w-full">
+			<SelectTrigger size={size} className="w-full">
 				<span
 					className="size-2.5 shrink-0 rounded-full ring-1 ring-foreground/15 ring-inset"
 					style={{

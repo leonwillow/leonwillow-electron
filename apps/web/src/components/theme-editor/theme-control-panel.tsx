@@ -221,6 +221,7 @@ export default function ThemeControlPanel({
 							</FieldLabel>
 							<ThemePresetSelect
 								id="editor-source-preset"
+								size="lg"
 								value={sourcePreset}
 								mode={mode}
 								onValueChange={selectSource}
@@ -300,7 +301,7 @@ export default function ThemeControlPanel({
 												}));
 										}}
 									>
-										<SelectTrigger className="w-full">
+										<SelectTrigger size="lg" className="w-full">
 											<span
 												className="flex-1 text-left"
 												style={{
@@ -380,7 +381,7 @@ export default function ThemeControlPanel({
 												}));
 										}}
 									>
-										<SelectTrigger className="w-full">
+										<SelectTrigger size="lg" className="w-full">
 											<span className="flex-1 text-left">
 												{
 													{ none: "无", sm: "小", md: "中", lg: "大" }[

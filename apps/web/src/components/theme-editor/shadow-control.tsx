@@ -41,7 +41,10 @@ const ShadowControl = (props: ShadowControlProps) => {
 	} = props;
 
 	return (
-		<Accordion defaultValue={["shadow"]}>
+		<Accordion
+			defaultValue={["shadow"]}
+			className="overflow-visible rounded-none border-0"
+		>
 			<AccordionItem value="shadow" className="rounded-lg border px-4">
 				<AccordionTrigger className="cursor-pointer py-3 font-medium text-base">
 					阴影

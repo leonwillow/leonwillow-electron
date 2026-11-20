@@ -1,7 +1,7 @@
 /**
  * @file 命令搜索、分组与键盘选择的基础组件。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-19
+ * 修改时间：2026-11-20
  * 版本作用：共享 UI 基础层，随工作区维护。
  * 被调用：components/layout/command-menu.tsx。
  * 调用：ui 基础组件/样式、ui/lib/utils、cmdk、lucide-react、react。
@@ -166,7 +166,7 @@ function CommandItem({
 		<CommandPrimitive.Item
 			data-slot="command-item"
 			className={cn(
-				"group/command-item relative flex min-h-7 cursor-default select-none items-center gap-2 in-data-[slot=dialog-content]:rounded-md rounded-md px-2.5 py-1.5 text-xs/relaxed outline-hidden data-[disabled=true]:pointer-events-none data-selected:bg-muted data-selected:text-foreground data-[disabled=true]:opacity-50 [&_svg:not([class*='size-'])]:size-3.5 [&_svg]:pointer-events-none [&_svg]:shrink-0 data-selected:*:[svg]:text-foreground",
+				"group/command-item relative flex min-h-control-md cursor-default select-none items-center gap-2 in-data-[slot=dialog-content]:rounded-md rounded-md px-2.5 py-1.5 text-xs/relaxed outline-hidden data-[disabled=true]:pointer-events-none data-selected:bg-muted data-selected:text-foreground data-[disabled=true]:opacity-50 [&_svg:not([class*='size-'])]:size-3.5 [&_svg]:pointer-events-none [&_svg]:shrink-0 data-selected:*:[svg]:text-foreground",
 				className,
 			)}
 			{...props}

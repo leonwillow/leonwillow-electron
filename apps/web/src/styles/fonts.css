@@ -1,7 +1,7 @@
 /**
  * @file 本地字体资源和字体变量。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-11-20
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：main.tsx。
  * 调用：无模块依赖。
@@ -170,33 +170,33 @@
 }
 
 :root {
-	--font-geist-sans:
-		"Geist Variable", "PingFang SC", "Microsoft YaHei", sans-serif;
-	--font-geist-mono: "Geist Mono Variable", ui-monospace, monospace;
-	--font-dm-sans:
-		"DM Sans Variable", "PingFang SC", "Microsoft YaHei", sans-serif;
-	--font-figtree:
-		"Figtree Variable", "PingFang SC", "Microsoft YaHei", sans-serif;
-	--font-inter: "Inter Variable", "PingFang SC", "Microsoft YaHei", sans-serif;
-	--font-jetbrains-mono: "JetBrains Mono Variable", ui-monospace, monospace;
-	--font-lora: "Lora Variable", "Songti SC", serif;
-	--font-merriweather: "Merriweather Variable", "Songti SC", serif;
-	--font-noto-sans:
-		"Noto Sans Variable", "PingFang SC", "Microsoft YaHei", sans-serif;
-	--font-noto-serif: "Noto Serif Variable", "Songti SC", serif;
-	--font-nunito-sans:
-		"Nunito Sans Variable", "PingFang SC", "Microsoft YaHei", sans-serif;
-	--font-outfit:
-		"Outfit Variable", "PingFang SC", "Microsoft YaHei", sans-serif;
-	--font-playfair-display: "Playfair Display Variable", "Songti SC", serif;
-	--font-public-sans:
-		"Public Sans Variable", "PingFang SC", "Microsoft YaHei", sans-serif;
-	--font-raleway:
-		"Raleway Variable", "PingFang SC", "Microsoft YaHei", sans-serif;
-	--font-roboto:
-		"Roboto Variable", "PingFang SC", "Microsoft YaHei", sans-serif;
-	--font-roboto-slab: "Roboto Slab Variable", "Songti SC", serif;
-	--font-geist-pixel-square: "Geist Pixel", ui-monospace, monospace;
+	--font-cjk-sans:
+		"PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei",
+		"Noto Sans CJK SC";
+	--font-cjk-serif:
+		"Songti SC", "Source Han Serif SC", "Noto Serif SC", "STSong", "SimSun";
+	--font-geist-sans: "Geist Variable", var(--font-cjk-sans), sans-serif;
+	--font-geist-mono:
+		"Geist Mono Variable", ui-monospace, var(--font-cjk-sans), monospace;
+	--font-dm-sans: "DM Sans Variable", var(--font-cjk-sans), sans-serif;
+	--font-figtree: "Figtree Variable", var(--font-cjk-sans), sans-serif;
+	--font-inter: "Inter Variable", var(--font-cjk-sans), sans-serif;
+	--font-jetbrains-mono:
+		"JetBrains Mono Variable", ui-monospace, var(--font-cjk-sans), monospace;
+	--font-lora: "Lora Variable", var(--font-cjk-serif), serif;
+	--font-merriweather: "Merriweather Variable", var(--font-cjk-serif), serif;
+	--font-noto-sans: "Noto Sans Variable", var(--font-cjk-sans), sans-serif;
+	--font-noto-serif: "Noto Serif Variable", var(--font-cjk-serif), serif;
+	--font-nunito-sans: "Nunito Sans Variable", var(--font-cjk-sans), sans-serif;
+	--font-outfit: "Outfit Variable", var(--font-cjk-sans), sans-serif;
+	--font-playfair-display:
+		"Playfair Display Variable", var(--font-cjk-serif), serif;
+	--font-public-sans: "Public Sans Variable", var(--font-cjk-sans), sans-serif;
+	--font-raleway: "Raleway Variable", var(--font-cjk-sans), sans-serif;
+	--font-roboto: "Roboto Variable", var(--font-cjk-sans), sans-serif;
+	--font-roboto-slab: "Roboto Slab Variable", var(--font-cjk-serif), serif;
+	--font-geist-pixel-square:
+		"Geist Pixel", ui-monospace, var(--font-cjk-sans), monospace;
 	--font-sans: var(--font-public-sans);
 }
 

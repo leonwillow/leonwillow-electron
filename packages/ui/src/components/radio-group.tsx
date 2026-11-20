@@ -1,7 +1,7 @@
 /**
  * @file 普通、分段与网格外观的单选组基础组件。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-19
+ * 修改时间：2026-11-20
  * 版本作用：共享 UI 基础层，随工作区维护，提供分段单选与网格单选项。
  * 被调用：主题弹层、线条设置、主题编辑器及资金画布设置。
  * 调用：@base-ui/react、ui/components/label、ui/lib/utils。
@@ -37,7 +37,7 @@ function RadioGroup({
 					"gap-1.5 [&>label]:font-normal [&>label]:text-control/relaxed [&>label]:has-focus-visible:border-ring [&>label]:has-focus-visible:ring-3 [&>label]:has-focus-visible:ring-ring/50 data-[size=default]:[&>label]:h-control-md data-[size=lg]:[&>label]:h-control-lg data-[size=sm]:[&>label]:h-control-sm [&>label_svg]:size-3.5 [&>label_svg]:shrink-0",
 				// 与默认 Tabs 同一外观，保留 Label > Radio 的表单语义及方向键行为。
 				variant === "tabs" && [
-					"inline-flex h-8 w-fit items-center justify-center gap-0 rounded-lg bg-muted p-0.5 text-muted-foreground",
+					"inline-flex h-control-lg w-fit items-center justify-center gap-0 rounded-lg bg-muted p-0.5 text-muted-foreground",
 					"[&>label]:relative [&>label]:h-[calc(100%-1px)] [&>label]:flex-1 [&>label]:cursor-pointer [&>label]:justify-center [&>label]:gap-1.5 [&>label]:whitespace-nowrap [&>label]:rounded-md [&>label]:border [&>label]:border-transparent [&>label]:px-1.5 [&>label]:py-0.5 [&>label]:font-medium [&>label]:text-foreground/60 [&>label]:text-xs/4 [&>label]:transition-colors [&>label]:hover:text-foreground dark:[&>label]:text-muted-foreground dark:[&>label]:hover:text-foreground",
 					"[&>label]:has-data-checked:bg-background [&>label]:has-data-checked:text-foreground dark:[&>label]:has-data-checked:border-input dark:[&>label]:has-data-checked:bg-input/30 dark:[&>label]:has-data-checked:text-foreground",
 					"[&>label]:has-data-disabled:pointer-events-none [&>label]:has-focus-visible:border-ring [&>label]:has-data-disabled:opacity-50 [&>label]:has-focus-visible:outline-1 [&>label]:has-focus-visible:outline-ring [&>label]:has-focus-visible:ring-3 [&>label]:has-focus-visible:ring-ring/50",

@@ -56,16 +56,16 @@ export function applyTheme(
 		}
 	}
 	const settings = preferences.settings;
-	// 全局线条偏好独立于主题和预览，清空单一覆盖变量即可恢复当前主题的语义色。
+	// 全局线条偏好独立于主题；进入主题编辑器预览时暂停覆盖，使边框调色即时可见。
 	root.style.setProperty("--ui-border-width", `${settings.borderWidth}px`);
 	const borderColor =
 		mode === "dark" ? settings.borderColorDark : settings.borderColorLight;
-	if (borderColor === null) root.style.removeProperty("--ui-line-color");
+	if (preview || borderColor === null)
+		root.style.removeProperty("--ui-line-color");
 	else root.style.setProperty("--ui-line-color", borderColor);
-	root.style.setProperty(
-		"--radius",
-		RADIUS_VALUES[preview?.radius ?? settings.radius],
-	);
+	const activeRadius = preview?.radius ?? settings.radius;
+	root.style.setProperty("--radius", RADIUS_VALUES[activeRadius]);
+	root.setAttribute("data-theme-radius", activeRadius);
 	const font = `var(${FONT_CONFIG[preview?.font ?? settings.font].variable})`;
 	root.style.setProperty("--font-sans", font);
 	root.style.fontFamily = font;
