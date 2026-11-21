@@ -92,7 +92,7 @@ function InquirySelect({
 	id: string;
 }) {
 	return (
-		<Field>
+		<Field className="min-w-0">
 			<FieldLabel htmlFor={id}>{label}</FieldLabel>
 			<Select
 				value={value}
@@ -177,7 +177,7 @@ const InquiryBasicFields = memo(
 			type = "text",
 			maxLength = 200,
 		) => (
-			<Field key={key}>
+			<Field key={key} className="min-w-0">
 				<FieldLabel htmlFor={`inquiry-${key}`}>{label}</FieldLabel>
 				<Input
 					id={`inquiry-${key}`}
@@ -203,16 +203,16 @@ const InquiryBasicFields = memo(
 				multiple
 				hiddenUntilFound
 				{...accordionProps}
-				className="overflow-visible rounded-none border-0"
+				className="-mx-1 overflow-visible rounded-none border-0"
 			>
 				<AccordionItem
 					value="basic"
 					className="not-last:border-b data-open:bg-transparent"
 				>
-					<AccordionTrigger className="cursor-pointer items-center gap-2 px-0 pt-0.5 pb-2.5 font-medium text-foreground text-sm hover:no-underline">
+					<AccordionTrigger className="cursor-pointer items-center gap-2 px-1 pt-0.5 pb-2.5 font-medium text-foreground text-sm hover:no-underline">
 						<span className="truncate">基本情况</span>
 					</AccordionTrigger>
-					<AccordionContent className="px-0 pt-1 pb-4">
+					<AccordionContent className="px-1 pt-1 pb-4">
 						<fieldset disabled={readOnly} className="min-w-0">
 							<FieldGroup>
 								{field("enforcementUnitName", "执法单位名称")}
@@ -315,13 +315,13 @@ const InquiryBasicFields = memo(
 					value="inquirers"
 					className="not-last:border-b data-open:bg-transparent"
 				>
-					<AccordionTrigger className="cursor-pointer items-center gap-2 px-0 py-2.5 font-medium text-foreground text-sm hover:no-underline">
+					<AccordionTrigger className="cursor-pointer items-center gap-2 px-1 py-2.5 font-medium text-foreground text-sm hover:no-underline">
 						<span className="truncate">询问（调查）人</span>
 						<span className="shrink-0 font-normal text-muted-foreground text-xs">
 							{c.inquirers.length} 人
 						</span>
 					</AccordionTrigger>
-					<AccordionContent className="px-0 pt-1 pb-4">
+					<AccordionContent className="px-1 pt-1 pb-4">
 						<fieldset
 							disabled={readOnly}
 							className="flex min-w-0 flex-col gap-3"
@@ -490,7 +490,7 @@ const InquiryBasicFields = memo(
 					value="subject"
 					className="not-last:border-b data-open:bg-transparent"
 				>
-					<AccordionTrigger className="cursor-pointer items-center gap-2 px-0 py-2.5 font-medium text-foreground text-sm hover:no-underline">
+					<AccordionTrigger className="cursor-pointer items-center gap-2 px-1 py-2.5 font-medium text-foreground text-sm hover:no-underline">
 						<span className="truncate">被询问（调查）人</span>
 						{subjectSummary && (
 							<span className="min-w-0 truncate font-normal text-muted-foreground text-xs">
@@ -498,7 +498,7 @@ const InquiryBasicFields = memo(
 							</span>
 						)}
 					</AccordionTrigger>
-					<AccordionContent className="px-0 pt-1 pb-2">
+					<AccordionContent className="px-1 pt-1 pb-3">
 						<fieldset disabled={readOnly} className="min-w-0">
 							<FieldGroup>
 								<FieldGroup className="grid grid-cols-[minmax(0,1fr)_minmax(0,5rem)] gap-3">
@@ -522,14 +522,16 @@ const InquiryBasicFields = memo(
 								{field("subjectAddress", "住址", "text", 500)}
 								{field("subjectPhone", "联系电话", "tel", 80)}
 								{field("subjectOrg", "工作单位")}
-								{field("subjectPosition", "职务", "text", 80)}
-								<InquirySelect
-									id="inquiry-subjectRelationship"
-									label="与被检查人关系"
-									value={inquiryRelationshipName(c.subjectRelationship)}
-									options={relationships}
-									onChange={(value) => update("subjectRelationship", value)}
-								/>
+								<FieldGroup className="grid grid-cols-2 gap-3">
+									{field("subjectPosition", "职务", "text", 80)}
+									<InquirySelect
+										id="inquiry-subjectRelationship"
+										label="与被检查人关系"
+										value={inquiryRelationshipName(c.subjectRelationship)}
+										options={relationships}
+										onChange={(value) => update("subjectRelationship", value)}
+									/>
+								</FieldGroup>
 								{c.subjectRelationship === "其他" &&
 									field(
 										"subjectRelationshipOther",

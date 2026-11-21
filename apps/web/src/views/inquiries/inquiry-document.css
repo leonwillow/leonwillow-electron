@@ -75,37 +75,114 @@
 	font-display: swap;
 }
 
-/* 上下调整只重播装饰层，不改变 ReUI 拖拽变换或输入节点；主题色随全局切换。 */
+/* 问答拖拽或上下移动成功后重播两拍呼吸闪烁（仅动画 opacity/transform，不触发重绘且符合 WCAG 闪烁频次约束）。 */
 .inquiry-question-move-glow {
 	position: absolute;
-	inset: 0;
+	inset: -1px;
 	pointer-events: none;
 	border-radius: inherit;
-	z-index: 1;
-	animation: inquiry-question-move-glow 850ms ease-out both;
+	border: 2px solid color-mix(in oklch, var(--primary) 72%, transparent);
+	background: color-mix(in oklch, var(--primary) 12%, transparent);
+	box-shadow: 0 0 0 3px color-mix(in oklch, var(--primary) 22%, transparent);
+	opacity: 0;
+	z-index: 2;
+	animation: inquiry-question-move-glow 1350ms ease-in-out both;
 }
 @keyframes inquiry-question-move-glow {
 	0% {
-		background: color-mix(in oklch, var(--info) 14%, transparent);
-		box-shadow: 0 0 0 0 color-mix(in oklch, var(--info) 50%, transparent);
+		opacity: 0;
+		transform: scale(0.992);
+	}
+	22% {
+		opacity: 1;
+		transform: scale(1);
+	}
+	46% {
+		opacity: 0.25;
+		transform: scale(0.998);
+	}
+	68% {
+		opacity: 0.95;
+		transform: scale(1);
 	}
 	100% {
-		background: transparent;
-		box-shadow: 0 0 0 0.5rem transparent;
+		opacity: 0;
+		transform: scale(1);
 	}
 }
 @media (prefers-reduced-motion: reduce) {
 	.inquiry-question-move-glow {
 		animation-name: inquiry-question-move-fade;
+		animation-duration: 1100ms;
 	}
 }
 @keyframes inquiry-question-move-fade {
 	0%,
 	65% {
-		background: color-mix(in oklch, var(--info) 14%, transparent);
+		opacity: 0.85;
 	}
 	100% {
-		background: transparent;
+		opacity: 0;
+	}
+}
+
+/* 表单点击/聚焦联动右侧 A4 预览的呼吸闪烁定位层（仅在预览层渲染，打印自动隐藏；在 40%~50% 适宽缩放下依然清晰醒目）。 */
+.inquiry-preview-breath {
+	position: absolute;
+	inset: -2pt 0;
+	pointer-events: none;
+	border-radius: 5pt;
+	border: 3pt solid color-mix(in oklch, var(--primary) 88%, transparent);
+	background: color-mix(in oklch, var(--primary) 26%, transparent);
+	box-shadow:
+		0 0 0 3pt color-mix(in oklch, var(--primary) 20%, transparent),
+		0 0 14pt color-mix(in oklch, var(--primary) 36%, transparent);
+	opacity: 0;
+	animation: inquiry-preview-breath 1800ms ease-in-out both;
+}
+.dark .inquiry-preview-breath {
+	/* 纸张在深色模式下恒为纯白，混入深色确保边框与底色在白纸上同样清晰可见。 */
+	border-color: color-mix(in oklch, var(--primary) 68%, #000);
+	background: color-mix(in oklch, var(--primary) 30%, transparent);
+	box-shadow:
+		0 0 0 3pt color-mix(in oklch, var(--primary) 24%, transparent),
+		0 0 14pt color-mix(in oklch, var(--primary) 42%, transparent);
+}
+@keyframes inquiry-preview-breath {
+	0% {
+		opacity: 0;
+		transform: scale(0.994);
+	}
+	18% {
+		opacity: 1;
+		transform: scale(1);
+	}
+	45% {
+		opacity: 0.28;
+		transform: scale(0.998);
+	}
+	70% {
+		opacity: 1;
+		transform: scale(1);
+	}
+	100% {
+		opacity: 0;
+		transform: scale(1);
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.inquiry-preview-breath {
+		animation-name: inquiry-preview-fade;
+		animation-duration: 1400ms;
+	}
+}
+@keyframes inquiry-preview-fade {
+	0%,
+	65% {
+		opacity: 0.85;
+	}
+	100% {
+		opacity: 0;
 	}
 }
 
@@ -163,7 +240,19 @@
 	font-weight: 700;
 	line-height: 28pt;
 }
+.inquiry-document-header-target {
+	display: block;
+	box-sizing: border-box;
+	width: 100%;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+}
 .inquiry-document-authority {
+	position: relative;
 	text-align: center;
 	font-size: 20pt;
 	line-height: 24pt;
@@ -171,6 +260,7 @@
 }
 .inquiry-document-inquiry-count,
 .inquiry-document-page-count {
+	position: relative;
 	height: 25pt;
 	text-align: right;
 	line-height: 25pt;
@@ -188,6 +278,7 @@
 	overflow: hidden;
 }
 .inquiry-document-line {
+	position: relative;
 	display: block;
 	box-sizing: border-box;
 	width: 100%;
@@ -303,7 +394,8 @@
 		box-shadow: none;
 		print-color-adjust: exact;
 	}
-	.inquiry-print-root .inquiry-document-measurement {
+	.inquiry-print-root .inquiry-document-measurement,
+	.inquiry-print-root .inquiry-preview-breath {
 		display: none;
 	}
 }

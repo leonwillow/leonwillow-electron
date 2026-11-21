@@ -17,6 +17,7 @@ import {
 	createInquiryDocument,
 	inquiryRelationshipName,
 	relationships,
+	resolvePreviewTargetsForField,
 } from "../src/views/inquiries/record-fields";
 import { calculateSubjectAge } from "../src/views/inquiries/subject-age";
 
@@ -113,4 +114,55 @@ test("旧跨日笔录回显和修改开始时间不改写结束日期，更换�
 		inquiryEndAt: "2027-01-01T01:00",
 	});
 	expect(minimumInquiryEndTime(initial)).toBeUndefined();
+});
+
+test("表单字段与问答组 ID 准确映射到右侧文书预览定位目标", () => {
+	expect(resolvePreviewTargetsForField("inquiry-enforcementUnitName")).toEqual([
+		"inquiry-enforcementUnitName",
+	]);
+	expect(resolvePreviewTargetsForField("inquiry-inquiryCount")).toEqual([
+		"inquiry-inquiryCount",
+	]);
+	expect(resolvePreviewTargetsForField("inquiry-date")).toEqual([
+		"inquiry-inquiryStartAt",
+	]);
+	expect(resolvePreviewTargetsForField("inquiry-inquiryStartAt-value")).toEqual(
+		["inquiry-inquiryStartAt"],
+	);
+	expect(resolvePreviewTargetsForField("inquiry-inquiryEndAt")).toEqual([
+		"inquiry-inquiryStartAt",
+	]);
+	expect(resolvePreviewTargetsForField("inquiry-subjectGender")).toEqual([
+		"inquiry-subjectName",
+	]);
+	expect(resolvePreviewTargetsForField("inquiry-subjectIdType")).toEqual([
+		"inquiry-subjectIdNumber",
+	]);
+	expect(resolvePreviewTargetsForField("inquiry-subjectPhone")).toEqual([
+		"inquiry-subjectPosition",
+	]);
+	expect(resolvePreviewTargetsForField("inquiry-subjectPosition")).toEqual([
+		"inquiry-subjectPosition",
+	]);
+	expect(
+		resolvePreviewTargetsForField("inquiry-subjectRelationshipOther"),
+	).toEqual(["inquiry-subjectRelationship"]);
+	expect(resolvePreviewTargetsForField("inquirer-badge-p1")).toEqual([
+		"inquirer-name-p1",
+	]);
+	expect(resolvePreviewTargetsForField("frequent-p1")).toEqual([
+		"inquirer-name-p1",
+	]);
+	expect(resolvePreviewTargetsForField("recorder-p2")).toEqual([
+		"inquiry-recorder",
+	]);
+	expect(resolvePreviewTargetsForField("question-qa1")).toEqual([
+		"question-qa1",
+	]);
+	expect(resolvePreviewTargetsForField("answer-qa1")).toEqual(["answer-qa1"]);
+	expect(resolvePreviewTargetsForField("group-qa1")).toEqual([
+		"question-qa1",
+		"answer-qa1",
+	]);
+	expect(resolvePreviewTargetsForField("inquiry-title")).toEqual([]);
 });

@@ -10,6 +10,7 @@ import { TooltipIconButton } from "@leonwillow-electron/ui/components/tooltip-ic
 import { MinusIcon, PlusIcon, RotateCcwIcon } from "lucide-react";
 import {
 	type PointerEvent,
+	useCallback,
 	useEffect,
 	useLayoutEffect,
 	useRef,
@@ -18,6 +19,7 @@ import {
 import type { InquiryDocument } from "@/lib/inquiries";
 import InquiryDocumentPages, {
 	INQUIRY_PAGE_WIDTH,
+	type InquiryPreviewHighlight,
 	type InquiryPreviewStatus,
 } from "./document-pages";
 
@@ -25,8 +27,60 @@ const MIN_SCALE = 0.1;
 const MAX_SCALE = 3;
 const ZOOM_STEP = 0.1;
 const DRAG_THRESHOLD = 5;
+const PULSE_DURATION_MS = 1850;
 const clampScale = (value: number) =>
 	Math.min(MAX_SCALE, Math.max(MIN_SCALE, value));
+
+export type InquiryPreviewHighlightRequest = {
+	targets: readonly string[];
+	sequence: number;
+	minPaginationVersion?: number;
+};
+
+/**
+ * 平滑滚动预览容器并在滚动真正完成后 resolve：
+ * 优先直接 await scrollTo 返回的 Promise，不支持的浏览器降级到 scrollend + 滚动空闲定时器。
+ */
+function scrollViewportToAsync(
+	scroller: HTMLElement,
+	top: number,
+	behavior: ScrollBehavior,
+): Promise<void> {
+	const maxScrollTop = Math.max(
+		0,
+		scroller.scrollHeight - scroller.clientHeight,
+	);
+	const clampedTop = Math.max(0, Math.min(maxScrollTop, top));
+	if (Math.abs(scroller.scrollTop - clampedTop) <= 2) {
+		return Promise.resolve();
+	}
+	const result = scroller.scrollTo({
+		top: clampedTop,
+		behavior,
+	}) as unknown;
+	if (result instanceof Promise) {
+		return result;
+	}
+	if (behavior === "instant") {
+		return Promise.resolve();
+	}
+	return new Promise((resolve) => {
+		let timerId: ReturnType<typeof setTimeout> | undefined;
+		const finish = () => {
+			if (timerId !== undefined) clearTimeout(timerId);
+			scroller.removeEventListener("scrollend", finish);
+			scroller.removeEventListener("scroll", onScroll);
+			resolve();
+		};
+		const onScroll = () => {
+			if (timerId !== undefined) clearTimeout(timerId);
+			timerId = setTimeout(finish, 120);
+		};
+		scroller.addEventListener("scrollend", finish, { once: true });
+		scroller.addEventListener("scroll", onScroll, { passive: true });
+		timerId = setTimeout(finish, 120);
+	});
+}
 
 type PanGesture = {
 	pointerId: number;
@@ -42,12 +96,14 @@ export default function InquiryDocumentPreview({
 	paused = false,
 	showStatus = true,
 	focus,
+	highlightRequest,
 	onStatusChange,
 }: {
 	draft: InquiryDocument;
 	paused?: boolean;
 	showStatus?: boolean;
 	focus: (id: string) => void;
+	highlightRequest?: InquiryPreviewHighlightRequest | null;
 	onStatusChange?: (status: InquiryPreviewStatus) => void;
 }) {
 	const viewport = useRef<HTMLDivElement>(null);
@@ -55,10 +111,92 @@ export default function InquiryDocumentPreview({
 	const pan = useRef<PanGesture | null>(null);
 	const suppressClick = useRef(false);
 	const zoomAnchor = useRef<{ x: number; y: number } | null>(null);
+	const scrollSeqRef = useRef(0);
+	const handledSeqRef = useRef(0);
+	const pulseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const [fitScale, setFitScale] = useState(MIN_SCALE);
 	const [manualScale, setManualScale] = useState<number | null>(null);
 	const [dragging, setDragging] = useState(false);
+	const [pageStatus, setPageStatus] = useState<InquiryPreviewStatus>({
+		pageCount: 0,
+		paginating: true,
+		error: "",
+		version: 0,
+	});
+	const [activePulse, setActivePulse] =
+		useState<InquiryPreviewHighlight | null>(null);
 	const scale = manualScale ?? fitScale;
+
+	const handleStatusChange = useCallback(
+		(status: InquiryPreviewStatus) => {
+			setPageStatus(status);
+			onStatusChange?.(status);
+		},
+		[onStatusChange],
+	);
+
+	useEffect(() => {
+		return () => {
+			if (pulseTimerRef.current !== null) clearTimeout(pulseTimerRef.current);
+		};
+	}, []);
+
+	useEffect(() => {
+		if (!highlightRequest || paused) return;
+		if (highlightRequest.sequence <= handledSeqRef.current) return;
+		if (pageStatus.paginating) return;
+		if (
+			highlightRequest.minPaginationVersion !== undefined &&
+			pageStatus.version <= highlightRequest.minPaginationVersion
+		) {
+			return;
+		}
+		const scroller = viewport.current;
+		if (!scroller) return;
+		const selector = highlightRequest.targets
+			.map((target) => `[data-preview-target="${CSS.escape(target)}"]`)
+			.join(", ");
+		if (!selector) return;
+		const firstMatch = scroller.querySelector<HTMLElement>(selector);
+		if (!firstMatch) return;
+
+		handledSeqRef.current = highlightRequest.sequence;
+		const scrollId = ++scrollSeqRef.current;
+
+		const run = async () => {
+			const viewRect = scroller.getBoundingClientRect();
+			const targetRect = firstMatch.getBoundingClientRect();
+			const comfortMargin = Math.min(72, viewRect.height * 0.18);
+			const outOfView =
+				targetRect.top < viewRect.top + comfortMargin ||
+				targetRect.bottom > viewRect.bottom - comfortMargin;
+			if (outOfView) {
+				const targetTop =
+					scroller.scrollTop +
+					(targetRect.top - viewRect.top) -
+					(viewRect.height - targetRect.height) / 2;
+				const behavior: ScrollBehavior = window.matchMedia(
+					"(prefers-reduced-motion: reduce)",
+				).matches
+					? "instant"
+					: "smooth";
+				await scrollViewportToAsync(scroller, targetTop, behavior);
+			}
+			// 若滚动期间已有更新的定位请求，放弃过期闪烁
+			if (scrollId !== scrollSeqRef.current) return;
+			setActivePulse({
+				targets: highlightRequest.targets,
+				sequence: highlightRequest.sequence,
+			});
+			if (pulseTimerRef.current !== null) clearTimeout(pulseTimerRef.current);
+			pulseTimerRef.current = setTimeout(() => {
+				setActivePulse((current) =>
+					current?.sequence === highlightRequest.sequence ? null : current,
+				);
+			}, PULSE_DURATION_MS);
+		};
+		void run();
+	}, [highlightRequest, paused, pageStatus.paginating, pageStatus.version]);
 
 	useEffect(() => {
 		const view = viewport.current;
@@ -187,7 +325,8 @@ export default function InquiryDocumentPreview({
 					scale={scale}
 					showStatus={showStatus}
 					focus={focus}
-					onStatusChange={onStatusChange}
+					highlight={activePulse}
+					onStatusChange={handleStatusChange}
 				/>
 			</ScrollArea>
 			<div

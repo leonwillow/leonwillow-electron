@@ -13,6 +13,7 @@ import {
 } from "@leonwillow-electron/ui/components/field";
 import {
 	Sortable,
+	type SortableCommitMeta,
 	SortableItem,
 	SortableItemHandle,
 } from "@leonwillow-electron/ui/components/sortable";
@@ -63,6 +64,7 @@ const QuestionRow = memo(function QuestionRow({
 			disabled={readOnly}
 			aria-label={`第 ${index + 1} 组问答`}
 			data-question-id={item.id}
+			data-preview-group-id={item.id}
 			className="relative flex flex-col gap-3 rounded-lg border bg-card p-4"
 		>
 			{moveSequence !== undefined && (
@@ -171,19 +173,30 @@ const InquiryQuestionFields = memo(function InquiryQuestionFields({
 	items,
 	onChange,
 	readOnly,
+	onReorderSuccess,
 }: {
 	items: InquiryContent["qaItems"];
 	onChange: (value: InquiryContent["qaItems"]) => void;
 	readOnly: boolean;
+	onReorderSuccess?: (id: string) => void;
 }) {
 	const host = useRef<HTMLDivElement>(null);
-	const stateRef = useRef({ items, onChange, readOnly });
-	stateRef.current = { items, onChange, readOnly };
+	const stateRef = useRef({ items, onChange, readOnly, onReorderSuccess });
+	stateRef.current = { items, onChange, readOnly, onReorderSuccess };
 	const [moveFeedback, setMoveFeedback] = useState<{
 		id: string;
 		sequence: number;
 		position: number;
 	} | null>(null);
+
+	const triggerReorderFeedback = useCallback((id: string, position: number) => {
+		setMoveFeedback((previous) => ({
+			id,
+			sequence: (previous?.sequence ?? 0) + 1,
+			position,
+		}));
+		stateRef.current.onReorderSuccess?.(id);
+	}, []);
 
 	const insert = useCallback((index: number) => {
 		const current = stateRef.current;
@@ -201,35 +214,43 @@ const InquiryQuestionFields = memo(function InquiryQuestionFields({
 		);
 	}, []);
 
-	const move = useCallback((id: string, index: number) => {
-		const current = stateRef.current;
-		const source = current.items.find((item) => item.id === id);
-		if (
-			!source ||
-			index < 0 ||
-			index >= current.items.length ||
-			current.readOnly
-		) {
-			return;
-		}
-		const next = current.items.filter((item) => item.id !== id);
-		next.splice(index, 0, source);
-		current.onChange(next);
-		setMoveFeedback((previous) => ({
-			id,
-			sequence: (previous?.sequence ?? 0) + 1,
-			position: index + 1,
-		}));
-		requestAnimationFrame(() =>
-			host.current
-				?.querySelector(`[data-question-id="${id}"]`)
-				?.scrollIntoView({
-					block: "nearest",
-					inline: "nearest",
-					behavior: "instant",
-				}),
-		);
-	}, []);
+	const move = useCallback(
+		(id: string, index: number) => {
+			const current = stateRef.current;
+			const source = current.items.find((item) => item.id === id);
+			if (
+				!source ||
+				index < 0 ||
+				index >= current.items.length ||
+				current.readOnly
+			) {
+				return;
+			}
+			const next = current.items.filter((item) => item.id !== id);
+			next.splice(index, 0, source);
+			current.onChange(next);
+			triggerReorderFeedback(id, index + 1);
+			requestAnimationFrame(() =>
+				host.current
+					?.querySelector(`[data-question-id="${id}"]`)
+					?.scrollIntoView({
+						block: "nearest",
+						inline: "nearest",
+						behavior: "instant",
+					}),
+			);
+		},
+		[triggerReorderFeedback],
+	);
+
+	const handleDragCommit = useCallback(
+		(nextItems: QaItem[], meta: SortableCommitMeta<QaItem>) => {
+			const moved = nextItems[meta.overIndex];
+			if (!moved) return;
+			triggerReorderFeedback(moved.id, meta.overIndex + 1);
+		},
+		[triggerReorderFeedback],
+	);
 
 	const remove = useCallback((id: string) => {
 		const current = stateRef.current;
@@ -266,6 +287,7 @@ const InquiryQuestionFields = memo(function InquiryQuestionFields({
 			<Sortable
 				value={items}
 				onValueChange={onChange}
+				onValueCommit={handleDragCommit}
 				getItemValue={getItemId}
 				strategy="vertical"
 				className="flex flex-col gap-workspace-gutter"

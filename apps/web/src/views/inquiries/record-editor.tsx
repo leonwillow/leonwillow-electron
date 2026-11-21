@@ -33,7 +33,13 @@ import {
 	SaveIcon,
 	Undo2Icon,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+	type SyntheticEvent,
+	useCallback,
+	useEffect,
+	useRef,
+	useState,
+} from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import {
@@ -51,8 +57,11 @@ import InquiryBasicFields, {
 import InquiryDocumentPages, {
 	type InquiryPreviewStatus,
 } from "./document-pages";
-import InquiryDocumentPreview from "./document-preview";
+import InquiryDocumentPreview, {
+	type InquiryPreviewHighlightRequest,
+} from "./document-preview";
 import InquiryQuestionFields from "./question-fields";
+import { resolvePreviewTargetsForField } from "./record-fields";
 import { useInquiryEditor } from "./use-inquiry-editor";
 import InquiryWorkspaceHeader from "./workspace-header";
 
@@ -92,7 +101,24 @@ export default function InquiryRecordEditor({
 		pageCount: 0,
 		paginating: true,
 		error: "",
+		version: 0,
 	});
+	const previewVersionRef = useRef(0);
+	const handlePreviewStatusChange = useCallback(
+		(status: InquiryPreviewStatus) => {
+			previewVersionRef.current = status.version;
+			setPreviewStatus(status);
+		},
+		[],
+	);
+	const [previewHighlight, setPreviewHighlight] =
+		useState<InquiryPreviewHighlightRequest | null>(null);
+	const highlightSeqRef = useRef(0);
+	const lastFormTriggerRef = useRef<{ key: string; at: number }>({
+		key: "",
+		at: 0,
+	});
+	const suppressPreviewSyncUntilRef = useRef(0);
 	const [exporting, setExporting] = useState(false);
 	const operationDisabledReason = editor.conflicted
 		? "笔录已在其他位置更新，请重新打开后操作"
@@ -213,6 +239,86 @@ export default function InquiryRecordEditor({
 		setPrintDraft(null);
 		toast.error(message);
 	}, []);
+	const triggerPreviewHighlight = useCallback(
+		(targets: readonly string[], waitForPagination = false) => {
+			if (!targets.length) return;
+			const sequence = ++highlightSeqRef.current;
+			setPreviewHighlight({
+				targets,
+				sequence,
+				...(waitForPagination
+					? { minPaginationVersion: previewVersionRef.current }
+					: {}),
+			});
+		},
+		[],
+	);
+
+	const handleFormPreviewSync = useCallback(
+		(event: SyntheticEvent) => {
+			if (performance.now() < suppressPreviewSyncUntilRef.current) return;
+			const rawTarget = event.target;
+			if (!(rawTarget instanceof Element)) return;
+
+			let fieldKey = "";
+			let targets: string[] = [];
+
+			const withId = rawTarget.closest<HTMLElement>("[id]");
+			if (withId?.id) {
+				const matched = resolvePreviewTargetsForField(withId.id);
+				if (matched.length) {
+					fieldKey = withId.id;
+					targets = matched;
+				}
+			}
+			if (!targets.length) {
+				const label = rawTarget.closest<HTMLLabelElement>("label[for]");
+				if (label?.htmlFor) {
+					const matched = resolvePreviewTargetsForField(label.htmlFor);
+					if (matched.length) {
+						fieldKey = label.htmlFor;
+						targets = matched;
+					}
+				}
+			}
+			if (
+				!targets.length &&
+				event.type === "pointerdown" &&
+				!rawTarget.closest('button, a, [role="button"]')
+			) {
+				const group = rawTarget.closest<HTMLElement>("[data-preview-group-id]");
+				const groupId = group?.dataset.previewGroupId;
+				if (groupId) {
+					fieldKey = `group-${groupId}`;
+					targets = resolvePreviewTargetsForField(fieldKey);
+				}
+			}
+			if (!targets.length) return;
+
+			const now = performance.now();
+			// 同一次点击先后触发 pointerdown 与 focus 时合并为一次呼吸闪烁；稍后再次点击同一输入框仍可重播
+			if (
+				lastFormTriggerRef.current.key === fieldKey &&
+				now - lastFormTriggerRef.current.at < 220
+			) {
+				return;
+			}
+			lastFormTriggerRef.current = { key: fieldKey, at: now };
+			triggerPreviewHighlight(targets, false);
+		},
+		[triggerPreviewHighlight],
+	);
+
+	const handleQuestionReorderSuccess = useCallback(
+		(qaId: string) => {
+			triggerPreviewHighlight(
+				resolvePreviewTargetsForField(`group-${qaId}`),
+				true,
+			);
+		},
+		[triggerPreviewHighlight],
+	);
+
 	const focus = useCallback((id: string) => {
 		const isQuestion = id.startsWith("question-") || id.startsWith("answer-");
 		setTab(isQuestion ? "questions" : "basic");
@@ -225,6 +331,7 @@ export default function InquiryRecordEditor({
 				);
 			}
 		}
+		suppressPreviewSyncUntilRef.current = performance.now() + 450;
 		requestAnimationFrame(() =>
 			requestAnimationFrame(() => {
 				const element = root.current?.querySelector<HTMLElement>(
@@ -236,20 +343,31 @@ export default function InquiryRecordEditor({
 		);
 	}, []);
 	const basic = (
-		<InquiryBasicFields
-			content={draft.content}
-			onChange={contentChange}
-			readOnly={editingDisabled}
-			openSections={basicSections}
-			onOpenSectionsChange={setBasicSections}
-		/>
+		<div
+			onPointerDownCapture={handleFormPreviewSync}
+			onFocusCapture={handleFormPreviewSync}
+		>
+			<InquiryBasicFields
+				content={draft.content}
+				onChange={contentChange}
+				readOnly={editingDisabled}
+				openSections={basicSections}
+				onOpenSectionsChange={setBasicSections}
+			/>
+		</div>
 	);
 	const questions = (
-		<InquiryQuestionFields
-			items={draft.content.qaItems}
-			onChange={qaItemsChange}
-			readOnly={editingDisabled}
-		/>
+		<div
+			onPointerDownCapture={handleFormPreviewSync}
+			onFocusCapture={handleFormPreviewSync}
+		>
+			<InquiryQuestionFields
+				items={draft.content.qaItems}
+				onChange={qaItemsChange}
+				readOnly={editingDisabled}
+				onReorderSuccess={handleQuestionReorderSuccess}
+			/>
+		</div>
 	);
 	const previewMeta =
 		previewStatus.error ||
@@ -262,7 +380,8 @@ export default function InquiryRecordEditor({
 			paused={wide && !previewOpen}
 			showStatus={false}
 			focus={focus}
-			onStatusChange={setPreviewStatus}
+			highlightRequest={previewHighlight}
+			onStatusChange={handlePreviewStatusChange}
 		/>
 	);
 	return (

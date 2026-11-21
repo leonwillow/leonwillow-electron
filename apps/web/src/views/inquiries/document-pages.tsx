@@ -15,8 +15,14 @@ type Fragment = {
 	label: string;
 	text: string;
 	target: string;
+	previewTarget?: string;
 	kind: "metadata" | "notice" | "qa";
 	continued?: boolean;
+};
+
+export type InquiryPreviewHighlight = {
+	targets: readonly string[];
+	sequence: number;
 };
 type Page = { key: string; fragments: Fragment[] };
 export const INQUIRY_PAGE_WIDTH = 793.7008;
@@ -56,12 +62,15 @@ function fragments(c: InquiryDocument["content"]): Fragment[] {
 				`inquirer-name-${p.id}`,
 			),
 		),
-		field(
-			"recorder",
-			"记录人：",
-			recorder ? person(recorder) : "",
-			recorder ? `recorder-${recorder.id}` : "",
-		),
+		{
+			...field(
+				"recorder",
+				"记录人：",
+				recorder ? person(recorder) : "",
+				recorder ? `recorder-${recorder.id}` : "",
+			),
+			previewTarget: "inquiry-recorder",
+		},
 		field(
 			"subjectName",
 			"被询问（调查）人：",
@@ -131,13 +140,23 @@ function fragments(c: InquiryDocument["content"]): Fragment[] {
 function FragmentLine({
 	fragment: f,
 	focus,
+	highlightSequence,
 }: {
 	fragment: Fragment;
 	focus?: (id: string) => void;
+	highlightSequence?: number;
 }) {
 	const className = `inquiry-document-line inquiry-document-line--${f.kind}`;
+	const previewTarget = f.previewTarget ?? f.target;
 	const children = (
 		<>
+			{highlightSequence !== undefined && (
+				<span
+					key={highlightSequence}
+					className="inquiry-preview-breath"
+					aria-hidden="true"
+				/>
+			)}
 			{!f.continued && f.label}
 			<span className="inquiry-document-line-text">{f.text || "　"}</span>
 		</>
@@ -145,6 +164,10 @@ function FragmentLine({
 	return focus && f.target ? (
 		<button
 			type="button"
+			data-preview-target={previewTarget || undefined}
+			data-preview-highlighted={
+				highlightSequence !== undefined ? "true" : undefined
+			}
 			className={`${className} inquiry-document-focus-target`}
 			onClick={() => focus(f.target)}
 			aria-label={`定位${f.label || "对应字段"}`}
@@ -152,13 +175,22 @@ function FragmentLine({
 			{children}
 		</button>
 	) : (
-		<p className={className}>{children}</p>
+		<p
+			data-preview-target={previewTarget || undefined}
+			data-preview-highlighted={
+				highlightSequence !== undefined ? "true" : undefined
+			}
+			className={className}
+		>
+			{children}
+		</p>
 	);
 }
 export type InquiryPreviewStatus = {
 	pageCount: number;
 	paginating: boolean;
 	error: string;
+	version: number;
 };
 
 const InquiryPageSheetList = memo(function InquiryPageSheetList({
@@ -168,6 +200,7 @@ const InquiryPageSheetList = memo(function InquiryPageSheetList({
 	enforcementUnitName,
 	inquiryCount,
 	focus,
+	highlight,
 }: {
 	pages: Page[];
 	preview: boolean;
@@ -175,7 +208,22 @@ const InquiryPageSheetList = memo(function InquiryPageSheetList({
 	enforcementUnitName: string;
 	inquiryCount: number;
 	focus?: (id: string) => void;
+	highlight?: InquiryPreviewHighlight | null;
 }) {
+	const highlightTargetSet = useMemo(
+		() => (highlight?.targets.length ? new Set(highlight.targets) : null),
+		[highlight],
+	);
+	const sequenceFor = (targetId: string) =>
+		highlight && highlightTargetSet?.has(targetId)
+			? highlight.sequence
+			: undefined;
+	const authoritySeq = preview
+		? sequenceFor("inquiry-enforcementUnitName")
+		: undefined;
+	const inquiryCountSeq = preview
+		? sequenceFor("inquiry-inquiryCount")
+		: undefined;
 	return (
 		<div
 			className="inquiry-document-stage"
@@ -199,30 +247,78 @@ const InquiryPageSheetList = memo(function InquiryPageSheetList({
 						<header
 							className={`inquiry-document-page-header inquiry-document-page-header--${index ? "continuation" : "first"}`}
 						>
-							{index === 0 && (
-								<div className="inquiry-document-authority">
-									{enforcementUnitName || "国家税务总局XXX税务局XXX稽查局"}
-								</div>
-							)}
+							{index === 0 &&
+								(preview && focus ? (
+									<button
+										type="button"
+										data-preview-target="inquiry-enforcementUnitName"
+										data-preview-highlighted={
+											authoritySeq !== undefined ? "true" : undefined
+										}
+										className="inquiry-document-authority inquiry-document-header-target inquiry-document-focus-target"
+										onClick={() => focus("inquiry-enforcementUnitName")}
+										aria-label="定位执法单位名称"
+									>
+										{authoritySeq !== undefined && (
+											<span
+												key={authoritySeq}
+												className="inquiry-preview-breath"
+												aria-hidden="true"
+											/>
+										)}
+										{enforcementUnitName || "国家税务总局XXX税务局XXX稽查局"}
+									</button>
+								) : (
+									<div className="inquiry-document-authority">
+										{enforcementUnitName || "国家税务总局XXX税务局XXX稽查局"}
+									</div>
+								))}
 							<h1>{index ? "询问（调查）笔录续页" : "询问（调查）笔录"}</h1>
-							{index === 0 && (
-								<div className="inquiry-document-inquiry-count">
-									（第{toChineseUpperNumber(inquiryCount)}次）
-								</div>
-							)}
+							{index === 0 &&
+								(preview && focus ? (
+									<button
+										type="button"
+										data-preview-target="inquiry-inquiryCount"
+										data-preview-highlighted={
+											inquiryCountSeq !== undefined ? "true" : undefined
+										}
+										className="inquiry-document-inquiry-count inquiry-document-header-target inquiry-document-focus-target"
+										onClick={() => focus("inquiry-inquiryCount")}
+										aria-label="定位询问次数"
+									>
+										{inquiryCountSeq !== undefined && (
+											<span
+												key={inquiryCountSeq}
+												className="inquiry-preview-breath"
+												aria-hidden="true"
+											/>
+										)}
+										（第{toChineseUpperNumber(inquiryCount)}次）
+									</button>
+								) : (
+									<div className="inquiry-document-inquiry-count">
+										（第{toChineseUpperNumber(inquiryCount)}次）
+									</div>
+								))}
 							<div className="inquiry-document-page-count">
 								共{toChineseUpperNumber(pages.length)}页　第
 								{toChineseUpperNumber(index + 1)}页
 							</div>
 						</header>
 						<div className="inquiry-document-page-body">
-							{page.fragments.map((fragment) => (
-								<FragmentLine
-									key={fragment.key}
-									fragment={fragment}
-									focus={preview ? focus : undefined}
-								/>
-							))}
+							{page.fragments.map((fragment) => {
+								const targetKey = fragment.previewTarget ?? fragment.target;
+								return (
+									<FragmentLine
+										key={fragment.key}
+										fragment={fragment}
+										focus={preview ? focus : undefined}
+										highlightSequence={
+											preview && targetKey ? sequenceFor(targetKey) : undefined
+										}
+									/>
+								);
+							})}
 						</div>
 						<footer className="inquiry-document-signature-footer">
 							<div>询问（调查）人签字：</div>
@@ -247,6 +343,7 @@ const InquiryDocumentPages = memo(function InquiryDocumentPages({
 	scale = 1,
 	showStatus = true,
 	focus,
+	highlight,
 	onStatusChange,
 	onReady,
 	onError,
@@ -257,12 +354,14 @@ const InquiryDocumentPages = memo(function InquiryDocumentPages({
 	scale?: number;
 	showStatus?: boolean;
 	focus?: (id: string) => void;
+	highlight?: InquiryPreviewHighlight | null;
 	onStatusChange?: (status: InquiryPreviewStatus) => void;
 	onReady?: () => void;
 	onError?: (message: string) => void;
 }) {
 	const measure = useRef<HTMLDivElement>(null);
 	const [pages, setPages] = useState<Page[]>([]);
+	const [paginationVersion, setPaginationVersion] = useState(0);
 	const [paginating, setPaginating] = useState(true);
 	const [error, setError] = useState("");
 	const source = useMemo(
@@ -280,8 +379,9 @@ const InquiryDocumentPages = memo(function InquiryDocumentPages({
 			pageCount: pages.length,
 			paginating,
 			error,
+			version: paginationVersion,
 		});
-	}, [pages.length, paginating, error]);
+	}, [pages.length, paginating, error, paginationVersion]);
 	useEffect(() => {
 		if (paused || !source) return;
 		let cancelled = false;
@@ -395,6 +495,7 @@ const InquiryDocumentPages = memo(function InquiryDocumentPages({
 					if (cancelled) return;
 					container.replaceChildren();
 					setPages(all.filter((p) => p.fragments.length));
+					setPaginationVersion((v) => v + 1);
 					setPaginating(false);
 				})().catch((cause) => {
 					if (!cancelled) {
@@ -438,6 +539,7 @@ const InquiryDocumentPages = memo(function InquiryDocumentPages({
 				enforcementUnitName={c.enforcementUnitName}
 				inquiryCount={c.inquiryCount}
 				focus={focus}
+				highlight={preview ? highlight : null}
 			/>
 			<article
 				className="inquiry-document-page inquiry-document-measurement"
