@@ -1,6 +1,6 @@
 /**
  * @file Lattice Grid store：泛型表格数据与事务内核。
- * 创建时间：2026-11-05；修改时间：2026-11-17。
+ * 创建时间：2026-11-05；修改时间：2026-11-21。
  * 版本作用：适配 MIT Lattice Grid 0.1.0-beta.1，保留原始行标识、不可变事务与数据隔离。
  * 被调用：独立表格包的 React 视图；调用：包内核心模块，不依赖业务、数据库或路由。
  * 预期结果：多个表格实例独立工作，外部数据和提交由调用页面管理。
@@ -599,14 +599,22 @@ export class GridStore<T> {
 		);
 		if (!ranges.length) return { ok: true };
 		const patches: Patch[] = [];
-		for (const b of ranges)
-			for (const row of viewRows.slice(b.r0, b.r1 + 1))
-				for (const column of columns.slice(b.c0, b.c1 + 1))
-					patches.push({
-						rowId: this.options.getRowId(row),
-						columnId: column.id,
-						value: column.type === "number" ? null : "",
-					});
+		try {
+			for (const b of ranges)
+				for (const row of viewRows.slice(b.r0, b.r1 + 1))
+					for (const column of columns.slice(b.c0, b.c1 + 1))
+						patches.push({
+							rowId: this.options.getRowId(row),
+							columnId: column.id,
+							value: this.isEditable(row, column)
+								? parseCell("", row, column)
+								: column.type === "number"
+									? null
+									: "",
+						});
+		} catch (e) {
+			return this.report(e);
+		}
 		return this.apply(patches, "clear");
 	}
 	/** Insert validated rows at an index in the underlying data, not in sorted view order. */

@@ -750,3 +750,48 @@ test("存在未填所属期的空行时，留抵余额汇总不把空行误选�
 		expect(summary("result-end", rows)).toBe("—");
 	}
 });
+
+test("对原始申报列执行清空（Delete/Backspace）置为 0.00 而非空串，不引发计算崩溃且可撤销", async () => {
+	const original: VatData = {
+		source: "清空原始申报回归",
+		history: [month("2026-01")],
+		adjustments: {},
+	};
+	let data = original;
+	const options = (): GridOptions<VatGridRow> => ({
+		rows: rowsFor(data.history, data.adjustments),
+		columns: vatGridColumns,
+		getRowId: vatGridRowId,
+		reconcileRows: "editable",
+		onCommit: (tx) => {
+			const next = applyVatGridChanges(
+				data,
+				vatGridChanges(tx.previousRows, tx.rows),
+			);
+			calculate(next.history, next.adjustments);
+		},
+		onRowsChange: (next, tx) => {
+			data = applyVatGridChanges(data, vatGridChanges(tx.previousRows, next));
+		},
+	});
+	const grid = createGrid(options());
+	grid.select({ rowId: "2026-01", columnId: "history-x" });
+	expect((await grid.clear()).ok).toBe(true);
+	expect(data.history[0]?.x).toBe("0.00");
+	expect(() => calculate(data.history, data.adjustments)).not.toThrow();
+	grid.updateOptions(options());
+	expect((await grid.undo()).ok).toBe(true);
+	expect(data.history[0]?.x).toBe("200.00");
+	grid.updateOptions(options());
+	grid.select({ rowId: "2026-01", columnId: "history-x" });
+	grid.select({ rowId: "2026-01", columnId: "history-end" }, true);
+	expect((await grid.clear()).ok).toBe(true);
+	expect(data.history[0]).toMatchObject({
+		x: "0.00",
+		i: "0.00",
+		t: "0.00",
+		tax: "0.00",
+		end: "0.00",
+	});
+	expect(() => calculate(data.history, data.adjustments)).not.toThrow();
+});

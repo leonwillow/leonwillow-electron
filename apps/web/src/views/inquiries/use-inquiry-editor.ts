@@ -1,9 +1,9 @@
 /**
  * @file 笔录编辑历史、串行保存、按需自动保存和离开保护。
- * 创建时间：2026-11-04；修改时间：2026-11-18。
+ * 创建时间：2026-11-04；修改时间：2026-11-21。
  * 版本作用：以单调编辑版本号追踪脏状态并按需调度自动保存，消除每次按键/渲染的整篇 JSON.stringify 与空闲 setInterval 轮询。
- * 被调用：RecordEditor；调用：React、TanStack blocker、Eden、Sonner、笔录目录资源与操作协调。
- * 预期结果：保存期间继续输入不会误标已保存，撤销回已保存版本立即清除脏状态，空闲时零定时器唤醒。
+ * 被调用：RecordEditor、编辑器历史单元测试；调用：React、TanStack blocker、Eden、Sonner、笔录目录资源与操作协调。
+ * 预期结果：保存期间继续输入不会误标已保存，撤销-改名-重做不发生 rev 碰撞，撤销回已保存版本立即清除脏状态。
  */
 import { useBlocker } from "@tanstack/react-router";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
@@ -11,96 +11,25 @@ import { toast } from "sonner";
 import { useInquiryEditorActions } from "@/components/layout/inquiry-editor-actions";
 import { useInquiryNavigation } from "@/components/layout/inquiry-navigation-provider";
 import {
-	type InquiryDocument,
 	InquiryError,
 	type InquiryRecord,
 	inquiryError,
 	updateInquiryRecord,
 } from "@/lib/inquiries";
+import {
+	type InquiryEditable,
+	inquiryHistoryReducer,
+	nextInquirySyncedRev,
+} from "./inquiry-editor-history";
 
 const AUTO_SAVE_DELAY_MS = 5000;
-
-type Editable = Pick<InquiryDocument, "title" | "content">;
-type Snapshot = {
-	value: Editable;
-	rev: number;
-};
-type History = {
-	past: Snapshot[];
-	present: Snapshot;
-	future: Snapshot[];
-	nextRev: number;
-	time: number;
-};
-type Action =
-	| { type: "edit"; value: Editable; time: number }
-	| { type: "undo" | "redo" }
-	| { type: "rename"; title: string; syncedRev: number };
-
-function reducer(state: History, action: Action): History {
-	if (action.type === "rename") {
-		const rename = (snap: Snapshot): Snapshot => ({
-			rev: snap.rev === state.present.rev ? action.syncedRev : snap.rev,
-			value: { ...snap.value, title: action.title },
-		});
-		return {
-			...state,
-			past: state.past.map(rename),
-			present: rename(state.present),
-			future: state.future.map(rename),
-			nextRev: Math.max(state.nextRev, action.syncedRev),
-		};
-	}
-	if (action.type === "edit") {
-		if (
-			Object.is(action.value, state.present.value) ||
-			(action.value.title === state.present.value.title &&
-				Object.is(action.value.content, state.present.value.content))
-		) {
-			return state;
-		}
-		const rev = state.nextRev + 1;
-		return {
-			past:
-				action.time - state.time > 400 || !state.past.length
-					? [...state.past, state.present].slice(-100)
-					: state.past,
-			present: { value: action.value, rev },
-			future: [],
-			nextRev: rev,
-			time: action.time,
-		};
-	}
-	if (action.type === "undo") {
-		const prev = state.past.at(-1);
-		return prev
-			? {
-					past: state.past.slice(0, -1),
-					present: prev,
-					future: [state.present, ...state.future],
-					nextRev: state.nextRev,
-					time: 0,
-				}
-			: state;
-	}
-	const next = state.future[0];
-	return next
-		? {
-				past: [...state.past, state.present],
-				present: next,
-				future: state.future.slice(1),
-				nextRev: state.nextRev,
-				time: 0,
-			}
-		: state;
-}
 
 export function useInquiryEditor(record: InquiryRecord, readOnly: boolean) {
 	const errorToastId = `inquiry-save-error-${record.id}`;
 	const { cases } = useInquiryNavigation();
 	const { registerEditor } = useInquiryEditorActions();
 	const reloadCases = cases.reload;
-	const [history, dispatch] = useReducer(reducer, {
+	const [history, dispatch] = useReducer(inquiryHistoryReducer, {
 		past: [],
 		present: {
 			value: { title: record.title, content: record.content },
@@ -114,10 +43,12 @@ export function useInquiryEditor(record: InquiryRecord, readOnly: boolean) {
 
 	const current = useRef(history.present);
 	current.current = history.present;
+	const nextRevRef = useRef(history.nextRev);
+	nextRevRef.current = Math.max(nextRevRef.current, history.nextRev);
 	const savedRevRef = useRef(0);
 	const failedRevRef = useRef(-1);
 	const savedJson = useRef<string | null>(null);
-	const savedSnapshot = useRef<Editable>({
+	const savedSnapshot = useRef<InquiryEditable>({
 		title: record.title,
 		content: record.content,
 	});
@@ -304,11 +235,15 @@ export function useInquiryEditor(record: InquiryRecord, readOnly: boolean) {
 			// 目录改名已在锁内保存正文；同步修订和历史标题，避免后续自动保存覆盖新名称。
 			revision.current = updated.revision;
 			lastRecord.current = updated;
-			const nextEditable: Editable = {
+			const nextEditable: InquiryEditable = {
 				title: updated.title,
 				content: updated.content,
 			};
-			const syncedRev = current.current.rev + 1;
+			const syncedRev = nextInquirySyncedRev(
+				nextRevRef.current,
+				current.current.rev,
+			);
+			nextRevRef.current = syncedRev;
 			current.current = { value: nextEditable, rev: syncedRev };
 			savedSnapshot.current = nextEditable;
 			savedJson.current = null;
@@ -372,7 +307,7 @@ export function useInquiryEditor(record: InquiryRecord, readOnly: boolean) {
 		persist,
 		blocker,
 		conflicted: blocked.current,
-		change: (value: Editable) => {
+		change: (value: InquiryEditable) => {
 			if (!readOnly && !mutationLock.current)
 				dispatch({ type: "edit", value, time: Date.now() });
 		},

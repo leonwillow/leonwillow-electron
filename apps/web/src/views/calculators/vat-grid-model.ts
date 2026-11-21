@@ -312,10 +312,19 @@ export const vatGridColumns: Column<VatGridRow>[] = [
 			align: "end",
 			width: 150,
 			editable: (row) => !!row.h,
+			required: true,
 			inputMode: "decimal",
 			parse: (input) => parseVatHistory(input, key),
 			setValue: (row, value) =>
-				row.h ? { ...row, h: { ...row.h, [key]: String(value) } } : row,
+				row.h
+					? {
+							...row,
+							h: {
+								...row.h,
+								[key]: String(value ?? "").trim() || "0.00",
+							},
+						}
+					: row,
 			formatEdit: (value) => String(value ?? "0.00"),
 			compare: (a, b) => cents(a ?? "", true) - cents(b ?? "", true),
 			filter: (value, filter) =>
