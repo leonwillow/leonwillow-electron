@@ -233,3 +233,44 @@ test("税务表两列日期原样读取，旧月份转整月并保留调整键",
 		-1000,
 	);
 });
+
+test("手工修改已导入行的所属期后，重新导入原所属期自动避让合成 ID 不报错", () => {
+	const importedJan = gridToHistory([
+		[
+			"税款所属期起",
+			"税款所属期止",
+			"销项税额",
+			"进项税额",
+			"进项税额转出",
+			"应纳税额",
+			"期末留抵",
+		],
+		["2026-01-01", "2026-01-31", "100", "50", "0", "50", "0"],
+	]).rows;
+	// 用户在表格中把原 1 月行改期为 2 月，保留原合成 ID。
+	const editedToFeb = importedJan.map((row) => ({
+		...row,
+		periodStart: "2026-02-01",
+		periodEnd: "2026-02-28",
+	}));
+	const reimportedJan = gridToHistory([
+		[
+			"税款所属期起",
+			"税款所属期止",
+			"销项税额",
+			"进项税额",
+			"进项税额转出",
+			"应纳税额",
+			"期末留抵",
+		],
+		["2026-01-01", "2026-01-31", "200", "100", "0", "100", "0"],
+	]).rows;
+	const merged = mergeHistory(editedToFeb, reimportedJan, false);
+	expect(merged.added).toBe(1);
+	expect(merged.rows).toHaveLength(2);
+	expect(new Set(merged.rows.map((r) => r.id)).size).toBe(2);
+	expect(merged.rows.map((r) => r.periodStart)).toEqual([
+		"2026-01-01",
+		"2026-02-01",
+	]);
+});

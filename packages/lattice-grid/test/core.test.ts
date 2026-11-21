@@ -855,3 +855,46 @@ describe("default Chinese errors", () => {
 		);
 	});
 });
+
+describe("spreadsheet negative literals and null numeric filters", () => {
+	it("preserves plain negative numeric strings while quoting formulas", () => {
+		const g = createGrid({
+			rows: [
+				{ id: "1", amount: "-100.00", note: "-SUM(A1:A2)" },
+				{ id: "2", amount: "-0", note: " -100.00" },
+				{ id: "3", amount: "=1+1", note: "+100" },
+			],
+			columns: [
+				{ id: "amount", field: "amount", header: "金额" },
+				{ id: "note", field: "note", header: "备注" },
+			],
+			getRowId: (r) => r.id,
+		});
+		g.select({ rowId: "1", columnId: "amount" });
+		expect(g.copySelection()).toBe("-100.00");
+		const csv = g.exportCSV();
+		expect(csv).toContain("-100.00,'-SUM(A1:A2)");
+		expect(csv).toContain("-0,' -100.00");
+		expect(csv).toContain("'=1+1,'+100");
+	});
+	it("excludes null and blank values from numeric filters and parses commas", () => {
+		const g = createGrid({
+			rows: [
+				{ id: "a", amount: null as number | string | null },
+				{ id: "b", amount: "" },
+				{ id: "c", amount: 0 },
+				{ id: "d", amount: "1,234.50" },
+			],
+			columns: [
+				{ id: "amount", field: "amount", header: "金额", type: "number" },
+			],
+			getRowId: (r) => r.id,
+		});
+		g.setState({ filters: { amount: "<=0" } }, "filter");
+		expect(g.getSnapshot().viewRows.map((r) => r.id)).toEqual(["c"]);
+		g.setState({ filters: { amount: "=0" } }, "filter");
+		expect(g.getSnapshot().viewRows.map((r) => r.id)).toEqual(["c"]);
+		g.setState({ filters: { amount: ">1000" } }, "filter");
+		expect(g.getSnapshot().viewRows.map((r) => r.id)).toEqual(["d"]);
+	});
+});

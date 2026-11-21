@@ -327,10 +327,16 @@ export const vatGridColumns: Column<VatGridRow>[] = [
 					: row,
 			formatEdit: (value) => String(value ?? "0.00"),
 			compare: (a, b) => cents(a ?? "", true) - cents(b ?? "", true),
-			filter: (value, filter) =>
-				typeof filter === "string"
-					? !filter.trim() || (numericFilter(filter)?.(Number(value)) ?? false)
-					: filter.includes(String(value ?? "")),
+			filter: (value, filter) => {
+				if (typeof filter !== "string")
+					return filter.includes(String(value ?? ""));
+				if (!filter.trim()) return true;
+				if (value == null || value === "") return false;
+				const parsed = Number(String(value).trim().replace(/,/g, ""));
+				return (
+					Number.isFinite(parsed) && (numericFilter(filter)?.(parsed) ?? false)
+				);
+			},
 			validate: (value) => {
 				try {
 					parseVatHistory(String(value ?? ""), key);

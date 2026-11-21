@@ -1,9 +1,9 @@
 /**
  * @file Lattice Grid 的虚拟行列、键盘、选区与剪贴板控制器。
- * 创建时间：2026-11-05；修改时间：2026-11-17。
+ * 创建时间：2026-11-05；修改时间：2026-11-21。
  * 版本作用：统一多区域选择、拖选生命周期与实际 ScrollArea viewport 的几何。
  * 被调用：React DataGrid；调用：泛型 GridStore、浏览器 DOM；仅 mount 后读取布局。
- * 预期结果：导航、选区与编辑定位始终使用相同几何数据，不介入业务持久化。
+ * 预期结果：导航、选区与编辑定位始终使用相同几何数据，缓存 CSS 度量并避免误改选择型编辑器草稿。
  */
 
 import { copyText } from "@leonwillow-electron/ui/lib/clipboard";
@@ -113,6 +113,10 @@ export class GridView<T> {
 	private listeners = new Set<() => void>();
 	private resizeObserver?: ResizeObserver;
 	private themeObserver?: MutationObserver;
+	private metricCache = new Map<string, number>();
+	private rootTextSizeCache?: number;
+	private dragFrame = 0;
+	private pendingDragEvent: PointerEvent | null = null;
 	private geometry = "";
 	private timer: ReturnType<typeof setTimeout> | undefined;
 	private focusTimer: ReturnType<typeof setTimeout> | undefined;
@@ -266,20 +270,36 @@ export class GridView<T> {
 			this.presentationSnapshot = this.snapshot;
 		for (const fn of this.listeners) fn();
 	}
-	/** 共享 CSS 使用 rem；虚拟布局换算为当前根字号的实际像素。 */
+	/** 共享 CSS 使用 rem；按根字号换算为实际像素，缓存至尺寸/主题变化时失效。 */
+	invalidateMetrics() {
+		this.metricCache.clear();
+		this.rootTextSizeCache = undefined;
+	}
 	metric(name: string, fallback: number) {
 		const win = this.root?.ownerDocument.defaultView;
 		if (!win || !this.root) return fallback;
+		const cached = this.metricCache.get(name);
+		if (cached !== undefined) return cached;
 		const value = win.getComputedStyle(this.root).getPropertyValue(name).trim();
 		const number = Number.parseFloat(value);
-		if (!Number.isFinite(number) || number <= 0) return fallback;
-		return value.endsWith("rem")
-			? number *
-					Number.parseFloat(
-						win.getComputedStyle(this.root.ownerDocument.documentElement)
-							.fontSize,
-					)
-			: number;
+		if (!Number.isFinite(number) || number <= 0) {
+			this.metricCache.set(name, fallback);
+			return fallback;
+		}
+		let px = number;
+		if (value.endsWith("rem")) {
+			if (this.rootTextSizeCache === undefined) {
+				const parsed = Number.parseFloat(
+					win.getComputedStyle(this.root.ownerDocument.documentElement)
+						.fontSize,
+				);
+				this.rootTextSizeCache =
+					Number.isFinite(parsed) && parsed > 0 ? parsed : 16;
+			}
+			px = number * this.rootTextSizeCache;
+		}
+		this.metricCache.set(name, px);
+		return px;
 	}
 	rowHeight() {
 		const density = this.store.getSnapshot().state.density;
@@ -344,11 +364,22 @@ export class GridView<T> {
 		const win = this.root.ownerDocument.defaultView;
 		if (!win) return cleanData;
 		const doc = this.root.ownerDocument;
-		this.resizeObserver = new win.ResizeObserver(() => this.measure());
+		this.invalidateMetrics();
+		this.resizeObserver = new win.ResizeObserver(() => {
+			this.invalidateMetrics();
+			this.measure();
+		});
 		this.resizeObserver.observe(this.scroller);
-		// A root rem-scale change can leave a fixed viewport unchanged but alters every virtual row.
-		this.themeObserver = new win.MutationObserver(() => this.measure());
+		// A root rem-scale or density change can leave a fixed viewport unchanged but alters every virtual row.
+		this.themeObserver = new win.MutationObserver(() => {
+			this.invalidateMetrics();
+			this.measure();
+		});
 		this.themeObserver.observe(doc.documentElement, { attributes: true });
+		this.themeObserver.observe(this.root, {
+			attributes: true,
+			attributeFilter: ["class", "style", "data-density"],
+		});
 		doc.addEventListener("pointerdown", this.outside, true);
 		doc.addEventListener("focusin", this.focusOutside, true);
 		doc.addEventListener("pointermove", this.pointerMove);
@@ -359,6 +390,7 @@ export class GridView<T> {
 		return () => {
 			this.resizeObserver?.disconnect();
 			this.themeObserver?.disconnect();
+			this.invalidateMetrics();
 			cleanData();
 			doc.removeEventListener("pointerdown", this.outside, true);
 			doc.removeEventListener("focusin", this.focusOutside, true);
@@ -630,35 +662,62 @@ export class GridView<T> {
 			});
 			return;
 		}
+		const win = this.root?.ownerDocument.defaultView;
+		if (typeof win?.requestAnimationFrame === "function") {
+			this.pendingDragEvent = e;
+			if (!this.dragFrame) {
+				this.dragFrame = win.requestAnimationFrame(() => {
+					this.dragFrame = 0;
+					const latest = this.pendingDragEvent;
+					this.pendingDragEvent = null;
+					if (latest && this.drag?.type === "select")
+						this.extendSelectionAt(latest, true);
+				});
+			}
+			return;
+		}
 		this.extendSelectionAt(e, true);
 	};
-	/** 直接按当前虚拟行列几何定位，滚动后不依赖尚未重新挂载的 DOM 单元格。 */
+	/** 直接按当前虚拟行列几何定位，先读后写避免强制回流，滚动后不依赖尚未重新挂载的 DOM 单元格。 */
 	private extendSelectionAt(e: PointerEvent, scroll: boolean) {
 		if (!this.scroller) return;
 		const rect = this.scroller.getBoundingClientRect();
-		if (scroll && e.clientY < rect.top + this.headHeight() + 16)
-			this.scroller.scrollTop -= this.rowHeight();
-		if (scroll && e.clientY > rect.bottom - this.summaryHeight())
-			this.scroller.scrollTop += this.rowHeight();
-		if (scroll && e.clientX > rect.right - 24) this.scroller.scrollLeft += 24;
-		if (scroll && e.clientX < rect.left + 24) this.scroller.scrollLeft -= 24;
+		const headH = this.headHeight();
+		const rowH = this.rowHeight();
+		const summaryH = this.summaryHeight();
+		const gutterW = this.gutterWidth();
+		const clientWidth = this.scroller.clientWidth;
+		let scrollTop = this.scroller.scrollTop;
+		let scrollLeft = this.scroller.scrollLeft;
+		if (scroll) {
+			let nextTop = scrollTop;
+			let nextLeft = scrollLeft;
+			if (e.clientY < rect.top + headH + 16) nextTop -= rowH;
+			if (e.clientY > rect.bottom - summaryH) nextTop += rowH;
+			if (e.clientX > rect.right - 24) nextLeft += 24;
+			if (e.clientX < rect.left + 24) nextLeft -= 24;
+			if (nextTop !== scrollTop) {
+				this.scroller.scrollTop = nextTop;
+				scrollTop = this.scroller.scrollTop;
+			}
+			if (nextLeft !== scrollLeft) {
+				this.scroller.scrollLeft = nextLeft;
+				scrollLeft = this.scroller.scrollLeft;
+			}
+		}
 		const { viewRows: rows } = this.store.getSnapshot();
 		const layout = this.layout();
 		const rowIndex = Math.max(
 			0,
 			Math.min(
 				rows.length - 1,
-				Math.floor(
-					(e.clientY - rect.top - this.headHeight() + this.scroller.scrollTop) /
-						this.rowHeight(),
-				),
+				Math.floor((e.clientY - rect.top - headH + scrollTop) / rowH),
 			),
 		);
 		const x = Math.max(
-			this.gutterWidth(),
-			Math.min(this.scroller.clientWidth - 1, e.clientX - rect.left),
+			gutterW,
+			Math.min(clientWidth - 1, e.clientX - rect.left),
 		);
-		const scrollLeft = this.scroller.scrollLeft;
 		const column =
 			layout.find(
 				(col) => col.pinned && x >= col.pinLeft && x < col.pinLeft + col.width,
@@ -669,7 +728,7 @@ export class GridView<T> {
 					x + scrollLeft >= col.left &&
 					x + scrollLeft < col.left + col.width,
 			) ??
-			(x <= this.gutterWidth() ? layout[0] : layout.at(-1));
+			(x <= gutterW ? layout[0] : layout.at(-1));
 		const row = rows[rowIndex];
 		if (row && column) {
 			const pos = {
@@ -685,8 +744,10 @@ export class GridView<T> {
 	}
 	private pointerUp = (event: PointerEvent) => {
 		if (!this.drag || this.drag.pointerId !== event.pointerId) return;
+		const hadPending = this.pendingDragEvent !== null;
+		this.cancelDragFrame();
 		// 已拖动时补齐释放位置；普通点击不因边缘自动滚动而意外扩大范围。
-		if (this.drag.type === "select" && this.snapshot.selecting)
+		if (this.drag.type === "select" && (this.snapshot.selecting || hadPending))
 			this.extendSelectionAt(event, false);
 		this.finishDrag();
 	};
@@ -695,7 +756,17 @@ export class GridView<T> {
 			return;
 		this.finishDrag();
 	};
+	private cancelDragFrame() {
+		this.pendingDragEvent = null;
+		if (this.dragFrame) {
+			this.root?.ownerDocument.defaultView?.cancelAnimationFrame?.(
+				this.dragFrame,
+			);
+			this.dragFrame = 0;
+		}
+	}
 	private finishDrag() {
+		this.cancelDragFrame();
 		this.drag = null;
 		if (this.snapshot.selecting) this.set({ selecting: false });
 	}
@@ -879,11 +950,24 @@ export class GridView<T> {
 			return;
 		}
 		const focus = this.store.getSnapshot().state.selection?.focus;
+		if (!focus) return;
+		const col = this.store
+			.getOptions()
+			.columns.find((candidate) => candidate.id === focus.columnId);
+		const pickerColumn =
+			!!col &&
+			(col.editOnClick === true || !!col.options || col.type === "boolean");
+		if (pickerColumn) {
+			if (event.key === "Enter" || event.key === "F2" || event.key === " ") {
+				event.preventDefault();
+				this.startEdit(focus);
+			}
+			return;
+		}
 		if (
-			focus &&
-			(event.key === "Enter" ||
-				event.key === "F2" ||
-				(!mod && !event.altKey && !event.isComposing && event.key.length === 1))
+			event.key === "Enter" ||
+			event.key === "F2" ||
+			(!mod && !event.altKey && !event.isComposing && event.key.length === 1)
 		) {
 			event.preventDefault();
 			this.startEdit(focus, event.key.length === 1 ? event.key : undefined);

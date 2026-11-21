@@ -1,9 +1,9 @@
 /**
  * @file 测算方案的串行保存、按需自动保存与离开保护。
- * 创建时间：2026-11-05；修改时间：2026-11-18。
- * 版本作用：只确认已提交快照；以轻量版本号追踪脏状态并按需调度自动保存，消除每次渲染的 JSON 序列化与空闲轮询。
+ * 创建时间：2026-11-05；修改时间：2026-11-21。
+ * 版本作用：只确认已提交快照；支持提交前不覆写本地草稿的原子应用，并在失败期间继续编辑后恢复自动保存。
  * 被调用：增值税与滞纳金编辑器；调用：Eden、TanStack blocker、Sonner。
- * 预期结果：切换方案先保存，冲突停止重试并保留本地内存供导出备份；空闲时零定时器唤醒。
+ * 预期结果：切换方案先保存，导入/清空失败不破坏本地草稿与撤销栈，冲突停止重试并保留本地内存供导出备份。
  */
 import { useBlocker } from "@tanstack/react-router";
 import {
@@ -171,8 +171,81 @@ export function useScenario<
 			return await request;
 		} finally {
 			if (pending.current === request) pending.current = null;
+			if (
+				live.current &&
+				!blocked.current &&
+				version.current !== savedVersion.current &&
+				version.current !== failedVersion.current
+			)
+				scheduleAutoSave();
 		}
 	}, [record.id, save, archived, clearAutoSaveTimer, scheduleAutoSave]);
+
+	/** 事务性应用外部整批变更（如导入历史、清空调整）：仅在保存成功后才覆写本地草稿与版本。 */
+	const apply = useCallback(
+		async (updater: (prev: D) => D): Promise<boolean> => {
+			if (mutationLock.current || archived || blocked.current) return false;
+			clearAutoSaveTimer();
+			while (pending.current) await pending.current;
+			if (mutationLock.current || archived || blocked.current) return false;
+			const snapshot = updater(current.current);
+			const fingerprint = JSON.stringify(snapshot);
+			const request = (async () => {
+				if (live.current) setSaving(true);
+				try {
+					if (!snapshot.name.trim()) throw Error("请填写方案名称");
+					const result = await save(record.id, revision.current, snapshot);
+					revision.current = result.revision;
+					current.current = snapshot;
+					savedSnapshot.current = snapshot;
+					savedJson.current = fingerprint;
+					version.current += 1;
+					savedVersion.current = version.current;
+					failedVersion.current = -1;
+					if (live.current) {
+						setDraft(snapshot);
+						setDirty(false);
+						setSavedAt(result.updatedAt);
+						setError("");
+						savedCallback.current(result);
+						toast.dismiss(`calculator-save-${record.id}`);
+					}
+					return true;
+				} catch (cause) {
+					if (
+						cause instanceof CalculatorError &&
+						[401, 403, 404, 409].includes(cause.status)
+					)
+						blocked.current = true;
+					if (live.current) {
+						setError(calculatorError(cause));
+						toast.error(calculatorError(cause), {
+							id: `calculator-save-${record.id}`,
+							description: "当前输入仍保留，可导出方案备份。",
+							duration: 8000,
+						});
+					}
+					return false;
+				} finally {
+					if (live.current) setSaving(false);
+				}
+			})();
+			pending.current = request;
+			try {
+				return await request;
+			} finally {
+				if (pending.current === request) pending.current = null;
+				if (
+					live.current &&
+					!blocked.current &&
+					version.current !== savedVersion.current &&
+					version.current !== failedVersion.current
+				)
+					scheduleAutoSave();
+			}
+		},
+		[record.id, save, archived, clearAutoSaveTimer, scheduleAutoSave],
+	);
 
 	persistRef.current = persist;
 
@@ -262,6 +335,7 @@ export function useScenario<
 		archived,
 		readOnly: archived || mutating,
 		change,
+		apply,
 		persist,
 		saving,
 		savedAt,

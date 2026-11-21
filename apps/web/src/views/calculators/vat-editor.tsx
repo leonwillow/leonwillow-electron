@@ -127,10 +127,9 @@ export default function VatEditor({
 	const apply = useCallback(
 		async (data: VatData) => {
 			if (readOnly) return false;
-			setDraft((prev) => ({ ...prev, ...data }));
-			return editor.persist();
+			return editor.apply((prev) => ({ ...prev, ...data }));
 		},
-		[readOnly, setDraft, editor.persist],
+		[readOnly, editor.apply],
 	);
 
 	const insertRows = useCallback(

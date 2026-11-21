@@ -146,7 +146,20 @@ export function normalizeHistory(input: readonly HistoryInput[]): HistoryRow[] {
 	return rows;
 }
 
-/** 保存按稳定 ID 更新并保留遗漏行；导入同一期间只合并一致金额，不覆盖已有资料。 */
+function allocateUniqueHistoryId(
+	baseId: string,
+	existing: ReadonlyMap<string, HistoryRow>,
+	incoming: ReadonlySet<string>,
+) {
+	for (let suffix = 2; suffix < 10_000; suffix++) {
+		const tail = `-${suffix}`;
+		const candidate = `${baseId.slice(0, 80 - tail.length)}${tail}`;
+		if (!existing.has(candidate) && !incoming.has(candidate)) return candidate;
+	}
+	throw Error("无法生成唯一申报行标识");
+}
+
+/** 保存按稳定 ID 更新并保留遗漏行；导入同一期间只合并一致金额，合成 ID 冲突时分配新 ID 不阻塞重导。 */
 export function mergeHistory(
 	existing: readonly HistoryInput[],
 	incoming: unknown[],
@@ -163,6 +176,7 @@ export function mergeHistory(
 			byPeriod.set(`${row.periodStart}/${row.periodEnd}`, row);
 	}
 	const incomingIds = new Set<string>();
+	const incomingPeriods = new Set<string>();
 	const ordered: string[] = [];
 	let added = 0;
 	let updated = 0;
@@ -173,10 +187,30 @@ export function mergeHistory(
 			row.periodStart && row.periodEnd
 				? `${row.periodStart}/${row.periodEnd}`
 				: "";
+		if (!allowUpdates && periodKey) {
+			if (incomingPeriods.has(periodKey))
+				throw Error(`${periodLabel(row)} 存在重复申报记录`);
+			incomingPeriods.add(periodKey);
+		}
 		const samePeriod = periodKey ? byPeriod.get(periodKey) : undefined;
-		// 只有导入按期间去重；保存必须严格遵循行 ID，避免吞掉新插入的行。
-		if (!allowUpdates && !map.has(row.id) && samePeriod)
-			row = { ...row, id: samePeriod.id };
+		// 只有导入按期间去重；若合成 ID 被已改期的旧行占用，自动分配无冲突新 ID，避免原期间无法重导。
+		if (!allowUpdates) {
+			if (samePeriod) {
+				row = { ...row, id: samePeriod.id };
+			} else {
+				const sameId = map.get(row.id);
+				if (
+					sameId &&
+					(sameId.periodStart !== row.periodStart ||
+						sameId.periodEnd !== row.periodEnd)
+				) {
+					row = {
+						...row,
+						id: allocateUniqueHistoryId(row.id, map, incomingIds),
+					};
+				}
+			}
+		}
 		if (incomingIds.has(row.id))
 			throw Error(`${periodLabel(row)} 存在重复申报记录`);
 		incomingIds.add(row.id);

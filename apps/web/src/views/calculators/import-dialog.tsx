@@ -1,6 +1,6 @@
 /**
  * @file 增值税历史导入、新旧方案备份恢复弹窗。
- * 创建时间：2026-11-05；修改时间：2026-11-18。
+ * 创建时间：2026-11-05；修改时间：2026-11-21。
  * 版本作用：共享组件承载读取、预览、确认三步；非受控粘贴框与哈希索引消除大文本粘贴与合并卡顿。
  * 被调用：VatEditor；调用：共享领域解析、Dialog/Tabs/Table/ScrollArea 与 Sonner。
  * 预期结果：确认前不改变方案，冲突整体拒绝；恢复明确替换调整而保留旧历史。
@@ -155,10 +155,9 @@ export default function ImportDialog({
 			}
 			for (const imported of incoming.history) {
 				const target =
-					byId.get(imported.id) ??
 					(imported.periodStart && imported.periodEnd
 						? byPeriod.get(`${imported.periodStart}/${imported.periodEnd}`)
-						: undefined);
+						: undefined) ?? byId.get(imported.id);
 				const adjustment = incoming.adjustments[imported.id];
 				if (target && adjustment) adjustments[target.id] = adjustment;
 			}

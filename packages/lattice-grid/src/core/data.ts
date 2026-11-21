@@ -1,9 +1,9 @@
 /**
  * @file Lattice Grid data：泛型表格数据与事务内核。
- * 创建时间：2026-11-05；修改时间：2026-11-17。
+ * 创建时间：2026-11-05；修改时间：2026-11-21。
  * 版本作用：适配 MIT Lattice Grid 0.1.0-beta.1，保留原始行标识、不可变事务与数据隔离。
  * 被调用：独立表格包的 React 视图；调用：包内核心模块，不依赖业务、数据库或路由。
- * 预期结果：多个表格实例独立工作，外部数据和提交由调用页面管理。
+ * 预期结果：多个表格实例独立工作，纯负数金额导出不误加单引号，数值筛选不将空值当作零。
  */
 import type { CellRange, CellValue, Column, GridState } from "./types";
 export function getCellValue<T>(row: T, column: Column<T>): CellValue {
@@ -24,7 +24,7 @@ export function formatValue<T>(
 			: String(v);
 }
 export function numericFilter(query: string): ((n: number) => boolean) | null {
-	const q = query.trim().replace(/[$,%\s]/g, "");
+	const q = query.trim().replace(/[¥￥$,%\s]/g, "");
 	if (!q) return () => true;
 	const range = q.match(/^(-?\d+(?:\.\d+)?)\.\.(-?\d+(?:\.\d+)?)$/);
 	if (range) return (n) => n >= Number(range[1]) && n <= Number(range[2]);
@@ -114,7 +114,16 @@ export function deriveRows<T>(
 			return (row: T) => filter.includes(String(getCellValue(row, col) ?? ""));
 		if (col.type === "number") {
 			const test = numericFilter(filter as string);
-			return (row: T) => (test ? test(Number(getCellValue(row, col))) : false);
+			if (!test) return () => false;
+			return (row: T) => {
+				const raw = getCellValue(row, col);
+				if (raw == null || raw === "") return false;
+				const parsed =
+					typeof raw === "number"
+						? raw
+						: Number(String(raw).trim().replace(/,/g, ""));
+				return Number.isFinite(parsed) && test(parsed);
+			};
 		}
 		return (row: T) =>
 			String(getCellValue(row, col) ?? "")
@@ -312,11 +321,12 @@ export function aggregate<T>(rows: readonly T[], col: Column<T>): CellValue {
 	const sum = nums.reduce((a, b) => a + b, 0);
 	return col.aggregate === "avg" ? sum / nums.length : sum;
 }
+const plainNegativeNumber = /^-\d+(?:\.\d+)?$/;
 export function safeSpreadsheetValue(value: unknown): string {
 	const s = value == null ? "" : String(value);
-	return typeof value === "string" && /^[\s\uFEFF]*[=+\-@]/.test(s)
-		? `'${s}`
-		: s;
+	if (typeof value !== "string") return s;
+	if (plainNegativeNumber.test(s)) return s;
+	return /^[\s\uFEFF]*[=+\-@]/.test(s) ? `'${s}` : s;
 }
 export function stringifyDelimited(
 	data: readonly (readonly unknown[])[],

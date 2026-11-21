@@ -403,4 +403,98 @@ describe("局部渲染订阅与列布局缓存", () => {
 		expect(view.layout()[0]?.column.header).toBe("新计算结果");
 		cleanup();
 	});
+
+	it("选择型列按空格不覆盖草稿、按字符不误触发编辑，度量读取带缓存且随尺寸主题失效", async () => {
+		const store = createGrid({
+			rows: [{ id: "r1", period: "2026-05" }],
+			columns: [
+				{
+					id: "period",
+					field: "period",
+					header: "所属期",
+					editable: true,
+					editOnClick: true,
+				},
+			],
+			getRowId: (row) => row.id,
+		});
+		let styleReads = 0;
+		let rowHeightValue = "2rem";
+		let resizeCb: (() => void) | undefined;
+		class ResizeObserverMock {
+			constructor(cb: () => void) {
+				resizeCb = cb;
+			}
+			observe() {}
+			disconnect() {}
+		}
+		class MutationObserverMock {
+			observe() {}
+			disconnect() {}
+		}
+		const win = Object.assign(new EventTarget(), {
+			ResizeObserver: ResizeObserverMock,
+			MutationObserver: MutationObserverMock,
+			getComputedStyle: () => {
+				styleReads++;
+				return {
+					getPropertyValue: (name: string) =>
+						name.startsWith("--lg-row-") ? rowHeightValue : "",
+					fontSize: "16px",
+				};
+			},
+		});
+		const doc = Object.assign(new EventTarget(), {
+			defaultView: win,
+			documentElement: {},
+		});
+		const view = new GridView(store, { id: "picker-test" });
+		view.root = {
+			ownerDocument: doc,
+			querySelector: () => null,
+		} as unknown as HTMLElement;
+		view.scroller = {
+			clientWidth: 400,
+			clientHeight: 300,
+			scrollTop: 0,
+			scrollLeft: 0,
+			focus() {},
+		} as unknown as HTMLElement;
+		const cleanup = view.mount();
+		try {
+			store.select({ rowId: "r1", columnId: "period" });
+			const eventTarget = { closest: () => null };
+			view.onKeyDown({
+				key: "a",
+				target: eventTarget,
+				preventDefault() {},
+			} as unknown as KeyboardEvent);
+			expect(view.getSnapshot().editing).toBeNull();
+
+			view.onKeyDown({
+				key: " ",
+				target: eventTarget,
+				preventDefault() {},
+			} as unknown as KeyboardEvent);
+			expect(view.getSnapshot().editing).toEqual({
+				rowId: "r1",
+				columnId: "period",
+			});
+			expect(view.getSnapshot().draft).toBe("2026-05");
+			expect(await view.leaveEdit()).toBe(true);
+			expect(store.getSnapshot().rows[0]?.period).toBe("2026-05");
+
+			const readsAfterMount = styleReads;
+			expect(view.rowHeight()).toBe(32);
+			expect(view.rowHeight()).toBe(32);
+			expect(view.rowHeight()).toBe(32);
+			expect(styleReads).toBe(readsAfterMount);
+
+			rowHeightValue = "2.5rem";
+			resizeCb?.();
+			expect(view.rowHeight()).toBe(40);
+		} finally {
+			cleanup();
+		}
+	});
 });
