@@ -13,12 +13,81 @@
 		"web#check-types": {
 			"dependsOn": ["^check-types", "env:generate", "routes:generate"]
 		},
+		"web#env:generate": {
+			"inputs": ["$TURBO_DEFAULT$", ".env*"],
+			"env": ["VITE_SERVER_URL"],
+			"outputs": ["src/env.ts"]
+		},
 		"web#build": {
 			"dependsOn": ["^build", "env:generate", "routes:generate"],
 			"inputs": ["$TURBO_DEFAULT$", ".env*"],
+			"env": ["VITE_SERVER_URL"],
+			"outputs": ["dist/**"]
+		},
+		"@leonwillow-electron/db#env:generate": {
+			"inputs": ["$TURBO_DEFAULT$", ".env*", "../../apps/server/.env*"],
+			"env": ["DATABASE_URL", "DATABASE_URL_UNPOOLED"],
+			"outputs": ["src/env.ts"]
+		},
+		"server#env:generate": {
+			"inputs": ["$TURBO_DEFAULT$", ".env*"],
+			"env": [
+				"ADMIN_INITIAL_PASSWORD",
+				"AWS_ACCESS_KEY_ID",
+				"AWS_ENDPOINT_URL_S3",
+				"AWS_REGION",
+				"AWS_SECRET_ACCESS_KEY",
+				"BETTER_AUTH_SECRET",
+				"BETTER_AUTH_URL",
+				"CORS_ORIGIN",
+				"DATABASE_URL",
+				"DATABASE_URL_UNPOOLED",
+				"FUNDS_AI_API_KEY",
+				"FUNDS_AI_BASE_URL",
+				"FUNDS_AI_MODEL",
+				"NEO4J_PASSWORD",
+				"NEO4J_URI",
+				"NEO4J_USER",
+				"PORT",
+				"RUSTFS_ACCESS_KEY",
+				"RUSTFS_BUCKET",
+				"RUSTFS_ENDPOINT",
+				"RUSTFS_SECRET_KEY",
+				"TRUSTED_PROXY_IPS"
+			],
+			"outputs": ["src/env.ts"]
+		},
+		"server#build": {
+			"dependsOn": ["^build", "env:generate"],
+			"inputs": ["$TURBO_DEFAULT$", ".env*"],
+			"passThroughEnv": [
+				"ADMIN_INITIAL_PASSWORD",
+				"AWS_ACCESS_KEY_ID",
+				"AWS_ENDPOINT_URL_S3",
+				"AWS_REGION",
+				"AWS_SECRET_ACCESS_KEY",
+				"BETTER_AUTH_SECRET",
+				"BETTER_AUTH_URL",
+				"CORS_ORIGIN",
+				"DATABASE_URL",
+				"DATABASE_URL_UNPOOLED",
+				"FUNDS_AI_API_KEY",
+				"FUNDS_AI_BASE_URL",
+				"FUNDS_AI_MODEL",
+				"NEO4J_PASSWORD",
+				"NEO4J_URI",
+				"NEO4J_USER",
+				"PORT",
+				"RUSTFS_ACCESS_KEY",
+				"RUSTFS_BUCKET",
+				"RUSTFS_ENDPOINT",
+				"RUSTFS_SECRET_KEY",
+				"TRUSTED_PROXY_IPS"
+			],
 			"outputs": ["dist/**"]
 		},
 		"env:generate": {
+			"inputs": ["$TURBO_DEFAULT$", ".env*"],
 			"outputs": ["src/env.ts"]
 		},
 		"routes:generate": {
@@ -26,22 +95,51 @@
 		},
 		"dev": {
 			"cache": false,
-			"persistent": true
+			"persistent": true,
+			"passThroughEnv": [
+				"ADMIN_INITIAL_PASSWORD",
+				"AWS_ACCESS_KEY_ID",
+				"AWS_ENDPOINT_URL_S3",
+				"AWS_REGION",
+				"AWS_SECRET_ACCESS_KEY",
+				"BETTER_AUTH_SECRET",
+				"BETTER_AUTH_URL",
+				"CORS_ORIGIN",
+				"DATABASE_URL",
+				"DATABASE_URL_UNPOOLED",
+				"FUNDS_AI_API_KEY",
+				"FUNDS_AI_BASE_URL",
+				"FUNDS_AI_MODEL",
+				"NEO4J_PASSWORD",
+				"NEO4J_URI",
+				"NEO4J_USER",
+				"PORT",
+				"RUSTFS_ACCESS_KEY",
+				"RUSTFS_BUCKET",
+				"RUSTFS_ENDPOINT",
+				"RUSTFS_SECRET_KEY",
+				"TRUSTED_PROXY_IPS",
+				"VITE_SERVER_URL"
+			]
 		},
 		"db:push": {
 			"cache": false,
-			"interactive": true
+			"interactive": true,
+			"passThroughEnv": ["DATABASE_URL", "DATABASE_URL_UNPOOLED"]
 		},
 		"db:generate": {
 			"cache": false,
-			"interactive": true
+			"interactive": true,
+			"passThroughEnv": ["DATABASE_URL", "DATABASE_URL_UNPOOLED"]
 		},
 		"db:migrate": {
-			"cache": false
+			"cache": false,
+			"passThroughEnv": ["DATABASE_URL", "DATABASE_URL_UNPOOLED"]
 		},
 		"db:studio": {
 			"cache": false,
-			"persistent": true
+			"persistent": true,
+			"passThroughEnv": ["DATABASE_URL", "DATABASE_URL_UNPOOLED"]
 		},
 		"db:start": {
 			"cache": false
@@ -59,6 +157,7 @@
 		"desktop#build": {
 			"dependsOn": ["web#build"],
 			"inputs": ["$TURBO_DEFAULT$", "../web/.env*"],
+			"env": ["VITE_SERVER_URL"],
 			"outputs": [
 				"dist/main.cjs",
 				"dist/preload.cjs",
@@ -68,25 +167,13 @@
 		}
 	},
 	"globalEnv": [
-		"AWS_ACCESS_KEY_ID",
-		"AWS_ENDPOINT_URL_S3",
-		"AWS_REGION",
-		"AWS_SECRET_ACCESS_KEY",
-		"BETTER_AUTH_SECRET",
-		"BETTER_AUTH_URL",
 		"CI",
-		"CORS_ORIGIN",
-		"DATABASE_URL",
-		"DATABASE_URL_UNPOOLED",
 		"NODE_ENV",
-		"PORT",
-		"TRUSTED_PROXY_IPS",
 		"VERCEL",
 		"VERCEL_ENV",
 		"VERCEL_PROJECT_PRODUCTION_URL",
 		"VERCEL_URL",
-		"VITE_SERVER_URL",
 		"_VARLOCK_ENV_KEY"
 	],
-	"globalDependencies": [".env*", "apps/*/.env*", "packages/*/.env*"]
+	"globalDependencies": [".env*"]
 }

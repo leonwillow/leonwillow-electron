@@ -1,6 +1,6 @@
 /**
  * @file 桌面连接配置的纯数据契约与地址校验。
- * 创建时间：2026-11-10；修改时间：2026-11-10。
+ * 创建时间：2026-11-10；修改时间：2026-11-21。
  * 版本作用：Web、preload 和主进程共用契约，不引入 Electron 或 Node 运行时。
  * 调用：登录服务器设置、桌面 IPC 与配置存储；预期：配置使用相同规则且不包含凭据。
  */
@@ -44,7 +44,16 @@ export function normalizeConnection(input: ConnectionInput): string {
 	}
 	if (!["http:", "https:"].includes(url.protocol) || !url.hostname)
 		throw new Error("服务器地址只支持 HTTP 或 HTTPS。");
-	if (url.port === "0") throw new Error("端口必须是 1 至 65535 的整数。");
+	// new URL 会擦除 http:80 / https:443 默认端口，预先从原始 authority 提取显式端口以检测冲突。
+	const rawAuthority =
+		(address.includes("://")
+			? address.slice(address.indexOf("://") + 3)
+			: address
+		).split(/[/?#]/, 1)[0] ?? "";
+	const explicitPort =
+		/^(?:\[[^\]]+\]|[^:]+):(\d+)$/.exec(rawAuthority)?.[1] ?? url.port;
+	if (url.port === "0" || explicitPort === "0")
+		throw new Error("端口必须是 1 至 65535 的整数。");
 	if (url.username || url.password)
 		throw new Error("服务器地址不能包含账号或密码。");
 	if (url.pathname !== "/" || url.search || url.hash || /[?#]/.test(address))
@@ -52,7 +61,7 @@ export function normalizeConnection(input: ConnectionInput): string {
 	if (port) {
 		if (!/^\d{1,5}$/.test(port) || Number(port) < 1 || Number(port) > 65535)
 			throw new Error("端口必须是 1 至 65535 的整数。");
-		if (url.port && Number(url.port) !== Number(port))
+		if (explicitPort && Number(explicitPort) !== Number(port))
 			throw new Error("地址中的端口与端口输入框不一致，请只填写一个端口。");
 		url.port = String(Number(port));
 	}

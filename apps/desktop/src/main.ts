@@ -53,6 +53,7 @@ protocol.registerSchemesAsPrivileged([
 
 const applicationRoot = app.getAppPath();
 let window: BrowserWindow | null = null;
+let openWindow: (() => void) | null = null;
 
 /** IPC只允许应用主窗口的顶层本地页面；服务器变更仅从登录页发起。 */
 function assertSender(event: IpcMainInvokeEvent, loginOnly = false) {
@@ -360,19 +361,27 @@ async function start() {
 			}
 		});
 	};
+	openWindow = () => {
+		if (!window || window.isDestroyed()) {
+			createWindow();
+			return;
+		}
+		if (window.isMinimized()) window.restore();
+		window.show();
+		window.focus();
+	};
 	createWindow();
 	app.on("activate", () => {
-		if (!window) createWindow();
+		openWindow?.();
 	});
 	app.on("before-quit", () => handler.cancel());
 }
 
-// 单实例避免同一配置文件并行写入；第二次启动只唤醒当前窗口。
+// 单实例避免同一配置文件并行写入；第二次启动唤醒、还原或重建当前窗口。
 if (!app.requestSingleInstanceLock()) app.quit();
 else {
 	app.on("second-instance", () => {
-		window?.show();
-		window?.focus();
+		openWindow?.();
 	});
 	app.on("window-all-closed", () => {
 		if (process.platform !== "darwin") app.quit();

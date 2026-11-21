@@ -1,7 +1,7 @@
 /**
  * @file 前端访问独立服务端的 Eden 入口与统一响应解包工具。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-18
+ * 修改时间：2026-11-21
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现，统一携带状态码的请求错误与解包逻辑。
  * 被调用：apps/web/src/lib/* 各领域 API 客户端。
  * 调用：@elysiajs/eden、@leonwillow-electron/desktop-bridge、server/app（仅类型）、@/env。
@@ -20,9 +20,7 @@ const browserLocation =
 const serverUrl =
 	browserLocation?.protocol === "aidesk:"
 		? DESKTOP_ORIGIN
-		: import.meta.env.DEV &&
-				browserLocation &&
-				browserLocation.protocol !== "file:"
+		: import.meta.env.DEV && browserLocation
 			? browserLocation.origin
 			: ENV.VITE_SERVER_URL;
 

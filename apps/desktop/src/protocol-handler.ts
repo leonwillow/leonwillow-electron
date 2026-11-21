@@ -5,8 +5,10 @@
  * 被调用：main；调用：Node fs/path、请求边界函数和主进程注入的网络会话。
  * 预期结果：不加载远程页面代码，不泄露服务器 Cookie；切换服务器可中止旧请求。
  */
-import { readFile, stat } from "node:fs/promises";
+import { createReadStream } from "node:fs";
+import { stat } from "node:fs/promises";
 import { extname, join } from "node:path";
+import { Readable } from "node:stream";
 import { DESKTOP_ORIGIN } from "@leonwillow-electron/desktop-bridge";
 import {
 	isAppUrl,
@@ -127,26 +129,36 @@ export function createProtocolHandler(options: {
 			const target = rendererFile(options.rendererRoot, url.pathname);
 			if (!target) return new Response("Not found", { status: 404 });
 			try {
-				const file =
-					!extname(target) || (await stat(target)).isDirectory()
-						? join(options.rendererRoot, "index.html")
-						: target;
-				const type = mimeTypes[extname(file)] ?? "application/octet-stream";
+				let file = target;
+				let info = extname(target) ? await stat(target) : null;
+				if (!info || info.isDirectory()) {
+					file = join(options.rendererRoot, "index.html");
+					info = await stat(file);
+				}
+				const ext = extname(file);
+				const type = mimeTypes[ext] ?? "application/octet-stream";
 				const headers = new Headers({
 					"content-type": type,
+					"content-length": String(info.size),
 					"x-content-type-options": "nosniff",
 				});
-				if (extname(file) === ".html") {
+				if (ext === ".html") {
 					headers.set(
 						"content-security-policy",
 						"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; frame-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'",
 					);
 					headers.set("cache-control", "no-store");
+				} else if (url.pathname.startsWith("/assets/")) {
+					// Vite 构建的 /assets/* 文件名含内容哈希，可长期强缓存。
+					headers.set("cache-control", "public, max-age=31536000, immutable");
 				}
-				return new Response(
-					request.method === "HEAD" ? null : await readFile(file),
-					{ headers },
-				);
+				const body =
+					request.method === "HEAD"
+						? null
+						: (Readable.toWeb(
+								createReadStream(file),
+							) as unknown as ReadableStream<Uint8Array>);
+				return new Response(body, { headers });
 			} catch {
 				return new Response("Not found", { status: 404 });
 			}

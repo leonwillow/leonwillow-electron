@@ -1,6 +1,6 @@
 /**
  * @file 桌面服务器地址边界与回显测试。
- * 创建时间：2026-11-10；修改时间：2026-11-10。
+ * 创建时间：2026-11-10；修改时间：2026-11-21。
  * 调用：连接契约；预期：默认端口/IPv6可回显，危险或含糊输入无法进入持久化配置。
  */
 import { expect, test } from "bun:test";
@@ -23,8 +23,20 @@ test("地址与端口同值可以接受，不同值不能静默覆盖", () => {
 	expect(
 		normalizeConnection({ address: "localhost:3000", port: "03000" }),
 	).toBe("http://localhost:3000");
+	expect(
+		normalizeConnection({ address: "http://example.com:80", port: "80" }),
+	).toBe("http://example.com");
+	expect(
+		normalizeConnection({ address: "https://example.com:443", port: "443" }),
+	).toBe("https://example.com");
 	expect(() =>
 		normalizeConnection({ address: "localhost:3000", port: "4000" }),
+	).toThrow("不一致");
+	expect(() =>
+		normalizeConnection({ address: "http://example.com:80", port: "3000" }),
+	).toThrow("不一致");
+	expect(() =>
+		normalizeConnection({ address: "https://example.com:443", port: "8443" }),
 	).toThrow("不一致");
 });
 

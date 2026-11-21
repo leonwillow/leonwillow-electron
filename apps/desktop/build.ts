@@ -1,6 +1,6 @@
 /**
  * @file 用 Bun 打包 Electron 主进程并复制同一份 Web 产物。
- * 创建时间：2026-11-10；修改时间：2026-11-10。
+ * 创建时间：2026-11-10；修改时间：2026-11-21。
  * 被调用：desktop build；调用：Bun.build、Node fs、desktop-bridge。
  * 功能：生成无运行时业务依赖的 CJS 入口，只写入公开默认服务器地址。
  * 预期结果：Turbo 先构建 web；桌面运行不依赖 Vite、Bun 或独立前端服务器。
@@ -11,6 +11,18 @@ import {
 	connectionInput,
 	normalizeConnection,
 } from "@leonwillow-electron/desktop-bridge";
+
+/** 解析单行 .env 值：优先匹配带引号字面量并忽略引号外行内注释，空值返回空串。 */
+function parseEnvValue(raw: string): string {
+	const trimmed = raw.trim();
+	if (!trimmed) return "";
+	const quote = trimmed[0];
+	if (quote === '"' || quote === "'") {
+		const end = trimmed.indexOf(quote, 1);
+		if (end > 0) return trimmed.slice(1, end).trim();
+	}
+	return trimmed.replace(/\s+#.*$/, "").trim();
+}
 
 const root = import.meta.dir;
 const web = join(root, "../web");
@@ -25,11 +37,9 @@ for (const name of [
 ]) {
 	try {
 		const text = await readFile(join(web, name), "utf8");
-		const value = text.match(
-			/^\s*(?:export\s+)?VITE_SERVER_URL\s*=\s*(.*?)\s*$/m,
-		)?.[1];
-		if (value)
-			configured = value.replace(/^(['"])(.*)\1$/, "$2").replace(/\s+#.*$/, "");
+		const match = text.match(/^\s*(?:export\s+)?VITE_SERVER_URL\s*=\s*(.*)$/m);
+		const parsed = match ? parseEnvValue(match[1] ?? "") : "";
+		if (parsed) configured = parsed;
 	} catch (error) {
 		if (
 			!(
@@ -42,9 +52,8 @@ for (const name of [
 			throw error;
 	}
 }
-const defaultUrl = normalizeConnection(
-	connectionInput(process.env.VITE_SERVER_URL ?? configured),
-);
+const envUrl = process.env.VITE_SERVER_URL?.trim();
+const defaultUrl = normalizeConnection(connectionInput(envUrl || configured));
 await mkdir(join(root, "dist"), { recursive: true });
 for (const name of ["main", "preload"]) {
 	const result = await Bun.build({

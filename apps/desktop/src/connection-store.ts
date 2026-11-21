@@ -1,11 +1,11 @@
 /**
  * @file 桌面 API 地址的原子持久化与恢复。
- * 创建时间：2026-11-10；修改时间：2026-11-10。
+ * 创建时间：2026-11-10；修改时间：2026-11-21。
  * 版本作用：主进程独占连接配置，不保存登录凭据。
  * 被调用：main；调用：Node 文件 API 和 desktop-bridge 校验。
  * 预期结果：无配置时使用构建默认；写入成功后才切换，损坏配置可在登录页恢复。
  */
-import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, open, readFile, rename, rm } from "node:fs/promises";
 import { dirname } from "node:path";
 import {
 	type ConnectionInput,
@@ -13,6 +13,24 @@ import {
 	connectionInput,
 	normalizeConnection,
 } from "@leonwillow-electron/desktop-bridge";
+
+const TRANSIENT_RENAME_CODES = new Set(["EPERM", "EBUSY", "EACCES"]);
+
+async function renameWithRetry(source: string, target: string) {
+	for (let attempt = 0; attempt < 5; attempt++) {
+		try {
+			await rename(source, target);
+			return;
+		} catch (error) {
+			const code =
+				error && typeof error === "object" && "code" in error
+					? String(error.code)
+					: "";
+			if (!TRANSIENT_RENAME_CODES.has(code) || attempt === 4) throw error;
+			await new Promise((resolve) => setTimeout(resolve, 25 * (attempt + 1)));
+		}
+	}
+}
 
 /** 文件只能由主进程传入；读取失败回到默认并提供警告，保存失败保持原状态。 */
 export async function createConnectionStore(file: string, defaultUrl: string) {
@@ -60,12 +78,17 @@ export async function createConnectionStore(file: string, defaultUrl: string) {
 				else {
 					const temporary = `${file}.${crypto.randomUUID()}.tmp`;
 					try {
-						await writeFile(
-							temporary,
-							JSON.stringify({ version: 1, customUrl: next }),
-							{ mode: 0o600 },
-						);
-						await rename(temporary, file);
+						const handle = await open(temporary, "w", 0o600);
+						try {
+							await handle.writeFile(
+								JSON.stringify({ version: 1, customUrl: next }),
+								"utf8",
+							);
+							await handle.sync();
+						} finally {
+							await handle.close();
+						}
+						await renameWithRetry(temporary, file);
 					} finally {
 						await rm(temporary, { force: true });
 					}

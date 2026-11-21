@@ -1,10 +1,10 @@
 /**
  * @file 桌面 API 转发和静态文件的集成回归。
- * 创建时间：2026-11-10；修改时间：2026-11-20。
+ * 创建时间：2026-11-10；修改时间：2026-11-21。
  * 被调用：Bun test；功能：真实Request/Response验证输入来源、二进制响应及服务器切换。
  */
 import { expect, test } from "bun:test";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createProtocolHandler } from "../src/protocol-handler";
@@ -17,6 +17,8 @@ function apiRequest(path: string, options?: RequestInit) {
 test("本地SPA资源和API请求分开处理，源站只能来自配置", async () => {
 	const root = await mkdtemp(join(tmpdir(), "aidesk-renderer-"));
 	await writeFile(join(root, "index.html"), "<div>app</div>");
+	await mkdir(join(root, "assets"), { recursive: true });
+	await writeFile(join(root, "assets", "app-abc123.js"), "console.log(1);");
 	let target = "http://localhost:3000";
 	const requested: string[] = [];
 	const handler = createProtocolHandler({
@@ -43,6 +45,15 @@ test("本地SPA资源和API请求分开处理，源站只能来自配置", async
 		expect(page.headers.get("content-security-policy")).toContain(
 			"connect-src 'self'",
 		);
+		expect(page.headers.get("cache-control")).toBe("no-store");
+		const asset = await handler.handle(
+			new Request("aidesk://app/assets/app-abc123.js"),
+		);
+		expect(asset.headers.get("cache-control")).toBe(
+			"public, max-age=31536000, immutable",
+		);
+		expect(asset.headers.get("content-length")).toBe("15");
+		expect(await asset.text()).toBe("console.log(1);");
 		expect(
 			(await handler.handle(new Request("aidesk://app/api/auth/session")))
 				.status,

@@ -1,10 +1,10 @@
 /**
  * @file 笔录工作区分栏尺寸、问答重排动效与 A4 仿宋文书物理排版样式。
  * 创建时间：2026-11-18
- * 修改时间：2026-11-20
- * 版本作用：随笔录视图按需加载，将 3.8MB 仿宋字体与物理打印规则限定在笔录模块。
+ * 修改时间：2026-11-21
+ * 版本作用：随笔录视图按需加载，将 WOFF2 压缩后的仿宋字体与物理打印规则限定在笔录模块。
  * 被调用：apps/web/src/views/inquiries/index.tsx。
- * 调用：apps/web/src/assets/fonts/inquiry-fangsong.ttf、共享语义令牌。
+ * 调用：apps/web/src/assets/fonts/inquiry-fangsong.woff2、共享语义令牌。
  * 功能：声明笔录三栏约束、问答移动发光、预览视口和 A4 纸张 mm/pt 打印规则。
  * 预期结果：A4 文书比例独立于界面 rem 缩放，打印时仅输出文书纸张。
  */
@@ -71,7 +71,7 @@
 /* 笔录文书：沿用 haoji 的 A4 物理排版。纸张独立于 UI 缩放，编辑控件仍使用共享 rem 令牌。 */
 @font-face {
 	font-family: "Inquiry FangSong";
-	src: url("../../assets/fonts/inquiry-fangsong.ttf") format("truetype");
+	src: url("../../assets/fonts/inquiry-fangsong.woff2") format("woff2");
 	font-display: swap;
 }
 
