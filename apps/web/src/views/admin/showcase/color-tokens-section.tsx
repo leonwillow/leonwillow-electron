@@ -315,17 +315,24 @@ export default function ColorTokensSection() {
 		readTokenValues(),
 	);
 
-	// 监听文档根元素 class、style 与圆角属性变化，实时同步主题预设、明暗模式和编辑器预览色值。
+	// 监听文档根元素 class、style 与圆角属性变化，按渲染帧节流同步主题预设、明暗模式和编辑器预览色值。
 	useEffect(() => {
-		const refresh = () => setValues(readTokenValues());
-		const frame = requestAnimationFrame(refresh);
-		const observer = new MutationObserver(refresh);
+		let frame = 0;
+		const scheduleRefresh = () => {
+			if (frame) return;
+			frame = requestAnimationFrame(() => {
+				frame = 0;
+				setValues(readTokenValues());
+			});
+		};
+		scheduleRefresh();
+		const observer = new MutationObserver(scheduleRefresh);
 		observer.observe(document.documentElement, {
 			attributes: true,
 			attributeFilter: ["class", "style", "data-theme-radius"],
 		});
 		return () => {
-			cancelAnimationFrame(frame);
+			if (frame) cancelAnimationFrame(frame);
 			observer.disconnect();
 		};
 	}, []);

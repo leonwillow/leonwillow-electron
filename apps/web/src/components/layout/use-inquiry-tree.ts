@@ -1,6 +1,6 @@
 /**
  * @file 笔录目录的 Headless Tree 数据、分页和路由选中适配。
- * 创建时间：2026-11-04；修改时间：2026-11-19。
+ * 创建时间：2026-11-04；修改时间：2026-11-21。
  * 版本作用：持续挂载的菜单 Hook 持有目录页缓存，请求仅在文件夹展开后发起。
  * 被调用：useInquiryCaseMenu；调用：笔录导航上下文、Eden、Headless Tree。
  * 预期结果：浮窗关闭不丢失展开与分页，旧请求不能覆盖新版目录，点击叶子立即打开，筛选重载不触发树状态循环渲染。
@@ -56,6 +56,7 @@ type InquiryTreeOptions = {
 const rootId = "inquiry-root";
 const folderPrefix = "folder:";
 const pageSize = 30;
+const MAX_AUTO_EXPAND_MATCHES = 5;
 const folderId = (id: string) => `${folderPrefix}${id}`;
 const recordId = (caseId: string, id: string) => `record:${caseId}:${id}`;
 const pageKey = (row: InquiryCase, offset: number, filterKey: string) =>
@@ -106,26 +107,39 @@ export function useInquiryTree(
 	const filtered = !!query;
 	const activeFilterKey = useRef(filterKey);
 	activeFilterKey.current = filterKey;
-	const [collapsedMatches, setCollapsedMatches] = useState<{
+	const [matchOverrides, setMatchOverrides] = useState<{
 		key: string;
-		ids: ReadonlySet<string>;
-	}>({ key: filterKey, ids: new Set() });
-	const visibleExpandedCases = useMemo(
-		() =>
-			filtered
-				? new Set(
-						rows
-							.filter(
-								(row) =>
-									row.kind === "folder" &&
-									(collapsedMatches.key !== filterKey ||
-										!collapsedMatches.ids.has(row.id)),
-							)
-							.map((row) => row.id),
-					)
-				: expandedCases,
-		[filtered, rows, collapsedMatches, filterKey, expandedCases],
-	);
+		values: ReadonlyMap<string, boolean>;
+	}>({ key: filterKey, values: new Map() });
+	const autoExpandedMatches = useMemo(() => {
+		if (!filtered) return new Set<string>();
+		const matchedFolders: string[] = [];
+		for (const row of rows) {
+			if (row.kind !== "folder") continue;
+			matchedFolders.push(row.id);
+			if (matchedFolders.length >= MAX_AUTO_EXPAND_MATCHES) break;
+		}
+		return new Set(matchedFolders);
+	}, [filtered, rows]);
+	const visibleExpandedCases = useMemo(() => {
+		if (!filtered) return expandedCases;
+		const overrides =
+			matchOverrides.key === filterKey ? matchOverrides.values : undefined;
+		const next = new Set<string>();
+		for (const row of rows) {
+			if (row.kind !== "folder") continue;
+			const override = overrides?.get(row.id);
+			if (override ?? autoExpandedMatches.has(row.id)) next.add(row.id);
+		}
+		return next;
+	}, [
+		filtered,
+		rows,
+		matchOverrides,
+		filterKey,
+		autoExpandedMatches,
+		expandedCases,
+	]);
 	const [pages, setPages] = useState(() => new Map<string, FolderPage>());
 	const [offsetState, setOffsetState] = useState(() => ({
 		key: filterKey,
@@ -331,14 +345,15 @@ export function useInquiryTree(
 				.map((id) => id.slice(folderPrefix.length));
 			if (filtered) {
 				const expanded = new Set(ids);
-				setCollapsedMatches({
-					key: filterKey,
-					ids: new Set(
-						rows
-							.filter((row) => row.kind === "folder" && !expanded.has(row.id))
-							.map((row) => row.id),
-					),
-				});
+				const values = new Map<string, boolean>();
+				for (const row of rows) {
+					if (row.kind !== "folder") continue;
+					const shouldExpand = expanded.has(row.id);
+					if (shouldExpand !== autoExpandedMatches.has(row.id)) {
+						values.set(row.id, shouldExpand);
+					}
+				}
+				setMatchOverrides({ key: filterKey, values });
 			} else setExpandedCases(ids);
 		},
 		getItemName: (item) => item.getItemData().name,

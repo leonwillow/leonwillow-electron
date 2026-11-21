@@ -25,7 +25,7 @@ import {
 	Trash2Icon,
 	UploadIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import {
 	type DocumentType,
@@ -49,8 +49,11 @@ export default function TemplatePanel({
 	} | null>(null);
 	const [remove, setRemove] = useState<DocumentType | null>(null);
 	const [busy, setBusy] = useState(false);
-	const [error, setError] = useState("");
+	const [downloadError, setDownloadError] = useState("");
+	const [removeError, setRemoveError] = useState("");
+	const removeLock = useRef(false);
 	const download = async (type?: DocumentType) => {
+		setDownloadError("");
 		try {
 			saveDocumentFile(
 				type
@@ -59,21 +62,23 @@ export default function TemplatePanel({
 				type?.fileName ?? "询问通知书模板.docx",
 			);
 		} catch (cause) {
-			setError(documentError(cause));
+			setDownloadError(documentError(cause));
 		}
 	};
 	const confirmRemove = async () => {
-		if (!remove) return;
+		if (!remove || removeLock.current) return;
+		removeLock.current = true;
 		setBusy(true);
-		setError("");
+		setRemoveError("");
 		try {
 			await deleteDocumentType(remove);
 			setRemove(null);
 			toast.success("模板已删除，历史文书仍可查看和下载。");
 			await onSaved();
 		} catch (cause) {
-			setError(documentError(cause));
+			setRemoveError(documentError(cause));
 		} finally {
+			removeLock.current = false;
 			setBusy(false);
 		}
 	};
@@ -104,9 +109,9 @@ export default function TemplatePanel({
 					</Button>
 				</div>
 			</div>
-			{error && (
+			{downloadError && (
 				<p role="alert" className="text-destructive-foreground text-sm">
-					{error}
+					{downloadError}
 				</p>
 			)}
 			{!types.length && (
@@ -147,7 +152,10 @@ export default function TemplatePanel({
 							</Button>
 							<Button
 								variant="destructive-outline"
-								onClick={() => setRemove(type)}
+								onClick={() => {
+									setRemoveError("");
+									setRemove(type);
+								}}
 							>
 								<Trash2Icon data-icon="inline-start" />
 								删除
@@ -169,8 +177,13 @@ export default function TemplatePanel({
 				title="删除文书模板"
 				busy={busy}
 				showCloseButton
-				error={error}
-				onClose={() => setRemove(null)}
+				error={removeError}
+				onClose={() => {
+					if (!removeLock.current) {
+						setRemove(null);
+						setRemoveError("");
+					}
+				}}
 				onConfirm={() => void confirmRemove()}
 			>
 				删除“{remove?.name}

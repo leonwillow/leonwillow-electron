@@ -1,6 +1,6 @@
 /**
  * @file 同窗 Word 文书预览与页面适宽。
- * 创建时间：2026-10-10；修改时间：2026-11-20。
+ * 创建时间：2026-10-10；修改时间：2026-11-21。
  * 版本作用：按需加载 docx-preview，在无脚本且隔离外链与导航的独立 iframe 内保留文书排版。
  * 被调用：document-editor；调用：docx-preview、浏览器 ResizeObserver。
  * 功能与预期结果：模板样式、外链与链接跳转不污染或逃逸应用，首帧即按实测宽度适宽无闪烁。
@@ -61,6 +61,7 @@ function sanitizePreviewSubtree(root: HTMLElement) {
 }
 
 export default function DocumentPreview({ blob }: { blob: Blob | null }) {
+	const containerRef = useRef<HTMLDivElement>(null);
 	const frameRef = useRef<HTMLIFrameElement>(null);
 	const [status, setStatus] = useState("正在准备文书预览…");
 	const [ready, setReady] = useState(false);
@@ -113,10 +114,16 @@ export default function DocumentPreview({ blob }: { blob: Blob | null }) {
 			}
 			body.style.position = "absolute";
 			body.style.transformOrigin = "top left";
-			const fit = () => {
+			let lastWidth = 0;
+			const fit = (force = false) => {
 				const viewportWidth =
-					frame.clientWidth || frame.parentElement?.clientWidth || 0;
+					containerRef.current?.clientWidth ||
+					frame.parentElement?.clientWidth ||
+					frame.clientWidth ||
+					0;
 				if (!viewportWidth) return;
+				if (!force && viewportWidth === lastWidth) return;
+				lastWidth = viewportWidth;
 				body.style.transform = "";
 				const width = body.scrollWidth;
 				const height = body.scrollHeight;
@@ -128,11 +135,12 @@ export default function DocumentPreview({ blob }: { blob: Blob | null }) {
 				doc.body.style.height = `${height * scale}px`;
 				setFrameHeight(Math.ceil(height * scale));
 			};
-			observer = new ResizeObserver(fit);
-			observer.observe(frame);
-			fit();
+			// 监听外层容器宽度变化而非 iframe 自身高度，避免设置 frameHeight 后二次回流。
+			observer = new ResizeObserver(() => fit(false));
+			observer.observe(containerRef.current ?? frame);
+			fit(true);
 			void doc.fonts.ready.then(() => {
-				if (!cancelled) fit();
+				if (!cancelled) fit(true);
 			});
 			// Base64 内嵌资源随 iframe 销毁回收；更新期间保留上一份纸张，避免闪烁。
 			setReady(true);
@@ -146,7 +154,10 @@ export default function DocumentPreview({ blob }: { blob: Blob | null }) {
 		};
 	}, [blob]);
 	return (
-		<div className="relative flex min-h-80 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border bg-muted/30 lg:min-h-0">
+		<div
+			ref={containerRef}
+			className="relative flex min-h-80 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border bg-muted/30 lg:min-h-0"
+		>
 			{status && (
 				<p
 					className={cn(

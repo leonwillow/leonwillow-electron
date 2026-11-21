@@ -1,7 +1,7 @@
 /**
  * @file 页面搜索和快捷导航面板的轻量触发入口。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-20
+ * 修改时间：2026-11-21
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现，搜索弹窗主体按需懒加载。
  * 被调用：components/layout/app-sidebar.tsx。
  * 调用：ui Button/Tooltip、lucide-react、react、lib/keyboard-shortcut、按需加载的 CommandMenuDialog。
@@ -15,7 +15,7 @@ import {
 	TooltipTrigger,
 } from "@leonwillow-electron/ui/components/tooltip";
 import { SearchIcon } from "lucide-react";
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { shouldIgnoreGlobalShortcut } from "@/lib/keyboard-shortcut";
 
 const loadCommandMenuDialog = () => import("./command-menu-dialog");
@@ -25,9 +25,21 @@ const isApplePlatform =
 	typeof navigator !== "undefined" &&
 	/Mac|iPhone|iPad|iPod/i.test(navigator.platform || navigator.userAgent);
 
+const OPEN_MODAL_SELECTOR =
+	'[role="dialog"]:not([hidden]):not([data-closed]), [role="alertdialog"]:not([hidden]):not([data-closed]), [aria-modal="true"]:not([hidden]):not([data-closed])';
+
+function hasBlockingOverlay(): boolean {
+	for (const element of document.querySelectorAll(OPEN_MODAL_SELECTOR)) {
+		if (element.getClientRects().length > 0) return true;
+	}
+	return false;
+}
+
 const CommandMenu = ({ wide = false }: { wide?: boolean }) => {
 	const [open, setOpen] = useState(false);
 	const [loaded, setLoaded] = useState(false);
+	const openRef = useRef(open);
+	openRef.current = open;
 
 	const warmUp = () => {
 		void loadCommandMenuDialog();
@@ -35,12 +47,20 @@ const CommandMenu = ({ wide = false }: { wide?: boolean }) => {
 
 	useEffect(() => {
 		const down = (e: KeyboardEvent) => {
-			if (e.repeat || shouldIgnoreGlobalShortcut(e)) return;
+			if (e.repeat || e.defaultPrevented || e.isComposing || e.keyCode === 229)
+				return;
 			const isCmdK =
 				e.key?.toLowerCase() === "k" && (e.metaKey || e.ctrlKey) && !e.altKey;
+			if (isCmdK && openRef.current) {
+				e.preventDefault();
+				setOpen(false);
+				return;
+			}
+			if (shouldIgnoreGlobalShortcut(e)) return;
 			const isSlash =
 				e.key === "/" && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey;
 			if (isCmdK || isSlash) {
+				if (!openRef.current && hasBlockingOverlay()) return;
 				e.preventDefault();
 				setLoaded(true);
 				setOpen((current) => !current);

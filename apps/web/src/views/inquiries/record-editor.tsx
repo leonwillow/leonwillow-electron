@@ -1,6 +1,6 @@
 /**
  * @file 案件笔录的三栏编辑工作区。
- * 创建时间：2026-11-04；修改时间：2026-11-19。
+ * 创建时间：2026-11-04；修改时间：2026-11-21。
  * 版本作用：顶部合并笔录操作，三栏支持拖动分隔线调宽；边缘按钮控制侧栏显隐，文书定位同步展开对应基础信息折叠分组。
  * 被调用：InquiriesView；调用：编辑 Hook、基础/问答表单、A4 页面、Eden。
  * 预期结果：宽屏独立滚动和折叠，窄屏页签切换；离开/导出前保存，失败不误报成功。
@@ -127,10 +127,35 @@ export default function InquiryRecordEditor({
 		[],
 	);
 	useEffect(() => {
-		const media = window.matchMedia("(min-width: 80rem)");
-		const update = () => setWide(media.matches);
-		media.addEventListener("change", update);
-		return () => media.removeEventListener("change", update);
+		const container = root.current;
+		if (!container) return;
+		const measure = (width: number) => {
+			const parsed = Number.parseFloat(
+				getComputedStyle(document.documentElement).getPropertyValue(
+					"font-size",
+				),
+			);
+			const rem = Number.isFinite(parsed) && parsed > 0 ? parsed : 16;
+			// 扣除侧栏与固定二级菜单后，编辑器实际可用宽度达 64rem 以上才展开三栏，避免小窗或缩放下挤压。
+			setWide(width >= 64 * rem);
+		};
+		measure(container.clientWidth);
+		const observer = new ResizeObserver((entries) => {
+			const entry = entries[0];
+			if (entry) measure(entry.contentRect.width);
+		});
+		observer.observe(container);
+		const themeObserver = new MutationObserver(() =>
+			measure(container.clientWidth),
+		);
+		themeObserver.observe(document.documentElement, {
+			attributes: true,
+			attributeFilter: ["style", "class"],
+		});
+		return () => {
+			observer.disconnect();
+			themeObserver.disconnect();
+		};
 	}, []);
 	const save = async () => {
 		if (editingDisabled) return;

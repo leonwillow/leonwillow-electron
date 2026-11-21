@@ -1,7 +1,7 @@
 /**
  * @file 按语义分组的主题颜色编辑区域。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-20
+ * 修改时间：2026-11-21
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现，颜色输入已切换至共享 ReUI ColorPicker。
  * 被调用：shadow-control、theme-control-panel、graph-background-settings、node-mark-editor。
  * 调用：ui Accordion/ColorPicker/Field、react、lib/custom-themes、types/theme。
@@ -20,7 +20,7 @@ import {
 	ColorPickerTrigger,
 } from "@leonwillow-electron/ui/components/color-picker";
 import { Field, FieldLabel } from "@leonwillow-electron/ui/components/field";
-import { useId, useState } from "react";
+import { memo, useId, useState } from "react";
 import { isColorValue } from "@/lib/custom-themes";
 import type { ThemeStyleProps } from "@/types/theme";
 
@@ -39,51 +39,53 @@ type ColorSwatchProps = {
  * @param props onChange 只接收有效颜色，onValidityChange 同步通知表单可保存状态。
  * @returns 带标签与悬浮 ReUI 色盘触发器的颜色字段。
  */
-export const ColorSwatch = ({
-	label,
-	value,
-	size = "lg",
-	alpha = true,
-	side = "left",
-	onChange,
-	onValidityChange,
-}: ColorSwatchProps) => {
-	const [pickerOpen, setPickerOpen] = useState(false);
-	const id = useId();
-	const activeColor = isColorValue(value) ? value : null;
+export const ColorSwatch = memo(
+	({
+		label,
+		value,
+		size = "lg",
+		alpha = true,
+		side = "left",
+		onChange,
+		onValidityChange,
+	}: ColorSwatchProps) => {
+		const [pickerOpen, setPickerOpen] = useState(false);
+		const id = useId();
+		const activeColor = isColorValue(value) ? value : null;
 
-	return (
-		<Field className="gap-1.5">
-			<FieldLabel htmlFor={id}>{label}</FieldLabel>
-			<ColorPicker
-				id={id}
-				open={pickerOpen}
-				onOpenChange={setPickerOpen}
-				value={activeColor}
-				alpha={alpha}
-				format="hex"
-				aria-label={`${label}调色盘`}
-				onValueChange={(nextColor) => {
-					if (!nextColor) return;
-					onChange(nextColor);
-					onValidityChange?.(true);
-				}}
-			>
-				<ColorPickerTrigger
-					className="w-full"
-					size={size}
+		return (
+			<Field className="gap-1.5">
+				<FieldLabel htmlFor={id}>{label}</FieldLabel>
+				<ColorPicker
+					id={id}
+					open={pickerOpen}
+					onOpenChange={setPickerOpen}
+					value={activeColor}
+					alpha={alpha}
+					format="hex"
 					aria-label={`${label}调色盘`}
-				/>
-				<ColorPickerContent
-					side={side}
-					align="start"
-					sideOffset={8}
-					className="shadow-xl data-closed:animate-none data-open:animate-none"
-				/>
-			</ColorPicker>
-		</Field>
-	);
-};
+					onValueChange={(nextColor) => {
+						if (!nextColor) return;
+						onChange(nextColor);
+						onValidityChange?.(true);
+					}}
+				>
+					<ColorPickerTrigger
+						className="w-full"
+						size={size}
+						aria-label={`${label}调色盘`}
+					/>
+					<ColorPickerContent
+						side={side}
+						align="start"
+						sideOffset={8}
+						className="shadow-xl data-closed:animate-none data-open:animate-none"
+					/>
+				</ColorPicker>
+			</Field>
+		);
+	},
+);
 
 type ThemeColorPanelProps = {
 	currentTheme: Partial<ThemeStyleProps>;
@@ -106,10 +108,7 @@ const ThemeColorPanel = ({
 					<AccordionTrigger className="cursor-pointer py-3 font-medium text-base">
 						品牌颜色
 					</AccordionTrigger>
-					<AccordionContent
-						keepMounted
-						className="flex flex-col gap-3 pt-2 pb-4"
-					>
+					<AccordionContent className="flex flex-col gap-3 pt-2 pb-4">
 						<ColorSwatch
 							label="主色"
 							value={currentTheme?.primary || ""}
@@ -161,10 +160,7 @@ const ThemeColorPanel = ({
 					<AccordionTrigger className="cursor-pointer py-3 font-medium text-base">
 						状态语义
 					</AccordionTrigger>
-					<AccordionContent
-						keepMounted
-						className="flex flex-col gap-3 pt-2 pb-4"
-					>
+					<AccordionContent className="flex flex-col gap-3 pt-2 pb-4">
 						<ColorSwatch
 							label="信息色"
 							value={currentTheme?.info || ""}
@@ -214,10 +210,7 @@ const ThemeColorPanel = ({
 					<AccordionTrigger className="cursor-pointer py-3 font-medium text-base">
 						基础界面
 					</AccordionTrigger>
-					<AccordionContent
-						keepMounted
-						className="flex flex-col gap-3 pt-2 pb-4"
-					>
+					<AccordionContent className="flex flex-col gap-3 pt-2 pb-4">
 						<ColorSwatch
 							label="页面背景"
 							value={currentTheme?.background || ""}
@@ -269,10 +262,7 @@ const ThemeColorPanel = ({
 					<AccordionTrigger className="cursor-pointer py-3 font-medium text-base">
 						交互颜色
 					</AccordionTrigger>
-					<AccordionContent
-						keepMounted
-						className="flex flex-col gap-3 pt-2 pb-4"
-					>
+					<AccordionContent className="flex flex-col gap-3 pt-2 pb-4">
 						<ColorSwatch
 							label="弱化背景"
 							value={currentTheme?.muted || ""}
@@ -326,10 +316,7 @@ const ThemeColorPanel = ({
 					<AccordionTrigger className="cursor-pointer py-3 font-medium text-base">
 						侧栏颜色
 					</AccordionTrigger>
-					<AccordionContent
-						keepMounted
-						className="flex flex-col gap-3 pt-2 pb-4"
-					>
+					<AccordionContent className="flex flex-col gap-3 pt-2 pb-4">
 						<ColorSwatch
 							label="侧栏背景"
 							value={currentTheme?.sidebar || ""}
@@ -403,10 +390,7 @@ const ThemeColorPanel = ({
 					<AccordionTrigger className="cursor-pointer py-3 font-medium text-base">
 						图表颜色
 					</AccordionTrigger>
-					<AccordionContent
-						keepMounted
-						className="flex flex-col gap-3 pt-2 pb-4"
-					>
+					<AccordionContent className="flex flex-col gap-3 pt-2 pb-4">
 						<ColorSwatch
 							label="图表颜色 1"
 							value={currentTheme?.["chart-1"] || ""}

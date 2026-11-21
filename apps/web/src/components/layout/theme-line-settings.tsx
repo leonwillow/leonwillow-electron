@@ -1,6 +1,6 @@
 /**
  * @file 常用主题面板中的全局线条外观设置。
- * 创建时间：2026-11-17；修改时间：2026-11-20。
+ * 创建时间：2026-11-17；修改时间：2026-11-21。
  * 版本作用：复用分段单选与 ReUI 最近颜色色盘，按明暗模式保存线条颜色。
  * 被调用：ThemeCustomizer；调用：主题 Store、共享 ColorPicker、RadioGroup。
  * 预期结果：粗细与有效颜色即时持久化，跟随主题时保留原语义色及透明度，弹层首帧无高度跳动。
@@ -28,7 +28,7 @@ import {
 	RadioGroupSegmentedItem,
 } from "@leonwillow-electron/ui/components/radio-group";
 import { CheckIcon } from "lucide-react";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useThemeStore } from "@/stores/theme-store";
 import type { BorderWidth } from "@/types/theme";
 
@@ -55,14 +55,52 @@ export function ThemeLineSettings({ mode }: { mode: "light" | "dark" }) {
 	);
 	const [recent, setRecent] = useState(readRecentColors);
 	const [pickerOpen, setPickerOpen] = useState(false);
+	const [draftColor, setDraftColor] = useState<string | null>(null);
+	const colorFrameRef = useRef(0);
+	const pendingColorRef = useRef<string | null>(null);
 	const colorKey = mode === "dark" ? "borderColorDark" : "borderColorLight";
 	const customColor = settings[colorKey];
+	const displayColor = draftColor ?? customColor ?? themeBorder;
 	const colorLabel = `线条颜色（${mode === "dark" ? "深色" : "浅色"}）`;
 	const colorId = `${id}-color`;
 	const colorLabelId = `${colorId}-label`;
 	const recentLabelId = `${colorId}-recent`;
 	const widthLabelId = `${id}-width-label`;
+	const cancelColorFrame = () => {
+		if (colorFrameRef.current) {
+			cancelAnimationFrame(colorFrameRef.current);
+			colorFrameRef.current = 0;
+		}
+		pendingColorRef.current = null;
+	};
+	const previewLineColor = (value: string) => {
+		setDraftColor(value);
+		pendingColorRef.current = value;
+		if (colorFrameRef.current) return;
+		colorFrameRef.current = requestAnimationFrame(() => {
+			colorFrameRef.current = 0;
+			const latest = pendingColorRef.current;
+			pendingColorRef.current = null;
+			if (latest) {
+				document.documentElement.style.setProperty(
+					"--app-border-color",
+					latest,
+				);
+			}
+		});
+	};
+	const commitLineColor = (value: string | null) => {
+		cancelColorFrame();
+		const target = value ?? draftColor;
+		setDraftColor(null);
+		if (target) {
+			updateSettings({ [colorKey]: target });
+			rememberColor(target);
+		}
+	};
 	const restoreDefault = () => {
+		cancelColorFrame();
+		setDraftColor(null);
 		updateSettings({ [colorKey]: null });
 		setPickerOpen(false);
 	};
@@ -77,20 +115,42 @@ export function ThemeLineSettings({ mode }: { mode: "light" | "dark" }) {
 		}
 	};
 
+	useEffect(
+		() => () => {
+			if (colorFrameRef.current) {
+				cancelAnimationFrame(colorFrameRef.current);
+				colorFrameRef.current = 0;
+			}
+		},
+		[],
+	);
+
 	useEffect(() => {
 		const root = document.documentElement;
+		let frame = 0;
 		const readBorder = () => {
 			const color = getComputedStyle(root).getPropertyValue("--border").trim();
-			if (color) setThemeBorder(color);
+			if (color)
+				setThemeBorder((current) => (current === color ? current : color));
+		};
+		const scheduleRead = () => {
+			if (frame) return;
+			frame = requestAnimationFrame(() => {
+				frame = 0;
+				readBorder();
+			});
 		};
 		readBorder();
 		// 读取原主题边框色，不读取全局覆盖变量，恢复跟随时不保留旧覆盖。
-		const observer = new MutationObserver(readBorder);
+		const observer = new MutationObserver(scheduleRead);
 		observer.observe(root, {
 			attributes: true,
 			attributeFilter: ["class", "style"],
 		});
-		return () => observer.disconnect();
+		return () => {
+			if (frame) cancelAnimationFrame(frame);
+			observer.disconnect();
+		};
 	}, []);
 
 	return (
@@ -140,15 +200,18 @@ export function ThemeLineSettings({ mode }: { mode: "light" | "dark" }) {
 					<ColorPicker
 						id={colorId}
 						open={pickerOpen}
-						onOpenChange={setPickerOpen}
-						value={customColor ?? themeBorder}
+						onOpenChange={(open) => {
+							setPickerOpen(open);
+							if (!open && draftColor !== null) commitLineColor(draftColor);
+						}}
+						value={displayColor}
 						alpha
 						format="hex"
 						aria-labelledby={colorLabelId}
 						onValueChange={(value) => {
-							if (value) updateSettings({ [colorKey]: value });
+							if (value) previewLineColor(value);
 						}}
-						onValueCommit={rememberColor}
+						onValueCommit={commitLineColor}
 					>
 						<ColorPickerTrigger className="w-full" />
 						<ColorPickerContent>

@@ -25,6 +25,7 @@ import {
 
 type InquiryNavigation = ReturnType<typeof useWorkspaceMenuSection> & {
 	query: string;
+	debouncedQuery: string;
 	archived: boolean;
 	setQuery: (value: string) => void;
 	setArchived: (value: boolean) => void;
@@ -48,14 +49,23 @@ export function InquiryNavigationProvider({
 	const activated = useWorkspaceMenuActivated("inquiries", enabled);
 	const [query, setQuery] = useState("");
 	const [archived, setArchived] = useState(false);
-	const searchTerm = query.trim();
+	const trimmedQuery = query.trim();
+	const [debouncedQuery, setDebouncedQuery] = useState(trimmedQuery);
+	useEffect(() => {
+		if (!trimmedQuery) {
+			setDebouncedQuery("");
+			return;
+		}
+		const timer = setTimeout(() => setDebouncedQuery(trimmedQuery), 250);
+		return () => clearTimeout(timer);
+	}, [trimmedQuery]);
 	const loadCases = useCallback(
 		() =>
 			listInquiryCases({
-				q: searchTerm,
+				q: debouncedQuery,
 				archived,
 			}),
-		[searchTerm, archived],
+		[debouncedQuery, archived],
 	);
 	const cases = useAsyncResource(activated ? loadCases : null, {
 		fallbackError: "无法连接笔录服务，请稍后重试。",
@@ -63,6 +73,7 @@ export function InquiryNavigationProvider({
 	});
 	const resetFilters = useCallback(() => {
 		setQuery("");
+		setDebouncedQuery("");
 		setArchived(false);
 	}, []);
 	const { inquiryCaseId } = useSearch({ strict: false });
@@ -95,6 +106,7 @@ export function InquiryNavigationProvider({
 			...menu,
 			cases,
 			query,
+			debouncedQuery,
 			archived,
 			setQuery,
 			setArchived,
@@ -107,6 +119,7 @@ export function InquiryNavigationProvider({
 			menu,
 			cases,
 			query,
+			debouncedQuery,
 			archived,
 			resetFilters,
 			expandedCases,

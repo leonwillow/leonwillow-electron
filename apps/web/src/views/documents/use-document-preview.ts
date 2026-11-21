@@ -1,11 +1,11 @@
 /**
  * @file 文书草稿随输入更新的真实 Word 预览请求。
- * 创建时间：2026-10-11；修改时间：2026-10-11。
+ * 创建时间：2026-10-11；修改时间：2026-11-21。
  * 版本作用：初次打开立即预览，输入合并 350ms，过期响应不覆盖最新草稿。
  * 被调用：document-editor；调用：文书 Eden 预览接口。
  * 功能与预期结果：预览不占号；历史记录使用原号码和模板，失败可独立重试。
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
 	type DocumentDetails,
 	type DocumentDraft,
@@ -38,7 +38,11 @@ export function useDocumentPreview(
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState("");
 	const [retry, setRetry] = useState(0);
-	// biome-ignore lint/correctness/useExhaustiveDependencies: retry 是失败后重试同一草稿的触发器。
+	const renderedRef = useRef<{
+		recordId?: string;
+		draftKey: string;
+		retry: number;
+	} | null>(null);
 	useEffect(() => {
 		const current = JSON.parse(input) as PreviewInput;
 		if (
@@ -46,9 +50,24 @@ export function useDocumentPreview(
 			current.draft.year < 2000 ||
 			current.draft.year > 9999
 		) {
+			renderedRef.current = null;
 			setLoading(false);
 			setBlob(null);
 			setError("填写有效年份后会自动预览。");
+			return;
+		}
+		const draftKey = JSON.stringify(current.draft);
+		// 已保存的既有文书若正文与最近一次已呈现的预览一致，保存回刷 revision 时跳过冗余重建。
+		if (
+			current.record &&
+			!current.changed &&
+			renderedRef.current &&
+			renderedRef.current.recordId === current.record.id &&
+			renderedRef.current.draftKey === draftKey &&
+			renderedRef.current.retry === retry
+		) {
+			setLoading(false);
+			setError("");
 			return;
 		}
 		let live = true;
@@ -67,7 +86,14 @@ export function useDocumentPreview(
 					: previewDocument(current.draft);
 				void request
 					.then((file) => {
-						if (live) setBlob(file);
+						if (live) {
+							renderedRef.current = {
+								recordId: current.record?.id,
+								draftKey,
+								retry,
+							};
+							setBlob(file);
+						}
 					})
 					.catch((cause) => {
 						if (live) setError(documentError(cause));

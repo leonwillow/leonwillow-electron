@@ -1,7 +1,7 @@
 /**
  * @file 共享数值的滑块与输入框组合。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-20
+ * 修改时间：2026-11-21
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/theme-editor/shadow-control.tsx、components/theme-editor/theme-control-panel.tsx。
  * 调用：ui 基础组件/样式、react。
@@ -11,7 +11,7 @@
 import { Field, FieldLabel } from "@leonwillow-electron/ui/components/field";
 import { Input } from "@leonwillow-electron/ui/components/input";
 import { Slider } from "@leonwillow-electron/ui/components/slider";
-import { type ReactNode, useEffect, useId, useState } from "react";
+import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 
 type SliderWithInputProps = {
 	value: number;
@@ -41,10 +41,35 @@ const SliderWithInput = ({
 }: SliderWithInputProps) => {
 	const [localValue, setLocalValue] = useState<string | number>(value);
 	const id = useId();
+	const frameRef = useRef(0);
+	const pendingRef = useRef<number | null>(null);
+	const onChangeRef = useRef(onChange);
+	onChangeRef.current = onChange;
 
 	useEffect(() => {
 		setLocalValue(value);
 	}, [value]);
+
+	useEffect(
+		() => () => {
+			if (frameRef.current) {
+				cancelAnimationFrame(frameRef.current);
+				frameRef.current = 0;
+			}
+		},
+		[],
+	);
+
+	const scheduleChange = (next: number) => {
+		pendingRef.current = next;
+		if (frameRef.current) return;
+		frameRef.current = requestAnimationFrame(() => {
+			frameRef.current = 0;
+			const latest = pendingRef.current;
+			pendingRef.current = null;
+			if (latest !== null) onChangeRef.current(latest);
+		});
+	};
 
 	return (
 		<Field className="gap-2">
@@ -83,7 +108,17 @@ const SliderWithInput = ({
 				onValueChange={(values) => {
 					const next = Array.isArray(values) ? values[0] : values;
 					setLocalValue(next);
-					onChange(next);
+					scheduleChange(next);
+				}}
+				onValueCommitted={(values) => {
+					const next = Array.isArray(values) ? values[0] : values;
+					if (frameRef.current) {
+						cancelAnimationFrame(frameRef.current);
+						frameRef.current = 0;
+					}
+					pendingRef.current = null;
+					setLocalValue(next);
+					onChangeRef.current(next);
 				}}
 				className="py-1"
 			/>

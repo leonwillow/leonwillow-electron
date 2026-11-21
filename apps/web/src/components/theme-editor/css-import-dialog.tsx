@@ -1,7 +1,7 @@
 /**
  * @file 主题 CSS 的输入和错误反馈对话框。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-20
+ * 修改时间：2026-11-21
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/theme-editor/theme-control-panel.tsx。
  * 调用：ui 基础组件/样式、react。
@@ -64,14 +64,20 @@ const CssImportDialog = ({
 		}
 	};
 
+	const handleOpenChange = (nextOpen: boolean) => {
+		if (!nextOpen) {
+			setCssText("");
+			setError(null);
+		}
+		onOpenChange(nextOpen);
+	};
+
 	const handleClose = () => {
-		setCssText("");
-		setError(null);
-		onOpenChange(false);
+		handleOpenChange(false);
 	};
 
 	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
+		<Dialog open={open} onOpenChange={handleOpenChange}>
 			<DialogContent
 				scrollable
 				className="max-h-[90dvh] sm:max-w-xl"

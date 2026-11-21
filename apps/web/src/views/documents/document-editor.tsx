@@ -70,9 +70,13 @@ export default function DocumentEditor({
 	);
 	const extraFields = fields.filter((field) => field.key !== recipient?.key);
 	const [expanded, setExpanded] = useState(false);
-	const [year, setYear] = useState(
-		details?.record.year ?? new Date().getFullYear(),
+	const [yearText, setYearText] = useState(() =>
+		String(details?.record.year ?? new Date().getFullYear()),
 	);
+	const parsedYear = /^\d+$/.test(yearText.trim())
+		? Number(yearText.trim())
+		: Number.NaN;
+	const year = Number.isInteger(parsedYear) ? parsedYear : Number.NaN;
 	const [subject, setSubject] = useState(details?.record.subject ?? "");
 	const [values, setValues] = useState<Record<string, string>>(
 		details?.record.values ??
@@ -134,6 +138,10 @@ export default function DocumentEditor({
 	const save = async (event: React.FormEvent) => {
 		event.preventDefault();
 		if (busy || !canEdit) return;
+		if (!details && (!Number.isInteger(year) || year < 2000 || year > 9999)) {
+			setError("请填写 2000 至 9999 之间的有效年份。");
+			return;
+		}
 		if (!(recipient ? values[recipient.key]?.trim() : subject.trim())) {
 			setError(`请填写${recipient?.label ?? "文书事项"}。`);
 			return;
@@ -214,11 +222,11 @@ export default function DocumentEditor({
 									type="number"
 									min={2000}
 									max={9999}
-									value={year}
+									value={yearText}
 									required
 									disabled={!!busy}
 									onChange={(event) => {
-										setYear(Number(event.target.value));
+										setYearText(event.target.value);
 										markChanged();
 									}}
 								/>

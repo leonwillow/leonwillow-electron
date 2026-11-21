@@ -1,6 +1,6 @@
 /**
  * @file 管理员导入模板、配置字段及年度序号的弹窗。
- * 创建时间：2026-10-10；修改时间：2026-11-19。
+ * 创建时间：2026-10-10；修改时间：2026-11-21。
  * 版本作用：沿用原 collection-dialog 的共享 Dialog 与表单结构，适配真实 API。
  * 被调用：template-panel；调用：共享 UI、文书客户端。
  * 功能与预期结果：上传只接收 DOCX，已有模板设置带版本校验，取号起点可向前调整。
@@ -68,18 +68,29 @@ export default function TemplateDialog({
 }) {
 	const [name, setName] = useState(type?.name ?? (sample ? "询问通知书" : ""));
 	const [prefix, setPrefix] = useState(type?.prefix ?? "滇税三稽查");
-	const [year, setYear] = useState(new Date().getFullYear());
-	const [next, setNext] = useState(1);
+	const [yearText, setYearText] = useState(() =>
+		String(new Date().getFullYear()),
+	);
+	const [nextText, setNextText] = useState("1");
+	const year = /^\d+$/.test(yearText.trim())
+		? Number(yearText.trim())
+		: Number.NaN;
+	const next = /^\d+$/.test(nextText.trim())
+		? Number(nextText.trim())
+		: Number.NaN;
+	const validYear = Number.isInteger(year) && year >= 2000 && year <= 9999;
+	const validNext =
+		Number.isInteger(next) && next >= 1 && next <= 2_000_000_000;
 	const [fields, setFields] = useState(type?.fields ?? []);
 	const [file, setFile] = useState<File | null>(null);
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState("");
 	useEffect(() => {
-		if (!type || year < 2000 || year > 9999) return;
+		if (!type || !validYear) return;
 		let live = true;
 		void getNextNumber(type.id, year)
 			.then((data) => {
-				if (live) setNext(data.nextNumber);
+				if (live) setNextText(String(data.nextNumber));
 			})
 			.catch((cause) => {
 				if (live) setError(documentError(cause));
@@ -87,7 +98,7 @@ export default function TemplateDialog({
 		return () => {
 			live = false;
 		};
-	}, [type, year]);
+	}, [type, year, validYear]);
 	const run = async (
 		action: () => Promise<unknown>,
 		message: string,
@@ -113,7 +124,9 @@ export default function TemplateDialog({
 				() => updateDocumentType(type, { name, prefix, fields }),
 				"模板设置已保存，历史文书保持原模板。",
 			);
-		else if (sample)
+		else if (!validYear || !validNext) {
+			setError("请填写有效的年份与起始序号。");
+		} else if (sample)
 			void run(
 				() => createSampleType({ name, prefix, year, nextNumber: next }),
 				"示例模板已导入，可以开始取号。",
@@ -183,7 +196,8 @@ export default function TemplateDialog({
 								disabled={busy}
 							/>
 							<FieldDescription>
-								文号示例：{prefix || "前缀"}〔{year}〕{next}号
+								文号示例：{prefix || "前缀"}〔{validYear ? year : "年份"}〕
+								{validNext ? next : "序号"}号
 							</FieldDescription>
 						</Field>
 					</FieldGroup>
@@ -203,8 +217,8 @@ export default function TemplateDialog({
 									type="number"
 									min={2000}
 									max={9999}
-									value={year}
-									onChange={(event) => setYear(Number(event.target.value))}
+									value={yearText}
+									onChange={(event) => setYearText(event.target.value)}
 									required
 									disabled={busy}
 								/>
@@ -216,8 +230,8 @@ export default function TemplateDialog({
 									type="number"
 									min={1}
 									max={2_000_000_000}
-									value={next}
-									onChange={(event) => setNext(Number(event.target.value))}
+									value={nextText}
+									onChange={(event) => setNextText(event.target.value)}
 									required
 									disabled={busy}
 								/>
@@ -227,13 +241,7 @@ export default function TemplateDialog({
 							<Button
 								type="button"
 								variant="outline"
-								disabled={
-									busy ||
-									year < 2000 ||
-									year > 9999 ||
-									next < 1 ||
-									next > 2_000_000_000
-								}
+								disabled={busy || !validYear || !validNext}
 								onClick={() =>
 									void run(
 										() => setNextNumber(type.id, year, next),

@@ -48,6 +48,7 @@ export function useInquiryCaseMenu(): WorkspaceMenuContent {
 	const navigate = useNavigate();
 	const {
 		query: search,
+		debouncedQuery,
 		setQuery: setSearch,
 
 		archived,
@@ -73,7 +74,7 @@ export function useInquiryCaseMenu(): WorkspaceMenuContent {
 			});
 			menu.dismiss();
 		},
-		query: search.trim(),
+		query: debouncedQuery,
 	});
 
 	/** 当前编辑笔录先完成保存；失败时中止归档，归档后先释放编辑锁再离开编辑器避免误触发离开拦截。 */

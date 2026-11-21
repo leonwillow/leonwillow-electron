@@ -1,6 +1,6 @@
 /**
  * @file 笔录基础信息、被询问人和询问人表单。
- * 创建时间：2026-11-04；修改时间：2026-11-19。
+ * 创建时间：2026-11-04；修改时间：2026-11-21。
  * 版本作用：将基本情况、询问（调查）人与被询问（调查）人组织为可独立折叠的分组，并将询问日期与询问次数并排展示。
  * 被调用：RecordEditor；调用：常用询问人接口、时间适配、年龄纯函数、共享 Accordion 与表单控件。
  * 预期结果：三组信息支持自由折叠及文书定位自动展开，日期与次数同行且日期优先占宽，只读模式下仍可折叠查阅。
@@ -36,7 +36,7 @@ import {
 import { TimePicker } from "@leonwillow-electron/ui/components/time-picker";
 import { TooltipIconButton } from "@leonwillow-electron/ui/components/tooltip-icon-button";
 import { PlusIcon, Trash2Icon } from "lucide-react";
-import { memo } from "react";
+import { memo, useEffect, useState } from "react";
 import { AsyncStatusBlock } from "@/components/layout/async-state";
 import { useAsyncResource } from "@/hooks/use-async-resource";
 import type { InquiryContent } from "@/lib/inquiries";
@@ -134,6 +134,10 @@ const InquiryBasicFields = memo(
 			fallbackError: "无法连接笔录服务，请稍后重试。",
 			keepPreviousOnReload: true,
 		});
+		const [countText, setCountText] = useState(() => String(c.inquiryCount));
+		useEffect(() => {
+			setCountText(String(c.inquiryCount));
+		}, [c.inquiryCount]);
 		const schedule = readInquirySchedule(c);
 		const updateSchedule = (
 			times: Pick<InquiryContent, "inquiryStartAt" | "inquiryEndAt">,
@@ -234,19 +238,27 @@ const InquiryBasicFields = memo(
 											type="number"
 											min={1}
 											max={9999}
-											value={c.inquiryCount}
-											onChange={(e) =>
-												update(
-													"inquiryCount",
-													Math.max(
-														1,
-														Math.min(
-															9999,
-															Math.trunc(Number(e.target.value)) || 1,
-														),
-													),
-												)
-											}
+											value={countText}
+											onChange={(e) => {
+												const text = e.target.value;
+												setCountText(text);
+												if (!text.trim()) return;
+												const parsed = Math.trunc(Number(text));
+												if (Number.isFinite(parsed) && parsed >= 1) {
+													update("inquiryCount", Math.min(9999, parsed));
+												}
+											}}
+											onBlur={() => {
+												const parsed = Math.trunc(Number(countText));
+												const clamped =
+													Number.isFinite(parsed) && parsed >= 1
+														? Math.min(9999, parsed)
+														: Math.max(1, Math.min(9999, c.inquiryCount || 1));
+												if (clamped !== c.inquiryCount) {
+													update("inquiryCount", clamped);
+												}
+												setCountText(String(clamped));
+											}}
 										/>
 									</Field>
 								</FieldGroup>

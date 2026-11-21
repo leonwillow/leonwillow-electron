@@ -1,12 +1,12 @@
 /**
  * @file 不依赖 WebGL 的动态丝绸背景。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-18
+ * 修改时间：2026-11-21
  * 版本作用：共享 UI 基础层，随工作区维护。
  * 被调用：components/auth/auth-showcase.tsx。
  * 调用：ui/lib/utils、react。
- * 功能：在有限分辨率下绘制纹理，外提帧级三角函数常量，限制刷新频率并监听可见性和动态偏好。
- * 预期结果：装饰背景随主题变化，隐藏时暂停，无逐像素临时数组分配，高刷屏不空转帧回调。
+ * 功能：在有限分辨率下绘制纹理，外提帧级三角函数常量，限制刷新频率并监听可见性、窗口失焦、视口相交和动态偏好。
+ * 预期结果：装饰背景随主题变化，隐藏、离屏或失焦时暂停循环，无逐像素临时数组分配，高刷屏不空转帧回调。
  */
 import { cn } from "@leonwillow-electron/ui/lib/utils";
 import { useCallback, useEffect, useRef } from "react";
@@ -59,6 +59,10 @@ export default function SilkBackground({
 	const lastPaintRef = useRef<number | null>(null);
 	const imageDataRef = useRef<ImageData | null>(null);
 	const reducedMotionRef = useRef(false);
+	const focusedRef = useRef(
+		typeof document === "undefined" ? true : document.hasFocus(),
+	);
+	const inViewRef = useRef(true);
 	const drawRef = useRef<(timestamp: number) => void>(() => {});
 
 	const [baseR, baseG, baseB] = hexToRgb(color);
@@ -86,9 +90,10 @@ export default function SilkBackground({
 
 			const w = canvas.width;
 			const h = canvas.height;
-			if (document.hidden || w <= 0 || h <= 0) return;
+			if (document.hidden || !inViewRef.current || w <= 0 || h <= 0) return;
 
-			if (!reducedMotionRef.current && lastPaintRef.current !== null) {
+			const shouldAnimate = !reducedMotionRef.current && focusedRef.current;
+			if (shouldAnimate && lastPaintRef.current !== null) {
 				const elapsed = timestamp - lastPaintRef.current;
 				if (elapsed < FRAME_INTERVAL_MS) {
 					timerRef.current = window.setTimeout(() => {
@@ -160,7 +165,7 @@ export default function SilkBackground({
 			}
 
 			ctx.putImageData(imageData, 0, 0);
-			if (!reducedMotionRef.current)
+			if (shouldAnimate)
 				animRef.current = requestAnimationFrame(drawRef.current);
 		},
 		[speed, scale, noiseIntensity, rotation, baseR, baseG, baseB],
@@ -188,7 +193,12 @@ export default function SilkBackground({
 				lastTimestampRef.current = null;
 				lastPaintRef.current = null;
 				stopSchedule();
-				if (nextWidth > 0 && nextHeight > 0 && !document.hidden)
+				if (
+					nextWidth > 0 &&
+					nextHeight > 0 &&
+					!document.hidden &&
+					inViewRef.current
+				)
 					animRef.current = requestAnimationFrame(drawRef.current);
 			}
 		});
@@ -201,7 +211,7 @@ export default function SilkBackground({
 		};
 	}, [stopSchedule]);
 
-	// 属性、可见性和动态偏好变化共用重启流程，避免重复注册动画循环。
+	// 属性、可见性、窗口焦点、视口相交和动态偏好变化共用重启流程，避免重复注册动画循环。
 	useEffect(() => {
 		drawRef.current = draw;
 		const media = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -211,15 +221,45 @@ export default function SilkBackground({
 			lastPaintRef.current = null;
 			reducedMotionRef.current = media.matches;
 			const canvas = canvasRef.current;
-			if (canvas && canvas.width > 0 && canvas.height > 0 && !document.hidden)
+			if (
+				canvas &&
+				canvas.width > 0 &&
+				canvas.height > 0 &&
+				!document.hidden &&
+				inViewRef.current
+			)
 				animRef.current = requestAnimationFrame(drawRef.current);
 		};
+		const onBlur = () => {
+			focusedRef.current = false;
+			stopSchedule();
+		};
+		const onFocus = () => {
+			focusedRef.current = true;
+			restart();
+		};
+		let intersection: IntersectionObserver | undefined;
+		if (canvasRef.current && typeof IntersectionObserver !== "undefined") {
+			intersection = new IntersectionObserver((entries) => {
+				const visible = entries.some((entry) => entry.isIntersecting);
+				if (inViewRef.current === visible) return;
+				inViewRef.current = visible;
+				if (visible) restart();
+				else stopSchedule();
+			});
+			intersection.observe(canvasRef.current);
+		}
 		restart();
 		document.addEventListener("visibilitychange", restart);
+		window.addEventListener("blur", onBlur);
+		window.addEventListener("focus", onFocus);
 		media.addEventListener("change", restart);
 		return () => {
 			stopSchedule();
+			intersection?.disconnect();
 			document.removeEventListener("visibilitychange", restart);
+			window.removeEventListener("blur", onBlur);
+			window.removeEventListener("focus", onFocus);
 			media.removeEventListener("change", restart);
 		};
 	}, [draw, stopSchedule]);

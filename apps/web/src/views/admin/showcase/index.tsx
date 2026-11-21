@@ -64,10 +64,12 @@ export default function ShowcaseView() {
 	const editorTriggerRef = useRef<HTMLButtonElement>(null);
 	const { forcedTheme, resolvedTheme, setTheme } = useTheme();
 	const preferences = useThemeStore((state) => state.preferences);
+	const previewMode = useThemeStore((state) => state.preview?.mode ?? null);
+	const previewing = previewMode !== null;
 	const updateSettings = useThemeStore((state) => state.updateSettings);
 	const setThemeEditorOpen = useThemeStore((state) => state.setThemeEditorOpen);
 
-	const isDark = (forcedTheme ?? resolvedTheme) === "dark";
+	const isDark = (previewMode ?? forcedTheme ?? resolvedTheme) === "dark";
 	const activeCustomThemes = preferences.customThemes.filter(
 		(theme) => !theme.deletedAt,
 	);
@@ -136,14 +138,17 @@ export default function ShowcaseView() {
 
 					<TooltipIconButton
 						label={isDark ? "切换到浅色模式" : "切换到深色模式"}
+						disabled={previewing}
+						disabledReason="主题预览期间请在主题编辑器内切换明暗"
 						size="icon-sm"
 						variant="outline"
-						onClick={() =>
+						onClick={() => {
+							if (previewing) return;
 							toggleThemeTransition(isDark ? "dark" : "light", (mode) => {
 								updateSettings({ mode });
 								setTheme(mode);
-							})
-						}
+							});
+						}}
 					>
 						{isDark ? (
 							<SunIcon aria-hidden="true" />

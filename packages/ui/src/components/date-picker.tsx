@@ -1,6 +1,6 @@
 /**
  * @file 带年月下拉的中文单日选择控件。
- * 创建时间：2026-11-04；修改时间：2026-11-20。
+ * 创建时间：2026-11-04；修改时间：2026-11-21。
  * 版本作用：组合 shadcn 官方 Date of Birth 示例的 Popover 与 Calendar，缓存本地日期解析与格式化。
  * 被调用：笔录基础信息、滞纳金税款与缴款日期；调用：共享 Button、Calendar、Popover、date-fns。
  * 预期结果：以本地日历日期读写 yyyy-MM-dd，选择后关闭并回到触发器，不产生时区偏移，父层重绘时不重复解析日期。
@@ -14,7 +14,7 @@ import {
 } from "@leonwillow-electron/ui/components/popover";
 import { cn } from "@leonwillow-electron/ui/lib/utils";
 import { format, isValid, parse } from "date-fns";
-import { type ComponentProps, useMemo, useState } from "react";
+import { type ComponentProps, useEffect, useMemo, useState } from "react";
 
 type DatePickerProps = Omit<
 	ComponentProps<typeof Button>,
@@ -61,6 +61,9 @@ function DatePicker({
 	...props
 }: DatePickerProps) {
 	const [open, setOpen] = useState(defaultOpen);
+	useEffect(() => {
+		if (disabled) setOpen(false);
+	}, [disabled]);
 	const changeOpen = (next: boolean) => {
 		setOpen(next);
 		onOpenChange?.(next);

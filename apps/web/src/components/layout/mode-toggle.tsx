@@ -1,7 +1,7 @@
 /**
  * @file 侧栏的明暗模式切换入口。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-20
+ * 修改时间：2026-11-21
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/layout/app-sidebar.tsx。
  * 调用：ui 基础组件/样式、Arc SunMoonIcon、next-themes、stores/theme-store、lib/theme-transition。
@@ -24,27 +24,31 @@ import { useThemeStore } from "@/stores/theme-store";
 const ModeToggle = ({ wide = false }: { wide?: boolean }) => {
 	const { forcedTheme, resolvedTheme, setTheme } = useTheme();
 	const updateSettings = useThemeStore((state) => state.updateSettings);
-	const dark = (forcedTheme ?? resolvedTheme) === "dark";
+	const previewMode = useThemeStore((state) => state.preview?.mode ?? null);
+	const previewing = previewMode !== null;
+	const dark = (previewMode ?? forcedTheme ?? resolvedTheme) === "dark";
 
 	return (
-		<Tooltip disabled={wide}>
+		<Tooltip disabled={wide && !previewing}>
 			<TooltipTrigger
 				render={
 					<Button
 						variant="ghost"
 						size={wide ? "lg" : "icon-workspace"}
+						disabled={previewing}
 						className={cn(
 							"workspace-nav-item",
 							wide && "w-full justify-start gap-2.5 px-2.5",
 						)}
 						aria-label={wide ? undefined : "切换明暗模式"}
 						aria-pressed={dark}
-						onClick={() =>
+						onClick={() => {
+							if (previewing) return;
 							toggleThemeTransition(dark ? "dark" : "light", (mode) => {
 								updateSettings({ mode });
 								setTheme(mode);
-							})
-						}
+							});
+						}}
 					/>
 				}
 			>
@@ -58,7 +62,9 @@ const ModeToggle = ({ wide = false }: { wide?: boolean }) => {
 					</>
 				)}
 			</TooltipTrigger>
-			<TooltipContent side="right">切换明暗模式</TooltipContent>
+			<TooltipContent side="right">
+				{previewing ? "主题预览期间请在主题编辑器内切换明暗" : "切换明暗模式"}
+			</TooltipContent>
 		</Tooltip>
 	);
 };

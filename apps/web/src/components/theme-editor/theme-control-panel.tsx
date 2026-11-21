@@ -56,7 +56,13 @@ import {
 	Trash2Icon,
 } from "lucide-react";
 import { useTheme } from "next-themes";
-import { type RefObject, useEffect, useState } from "react";
+import {
+	type RefObject,
+	useCallback,
+	useEffect,
+	useMemo,
+	useState,
+} from "react";
 import { toast } from "sonner";
 import {
 	CURATED_FONTS,
@@ -119,7 +125,14 @@ export default function ThemeControlPanel({
 			)
 		: undefined;
 	const editingSaved = !!savedTheme;
-	const isDirty = JSON.stringify(draft) !== JSON.stringify(initialDraft);
+	const initialDraftJson = useMemo(
+		() => JSON.stringify(initialDraft),
+		[initialDraft],
+	);
+	const isDirty = useMemo(
+		() => draft !== initialDraft && JSON.stringify(draft) !== initialDraftJson,
+		[draft, initialDraft, initialDraftJson],
+	);
 	const visibleFonts: FontKey[] = CURATED_FONTS.includes(draft.font)
 		? [...CURATED_FONTS]
 		: [draft.font, ...CURATED_FONTS];
@@ -142,36 +155,49 @@ export default function ThemeControlPanel({
 		};
 	});
 
+	// 拖动调色盘与滑块时按渲染帧合并实时预览，避免单帧内反复重算主题变量。
 	useEffect(() => {
-		setThemePreview({ draft, mode });
+		const frame = requestAnimationFrame(() => {
+			setThemePreview({ draft, mode });
+		});
+		return () => cancelAnimationFrame(frame);
 	}, [draft, mode, setThemePreview]);
 	useEffect(() => () => setThemePreview(null), [setThemePreview]);
 
-	const onValidityChange = (key: string, valid: boolean) => {
-		setInvalidFields((previous) => {
-			const next = new Set(previous);
-			if (valid) next.delete(`${mode}:${key}`);
-			else next.add(`${mode}:${key}`);
-			return next;
-		});
-	};
+	const onValidityChange = useCallback(
+		(key: string, nextValid: boolean) => {
+			setInvalidFields((previous) => {
+				const fieldKey = `${mode}:${key}`;
+				const has = previous.has(fieldKey);
+				if (nextValid ? !has : has) return previous;
+				const next = new Set(previous);
+				if (nextValid) next.delete(fieldKey);
+				else next.add(fieldKey);
+				return next;
+			});
+		},
+		[mode],
+	);
 
-	const updateStyle = (key: keyof ThemeStyleProps, value: string) => {
-		setDraft((previous) => {
-			const nextModeStyles = { ...previous.styles[mode], [key]: value };
-			// 修改主色或危险色时移除预设专属派生色，避免自定义后仍残留原预设悬停或实心前景色。
-			if (key === "primary") delete nextModeStyles["primary-hover"];
-			if (key === "destructive")
-				delete nextModeStyles["destructive-solid-foreground"];
-			return {
-				...previous,
-				styles: {
-					...previous.styles,
-					[mode]: nextModeStyles,
-				},
-			};
-		});
-	};
+	const updateStyle = useCallback(
+		(key: keyof ThemeStyleProps, value: string) => {
+			setDraft((previous) => {
+				const nextModeStyles = { ...previous.styles[mode], [key]: value };
+				// 修改主色或危险色时移除预设专属派生色，避免自定义后仍残留原预设悬停或实心前景色。
+				if (key === "primary") delete nextModeStyles["primary-hover"];
+				if (key === "destructive")
+					delete nextModeStyles["destructive-solid-foreground"];
+				return {
+					...previous,
+					styles: {
+						...previous.styles,
+						[mode]: nextModeStyles,
+					},
+				};
+			});
+		},
+		[mode],
+	);
 
 	const selectSource = (themePreset: Settings["themePreset"]) => {
 		const saved = customThemes.find(
