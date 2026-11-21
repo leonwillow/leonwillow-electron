@@ -1,11 +1,11 @@
 /**
  * @file 案件导入任务队列、可见进度、可恢复后台处理。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-20
+ * 修改时间：2026-11-21
  * 版本作用：上传只持久化；独立 worker 完成 AI、标准导入、去重和图同步。
  * 被调用：funds API、funds-worker 入口及集成测试。
  * 调用：PostgreSQL 任务租约、AI normalizer、正式案件服务。
- * 预期结果：进程退出可恢复；文件校验全部完成后才提交该批，失败原因可见。
+ * 预期结果：进程退出可恢复且不扣重试次数；毒丸超时自动终止；跨案领单互不阻塞。
  */
 import {
 	type FundsFileRef,
@@ -14,7 +14,19 @@ import {
 	fundsJobFile,
 	user,
 } from "@leonwillow-electron/db/schema";
-import { and, asc, desc, eq, inArray, isNull, lte, or, sql } from "drizzle-orm";
+import {
+	and,
+	asc,
+	desc,
+	eq,
+	gte,
+	inArray,
+	isNull,
+	lt,
+	lte,
+	or,
+	sql,
+} from "drizzle-orm";
 import { getServerResources } from "../../server-resources";
 import { AccessError } from "../access/service";
 import {
@@ -280,34 +292,130 @@ export async function downloadJobFile(
 	);
 }
 
+const MAX_JOB_ATTEMPTS = 3;
+const MAX_HEARTBEAT_FAILURES = 3;
+
+export type JobFailureDecision =
+	| { action: "ignore" }
+	| {
+			action: "requeue";
+			status: "queued";
+			stage: "queued";
+			attempts: number;
+			error: string;
+			eventMessage: string;
+			delayMs: number;
+	  }
+	| {
+			action: "retry";
+			status: "queued";
+			stage: "retrying";
+			attempts: number;
+			error: string;
+			eventMessage: string;
+			delayMs: number;
+	  }
+	| {
+			action: "fail";
+			status: "failed";
+			stage: "failed";
+			attempts: number;
+			error: string;
+			eventMessage: string;
+			delayMs: number;
+	  };
+
+/** 区分优雅退出/心跳中断、租约转移与真实业务失败，避免服务重启误把任务永久标记失败。 */
+export function decideJobFailure(options: {
+	attempts: number;
+	leaseLost: boolean;
+	interrupted: boolean;
+	message: string;
+}): JobFailureDecision {
+	if (options.leaseLost) return { action: "ignore" };
+	if (options.interrupted) {
+		return {
+			action: "requeue",
+			status: "queued",
+			stage: "queued",
+			attempts: Math.max(0, options.attempts - 1),
+			error: "",
+			eventMessage: "后台服务重启或心跳中断，任务已自动重新排队等待继续处理。",
+			delayMs: 0,
+		};
+	}
+	if (options.attempts < MAX_JOB_ATTEMPTS) {
+		return {
+			action: "retry",
+			status: "queued",
+			stage: "retrying",
+			attempts: options.attempts,
+			error: options.message,
+			eventMessage: options.message,
+			delayMs: options.attempts * 10_000,
+		};
+	}
+	return {
+		action: "fail",
+		status: "failed",
+		stage: "failed",
+		attempts: options.attempts,
+		error: options.message,
+		eventMessage: options.message,
+		delayMs: 0,
+	};
+}
+
 async function claimJob(owner: string) {
 	const db = getServerResources().db;
 	return db.transaction(async (tx) => {
 		const now = new Date();
-		const [job] = await tx
-			.select()
-			.from(fundsJob)
+		const poisonMessage =
+			"后台任务多次超时或异常中断，已停止自动重试，请排查文件后手动重试。";
+		// 租约过期且已达最大尝试次数的任务直接终止为失败，避免毒丸任务无限重领拖垮 Worker。
+		await tx
+			.update(fundsJob)
+			.set({
+				status: "failed",
+				stage: "failed",
+				error: poisonMessage,
+				leaseOwner: null,
+				leaseUntil: null,
+				updatedAt: now,
+				events: sql`${fundsJob.events} || ${JSON.stringify([
+					{ at: now.toISOString(), stage: "failed", message: poisonMessage },
+				])}::jsonb`,
+			})
 			.where(
 				and(
+					eq(fundsJob.status, "running"),
+					lte(fundsJob.leaseUntil, now),
+					gte(fundsJob.attempts, MAX_JOB_ATTEMPTS),
+				),
+			);
+		// 联表同时锁定 funds_job 与 funds_case 并 SKIP LOCKED，避免单案锁阻塞其他无关案件的排队任务。
+		const [candidate] = await tx
+			.select({ job: fundsJob })
+			.from(fundsJob)
+			.innerJoin(
+				fundsCase,
+				and(eq(fundsCase.id, fundsJob.caseId), isNull(fundsCase.deletedAt)),
+			)
+			.where(
+				and(
+					lt(fundsJob.attempts, MAX_JOB_ATTEMPTS),
 					or(
 						and(eq(fundsJob.status, "queued"), lte(fundsJob.nextRunAt, now)),
 						and(eq(fundsJob.status, "running"), lte(fundsJob.leaseUntil, now)),
 					),
-					sql`EXISTS (SELECT 1 FROM funds_case c WHERE c.id = ${fundsJob.caseId} AND c.deleted_at IS NULL)`,
 					sql`NOT EXISTS (SELECT 1 FROM funds_job other WHERE other.case_id = ${fundsJob.caseId} AND other.id <> ${fundsJob.id} AND other.status = 'running' AND other.lease_until > ${now})`,
 				),
 			)
 			.orderBy(asc(fundsJob.createdAt))
 			.limit(1)
-			.for("update", { skipLocked: true });
-		if (!job) return null;
-		// 不同任务行也必须争用同一个案件行，避免两个消费者同时领取同案任务。
-		const [record] = await tx
-			.select({ id: fundsCase.id })
-			.from(fundsCase)
-			.where(and(eq(fundsCase.id, job.caseId), isNull(fundsCase.deletedAt)))
-			.for("update", { skipLocked: true });
-		if (!record) return null;
+			.for("update", { of: [fundsJob, fundsCase], skipLocked: true });
+		if (!candidate) return null;
+		const { job } = candidate;
 		const [active] = await tx
 			.select({ id: fundsJob.id })
 			.from(fundsJob)
@@ -380,6 +488,8 @@ export async function processNextFundsJob(
 			.returning({ id: fundsJob.id });
 		if (!changed.length) throw new Error("任务租约已转移。");
 	};
+	let leaseLost = false;
+	let consecutiveHeartbeatErrors = 0;
 	const heartbeat = setInterval(() => {
 		void db
 			.update(fundsJob)
@@ -390,9 +500,17 @@ export async function processNextFundsJob(
 			.where(predicate)
 			.returning({ id: fundsJob.id })
 			.then((rows) => {
-				if (!rows.length) controller.abort();
+				consecutiveHeartbeatErrors = 0;
+				if (!rows.length) {
+					leaseLost = true;
+					controller.abort(new Error("任务租约已转移。"));
+				}
 			})
-			.catch(() => controller.abort());
+			.catch(() => {
+				consecutiveHeartbeatErrors++;
+				if (consecutiveHeartbeatErrors >= MAX_HEARTBEAT_FAILURES)
+					controller.abort(new Error("任务心跳续租连续失败。"));
+			});
 	}, 30_000);
 	try {
 		const [person] = await db
@@ -513,25 +631,43 @@ export async function processNextFundsJob(
 			.where(predicate);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : "后台处理失败。";
-		const retry = job.attempts < 3 && !signal.aborted;
-		events.push({
-			at: new Date().toISOString(),
-			stage: retry ? "retrying" : "failed",
+		const decision = decideJobFailure({
+			attempts: job.attempts,
+			leaseLost: leaseLost || message === "任务租约已转移。",
+			interrupted:
+				Boolean(options.signal?.aborted) || controller.signal.aborted,
 			message,
 		});
-		await db
-			.update(fundsJob)
-			.set({
-				status: retry ? "queued" : "failed",
-				stage: retry ? "retrying" : "failed",
-				events,
-				error: message,
-				nextRunAt: new Date(Date.now() + job.attempts * 10_000),
-				leaseOwner: null,
-				leaseUntil: null,
-				updatedAt: new Date(),
-			})
-			.where(predicate);
+		if (decision.action !== "ignore") {
+			events.push({
+				at: new Date().toISOString(),
+				stage: decision.stage,
+				message: decision.eventMessage,
+			});
+			try {
+				await db
+					.update(fundsJob)
+					.set({
+						status: decision.status,
+						stage: decision.stage,
+						attempts: decision.attempts,
+						events,
+						error: decision.error,
+						nextRunAt: new Date(Date.now() + decision.delayMs),
+						leaseOwner: null,
+						leaseUntil: null,
+						updatedAt: new Date(),
+					})
+					.where(predicate);
+			} catch (updateError) {
+				console.error(
+					"[funds-worker] 回写任务状态失败:",
+					updateError instanceof Error
+						? updateError.message
+						: String(updateError),
+				);
+			}
+		}
 	} finally {
 		clearInterval(heartbeat);
 	}

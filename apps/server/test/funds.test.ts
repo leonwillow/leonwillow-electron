@@ -19,6 +19,7 @@ import {
 	standardRows,
 	templateHeaders,
 } from "../src/modules/funds/export";
+import { decideJobFailure } from "../src/modules/funds/jobs";
 import {
 	bankTimestamp,
 	moneyMinor,
@@ -862,4 +863,54 @@ test("AI 标准化不对户名/摘要/流水号注入前导单引号，且仅未
 		remarks: "+加急备注",
 	});
 	expect(result.source.issues[0]?.message).toContain("未映射列");
+});
+
+test("Worker 优雅退出或心跳中断重新入队且不扣重试次数，租约转移不覆写，业务失败达 3 次终止", () => {
+	expect(
+		decideJobFailure({
+			attempts: 3,
+			leaseLost: false,
+			interrupted: true,
+			message: "AbortError",
+		}),
+	).toMatchObject({
+		action: "requeue",
+		status: "queued",
+		attempts: 2,
+		error: "",
+		delayMs: 0,
+	});
+	expect(
+		decideJobFailure({
+			attempts: 1,
+			leaseLost: true,
+			interrupted: true,
+			message: "任务租约已转移。",
+		}),
+	).toEqual({ action: "ignore" });
+	expect(
+		decideJobFailure({
+			attempts: 2,
+			leaseLost: false,
+			interrupted: false,
+			message: "网络波动",
+		}),
+	).toMatchObject({
+		action: "retry",
+		status: "queued",
+		attempts: 2,
+		delayMs: 20_000,
+	});
+	expect(
+		decideJobFailure({
+			attempts: 3,
+			leaseLost: false,
+			interrupted: false,
+			message: "AI 返回无效 JSON",
+		}),
+	).toMatchObject({
+		action: "fail",
+		status: "failed",
+		attempts: 3,
+	});
 });
