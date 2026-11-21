@@ -1,7 +1,7 @@
 /**
  * @file CSS 输入进入主题草稿的校验边界。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-11-20
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：apps/web/test/custom-themes.test.ts、components/theme-editor/theme-control-panel.tsx。
  * 调用：configs/fonts、configs/theme-settings、lib/custom-themes、types/theme、utils/theme/parse-css-input。
@@ -13,8 +13,10 @@ import { RADIUS_VALUES } from "@/configs/theme-settings";
 import { isStyleValue } from "@/lib/custom-themes";
 import type { ThemeDraft, ThemeStyleProps } from "@/types/theme";
 import {
+	extractCssBlockContent,
 	parseCssInput,
 	parseShadowVariables,
+	stripCssComments,
 } from "@/utils/theme/parse-css-input";
 /**
  * 将支持的 CSS 变量合并到草稿，保留未出现的模式与字段。
@@ -26,7 +28,8 @@ import {
 export function importThemeCss(input: string, draft: ThemeDraft): ThemeDraft {
 	if (input.length > 100_000)
 		throw new Error("CSS 内容过大，请只粘贴主题变量。");
-	const { lightColors, darkColors } = parseCssInput(input);
+	const cleaned = stripCssComments(input);
+	const { lightColors, darkColors } = parseCssInput(cleaned);
 	if (!Object.keys(lightColors).length && !Object.keys(darkColors).length)
 		throw new Error("没有找到 :root 或 .dark 中支持的主题变量。");
 	const next = {
@@ -47,16 +50,17 @@ export function importThemeCss(input: string, draft: ThemeDraft): ThemeDraft {
 			next.styles[mode][key as keyof ThemeStyleProps] = value;
 		}
 	}
-	if (/--shadow(?:-[a-z0-9]+)?:/.test(input)) {
-		const { lightShadows, darkShadows } = parseShadowVariables(input);
+	if (/--shadow(?:-[a-z0-9]+)?:/.test(cleaned)) {
+		const { lightShadows, darkShadows } = parseShadowVariables(cleaned);
 		for (const [mode, values] of [
 			["light", lightShadows],
 			["dark", darkShadows],
 		] as const) {
 			// 只更新含阴影声明的模式，未导入的模式保持当前值。
-			const block = input.match(
-				mode === "light" ? /:root\s*{([^}]+)}/ : /\.dark\s*{([^}]+)}/,
-			)?.[1];
+			const block = extractCssBlockContent(
+				cleaned,
+				mode === "light" ? ":root" : ".dark",
+			);
 			if (!block?.includes("--shadow")) continue;
 			for (const [key, value] of Object.entries(values)) {
 				if (!isStyleValue(key, value))

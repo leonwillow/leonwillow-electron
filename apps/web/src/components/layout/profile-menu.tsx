@@ -1,7 +1,7 @@
 /**
  * @file 当前用户身份信息、个人设置与账号操作菜单。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-19
+ * 修改时间：2026-11-20
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/layout/app-sidebar.tsx。
  * 调用：ui 基础组件/样式、@tanstack/react-router、lucide-react、react、sonner、assets/data/navigation、lib/auth。
@@ -74,7 +74,7 @@ const ProfileMenu = ({ wide = false }: { wide?: boolean }) => {
 											? "workspace-profile-trigger w-full justify-start gap-2.5 rounded-lg px-2"
 											: "rounded-full p-0",
 									)}
-									aria-label="打开个人菜单"
+									aria-label={wide ? undefined : "打开个人菜单"}
 									aria-current={settingsActive ? "location" : undefined}
 								/>
 							}

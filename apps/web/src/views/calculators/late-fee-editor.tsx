@@ -1,6 +1,6 @@
 /**
  * @file 滞纳金方案的录入、汇总、规则说明与保存工作区。
- * 创建时间：2026-11-05；修改时间：2026-11-20。
+ * 创建时间：2026-11-05；修改时间：2026-11-21。
  * 版本作用：按单笔税款粒度增量缓存计费结果并提供稳定回调，配合 memo 子卡片消除输入卡顿。
  * 被调用：LateFeesView；调用：LateFeeLiability、useScenario、共享控件与 Eden。
  * 预期结果：多税种、多次缴款可持久化，修改方案名或单笔税款不重算、不重渲染无关税款。
@@ -223,7 +223,7 @@ export default function LateFeeEditor({
 				className="min-h-0 flex-1"
 				contentClassName="w-full min-w-0! p-workspace-gutter"
 			>
-				<div className="flex min-w-0 flex-col gap-4">
+				<div className="flex min-w-0 flex-col gap-workspace-gutter">
 					<FieldGroup className="grid min-w-[min(100%,18rem)] flex-1 grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))]">
 						<Field>
 							<FieldLabel htmlFor="late-fee-cutoff">
@@ -364,7 +364,7 @@ export default function LateFeeEditor({
 					cancelLabel="继续编辑"
 					cancelVariant="default"
 					confirmLabel="放弃未保存内容并离开"
-					confirmVariant="warning"
+					confirmVariant="warning-solid"
 					showCloseButton
 					extraActions={
 						<Button variant="outline" onClick={exportBackup}>

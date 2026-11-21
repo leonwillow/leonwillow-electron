@@ -35,7 +35,10 @@ export const getShadowMap = (
 	const offsetY = styles["shadow-offset-y"] || "1px";
 	const blur = styles["shadow-blur"] || "3px";
 	const spread = styles["shadow-spread"] || "0px";
-	const opacity = Number.parseFloat(styles["shadow-opacity"] || "0.1");
+	const rawOpacity = Number.parseFloat(styles["shadow-opacity"] || "0.1");
+	const opacity = Number.isFinite(rawOpacity)
+		? Math.min(1, Math.max(0, rawOpacity))
+		: 0.1;
 
 	const createColorWithOpacity = (baseOpacity: number) => {
 		const numericOpacity = Math.min(1, Math.max(0, opacity * baseOpacity));

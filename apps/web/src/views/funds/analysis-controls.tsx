@@ -206,7 +206,7 @@ export default function AnalysisControls({
 						</details>
 					)}
 					{traceError && (
-						<p role="alert" className="text-destructive text-xs">
+						<p role="alert" className="text-destructive-foreground text-xs">
 							{traceError}
 						</p>
 					)}

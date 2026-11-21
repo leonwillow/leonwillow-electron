@@ -100,7 +100,7 @@ export default function CaseLinksPanel({
 				</p>
 			) : null}
 			{error || data.error ? (
-				<p role="alert" className="text-destructive text-sm">
+				<p role="alert" className="text-destructive-foreground text-sm">
 					{error || data.error}
 				</p>
 			) : null}
@@ -239,7 +239,7 @@ export default function CaseLinksPanel({
 							中，以该账户为本方或对方的已取得流水。可以随后排除本次纳入。
 						</p>
 						{error ? (
-							<p role="alert" className="text-destructive">
+							<p role="alert" className="text-destructive-foreground">
 								{error}
 							</p>
 						) : null}

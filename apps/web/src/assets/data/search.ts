@@ -1,7 +1,7 @@
 /**
  * @file 命令面板的搜索目录。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-20
+ * 修改时间：2026-11-21
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/layout/command-menu-dialog.tsx。
  * 调用：@tanstack/react-router、lucide-react、导航目录。
@@ -36,6 +36,21 @@ export type SearchItem = {
 type SearchGroup = {
 	title: string;
 	data: SearchItem[];
+};
+
+const adminSearchTags: Partial<Record<string, string[]>> = {
+	"/admin/users": ["管理中心", "人员", "账号", "权限", "admin", "users"],
+	"/admin/showcase": [
+		"管理中心",
+		"演示页",
+		"组件",
+		"颜色",
+		"主题",
+		"字体",
+		"样式",
+		"showcase",
+		"ui",
+	],
 };
 
 export const searchData: SearchGroup[] = [
@@ -127,7 +142,7 @@ export const searchData: SearchGroup[] = [
 				icon: item.icon,
 				name: item.title,
 				href: item.href,
-				tags: ["管理中心", "人员", "账号", "权限", "admin", "users"],
+				tags: adminSearchTags[item.href] ?? ["管理中心", "admin"],
 			})),
 		],
 	},

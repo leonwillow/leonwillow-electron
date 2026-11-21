@@ -2,18 +2,19 @@
 <!--
 文件意义：CSR 文档与 React 挂载节点。
 创建时间：2026-10-03（Git 首次收录）
-修改时间：2026-10-04
+修改时间：2026-11-20
 版本作用：当前工作区的工具/启动配置。
 被调用：浏览器、Vite。
-调用：src/main.tsx。
-功能：声明中文文档、视口、标题与模块入口。
-预期结果：浏览器加载入口后挂载同一份 React 应用。
+调用：/theme-init.js、src/main.tsx。
+功能：声明中文文档、视口、标题、首屏防闪白初始化与模块入口。
+预期结果：浏览器加载入口后在首帧前同步明暗状态并挂载同一份 React 应用。
 -->
 <html lang="zh-CN" class="flex min-h-full w-full scroll-smooth antialiased">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AIDesk 工作台</title>
+    <script src="%BASE_URL%theme-init.js"></script>
   </head>
 
   <body class="flex min-h-full w-full flex-auto flex-col">

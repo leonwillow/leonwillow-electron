@@ -5,6 +5,8 @@
  */
 import { expect, test } from "bun:test";
 import {
+	isAllowedExternalUrl,
+	isAllowedRendererPermission,
 	isAppUrl,
 	isNavigableAppUrl,
 	rendererFile,
@@ -75,4 +77,38 @@ test("网络会话独占凭据，不信任renderer传入的Cookie或来源", () 
 	expect(response.get("content-security-policy")).toBe(
 		"default-src 'none'; sandbox",
 	);
+});
+
+test("渲染进程权限与外部法规链接严格遵守最小白名单", () => {
+	expect(isAllowedRendererPermission("fullscreen")).toBe(true);
+	expect(isAllowedRendererPermission("clipboard-sanitized-write")).toBe(true);
+	for (const denied of [
+		"geolocation",
+		"media",
+		"notifications",
+		"clipboard-read",
+		"openExternal",
+	]) {
+		expect(isAllowedRendererPermission(denied)).toBe(false);
+	}
+	expect(
+		isAllowedExternalUrl(
+			"https://www.samr.gov.cn/zw/zfxxgk/fdzdgknr/bgt/art/2023/art_1dbea81872cb4fda9ab3ccc45c627531.html",
+		),
+	).toBe(true);
+	expect(
+		isAllowedExternalUrl(
+			"https://www.chinatax.gov.cn/chinatax/n810214/c102374/c102377/c102378/c3575330/content.html",
+		),
+	).toBe(true);
+	for (const bad of [
+		"http://www.samr.gov.cn/",
+		"https://www.samr.gov.cn:8443/",
+		"https://user:pass@www.chinatax.gov.cn/",
+		"https://evil.www.samr.gov.cn/",
+		"https://example.com/",
+		"javascript:alert(1)",
+	]) {
+		expect(isAllowedExternalUrl(bad)).toBe(false);
+	}
 });

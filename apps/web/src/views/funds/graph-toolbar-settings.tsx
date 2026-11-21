@@ -208,7 +208,7 @@ export default function GraphToolbarSettings({
 						</FieldSet>
 					</FieldGroup>
 					{error && (
-						<p role="alert" className="text-destructive text-xs">
+						<p role="alert" className="text-destructive-foreground text-xs">
 							{error}
 						</p>
 					)}

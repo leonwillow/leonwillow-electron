@@ -1,7 +1,7 @@
 /**
  * @file 账户/主体与逐笔/汇总四种资金视图和时间顺序追踪协调容器。
  * 创建时间：2026-10-06
- * 修改时间：2026-11-19
+ * 修改时间：2026-11-21
  * 版本作用：整案为入口，协调关系图画布、控制条与流水明细子面板。
  * 被调用：funds 工作台；调用：Eden、G6 画布、AccountDirectory、AnalysisControls、TransactionsPanel。
  * 功能：图与流水页签共用筛选范围，管理分析历史、节点标记隐藏与追踪状态。
@@ -392,7 +392,7 @@ export default function AnalysisPanel({ caseId }: { caseId: string }) {
 						setNodeMenu(null);
 					}
 				}}
-				className="min-h-0 min-w-0 flex-1 gap-4 overflow-hidden p-workspace-gutter"
+				className="min-h-0 min-w-0 flex-1 gap-workspace-gutter overflow-hidden p-workspace-gutter"
 			>
 				<AnalysisControls
 					nodeMode={nodeMode}
@@ -440,7 +440,7 @@ export default function AnalysisPanel({ caseId }: { caseId: string }) {
 						<TabsContent
 							value="graph"
 							keepMounted
-							className="flex min-h-0 flex-col gap-4 overflow-hidden data-[hidden]:hidden"
+							className="flex min-h-0 flex-col gap-workspace-gutter overflow-hidden data-[hidden]:hidden"
 						>
 							{(hiddenNodes.length > 0 || presentation.error) && (
 								<ScrollArea
@@ -497,7 +497,10 @@ export default function AnalysisPanel({ caseId }: { caseId: string }) {
 										</details>
 									)}
 									{presentation.error && (
-										<p role="alert" className="text-destructive text-xs">
+										<p
+											role="alert"
+											className="text-destructive-foreground text-xs"
+										>
 											{presentation.error}
 										</p>
 									)}

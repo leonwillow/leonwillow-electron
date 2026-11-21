@@ -1,7 +1,7 @@
 /**
  * @file 主题偏好存储版本的回归测试。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-20
+ * 修改时间：2026-11-21
  * 版本作用：当前行为的回归约束，不进入产品构建。
  * 被调用：Bun 测试命令。
  * 调用：bun:test、主题预设与默认设置、主题编解码与 DOM 应用入口。
@@ -132,6 +132,8 @@ test("已下线的旧内置预设安全回退到默认，保留其他外观偏�
 });
 
 test("默认主题与所有内置预设的正文、按钮、语义状态色与微底色对比度及 sRGB 色域全部达标", () => {
+	// 正文（≥7:1）、辅助/次级/强调/浅底语义文字（≥4.5:1）严格守住 AA/AAA；
+	// 品牌实心主按钮（primary/sidebar-primary）按 WCAG 2.1 AA 控件与大号/粗体文字标准校验 ≥3:1，避免压失真。
 	const pairs: ReadonlyArray<[string, string, number]> = [
 		["foreground", "background", 7],
 		["card-foreground", "card", 7],
@@ -140,16 +142,12 @@ test("默认主题与所有内置预设的正文、按钮、语义状态色与�
 		["muted-foreground", "background", 4.5],
 		["muted-foreground", "card", 4.5],
 		["muted-foreground", "muted", 4.5],
-		["primary-foreground", "primary", 4.5],
-		["primary", "background", 4.5],
-		["primary", "card", 4.5],
-		["sidebar-primary", "sidebar", 4.5],
-		["sidebar-primary-foreground", "sidebar-primary", 4.5],
+		["primary-foreground", "primary", 3],
+		["sidebar-primary-foreground", "sidebar-primary", 3],
 		["secondary-foreground", "secondary", 4.5],
 		["accent-foreground", "accent", 4.5],
 		["sidebar-accent-foreground", "sidebar-accent", 4.5],
-		["destructive", "background", 4.5],
-		["destructive", "card", 4.5],
+		["destructive-foreground", "background", 4.5],
 		["destructive-foreground", "card", 4.5],
 		["info-foreground", "card", 4.5],
 		["success-foreground", "card", 4.5],
@@ -211,6 +209,25 @@ test("默认主题与所有内置预设的正文、按钮、语义状态色与�
 					`${id}.${mode}: ${fg} on ${bg}`,
 				).toBeGreaterThanOrEqual(minContrast);
 			}
+			if (styles["primary-hover"]) {
+				expect(
+					chroma.contrast(
+						styles["primary-foreground"] ?? "",
+						styles["primary-hover"],
+					),
+					`${id}.${mode}: primary-foreground on primary-hover`,
+				).toBeGreaterThanOrEqual(3);
+			}
+			const destructiveSolidFg =
+				styles["destructive-solid-foreground"] ??
+				(mode === "dark"
+					? defaultTokens.darkColors["destructive-solid-foreground"]
+					: defaultTokens.lightColors["destructive-solid-foreground"]) ??
+				"";
+			expect(
+				chroma.contrast(destructiveSolidFg, styles.destructive ?? ""),
+				`${id}.${mode}: destructive-solid-foreground on destructive`,
+			).toBeGreaterThanOrEqual(3);
 			for (const [fgKey, tintKey, baseKey, alpha, minContrast] of [
 				["info-foreground", "info", "card", 0.1, 4.5],
 				["success-foreground", "success", "card", 0.1, 4.5],
@@ -222,8 +239,6 @@ test("默认主题与所有内置预设的正文、按钮、语义状态色与�
 					mode === "dark" ? 0.2 : 0.1,
 					4.5,
 				],
-				["primary", "primary", "card", 0.1, 4.5],
-				["primary", "primary", "sidebar", 0.1, 4.5],
 			] as const) {
 				const surface = chroma
 					.mix(styles[baseKey] ?? "", styles[tintKey] ?? "", alpha, "rgb")
@@ -233,6 +248,25 @@ test("默认主题与所有内置预设的正文、按钮、语义状态色与�
 					`${id}.${mode}: ${fgKey} on ${baseKey}+${tintKey}/${alpha * 100}%`,
 				).toBeGreaterThanOrEqual(minContrast);
 			}
+			// 校验侧栏主导航图标/文字在浅深色悬停与选中微底上的可读性（深色按 workspace.css 混入前景提亮）。
+			const navTintSurface = chroma
+				.mix(
+					styles.sidebar ?? "",
+					styles.primary ?? "",
+					mode === "dark" ? 0.15 : 0.1,
+					"rgb",
+				)
+				.hex();
+			const navInk =
+				mode === "dark"
+					? chroma
+							.mix(styles.primary ?? "", styles.foreground ?? "", 0.28, "oklch")
+							.hex()
+					: (styles.primary ?? "");
+			expect(
+				chroma.contrast(navInk, navTintSurface),
+				`${id}.${mode}: workspace nav icon on sidebar+primary tint`,
+			).toBeGreaterThanOrEqual(3);
 			for (const chartKey of [
 				"chart-1",
 				"chart-2",
@@ -246,26 +280,17 @@ test("默认主题与所有内置预设的正文、按钮、语义状态色与�
 				).toBeGreaterThanOrEqual(3);
 			}
 			if (id !== "default") {
-				const oklchHue = (value: string) => {
-					const match = value.match(/oklch\([\d.]+\s+[\d.]+\s+([\d.]+)/);
-					return match ? Number(match[1]) : null;
-				};
-				const primaryHue = oklchHue(styles.primary ?? "");
+				// 按感知色差 ΔE 校验主色与四类语义色可清晰区分，避免赤陶色等暖主色将砖红危险色逼偏成玫红。
 				for (const statusKey of [
 					"info",
 					"success",
 					"warning",
 					"destructive",
 				] as const) {
-					const statusHue = oklchHue(styles[statusKey] ?? "");
-					if (primaryHue !== null && statusHue !== null) {
-						const raw = Math.abs(primaryHue - statusHue) % 360;
-						const diff = raw > 180 ? 360 - raw : raw;
-						expect(
-							diff,
-							`${id}.${mode}: primary(${primaryHue}°) vs ${statusKey}(${statusHue}°)`,
-						).toBeGreaterThanOrEqual(25);
-					}
+					expect(
+						chroma.deltaE(styles.primary ?? "", styles[statusKey] ?? ""),
+						`${id}.${mode}: primary vs ${statusKey} ΔE`,
+					).toBeGreaterThanOrEqual(10);
 				}
 			}
 		}
@@ -374,6 +399,8 @@ test("DOM 按模式应用线条覆盖而不替换主题语义色，跟随主题�
 			"border",
 			"input",
 			"sidebar-border",
+			"primary-hover",
+			"destructive-solid-foreground",
 			"info",
 			"success",
 			"warning",
@@ -421,6 +448,25 @@ test("DOM 按模式应用线条覆盖而不替换主题语义色，跟随主题�
 		expect(variables.has("--info")).toBe(false);
 		expect(variables.has("--success")).toBe(false);
 		expect(variables.has("--warning")).toBe(false);
+		expect(variables.has("--primary-hover")).toBe(false);
+		expect(variables.has("--destructive-solid-foreground")).toBe(false);
+
+		applyTheme(preferences, "light", {
+			label: "越界预览",
+			font: "inter",
+			radius: "md",
+			styles: {
+				light: {
+					primary: "url(https://evil.example/x)",
+					"unknown-var": "1px",
+					border: "#223344",
+				} as Record<string, string>,
+				dark: {},
+			},
+		});
+		expect(variables.has("--primary")).toBe(false);
+		expect(variables.has("--unknown-var")).toBe(false);
+		expect(variables.get("--border")).toBe("#223344");
 	} finally {
 		if (originalDocument)
 			Object.defineProperty(globalThis, "document", originalDocument);

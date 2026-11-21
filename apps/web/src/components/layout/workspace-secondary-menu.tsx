@@ -1,11 +1,12 @@
 /**
  * @file 工作台二级菜单的唯一挂载点与业务内容组合。
- * 创建时间：2026-11-04；修改时间：2026-11-05。
+ * 创建时间：2026-11-04；修改时间：2026-11-21。
  * 版本作用：当前模块选择菜单内容，统一框架和导航状态保持同一实例。
- * 被调用：WorkspaceLayout；调用：业务菜单 Hook、WorkspaceMenu、共享导航上下文。
+ * 被调用：WorkspaceLayout；调用：业务与管理菜单 Hook、WorkspaceMenu、共享导航上下文。
  * 功能与预期结果：切换模块不叠加菜单框，不丢失业务草稿；业务弹窗独立于浮层显隐。
  */
 import type { WorkspaceMenuId } from "@/lib/workspace-menu-state";
+import { useAdminMenu } from "./use-admin-menu";
 import { useCalculatorMenu } from "./use-calculator-menu";
 import { useDocumentTypeMenu } from "./use-document-type-menu";
 import { useFundsCaseMenu } from "./use-funds-case-menu";
@@ -23,8 +24,9 @@ export default function WorkspaceSecondaryMenu({
 	const documents = useDocumentTypeMenu();
 	const inquiries = useInquiryCaseMenu();
 	const calculators = useCalculatorMenu();
+	const admin = useAdminMenu();
 	const content = navigation.activeMenu
-		? { funds, documents, inquiries, calculators }[navigation.activeMenu]
+		? { funds, documents, inquiries, calculators, admin }[navigation.activeMenu]
 		: null;
 	return (
 		<>

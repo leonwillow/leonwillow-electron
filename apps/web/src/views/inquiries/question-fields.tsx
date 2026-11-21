@@ -1,6 +1,6 @@
 /**
  * @file 笔录问答的编辑、插入、删除与排序。
- * 创建时间：2026-11-04；修改时间：2026-11-18。
+ * 创建时间：2026-11-04；修改时间：2026-11-21。
  * 版本作用：使用 ReUI Sortable 组合排序问答组，单行问答 memo 化并配合稳定回调，隔离长笔录逐字输入重绘。
  * 被调用：RecordEditor；调用：共享 Sortable、表单、Textarea、UUID 工具。
  * 预期结果：稳定 ID 保持输入焦点，单组编辑不触发其余百余组问答重渲染，删除后可由编辑器撤销。
@@ -247,7 +247,7 @@ const InquiryQuestionFields = memo(function InquiryQuestionFields({
 	);
 
 	return (
-		<div ref={host} className="flex min-w-0 flex-col gap-4">
+		<div ref={host} className="flex min-w-0 flex-col gap-workspace-gutter">
 			<div className="flex items-center justify-between gap-3">
 				<h2 className="font-semibold text-base">询问内容</h2>
 				<Button
@@ -268,7 +268,7 @@ const InquiryQuestionFields = memo(function InquiryQuestionFields({
 				onValueChange={onChange}
 				getItemValue={getItemId}
 				strategy="vertical"
-				className="flex flex-col gap-4"
+				className="flex flex-col gap-workspace-gutter"
 			>
 				{items.map((item, index) => (
 					<QuestionRow

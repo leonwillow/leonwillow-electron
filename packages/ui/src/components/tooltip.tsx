@@ -1,7 +1,7 @@
 /**
  * @file 触发器的提示说明的基础组件。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-19
+ * 修改时间：2026-11-20
  * 版本作用：共享 UI 基础层，随工作区维护。
  * 被调用：布局图标、主题设置、资金图谱原生工具栏与分析操作。
  * 调用：@base-ui/react、ui/lib/utils。
@@ -238,7 +238,7 @@ function TooltipContent({
 				alignOffset={alignOffset}
 				side={side}
 				sideOffset={sideOffset}
-				className="isolate z-50 data-[anchor-hidden]:pointer-events-none data-[anchor-hidden]:invisible"
+				className="isolate z-(--z-tooltip) data-[anchor-hidden]:pointer-events-none data-[anchor-hidden]:invisible"
 				render={(positionerProps, state) => (
 					<TooltipPositionerGuard
 						{...positionerProps}
@@ -251,13 +251,13 @@ function TooltipContent({
 				<TooltipPrimitive.Popup
 					data-slot="tooltip-content"
 					className={cn(
-						"data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-open:fade-in-0 data-open:zoom-in-95 data-closed:fade-out-0 data-closed:zoom-out-95 z-50 inline-flex w-fit max-w-xs origin-(--transform-origin) items-center gap-1.5 rounded-md bg-foreground px-3 py-1.5 text-background text-xs has-data-[slot=kbd]:pr-1.5 data-[state=delayed-open]:animate-in data-closed:animate-out data-open:animate-in **:data-[slot=kbd]:relative **:data-[slot=kbd]:isolate **:data-[slot=kbd]:z-50 **:data-[slot=kbd]:rounded-sm",
+						"data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-open:fade-in-0 data-open:zoom-in-95 data-closed:fade-out-0 data-closed:zoom-out-95 z-(--z-tooltip) inline-flex w-fit max-w-xs origin-(--transform-origin) items-center gap-1.5 rounded-md bg-foreground px-3 py-1.5 text-background text-xs has-data-[slot=kbd]:pr-1.5 data-[state=delayed-open]:animate-in data-closed:animate-out data-open:animate-in **:data-[slot=kbd]:relative **:data-[slot=kbd]:isolate **:data-[slot=kbd]:z-(--z-tooltip) **:data-[slot=kbd]:rounded-sm",
 						className,
 					)}
 					{...props}
 				>
 					{children}
-					<TooltipPrimitive.Arrow className="pointer-events-none z-50 size-2.5 translate-y-[calc(-50%-2px)] rotate-45 rounded-[2px] bg-foreground fill-foreground data-[side=bottom]:top-1 data-[side=inline-end]:top-1/2! data-[side=inline-start]:top-1/2! data-[side=left]:top-1/2! data-[side=right]:top-1/2! data-[side=inline-start]:-right-1 data-[side=left]:-right-1 data-[side=top]:-bottom-2.5 data-[side=inline-end]:-left-1 data-[side=right]:-left-1 data-[side=inline-end]:-translate-y-1/2 data-[side=inline-start]:-translate-y-1/2 data-[side=left]:-translate-y-1/2 data-[side=right]:-translate-y-1/2" />
+					<TooltipPrimitive.Arrow className="pointer-events-none z-(--z-tooltip) size-2.5 translate-y-[calc(-50%-2px)] rotate-45 rounded-[2px] bg-foreground fill-foreground data-[side=bottom]:top-1 data-[side=inline-end]:top-1/2! data-[side=inline-start]:top-1/2! data-[side=left]:top-1/2! data-[side=right]:top-1/2! data-[side=inline-start]:-right-1 data-[side=left]:-right-1 data-[side=top]:-bottom-2.5 data-[side=inline-end]:-left-1 data-[side=right]:-left-1 data-[side=inline-end]:-translate-y-1/2 data-[side=inline-start]:-translate-y-1/2 data-[side=left]:-translate-y-1/2 data-[side=right]:-translate-y-1/2" />
 				</TooltipPrimitive.Popup>
 			</TooltipPrimitive.Positioner>
 		</TooltipPrimitive.Portal>

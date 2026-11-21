@@ -198,7 +198,7 @@ export function useInquiryCaseMenu(): WorkspaceMenuContent {
 						onRetry={menu.cases.reload}
 					/>
 					{creation.error && (
-						<p role="alert" className="p-2 text-destructive text-xs">
+						<p role="alert" className="p-2 text-destructive-foreground text-xs">
 							{creation.error}
 						</p>
 					)}

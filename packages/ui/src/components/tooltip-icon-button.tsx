@@ -1,12 +1,12 @@
 /**
  * @file 带中文无障碍名称与即时悬浮提示的共享图标按钮。
  * 创建时间：2026-11-18
- * 修改时间：2026-11-18
+ * 修改时间：2026-11-20
  * 版本作用：统一工作台目录、笔录工具栏、资金案件与虚拟网格中的纯图标操作按钮。
  * 被调用：packages/lattice-grid、apps/web 导航目录与各业务视图。
  * 调用：./button、./tooltip。
  * 功能：默认挂载 aria-label、禁用焦点保留及禁用原因提示，鼠标移开即收起提示。
- * 预期结果：消除各业务模块重复封装的图标按钮，保证统一的无障碍名称与尺寸令牌。
+ * 预期结果：消除各业务模块重复封装的图标按钮，保证统一的无障碍名称与尺寸令牌；不向外层 Tooltip 嵌套第二层 Button Tooltip。
  */
 import { Button } from "@leonwillow-electron/ui/components/button";
 import {
@@ -41,12 +41,13 @@ function TooltipIconButton({
 				closeOnClick={!keepTooltipOnClick}
 				render={
 					<Button
-						focusableWhenDisabled={focusableWhenDisabled}
+						focusableWhenDisabled={
+							Boolean(disabledReason) || focusableWhenDisabled
+						}
 						type={type}
 						variant={variant}
 						size={size}
 						aria-label={label}
-						disabledReason={disabledReason}
 						{...props}
 					/>
 				}

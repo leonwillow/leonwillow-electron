@@ -1,6 +1,6 @@
 /**
  * @file 当前人员的常用询问人管理。
- * 创建时间：2026-11-04；修改时间：2026-11-19。
+ * 创建时间：2026-11-04；修改时间：2026-11-21。
  * 版本作用：沿用 haoji 姓名和检查证号目录，编辑时可直接填入。
  * 被调用：笔录工作区；调用：Eden、Sonner、共享表格/表单/搜索/弹窗。
  * 预期结果：支持新增、修改、删除和搜索，历史笔录中的人员快照不受影响。
@@ -170,7 +170,7 @@ export default function InquiryInquirers() {
 	return (
 		<ScrollArea
 			className="min-h-0 flex-1"
-			contentClassName="flex flex-col gap-4 p-workspace-gutter"
+			contentClassName="flex flex-col gap-workspace-gutter p-workspace-gutter"
 		>
 			<div className="flex flex-wrap items-center justify-between gap-3">
 				<h2 className="font-semibold text-base">常用询问人</h2>

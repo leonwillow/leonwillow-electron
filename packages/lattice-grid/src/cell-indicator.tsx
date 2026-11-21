@@ -1,6 +1,6 @@
 /**
  * @file 可编辑网格单元格共用的选中边框。
- * 创建时间：2026-11-06；修改时间：2026-11-18。
+ * 创建时间：2026-11-06；修改时间：2026-11-21。
  * 版本作用：边框通过 Portal 挂到当前单元格，原生跟随滚动、冻结及布局变化。
  * 被调用：DataGrid；调用：GridView、React Portal 与 Web Animations，不修改数据或选区。
  * 预期结果：仅单格点击或键盘切换时播放位移动画；拖选和多区域由 GridCell 绘制外周。
@@ -21,8 +21,8 @@ function cellClipLeft<T>(view: GridView<T>, cell: HTMLElement, line: number) {
 		);
 	const pinned = cell.classList.contains("lg-pinned");
 	const edge = pinned ? view.gutterWidth() : frozenWidth;
-	// 冻结格始终可覆盖行号右线，普通格只在水平起点与冻结区共用分隔线。
-	const sharedLine = pinned || !viewport.scrollLeft ? line : 0;
+	// 冻结格可覆盖行号右线；普通格始终裁剪在冻结区右边界内侧。
+	const sharedLine = pinned ? line : 0;
 	return viewport.getBoundingClientRect().left + edge - sharedLine;
 }
 
@@ -101,14 +101,8 @@ export function CellIndicator<T>({ view }: { view: GridView<T> }) {
 		const hostRect = host.getBoundingClientRect();
 		const line = Number.parseFloat(getComputedStyle(anchor).borderRightWidth);
 		const left = viewportRect.left + view.gutterWidth() - line;
-		const head =
-			view.headHeight() -
-			(viewport.hasAttribute("data-overflow-y-start") ? 0 : line);
-		const summary = Math.max(
-			0,
-			view.summaryHeight() -
-				(viewport.hasAttribute("data-overflow-y-end") ? 0 : line),
-		);
+		const head = view.headHeight();
+		const summary = view.summaryHeight();
 		const top = viewportRect.top + head;
 		const targetClipLeft = cellClipLeft(view, anchor, line);
 		const layer = document.createElement("div");

@@ -1,7 +1,7 @@
 /**
  * @file 从原模板迁入的侧边详情窗口。
  * 创建时间：2026-10-06
- * 修改时间：2026-11-06
+ * 修改时间：2026-11-20
  * 版本作用：共享 Base UI Sheet，支持不遮挡画布的非模态用法。
  * 被调用：资金节点详情；调用：Base UI Dialog、Button 与共享令牌。
  * 功能：侧边进出、标题、关闭和焦点管理；业务方控制内容与打开状态。
@@ -35,7 +35,7 @@ function SheetOverlay({ className, ...props }: SheetPrimitive.Backdrop.Props) {
 		<SheetPrimitive.Backdrop
 			data-slot="sheet-overlay"
 			className={cn(
-				"data-open:fade-in-0 data-closed:fade-out-0 fixed inset-0 isolate z-50 bg-overlay duration-200 data-closed:animate-out data-open:animate-in supports-backdrop-filter:backdrop-blur-xs",
+				"data-open:fade-in-0 data-closed:fade-out-0 fixed inset-0 isolate z-(--z-modal) bg-overlay duration-200 data-closed:animate-out data-open:animate-in supports-backdrop-filter:backdrop-blur-xs",
 				className,
 			)}
 			{...props}
@@ -61,7 +61,8 @@ function SheetContent({
 			<SheetPrimitive.Popup
 				data-slot="sheet-content"
 				className={cn(
-					"fixed z-50 flex h-full flex-col bg-background shadow-lg outline-none data-closed:animate-out data-open:animate-in data-closed:duration-200 data-open:duration-300",
+					"fixed flex h-full flex-col bg-background shadow-lg outline-none data-closed:animate-out data-open:animate-in data-closed:duration-200 data-open:duration-300",
+					showOverlay ? "z-(--z-modal)" : "z-(--z-floating)",
 					side === "right" &&
 						"data-open:slide-in-from-right data-closed:slide-out-to-right inset-y-0 right-0 w-full border-l sm:max-w-sm",
 					side === "left" &&

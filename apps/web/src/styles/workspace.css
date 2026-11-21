@@ -1,7 +1,7 @@
 /**
  * @file 已登录工作台外壳、主导航栏与二级菜单目录行样式。
  * 创建时间：2026-11-18
- * 修改时间：2026-11-20
+ * 修改时间：2026-11-21
  * 版本作用：随 WorkspaceLayout 按需加载，不在登录等外部公开路由加载。
  * 被调用：apps/web/src/components/layout/workspace-layout.tsx。
  * 调用：共享 CSS 语义令牌。
@@ -31,7 +31,7 @@
 	}
 }
 /* 宽菜单在贴边基础上横向展开；窄视口下自动回落为紧凑图标栏，避免挤占正文。 */
-@media (min-width: 40rem) {
+@media (width >= 40rem) {
 	:root:has(.workspace-shell[data-sidebar-mode="wide"]) {
 		--workspace-active-rail: var(--spacing-workspace-rail-wide);
 	}
@@ -49,6 +49,14 @@
 ) {
 	gap: var(--workspace-panel-gap);
 	padding: var(--workspace-panel-gap);
+	background: color-mix(in oklab, var(--muted) 65%, var(--background));
+}
+.dark
+	.workspace-shell:is(
+		[data-sidebar-mode="floating"],
+		[data-sidebar-mode="floating-pill"]
+	) {
+	background: color-mix(in oklab, var(--background) 85%, black);
 }
 .workspace-shell:is(
 		[data-sidebar-mode="floating"],
@@ -71,7 +79,8 @@
 		[data-sidebar-mode="floating-pill"]
 	)
 	.workspace-content {
-	background: var(--background);
+	background: var(--card);
+	color: var(--card-foreground);
 }
 /* 分隔条占满留白，拖动命中区和宽度偏好换算使用同一实际宽度。 */
 .workspace-shell:is(
@@ -93,12 +102,6 @@
 	border-bottom-color: transparent;
 }
 /* 悬浮时尚将左侧导航拆为三段独立胶囊，滚动区外扩留白以容纳阴影且不改变视觉栏宽。 */
-.workspace-shell[data-sidebar-mode="floating-pill"] {
-	background: color-mix(in oklab, var(--muted) 60%, var(--background));
-}
-.dark .workspace-shell[data-sidebar-mode="floating-pill"] {
-	background: var(--background);
-}
 .workspace-shell[data-sidebar-mode="floating-pill"] > .workspace-rail {
 	--workspace-pill-bleed: 0.375rem;
 	width: calc(var(--spacing-workspace-rail) + var(--workspace-pill-bleed) * 2);
@@ -149,7 +152,7 @@
 	) {
 	border-radius: 0;
 }
-@media (max-width: 40rem) {
+@media (width < 40rem) {
 	.workspace-shell {
 		--workspace-panel-gap: calc(var(--spacing-workspace-gutter) / 2);
 	}
@@ -163,6 +166,13 @@
 	align-items: center;
 	gap: var(--spacing-workspace-rail-inset);
 	padding-block: var(--spacing-workspace-rail-inset);
+}
+.workspace-shell[data-sidebar-mode="floating"] .workspace-rail-group {
+	padding-block: calc(
+		var(--spacing-workspace-rail-inset) -
+		var(--ui-border-width) /
+		2
+	);
 }
 
 /* 窄图标栏的纵向滚动条收在右侧留白内，避免溢出时盖住图标按钮右缘。 */
@@ -185,6 +195,13 @@
 .workspace-nav-item[aria-current] {
 	background-color: color-mix(in oklab, var(--primary) 10%, transparent);
 	color: var(--primary);
+}
+
+.dark .workspace-nav-item:hover,
+.dark .workspace-nav-item[aria-expanded="true"],
+.dark .workspace-nav-item[aria-current] {
+	background-color: color-mix(in oklab, var(--primary) 15%, transparent);
+	color: color-mix(in oklch, var(--primary) 72%, var(--foreground));
 }
 
 .workspace-nav-item:is(:hover, [aria-expanded="true"], [aria-current])
@@ -216,7 +233,7 @@
 	overflow: hidden;
 }
 
-/* 操作贴右显示；未悬停且未聚焦时释放整列宽度，键盘焦点也可触达行内操作。 */
+/* 操作贴右显示；悬停、键盘可见焦点或无悬停触屏设备展示，普通点击聚焦不常驻遮挡名称。 */
 .menu-row-actions {
 	display: none;
 	flex-shrink: 0;
@@ -228,6 +245,11 @@
 	width: calc(var(--spacing) * 3);
 	height: calc(var(--spacing) * 3);
 }
-[data-menu-row]:is(:hover, :focus-within) .menu-row-actions {
+[data-menu-row]:is(:hover, :has(:focus-visible)) .menu-row-actions {
 	display: flex;
+}
+@media (hover: none) {
+	.menu-row-actions {
+		display: flex;
+	}
 }

@@ -23,6 +23,7 @@ const Toaster = ({ toastOptions, ...props }: ToasterProps) => {
 			toastOptions={{ closeButtonAriaLabel: "关闭通知", ...toastOptions }}
 			style={
 				{
+					zIndex: "var(--z-toast)",
 					"--normal-bg": "var(--popover)",
 					"--normal-text": "var(--popover-foreground)",
 					"--normal-border": "var(--ui-line-color, var(--border))",

@@ -1,7 +1,7 @@
 /**
  * @file 共享数值的滑块与输入框组合。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-11-20
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/theme-editor/shadow-control.tsx、components/theme-editor/theme-control-panel.tsx。
  * 调用：ui 基础组件/样式、react。
@@ -11,7 +11,7 @@
 import { Field, FieldLabel } from "@leonwillow-electron/ui/components/field";
 import { Input } from "@leonwillow-electron/ui/components/input";
 import { Slider } from "@leonwillow-electron/ui/components/slider";
-import { useEffect, useId, useState } from "react";
+import { type ReactNode, useEffect, useId, useState } from "react";
 
 type SliderWithInputProps = {
 	value: number;
@@ -20,6 +20,7 @@ type SliderWithInputProps = {
 	max: number;
 	step?: number;
 	label: string;
+	labelBadge?: ReactNode;
 	unit?: string;
 };
 
@@ -35,6 +36,7 @@ const SliderWithInput = ({
 	max,
 	step = 1,
 	label,
+	labelBadge,
 	unit = "px",
 }: SliderWithInputProps) => {
 	const [localValue, setLocalValue] = useState<string | number>(value);
@@ -47,7 +49,10 @@ const SliderWithInput = ({
 	return (
 		<Field className="gap-2">
 			<div className="flex items-center justify-between gap-2">
-				<FieldLabel htmlFor={id}>{label}</FieldLabel>
+				<div className="flex min-w-0 items-center gap-1.5">
+					<FieldLabel htmlFor={id}>{label}</FieldLabel>
+					{labelBadge}
+				</div>
 				<div className="flex items-center gap-1">
 					<Input
 						id={id}

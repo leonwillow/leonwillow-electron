@@ -1,7 +1,7 @@
 /**
  * @file 资金分析工作区的银行流水与汇总流向页签面板。
  * 创建时间：2026-11-18
- * 修改时间：2026-11-19
+ * 修改时间：2026-11-21
  * 版本作用：从 analysis-panel 拆分出汇总流向表、逐笔明细表、多选追踪勾选与分页栏。
  * 被调用：views/funds/analysis-panel.tsx。
  * 调用：ui 基础组件、FlowTable、lib/funds、model/analysis。
@@ -74,7 +74,7 @@ export default function TransactionsPanel({
 	return (
 		<TabsContent
 			value="transactions"
-			className="flex min-h-0 flex-col gap-4 overflow-hidden"
+			className="flex min-h-0 flex-col gap-workspace-gutter overflow-hidden"
 		>
 			<ScrollArea
 				className="max-h-1/3 shrink-0 overscroll-contain"

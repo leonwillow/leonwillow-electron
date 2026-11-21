@@ -1,7 +1,7 @@
 /**
  * @file 工作台现有功能和访问规则的共享目录。
  * 创建时间：2026-10-04
- * 修改时间：2026-11-20
+ * 修改时间：2026-11-21
  * 版本作用：首次接入按功能授权；不包含业务实现或服务端依赖。
  * 被调用：服务端 access/admin 模块、Web 导航与路由。
  * 调用：无外部运行时依赖。
@@ -47,7 +47,11 @@ export function canAccessModule(identity: AccessIdentity, id: string) {
 	);
 }
 
-const adminPaths = new Set(["/admin/users", "/settings/teammates"]);
+const adminPaths = new Set([
+	"/admin/users",
+	"/admin/showcase",
+	"/settings/teammates",
+]);
 
 /** 未登记地址返回 null，禁止把未知页面当成默认公开入口。 */
 export function routeRequirement(path: string): AccessRequirement | null {

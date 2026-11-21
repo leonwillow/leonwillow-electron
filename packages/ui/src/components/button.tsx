@@ -1,7 +1,7 @@
 /**
  * @file 按钮外观、尺寸变体与自定义触发器的基础组件。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-20
+ * 修改时间：2026-11-21
  * 版本作用：共享 UI 基础层，随工作区维护。
  * 被调用：packages/ui/test、components、components/auth、components/layout、components/theme-editor、views/register、views/login。
  * 调用：@base-ui/react、ui/lib/utils、class-variance-authority。
@@ -14,25 +14,31 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip";
 
 const buttonVariants = cva(
-	"group/button inline-flex shrink-0 select-none items-center justify-center whitespace-nowrap rounded-md border border-transparent bg-clip-padding font-medium text-control/relaxed outline-none transition-all focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 active:not-disabled:not-aria-disabled:not-aria-[haspopup]:translate-y-px disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+	"group/button inline-flex shrink-0 select-none items-center justify-center whitespace-nowrap rounded-md border border-transparent bg-clip-padding font-medium text-control/relaxed outline-none transition-all focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 active:not-disabled:not-aria-disabled:not-aria-[haspopup]:translate-y-px disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
 	{
 		variants: {
 			variant: {
 				default:
-					"bg-primary text-primary-foreground hover:not-disabled:not-aria-disabled:bg-primary/80",
+					"bg-primary text-primary-foreground hover:not-disabled:not-aria-disabled:bg-primary-hover",
 				outline:
-					"border-border hover:not-disabled:not-aria-disabled:bg-input/50 hover:not-disabled:not-aria-disabled:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:bg-input/30",
+					"border-border hover:not-disabled:not-aria-disabled:bg-muted hover:not-disabled:not-aria-disabled:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:bg-input/30",
 				secondary:
 					"bg-secondary text-secondary-foreground hover:not-disabled:not-aria-disabled:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
 				ghost:
-					"hover:not-disabled:not-aria-disabled:bg-muted hover:not-disabled:not-aria-disabled:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:not-disabled:not-aria-disabled:bg-muted/50",
+					"hover:not-disabled:not-aria-disabled:bg-muted hover:not-disabled:not-aria-disabled:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground",
 				info: "bg-transparent text-info-foreground hover:not-disabled:not-aria-disabled:bg-info/10 focus-visible:border-info/40 focus-visible:ring-info/20",
 				success:
 					"bg-transparent text-success-foreground hover:not-disabled:not-aria-disabled:bg-success/10 focus-visible:border-success/40 focus-visible:ring-success/20",
 				warning:
 					"bg-transparent text-warning-foreground hover:not-disabled:not-aria-disabled:bg-warning/10 focus-visible:border-warning/40 focus-visible:ring-warning/20",
+				"warning-solid":
+					"bg-warning text-warning-solid-foreground hover:not-disabled:not-aria-disabled:bg-warning/90 focus-visible:border-warning focus-visible:ring-warning/30",
 				destructive:
 					"bg-transparent text-destructive-foreground hover:not-disabled:not-aria-disabled:bg-destructive/10 focus-visible:border-destructive/40 focus-visible:ring-destructive/20",
+				"destructive-outline":
+					"border-destructive/30 bg-destructive/10 text-destructive-foreground hover:not-disabled:not-aria-disabled:bg-destructive/15 focus-visible:border-destructive/50 focus-visible:ring-destructive/25",
+				"destructive-solid":
+					"bg-destructive text-destructive-solid-foreground hover:not-disabled:not-aria-disabled:bg-destructive/90 focus-visible:border-destructive focus-visible:ring-destructive/30",
 				link: "text-primary underline-offset-4 hover:not-disabled:not-aria-disabled:underline",
 			},
 			size: {

@@ -211,7 +211,10 @@ export function useFundsCaseMenu(): WorkspaceMenuContent {
 					{message}
 				</p>
 				{error && (
-					<p role="alert" className="px-5 pb-3 text-destructive text-xs">
+					<p
+						role="alert"
+						className="px-5 pb-3 text-destructive-foreground text-xs"
+					>
 						{error}
 					</p>
 				)}

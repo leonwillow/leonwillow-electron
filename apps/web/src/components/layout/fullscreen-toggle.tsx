@@ -1,9 +1,9 @@
 /**
  * @file 工作台浏览器全屏开关。
- * 创建时间：2026-11-05；修改时间：2026-11-19。
+ * 创建时间：2026-11-05；修改时间：2026-11-20。
  * 版本作用：头像上方提供全屏入口，监听真实浏览器状态以同步 Escape 退出。
  * 被调用：AppSidebar；调用：Fullscreen API、Arc FullscreenIcon、共享 Button/Tooltip、Sonner。
- * 预期结果：全屏状态驱动四角连续旋转；宽菜单下展示清晰标签，不支持或拒绝时给出中文原因。
+ * 预期结果：全屏状态驱动四角连续旋转；宽菜单下展示清晰标签，不支持或拒绝时给出中文原因且不嵌套双层 Tooltip。
  */
 import { FullscreenIcon } from "@leonwillow-electron/ui/components/arc/icon-morph/icon-morph";
 import { Button } from "@leonwillow-electron/ui/components/button";
@@ -40,7 +40,7 @@ export default function FullscreenToggle({ wide = false }: { wide?: boolean }) {
 		}
 	};
 	return (
-		<Tooltip disabled={wide}>
+		<Tooltip disabled={wide && supported}>
 			<TooltipTrigger
 				render={
 					<Button
@@ -50,10 +50,10 @@ export default function FullscreenToggle({ wide = false }: { wide?: boolean }) {
 							"workspace-nav-item",
 							wide && "w-full justify-start gap-2.5 px-2.5",
 						)}
-						aria-label={label}
+						aria-label={wide ? undefined : label}
 						aria-pressed={fullscreen}
 						disabled={!supported}
-						disabledReason="当前浏览器不支持全屏"
+						focusableWhenDisabled
 						onClick={() => void toggle()}
 					/>
 				}
@@ -63,7 +63,9 @@ export default function FullscreenToggle({ wide = false }: { wide?: boolean }) {
 					<span className="min-w-0 flex-1 truncate text-left">{label}</span>
 				)}
 			</TooltipTrigger>
-			<TooltipContent side="right">{label}</TooltipContent>
+			<TooltipContent side="right">
+				{!supported ? "当前浏览器不支持全屏" : label}
+			</TooltipContent>
 		</Tooltip>
 	);
 }

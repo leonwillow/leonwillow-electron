@@ -1,7 +1,7 @@
 /**
  * @file 案件列表行及其提示按钮。
  * 创建时间：2026-10-06
- * 修改时间：2026-11-19
+ * 修改时间：2026-11-21
  * 版本作用：案件操作仅在悬停/键盘操作时显示，原生拖放调整分组内顺序。
  * 被调用：FundsCaseSidebar；调用：共享 Button/Tooltip、目录摘要预览、TanStack Router。
  * 预期结果：点击选择不留下操作图标；拖动不触发导航，键盘 Alt+方向键亦可排序。
@@ -77,8 +77,10 @@ export default function FundsCaseRow({
 			onDragOver={(e) => onDragOver(record, e)}
 			onDrop={(e) => onDrop(record, e)}
 			className={cn(
-				"group/case relative flex items-center rounded-lg hover:bg-sidebar-accent has-[:focus-visible]:bg-sidebar-accent",
-				selected && "bg-sidebar-accent",
+				"group/case relative flex items-center rounded-lg transition-colors",
+				selected
+					? "bg-sidebar-accent text-sidebar-accent-foreground"
+					: "hover:bg-muted has-[:focus-visible]:bg-muted",
 				dragging === record.id && "opacity-40",
 				dropTarget?.id === record.id &&
 					"before:absolute before:inset-x-2 before:z-10 before:h-0.5 before:bg-primary",
@@ -111,7 +113,8 @@ export default function FundsCaseRow({
 				aria-describedby="case-sort-help"
 				className={cn(
 					buttonVariants({ variant: "ghost", size: "lg" }),
-					"min-w-0 flex-1 justify-start group-hover/case:pr-16 group-has-[:focus-visible]/case:pr-16 [@media(hover:none)]:pr-16",
+					"min-w-0 flex-1 justify-start hover:bg-transparent hover:text-current group-hover/case:pr-16 group-has-[:focus-visible]/case:pr-16 [@media(hover:none)]:pr-16",
+					selected && "text-sidebar-accent-foreground",
 				)}
 			>
 				<FolderIcon />

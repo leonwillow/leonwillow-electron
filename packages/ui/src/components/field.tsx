@@ -1,7 +1,7 @@
 /**
  * @file 表单字段、标签、说明与错误区域的基础组件。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-11-21
  * 版本作用：共享 UI 基础层，随工作区维护。
  * 被调用：components/auth、components/theme-editor、views/register、views/login。
  * 调用：ui 基础组件/样式、ui/lib/utils、class-variance-authority、react。
@@ -60,7 +60,7 @@ function FieldGroup({ className, ...props }: React.ComponentProps<"div">) {
 }
 
 const fieldVariants = cva(
-	"group/field flex w-full gap-2 data-[invalid=true]:text-destructive",
+	"group/field flex w-full gap-2 data-[invalid=true]:text-destructive-foreground",
 	{
 		variants: {
 			orientation: {
@@ -225,7 +225,10 @@ function FieldError({
 		<div
 			role="alert"
 			data-slot="field-error"
-			className={cn("font-normal text-destructive text-xs/relaxed", className)}
+			className={cn(
+				"font-normal text-destructive-foreground text-xs/relaxed",
+				className,
+			)}
 			{...props}
 		>
 			{content}

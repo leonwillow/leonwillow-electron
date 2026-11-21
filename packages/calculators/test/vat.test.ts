@@ -1,6 +1,6 @@
 /**
  * @file V5 整数金额、逐月传递、导入和备份边界的领域回归。
- * 创建时间：2026-11-05；修改时间：2026-11-06。
+ * 创建时间：2026-11-05；修改时间：2026-11-21。
  * 版本作用：使用合成数据验证业务结果，不含源文件中的申报资料。
  * 被调用：bun test；调用：共享计算器规则和文本解析。
  * 预期结果：缺月/错误不会产生完整合计，导出始终使用全期计算。
@@ -364,4 +364,149 @@ test("保存及手工录入允许原始申报校正，文件导入仍提示冲�
 		mergeHistory(original, [correction, { ...original[1], tax: "-1" }], true),
 	).toThrow("不能为负数");
 	expect(JSON.stringify(original)).toBe(before);
+});
+
+test("留抵税额不退税仅顺延下期，后期留抵绝不向前冲抵前期补税", () => {
+	const paid = mergeHistory(
+		[],
+		[
+			row("2025-01", "100", "20", "80", "0"),
+			row("2025-02", "100", "20", "80", "0"),
+			row("2025-03", "100", "20", "80", "0"),
+		],
+	).rows;
+	// 1月调增进项 300 超过全周期应纳 240：各期应纳归零不退税，多余 60 顺延为末期留抵。
+	const carried = calculate(paid, {
+		"2025-01": { ...emptyAdjustment(), inputIncrease: "300" },
+	});
+	expect(carried.rows.map((r) => r.n?.tax)).toEqual([0, 0, 0]);
+	expect(carried.rows.map((r) => r.n?.b)).toEqual([0, 22000, 14000]);
+	expect(carried.rows.map((r) => r.n?.end)).toEqual([22000, 14000, 6000]);
+	expect(carried.totals).toEqual({
+		oldTax: 24000,
+		newTax: 0,
+		delta: -24000,
+		carryDelta: 6000,
+		end: 6000,
+		increase: 0,
+		decrease: 24000,
+	});
+	expect(carried.audit).toBe(true);
+
+	// 1月调增销项补税 50，2月调增进项 120 产生留抵 40：2月留抵只顺延至3月，不倒流冲抵1月。
+	const oneWay = calculate(paid, {
+		"2025-01": { ...emptyAdjustment(), outputIncrease: "50" },
+		"2025-02": { ...emptyAdjustment(), inputIncrease: "120" },
+	});
+	expect(oneWay.rows.map((r) => r.n?.tax)).toEqual([13000, 0, 4000]);
+	expect(oneWay.rows.map((r) => r.n?.end)).toEqual([0, 4000, 0]);
+	expect(oneWay.rows.map((r) => r.delta)).toEqual([5000, -8000, -4000]);
+	expect(oneWay.totals).toMatchObject({
+		delta: -7000,
+		increase: 5000,
+		decrease: 12000,
+		end: 0,
+		carryDelta: 0,
+	});
+	expect(oneWay.audit).toBe(true);
+});
+
+test("历史进项转出含已退留抵、超额调减销项/进项与负转出均符合主表口径", () => {
+	// 4月期末留抵 100，5月收到留抵退税 100 计入主表第14栏进项转出。
+	const refunded = mergeHistory(
+		[],
+		[
+			row("2022-04", "0", "100", "0", "100", "0"),
+			row("2022-05", "50", "20", "30", "0", "100"),
+			row("2022-06", "50", "0", "50", "0", "0"),
+		],
+	).rows;
+	// 4月调增进项 60：5月原退税转出 100 不变，多出的 60 不追加退税，先抵5月30再延至6月抵30。
+	const added = calculate(refunded, {
+		"2022-04": { ...emptyAdjustment(), inputIncrease: "60" },
+	});
+	expect(added.rows.map((r) => r.n?.tax)).toEqual([0, 0, 2000]);
+	expect(added.rows.map((r) => r.n?.end)).toEqual([16000, 3000, 0]);
+	expect(added.audit).toBe(true);
+	// 4月调减进项 40：5月应抵扣额变为 20 + 60 - 100 = -20，当期应纳增至 70（补回多退 40）。
+	const reduced = calculate(refunded, {
+		"2022-04": { ...emptyAdjustment(), inputDecrease: "40" },
+	});
+	expect(reduced.rows.map((r) => r.n?.tax)).toEqual([0, 7000, 5000]);
+	expect(reduced.rows.map((r) => r.delta)).toEqual([0, 4000, 0]);
+	expect(reduced.audit).toBe(true);
+
+	// 调减销项大于原销项（红字冲减使销项为负）：负销项并入期末留抵延至下期；负进项转出正确增加可抵扣额。
+	const special = mergeHistory(
+		[],
+		[
+			row("2025-01", "100", "20", "30", "0", "-50"),
+			row("2025-02", "200", "50", "150", "0", "0"),
+		],
+	).rows;
+	expect(calculate(special, {}).opening).toBe(0);
+	const negOutput = calculate(special, {
+		"2025-01": { ...emptyAdjustment(), outputDecrease: "150" },
+	});
+	expect(negOutput.rows[0]?.n).toMatchObject({ x: -5000, tax: 0, end: 12000 });
+	expect(negOutput.rows[1]?.n).toMatchObject({ b: 12000, tax: 3000, end: 0 });
+	expect(negOutput.audit).toBe(true);
+	// 调减进项大于原进项（可抵扣额为负）直接增加应纳税额。
+	const negInput = calculate(
+		mergeHistory([], [row("2025-01", "100", "50", "50", "0")]).rows,
+		{ "2025-01": { ...emptyAdjustment(), inputDecrease: "80" } },
+	);
+	expect(negInput.rows[0]?.n).toMatchObject({ i: -3000, tax: 13000, end: 0 });
+	expect(negInput.totals.delta).toBe(8000);
+	expect(negInput.audit).toBe(true);
+});
+
+test("同属期不能同时存在应纳与留抵，空行不掩盖已有历史错误，CSV按所属期升序导出", () => {
+	// 首期同时填正应纳和正留抵时必须报错，不以虚构期初放行。
+	const bothPositive = calculate(
+		mergeHistory([], [row("2025-01", "100", "50", "20", "30")]).rows,
+		{},
+	);
+	expect(bothPositive.rows[0]?.status).toBe("error");
+	expect(bothPositive.rows[0]?.error).toContain("不能同时存在应纳税额");
+	expect(bothPositive.allReady).toBe(false);
+
+	// 存在未填日期的空行时，已有完整所属期的历史普通计税错误仍应检出。
+	const source = history();
+	const withBlank = [
+		{ ...source[0] } as HistoryRow,
+		{ ...source[1], tax: "31.00" } as HistoryRow,
+		{
+			id: "blank-row",
+			periodStart: "",
+			periodEnd: "",
+			x: "0.00",
+			i: "0.00",
+			t: "0.00",
+			tax: "0.00",
+			end: "0.00",
+		},
+	];
+	const checked = calculate(withBlank, {});
+	expect(checked.rows[0]?.status).toBe("blocked");
+	expect(checked.rows[1]?.status).toBe("error");
+	expect(checked.rows[1]?.error).toContain("普通计税核对不一致");
+	expect(checked.rows[2]?.status).toBe("gap");
+	expect(checked.allReady).toBe(false);
+
+	// 乱序录入时 CSV 仍按所属期时间升序导出，保证上下行留抵结转清晰衔接。
+	const reversed = calculate(source.toReversed(), {
+		"2025-01": { ...emptyAdjustment(), inputIncrease: "100" },
+	});
+	const csv = parseDelimited(resultCsv(reversed));
+	expect(csv.slice(1).map((line) => line[0])).toEqual([
+		"2025-01-01",
+		"2025-02-01",
+		"2025-03-01",
+	]);
+	expect(csv.slice(1).map((line) => [line[13], line[15]])).toEqual([
+		["0.00", "150.00"],
+		["150.00", "70.00"],
+		["70.00", "0.00"],
+	]);
 });

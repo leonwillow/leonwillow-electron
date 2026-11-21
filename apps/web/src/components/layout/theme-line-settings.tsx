@@ -1,9 +1,9 @@
 /**
  * @file 常用主题面板中的全局线条外观设置。
- * 创建时间：2026-11-17；修改时间：2026-11-19。
+ * 创建时间：2026-11-17；修改时间：2026-11-20。
  * 版本作用：复用分段单选与 ReUI 最近颜色色盘，按明暗模式保存线条颜色。
  * 被调用：ThemeCustomizer；调用：主题 Store、共享 ColorPicker、RadioGroup。
- * 预期结果：粗细与有效颜色即时持久化，跟随主题时保留原语义色及透明度。
+ * 预期结果：粗细与有效颜色即时持久化，跟随主题时保留原语义色及透明度，弹层首帧无高度跳动。
  */
 import { Button } from "@leonwillow-electron/ui/components/button";
 import {
@@ -47,7 +47,12 @@ export function ThemeLineSettings({ mode }: { mode: "light" | "dark" }) {
 	const settings = useThemeStore((state) => state.preferences.settings);
 	const updateSettings = useThemeStore((state) => state.updateSettings);
 	const id = useId();
-	const [themeBorder, setThemeBorder] = useState<string | null>(null);
+	const [themeBorder, setThemeBorder] = useState<string | null>(
+		() =>
+			getComputedStyle(document.documentElement)
+				.getPropertyValue("--border")
+				.trim() || null,
+	);
 	const [recent, setRecent] = useState(readRecentColors);
 	const [pickerOpen, setPickerOpen] = useState(false);
 	const colorKey = mode === "dark" ? "borderColorDark" : "borderColorLight";
@@ -56,6 +61,7 @@ export function ThemeLineSettings({ mode }: { mode: "light" | "dark" }) {
 	const colorId = `${id}-color`;
 	const colorLabelId = `${colorId}-label`;
 	const recentLabelId = `${colorId}-recent`;
+	const widthLabelId = `${id}-width-label`;
 	const restoreDefault = () => {
 		updateSettings({ [colorKey]: null });
 		setPickerOpen(false);
@@ -90,10 +96,11 @@ export function ThemeLineSettings({ mode }: { mode: "light" | "dark" }) {
 	return (
 		<div className="flex flex-col gap-3 px-3">
 			<div className="flex flex-col gap-1">
-				<Label htmlFor={id}>线条粗细</Label>
+				<span id={widthLabelId} className="font-medium text-xs leading-none">
+					线条粗细
+				</span>
 				<RadioGroup
-					id={id}
-					aria-label="线条粗细"
+					aria-labelledby={widthLabelId}
 					variant="segmented"
 					size="default"
 					className="grid-cols-4"

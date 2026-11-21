@@ -1,7 +1,7 @@
 /**
  * @file 一次主题编辑会话的草稿与操作面板。
  * 创建时间：未记录（现有文件尚无 Git 创建记录）
- * 修改时间：2026-11-20
+ * 修改时间：2026-11-21
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/theme-editor/theme-editor.tsx。
  * 调用：ui 基础组件/样式、lucide-react、next-themes、react、sonner、configs/fonts、configs/theme-settings、stores/theme-store、lib/custom-themes、types/theme、utils/theme/color-converter、utils/theme/css-import、utils/theme/theme-draft、utils/theme/theme-style-generator、./css-import-dialog、./shadow-control、./slider-with-input、./theme-color-panel、./theme-preset-select。
@@ -9,6 +9,7 @@
  * 预期结果：保存成功才关闭；取消恢复已保存偏好，失败保留草稿。
  */
 
+import { Badge } from "@leonwillow-electron/ui/components/badge";
 import { Button } from "@leonwillow-electron/ui/components/button";
 import { ConfirmDialog } from "@leonwillow-electron/ui/components/confirm-dialog";
 import {
@@ -55,9 +56,14 @@ import {
 	Trash2Icon,
 } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
+import { type RefObject, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { FONT_CONFIG, FONT_GROUPS, type FontKey } from "@/configs/fonts";
+import {
+	CURATED_FONTS,
+	FONT_CONFIG,
+	FONT_GROUPS,
+	type FontKey,
+} from "@/configs/fonts";
 import { RADIUS_VALUES } from "@/configs/theme-settings";
 import { isCustomThemeId } from "@/lib/custom-themes";
 import { useThemeStore } from "@/stores/theme-store";
@@ -79,8 +85,10 @@ import ThemePresetSelect from "./theme-preset-select";
 
 export default function ThemeControlPanel({
 	onClose,
+	requestCloseRef,
 }: {
 	onClose: () => void;
+	requestCloseRef?: RefObject<(() => void) | null>;
 }) {
 	const settings = useThemeStore((state) => state.preferences.settings);
 	const customThemes = useThemeStore((state) => state.preferences.customThemes);
@@ -100,14 +108,39 @@ export default function ThemeControlPanel({
 	const [importOpen, setImportOpen] = useState(false);
 	const [exportOpen, setExportOpen] = useState(false);
 	const [deleteId, setDeleteId] = useState<CustomThemeId | null>(null);
+	const [discardOpen, setDiscardOpen] = useState(false);
 	// 导入或还原时重建字段局部输入，避免无效文本覆盖新的草稿。
 	const [inputRevision, setInputRevision] = useState(0);
 	const [format, setFormat] = useState<ColorFormat>("oklch");
 	const currentStyles = draft.styles[mode];
-	const editingSaved =
-		isCustomThemeId(sourcePreset) &&
-		customThemes.some((theme) => !theme.deletedAt && theme.id === sourcePreset);
+	const savedTheme = isCustomThemeId(sourcePreset)
+		? customThemes.find(
+				(theme) => !theme.deletedAt && theme.id === sourcePreset,
+			)
+		: undefined;
+	const editingSaved = !!savedTheme;
+	const isDirty = JSON.stringify(draft) !== JSON.stringify(initialDraft);
+	const visibleFonts: FontKey[] = CURATED_FONTS.includes(draft.font)
+		? [...CURATED_FONTS]
+		: [draft.font, ...CURATED_FONTS];
 	const valid = !invalidFields.size && draft.label.trim().length > 0;
+
+	const requestClose = () => {
+		if (discardOpen) return;
+		if (!isDirty) {
+			onClose();
+			return;
+		}
+		setDiscardOpen(true);
+	};
+
+	useEffect(() => {
+		if (!requestCloseRef) return;
+		requestCloseRef.current = requestClose;
+		return () => {
+			requestCloseRef.current = null;
+		};
+	});
 
 	useEffect(() => {
 		setThemePreview({ draft, mode });
@@ -124,13 +157,20 @@ export default function ThemeControlPanel({
 	};
 
 	const updateStyle = (key: keyof ThemeStyleProps, value: string) => {
-		setDraft((previous) => ({
-			...previous,
-			styles: {
-				...previous.styles,
-				[mode]: { ...previous.styles[mode], [key]: value },
-			},
-		}));
+		setDraft((previous) => {
+			const nextModeStyles = { ...previous.styles[mode], [key]: value };
+			// 修改主色或危险色时移除预设专属派生色，避免自定义后仍残留原预设悬停或实心前景色。
+			if (key === "primary") delete nextModeStyles["primary-hover"];
+			if (key === "destructive")
+				delete nextModeStyles["destructive-solid-foreground"];
+			return {
+				...previous,
+				styles: {
+					...previous.styles,
+					[mode]: nextModeStyles,
+				},
+			};
+		});
 	};
 
 	const selectSource = (themePreset: Settings["themePreset"]) => {
@@ -276,6 +316,12 @@ export default function ThemeControlPanel({
 							<TabsTrigger value="other">圆角与阴影</TabsTrigger>
 						</TabsList>
 						<TabsContent value="colors" keepMounted>
+							<div className="mb-3 flex items-center justify-between text-caption text-muted-foreground">
+								<span>当前编辑作用域</span>
+								<Badge variant="outline">
+									{mode === "dark" ? "仅深色生效" : "仅浅色生效"}
+								</Badge>
+							</div>
 							<ThemeColorPanel
 								key={`${sourcePreset}:${mode}:${inputRevision}`}
 								currentTheme={currentStyles}
@@ -286,7 +332,15 @@ export default function ThemeControlPanel({
 						<TabsContent value="typography">
 							<FieldGroup className="gap-5">
 								<Field>
-									<FieldLabel htmlFor="editor-font">界面字体</FieldLabel>
+									<div className="flex items-center justify-between gap-2">
+										<div className="flex items-center gap-1.5">
+											<FieldLabel htmlFor="editor-font">界面字体</FieldLabel>
+											<Badge variant="secondary">浅深色共用</Badge>
+										</div>
+										<span className="text-caption text-muted-foreground">
+											主要影响英文与数字
+										</span>
+									</div>
 									<Select
 										id="editor-font"
 										items={Object.entries(FONT_CONFIG).map(
@@ -312,12 +366,15 @@ export default function ThemeControlPanel({
 											</span>
 										</SelectTrigger>
 										<SelectContent>
-											{FONT_GROUPS.map((group) => (
-												<SelectGroup key={group.key}>
-													<SelectLabel>{group.label}</SelectLabel>
-													{Object.entries(FONT_CONFIG)
-														.filter(([, config]) => config.group === group.key)
-														.map(([key, config]) => (
+											{FONT_GROUPS.map((group) => {
+												const fonts = visibleFonts
+													.map((key) => [key, FONT_CONFIG[key]] as const)
+													.filter(([, config]) => config.group === group.key);
+												if (fonts.length === 0) return null;
+												return (
+													<SelectGroup key={group.key}>
+														<SelectLabel>{group.label}</SelectLabel>
+														{fonts.map(([key, config]) => (
 															<SelectItem key={key} value={key}>
 																<span
 																	style={{
@@ -328,13 +385,15 @@ export default function ThemeControlPanel({
 																</span>
 															</SelectItem>
 														))}
-												</SelectGroup>
-											))}
+													</SelectGroup>
+												);
+											})}
 										</SelectContent>
 									</Select>
 								</Field>
 								<SliderWithInput
 									label="字间距"
+									labelBadge={<Badge variant="secondary">浅深色共用</Badge>}
 									unit="em"
 									min={-0.25}
 									max={0.25}
@@ -363,7 +422,10 @@ export default function ThemeControlPanel({
 						<TabsContent value="other" keepMounted>
 							<div className="flex flex-col gap-5">
 								<Field>
-									<FieldLabel htmlFor="editor-radius">圆角</FieldLabel>
+									<div className="flex items-center gap-1.5">
+										<FieldLabel htmlFor="editor-radius">圆角</FieldLabel>
+										<Badge variant="secondary">浅深色共用</Badge>
+									</div>
 									<Select
 										id="editor-radius"
 										items={[
@@ -409,6 +471,12 @@ export default function ThemeControlPanel({
 										</SelectContent>
 									</Select>
 								</Field>
+								<div className="flex items-center justify-between text-caption text-muted-foreground">
+									<span>阴影作用域</span>
+									<Badge variant="outline">
+										{mode === "dark" ? "仅深色生效" : "仅浅色生效"}
+									</Badge>
+								</div>
 								<ShadowControl
 									key={`${sourcePreset}:${mode}:${inputRevision}`}
 									shadowColor={currentStyles["shadow-color"] ?? "#000000"}
@@ -446,7 +514,7 @@ export default function ThemeControlPanel({
 			</ScrollArea>
 			<div className="flex shrink-0 flex-col gap-2 border-t p-4">
 				{invalidFields.size > 0 && (
-					<p className="text-destructive text-xs" role="status">
+					<p className="text-destructive-foreground text-xs" role="status">
 						请先修正无效的颜色值。
 					</p>
 				)}
@@ -454,14 +522,14 @@ export default function ThemeControlPanel({
 					{editingSaved && (
 						<Button
 							size="lg"
-							variant="destructive"
+							variant="destructive-outline"
 							onClick={() => setDeleteId(sourcePreset as CustomThemeId)}
 						>
 							<Trash2Icon data-icon="inline-start" />
 							删除
 						</Button>
 					)}
-					<Button size="lg" variant="outline" onClick={onClose}>
+					<Button size="lg" variant="outline" onClick={requestClose}>
 						取消
 					</Button>
 					{editingSaved && (
@@ -576,7 +644,24 @@ export default function ThemeControlPanel({
 					}
 				}}
 			>
-				删除“{draft.label}”？此操作会从当前浏览器的主题库中移除它。
+				删除“{savedTheme?.label ?? draft.label}
+				”？此操作会从当前浏览器的主题库中移除它。
+			</ConfirmDialog>
+			<ConfirmDialog
+				open={discardOpen}
+				title="放弃未保存的主题修改？"
+				cancelLabel="继续编辑"
+				confirmLabel="放弃并关闭"
+				confirmVariant="warning-solid"
+				buttonSize="lg"
+				showCloseButton
+				onClose={() => setDiscardOpen(false)}
+				onConfirm={() => {
+					setDiscardOpen(false);
+					onClose();
+				}}
+			>
+				当前主题草稿包含未保存修改，关闭后预览将还原为已保存的主题外观。
 			</ConfirmDialog>
 		</>
 	);

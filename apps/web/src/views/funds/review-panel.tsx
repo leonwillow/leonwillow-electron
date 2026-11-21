@@ -135,7 +135,10 @@ export default function ReviewPanel({
 						</fieldset>
 					)}
 					{(resource.error || error) && (
-						<div role="alert" className="space-y-2 text-destructive text-sm">
+						<div
+							role="alert"
+							className="space-y-2 text-destructive-foreground text-sm"
+						>
 							<p>{resource.error || error}</p>
 							<Button variant="outline" onClick={() => void resource.reload()}>
 								重新读取

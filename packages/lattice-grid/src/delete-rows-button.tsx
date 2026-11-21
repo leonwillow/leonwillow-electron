@@ -1,6 +1,6 @@
 /**
  * @file 表格所选行的删除确认入口。
- * 创建时间：2026-11-07；修改时间：2026-11-07。
+ * 创建时间：2026-11-07；修改时间：2026-11-20。
  * 版本作用：固定待删行 ID，确认后通过原有原子事务和历史记录删除。
  * 被调用：DataGrid；调用：GridView、共享 Dialog/Button、Sonner。
  * 预期结果：取消不改数据，待提交编辑先校验，异步失败保留确认框与原行。
@@ -107,7 +107,7 @@ export function DeleteRowsButton<T>({
 							取消
 						</Button>
 						<Button
-							variant="destructive"
+							variant="destructive-solid"
 							disabled={disabled || busy}
 							onClick={() => void confirm()}
 						>

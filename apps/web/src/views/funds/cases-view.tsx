@@ -145,7 +145,7 @@ function CaseWorkspace({
 					</p>
 				)}
 				{error && (
-					<p role="alert" className="text-destructive text-sm">
+					<p role="alert" className="text-destructive-foreground text-sm">
 						{error}
 					</p>
 				)}
@@ -370,7 +370,10 @@ export default function CasesView() {
 				caseName={menu.cases.data?.find((record) => record.id === caseId)?.name}
 			/>
 			{error && (
-				<p role="alert" className="px-6 py-2 text-destructive text-sm">
+				<p
+					role="alert"
+					className="px-6 py-2 text-destructive-foreground text-sm"
+				>
 					{error}
 				</p>
 			)}

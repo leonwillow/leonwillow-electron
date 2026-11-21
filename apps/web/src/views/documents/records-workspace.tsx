@@ -270,7 +270,7 @@ export default function RecordsWorkspace({
 			<div className="min-h-0 flex-1" aria-busy={loading}>
 				{error || !validYear ? (
 					<div className="flex h-full flex-col items-center justify-center gap-3 p-workspace-gutter">
-						<p role="alert" className="text-destructive text-sm">
+						<p role="alert" className="text-destructive-foreground text-sm">
 							{!validYear
 								? "请输入 2000 至 9999 之间的年份，或清空查看全部年份。"
 								: error}

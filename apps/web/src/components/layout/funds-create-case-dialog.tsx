@@ -91,7 +91,7 @@ export default function CreateCaseDialog({
 							/>
 						</Field>
 						{error && (
-							<p role="alert" className="text-destructive text-sm">
+							<p role="alert" className="text-destructive-foreground text-sm">
 								{error}
 							</p>
 						)}

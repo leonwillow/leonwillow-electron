@@ -1,7 +1,7 @@
 /**
  * @file 基于 ReUI 与 Headless Tree 的共享树组件。
  * 创建时间：2026-11-04
- * 修改时间：2026-11-19
+ * 修改时间：2026-11-21
  * 版本作用：共享 UI 基础层，提供树容器、节点、标签及拖放指示线。
  * 被调用：Web 笔录目录和计算器菜单。
  * 调用：Base UI、Headless Tree、Lucide、共享样式工具与尺寸令牌。
@@ -153,7 +153,7 @@ function TreeItemLabel({
 		<span
 			data-slot="tree-item-label"
 			className={cn(
-				"flex h-control-md w-full min-w-0 items-center gap-1 rounded-md in-data-[drag-target=true]:bg-accent in-data-[search-match=true]:bg-accent in-data-[selected=true]:bg-accent px-2 font-normal in-data-[selected=true]:text-accent-foreground text-control in-focus-visible:ring-2 in-focus-visible:ring-ring/50 transition-colors hover:bg-accent [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+				"flex h-control-md w-full min-w-0 items-center gap-1 rounded-md in-data-[drag-target=true]:bg-accent in-data-[search-match=true]:bg-accent in-data-[selected=true]:bg-accent px-2 font-normal in-data-[selected=true]:text-accent-foreground text-control in-focus-visible:ring-2 in-focus-visible:ring-ring/50 transition-colors in-data-[selected=false]:hover:bg-muted [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
 				className,
 			)}
 			{...props}

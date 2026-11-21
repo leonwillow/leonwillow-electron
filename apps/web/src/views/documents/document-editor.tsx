@@ -1,6 +1,6 @@
 /**
  * @file 文书弹窗中的精简表单、补充字段和自动 Word 预览。
- * 创建时间：2026-10-10；修改时间：2026-11-19。
+ * 创建时间：2026-10-10；修改时间：2026-11-21。
  * 版本作用：同一表单完成取号和补填，选填信息可折叠，预览随输入更新。
  * 被调用：documents/records-workspace；调用：字段控件、预览器、Eden 文书客户端。
  * 功能与预期结果：只填对象即可取号；失败保留草稿，历史号码固定，普通人员只修改本人。
@@ -186,7 +186,7 @@ export default function DocumentEditor({
 			>
 				<ScrollArea
 					className="min-h-0 flex-1"
-					contentClassName="flex flex-col gap-4 p-workspace-gutter"
+					contentClassName="flex flex-col gap-workspace-gutter p-workspace-gutter"
 				>
 					{details && (
 						<div className="flex flex-col gap-1">
@@ -339,7 +339,7 @@ export default function DocumentEditor({
 					)}
 					{error && <FieldError role="alert">{error}</FieldError>}
 				</ScrollArea>
-				<div className="flex shrink-0 flex-col gap-3 border-t p-workspace-gutter">
+				<div className="flex shrink-0 flex-col gap-workspace-gutter border-t p-workspace-gutter">
 					{(missingFields.length > 0 || (changed && details)) && (
 						<p className="text-muted-foreground text-xs">
 							{missingFields.length > 0
@@ -386,7 +386,7 @@ export default function DocumentEditor({
 			<section
 				aria-label="文书预览区"
 				aria-busy={preview.loading}
-				className="flex min-h-96 min-w-0 flex-1 flex-col gap-3 p-workspace-gutter lg:min-h-0"
+				className="flex min-h-96 min-w-0 flex-1 flex-col gap-workspace-gutter p-workspace-gutter lg:min-h-0"
 			>
 				<div className="flex flex-wrap items-center justify-between gap-2">
 					<h2 className="font-medium text-sm">实时预览</h2>
@@ -402,7 +402,7 @@ export default function DocumentEditor({
 				</div>
 				{preview.error && (
 					<div className="flex flex-wrap items-center gap-2">
-						<p role="alert" className="text-destructive text-xs">
+						<p role="alert" className="text-destructive-foreground text-xs">
 							{preview.error}
 						</p>
 						<Button size="sm" variant="outline" onClick={preview.retry}>

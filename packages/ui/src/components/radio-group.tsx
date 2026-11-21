@@ -87,7 +87,7 @@ function RadioGroupSegmentedItem({
 		<Label
 			htmlFor={id}
 			className={cn(
-				"relative flex cursor-pointer items-center justify-center gap-1.5 border not-last:border-r-0 px-2 text-center text-foreground shadow-xs outline-none transition-[color,box-shadow] first:rounded-l-md last:rounded-r-md has-data-checked:bg-accent",
+				"relative flex cursor-pointer items-center justify-center gap-1.5 border not-last:border-r-0 px-2 text-center text-foreground shadow-xs outline-none transition-[color,background-color,box-shadow] first:rounded-l-md last:rounded-r-md hover:bg-muted/50 has-data-checked:bg-accent has-data-checked:font-medium has-data-checked:text-accent-foreground",
 				className,
 			)}
 			{...labelProps}
@@ -121,7 +121,7 @@ function RadioGroupTileItem({
 		<Label
 			htmlFor={id}
 			className={cn(
-				"relative flex cursor-pointer items-center justify-center gap-1.5 rounded-md border px-2 text-center text-foreground shadow-xs outline-none transition-[color,background-color,border-color,box-shadow] hover:bg-muted/50 has-data-checked:border-primary/40 has-data-checked:bg-accent",
+				"relative flex cursor-pointer items-center justify-center gap-1.5 rounded-md border px-2 text-center text-foreground shadow-xs outline-none transition-[color,background-color,border-color,box-shadow] hover:bg-muted/50 has-data-checked:border-primary/40 has-data-checked:bg-accent has-data-checked:font-medium has-data-checked:text-accent-foreground",
 				className,
 			)}
 			{...labelProps}

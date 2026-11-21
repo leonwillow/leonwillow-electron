@@ -1,7 +1,7 @@
 /**
  * @file 通用确认与离开拦截对话框基础组件。
  * 创建时间：2026-11-18
- * 修改时间：2026-11-18
+ * 修改时间：2026-11-21
  * 版本作用：统一全站删除确认、清空确认与未保存离开拦截弹窗的防误关锁、错误提示与底部按钮布局。
  * 被调用：笔录、文书、计算器、资金案件菜单与自定义主题面板。
  * 调用：ui Dialog 与 Button 基础组件。
@@ -28,7 +28,7 @@ function ConfirmDialog({
 	confirmLabel = "确认删除",
 	busyLabel,
 	cancelLabel = "取消",
-	confirmVariant = "destructive",
+	confirmVariant = "destructive-solid",
 	cancelVariant = "outline",
 	buttonSize = "default",
 	busy = false,
@@ -69,7 +69,7 @@ function ConfirmDialog({
 					<DialogDescription>{children}</DialogDescription>
 				</DialogHeader>
 				{error && (
-					<p role="alert" className="text-destructive text-xs">
+					<p role="alert" className="text-destructive-foreground text-xs">
 						{error}
 					</p>
 				)}

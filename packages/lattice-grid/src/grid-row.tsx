@@ -2,7 +2,7 @@
 // biome-ignore-all lint/a11y/useFocusableInteractive: The grid owns keyboard focus and exposes its active cell through aria-activedescendant.
 /**
  * @file 网格正文行的局部更新边界。
- * 创建时间：2026-11-07；修改时间：2026-11-17。
+ * 创建时间：2026-11-07；修改时间：2026-11-21。
  * 版本作用：以稳定行及选区掩码隔离更新，分别标记选区行号和整行勾选。
  * 被调用：DataGrid；调用：GridCell、共享 Checkbox 和 GridView。
  * 预期结果：保留稳定 DOM 身份、虚拟行位置及冻结样式，仅选区掩码变化的行和单元格更新。
@@ -115,6 +115,9 @@ function GridRowView<T>({
 						columnIndex={index}
 						width={c.width}
 						pinLeft={c.pinned ? c.pinLeft : undefined}
+						unpinnedStart={
+							!c.pinned && (index === 0 || !!layout[index - 1]?.pinned)
+						}
 						selectionMask={selectionCells[index] ?? 0}
 						rangeSelection={rangeSelection && !!selectionCells[index]}
 						active={activeColumn === c.column.id}

@@ -1,6 +1,6 @@
 /**
  * @file 管理员模板目录和删除确认。
- * 创建时间：2026-10-10；修改时间：2026-11-05。
+ * 创建时间：2026-10-10；修改时间：2026-11-21。
  * 版本作用：复用原知识库目录的卡片和弹窗操作，使用服务端模板列表。
  * 被调用：documents/index；调用：共享 UI、template-dialog、文书客户端。
  * 功能与预期结果：可导入/设置/下载/删除模板，删除保留原版本与历史文书。
@@ -80,7 +80,7 @@ export default function TemplatePanel({
 	return (
 		<ScrollArea
 			className="min-h-0 flex-1"
-			contentClassName="flex flex-col gap-5 p-workspace-gutter"
+			contentClassName="flex flex-col gap-workspace-gutter p-workspace-gutter"
 		>
 			<div className="flex flex-wrap items-center justify-between gap-3">
 				<div>
@@ -105,7 +105,7 @@ export default function TemplatePanel({
 				</div>
 			</div>
 			{error && (
-				<p role="alert" className="text-destructive text-sm">
+				<p role="alert" className="text-destructive-foreground text-sm">
 					{error}
 				</p>
 			)}
@@ -114,7 +114,7 @@ export default function TemplatePanel({
 					尚未导入模板。可先导入你提供的询问通知书示例，再设置机关名称、联系人等默认值。
 				</p>
 			)}
-			<div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
+			<div className="grid grid-cols-1 gap-workspace-gutter md:grid-cols-2 2xl:grid-cols-3">
 				{types.map((type) => (
 					<Card key={type.id}>
 						<CardHeader>
@@ -145,7 +145,10 @@ export default function TemplatePanel({
 								<DownloadIcon data-icon="inline-start" />
 								下载模板
 							</Button>
-							<Button variant="destructive" onClick={() => setRemove(type)}>
+							<Button
+								variant="destructive-outline"
+								onClick={() => setRemove(type)}
+							>
 								<Trash2Icon data-icon="inline-start" />
 								删除
 							</Button>

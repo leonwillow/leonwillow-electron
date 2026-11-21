@@ -4,9 +4,9 @@
  * 修改时间：2026-11-20
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现，颜色输入已切换至共享 ReUI ColorPicker。
  * 被调用：shadow-control、theme-control-panel、graph-background-settings、node-mark-editor。
- * 调用：ui Accordion/ColorPicker/Field/InputGroup、react、lib/custom-themes、types/theme、utils/theme/color-converter。
- * 功能：组合 ReUI 可视化色盘弹层、格式自动保留与文本色值实时校验。
- * 预期结果：有效颜色进入草稿并支持透明度，无效输入保留在字段并报告给保存按钮。
+ * 调用：ui Accordion/ColorPicker/Field、react、lib/custom-themes、types/theme。
+ * 功能：使用 ReUI 可视化色盘触发器与悬浮调色弹层编辑主题颜色。
+ * 预期结果：点击整行触发悬浮调色盘，有效颜色即时同步至草稿并支持透明度与多格式切换。
  */
 import {
 	Accordion,
@@ -17,114 +17,70 @@ import {
 import {
 	ColorPicker,
 	ColorPickerContent,
-	ColorPickerSwatch,
 	ColorPickerTrigger,
 } from "@leonwillow-electron/ui/components/color-picker";
-import {
-	Field,
-	FieldError,
-	FieldLabel,
-} from "@leonwillow-electron/ui/components/field";
-import {
-	InputGroup,
-	InputGroupAddon,
-	InputGroupInput,
-} from "@leonwillow-electron/ui/components/input-group";
-import { useEffect, useId, useState } from "react";
+import { Field, FieldLabel } from "@leonwillow-electron/ui/components/field";
+import { useId, useState } from "react";
 import { isColorValue } from "@/lib/custom-themes";
 import type { ThemeStyleProps } from "@/types/theme";
-
-import { colorFormatter } from "@/utils/theme/color-converter";
 
 type ColorSwatchProps = {
 	label: string;
 	value: string;
 	size?: "default" | "lg";
 	alpha?: boolean;
+	side?: "top" | "bottom" | "left" | "right";
 	onChange: (value: string) => void;
 	onValidityChange?: (valid: boolean) => void;
 };
 
 /**
- * 基于 ReUI ColorPicker 与 InputGroup 组合的颜色字段，同时支持可视化选色与原始色值文本校验。
- * @param props onChange 只接收有效颜色，onValidityChange 单独报告文本是否可保存。
- * @returns 带标签、ReUI 色盘触发器与错误提示的颜色字段。
+ * 基于 ReUI ColorPicker 的可视化选色字段，点击整行触发悬浮调色弹层，避免直接暴露原始色值文本输入。
+ * @param props onChange 只接收有效颜色，onValidityChange 同步通知表单可保存状态。
+ * @returns 带标签与悬浮 ReUI 色盘触发器的颜色字段。
  */
 export const ColorSwatch = ({
 	label,
 	value,
 	size = "lg",
 	alpha = true,
+	side = "left",
 	onChange,
 	onValidityChange,
 }: ColorSwatchProps) => {
-	const [localValue, setLocalValue] = useState(value);
 	const [pickerOpen, setPickerOpen] = useState(false);
 	const id = useId();
-	const valid = isColorValue(localValue);
-
-	useEffect(() => {
-		setLocalValue(value);
-	}, [value]);
-
-	const activeColor = valid ? localValue : value;
-	const hexColor = valid ? colorFormatter(localValue, "hex") : "";
-	const pickerFormat = activeColor.trim().toLowerCase().startsWith("oklch")
-		? "oklch"
-		: "hex";
+	const activeColor = isColorValue(value) ? value : null;
 
 	return (
-		<Field data-invalid={!valid} className="gap-1.5">
-			<div className="flex items-center justify-between gap-2">
-				<FieldLabel htmlFor={id}>{label}</FieldLabel>
-				<span className="font-mono text-muted-foreground text-xs">
-					{hexColor}
-				</span>
-			</div>
+		<Field className="gap-1.5">
+			<FieldLabel htmlFor={id}>{label}</FieldLabel>
 			<ColorPicker
+				id={id}
 				open={pickerOpen}
 				onOpenChange={setPickerOpen}
-				value={activeColor || null}
+				value={activeColor}
 				alpha={alpha}
-				format={pickerFormat}
+				format="hex"
 				aria-label={`${label}调色盘`}
 				onValueChange={(nextColor) => {
 					if (!nextColor) return;
-					setLocalValue(nextColor);
 					onChange(nextColor);
 					onValidityChange?.(true);
 				}}
 			>
-				<InputGroup size={size}>
-					<InputGroupAddon align="inline-start">
-						<ColorPickerTrigger
-							variant="ghost"
-							size={size === "lg" ? "icon-sm" : "icon-xs"}
-							aria-label={`${label}调色盘`}
-						>
-							<ColorPickerSwatch />
-						</ColorPickerTrigger>
-					</InputGroupAddon>
-					<InputGroupInput
-						id={id}
-						type="text"
-						aria-invalid={!valid}
-						value={localValue}
-						onChange={(e) => {
-							const next = e.target.value;
-							setLocalValue(next);
-							const nextValid = isColorValue(next);
-							onValidityChange?.(nextValid);
-							if (nextValid) onChange(next);
-						}}
-						className="font-mono"
-					/>
-				</InputGroup>
-				{pickerOpen && <ColorPickerContent />}
+				<ColorPickerTrigger
+					className="w-full"
+					size={size}
+					aria-label={`${label}调色盘`}
+				/>
+				<ColorPickerContent
+					side={side}
+					align="start"
+					sideOffset={8}
+					className="shadow-xl data-closed:animate-none data-open:animate-none"
+				/>
 			</ColorPicker>
-			{!valid && (
-				<FieldError>请输入有效的 HEX、OKLCH、HSL 或 RGB 颜色。</FieldError>
-			)}
 		</Field>
 	);
 };
@@ -191,7 +147,7 @@ const ThemeColorPanel = ({
 							}
 						/>
 						<ColorSwatch
-							label="危险操作前景"
+							label="危险操作（浅底文字）"
 							value={currentTheme?.["destructive-foreground"] || ""}
 							onChange={(value) => updateColor("destructive-foreground", value)}
 							onValidityChange={(valid) =>
@@ -216,7 +172,7 @@ const ThemeColorPanel = ({
 							onValidityChange={(valid) => onValidityChange("info", valid)}
 						/>
 						<ColorSwatch
-							label="信息前景"
+							label="信息（浅底文字）"
 							value={currentTheme?.["info-foreground"] || ""}
 							onChange={(value) => updateColor("info-foreground", value)}
 							onValidityChange={(valid) =>
@@ -230,7 +186,7 @@ const ThemeColorPanel = ({
 							onValidityChange={(valid) => onValidityChange("success", valid)}
 						/>
 						<ColorSwatch
-							label="成功前景"
+							label="成功（浅底文字）"
 							value={currentTheme?.["success-foreground"] || ""}
 							onChange={(value) => updateColor("success-foreground", value)}
 							onValidityChange={(valid) =>
@@ -244,7 +200,7 @@ const ThemeColorPanel = ({
 							onValidityChange={(valid) => onValidityChange("warning", valid)}
 						/>
 						<ColorSwatch
-							label="警告前景"
+							label="警告（浅底文字）"
 							value={currentTheme?.["warning-foreground"] || ""}
 							onChange={(value) => updateColor("warning-foreground", value)}
 							onValidityChange={(valid) =>

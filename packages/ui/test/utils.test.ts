@@ -28,6 +28,9 @@ describe("shared UI token class merging", () => {
 		for (const [variant, color] of [
 			["default", "text-primary-foreground"],
 			["destructive", "text-destructive-foreground"],
+			["destructive-outline", "text-destructive-foreground"],
+			["destructive-solid", "text-destructive-solid-foreground"],
+			["warning-solid", "text-warning-solid-foreground"],
 			["link", "text-primary"],
 		] as const) {
 			const classes = cn(buttonVariants({ variant, size: "default" })).split(
@@ -38,12 +41,16 @@ describe("shared UI token class merging", () => {
 		}
 	});
 
-	test("control size overrides leave one effective dimension", () => {
+	test("control size and workspace spacing overrides leave one effective class", () => {
 		expect(cn("h-control-md", "h-control-lg")).toBe("h-control-lg");
 		expect(cn("h-7", "h-control-lg")).toBe("h-control-lg");
 		expect(cn("size-control-md", "size-control-lg")).toBe("size-control-lg");
 		expect(cn("size-control-md", "h-control-lg")).toBe(
 			"size-control-md h-control-lg",
 		);
+		expect(cn("w-workspace-rail", "w-workspace-rail-wide")).toBe(
+			"w-workspace-rail-wide",
+		);
+		expect(cn("pl-4", "pl-tree-indent")).toBe("pl-tree-indent");
 	});
 });

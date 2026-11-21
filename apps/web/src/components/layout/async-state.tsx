@@ -40,7 +40,10 @@ export function AsyncStatusBlock({
 			>
 				<p
 					role="alert"
-					className={cn("text-destructive", compact ? "text-xs" : "text-sm")}
+					className={cn(
+						"text-destructive-foreground",
+						compact ? "text-xs" : "text-sm",
+					)}
 				>
 					{error}
 				</p>

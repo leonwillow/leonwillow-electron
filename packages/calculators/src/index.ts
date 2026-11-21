@@ -1,6 +1,6 @@
 /**
  * @file 增值税 V5 普通计税规则与方案校验的无副作用共享实现。
- * 创建时间：2026-11-05；修改时间：2026-11-08。
+ * 创建时间：2026-11-05；修改时间：2026-11-21。
  * 版本作用：浏览器即时预览和服务端权威重算使用同一整数分算法。
  * 被调用：计算器 UI、API 和领域测试；不依赖 DOM、数据库或框架。
  * 预期结果：原始申报可校正，未填所属期、断档或错误阻断后续计算；金额和累计值均有界。
@@ -416,10 +416,22 @@ export function calculate(
 			carryDelta: null,
 		};
 		rows.push(row);
+		const adjustment = normalizeAdjustment(adjustments[h.id] ?? {});
+		for (const key of adjustmentFields) {
+			try {
+				const amount = cents(adjustment[key], true);
+				if (amount < 0) throw Error(`${adjustmentLabels[key]}不能为负数`);
+				row[key] = amount;
+			} catch (error) {
+				row.fieldErrors[key] =
+					error instanceof Error ? error.message : "无效金额";
+			}
+		}
+		row.dx = exact(row.outputIncrease - row.outputDecrease);
+		row.di = exact(row.inputIncrease - row.inputDecrease);
 		if (!h.periodStart || !h.periodEnd) {
 			row.status = "gap";
 			row.error = "请选择完整的所属期";
-			baselineBlocked = true;
 			newBlocked = true;
 			continue;
 		}
@@ -439,7 +451,9 @@ export function calculate(
 		const tax = cents(h.tax);
 		const end = cents(h.end);
 		let baselineError = "";
-		if (!baselineBlocked) {
+		if (tax > 0 && end > 0) {
+			baselineError = `普通计税核对不一致：同一所属期不能同时存在应纳税额（${money(tax)}）与期末留抵（${money(end)}），请核实原始申报或适用口径。`;
+		} else if (!baselineBlocked) {
 			if (previousOld < 0)
 				baselineError = "首期反推期初留抵为负，当前普通计税口径不适用";
 			else {
@@ -449,19 +463,6 @@ export function calculate(
 			}
 		}
 		previousOld = end;
-		const adjustment = normalizeAdjustment(adjustments[h.id] ?? {});
-		for (const key of adjustmentFields) {
-			try {
-				const amount = cents(adjustment[key], true);
-				if (amount < 0) throw Error(`${adjustmentLabels[key]}不能为负数`);
-				row[key] = amount;
-			} catch (error) {
-				row.fieldErrors[key] =
-					error instanceof Error ? error.message : "无效金额";
-			}
-		}
-		row.dx = exact(row.outputIncrease - row.outputDecrease);
-		row.di = exact(row.inputIncrease - row.inputDecrease);
 		if (baselineError) {
 			row.status = "error";
 			row.error = baselineError;
@@ -536,6 +537,9 @@ export const changed = (row: CalculationRow) =>
 export function resultCsv(result: Calculation) {
 	if (!result.allReady || !result.audit)
 		throw Error("请先补齐所属期并修正错误，再导出完整结果");
+	const ordered = result.rows.toSorted((a, b) =>
+		a.periodStart.localeCompare(b.periodStart),
+	);
 	const grid = [
 		[
 			"税款所属期起",
@@ -549,7 +553,7 @@ export function resultCsv(result: Calculation) {
 			"调整后留抵",
 			"应纳增减",
 		],
-		...result.rows.map((row) => [
+		...ordered.map((row) => [
 			row.periodStart,
 			row.periodEnd,
 			...fields.map((key) => row.h?.[key] ?? ""),

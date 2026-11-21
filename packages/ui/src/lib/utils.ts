@@ -1,7 +1,7 @@
 /**
  * @file 基础组件的类名合并入口。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-08
+ * 修改时间：2026-11-20
  * 版本作用：共享 UI 基础层，随工作区维护。
  * 被调用：packages/ui/test、components、components/layout。
  * 调用：clsx、tailwind-merge。
@@ -23,10 +23,12 @@ const twMerge = extendTailwindMerge({
 				"control-lg",
 				"workspace-header",
 				"workspace-rail",
+				"workspace-rail-wide",
 				"workspace-icon",
 				"workspace-rail-inset",
 				"workspace-menu",
 				"workspace-gutter",
+				"tree-indent",
 			],
 		},
 	},

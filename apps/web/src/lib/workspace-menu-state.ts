@@ -1,6 +1,6 @@
 /**
  * @file 工作台单个二级菜单框的状态转换及固定偏好。
- * 创建时间：2026-11-04；修改时间：2026-11-05。
+ * 创建时间：2026-11-04；修改时间：2026-11-21。
  * 版本作用：模块只决定当前内容，固定和展开状态归整个菜单框所有。
  * 被调用：use-workspace-menu、workspace-menu-state.test；调用：浏览器偏好存储。
  * 功能与预期结果：固定时只响应显式切换，未固定时允许悬停预览；统一偏好兼容旧存储及写入失败。
@@ -10,6 +10,7 @@ export const workspaceMenuIds = [
 	"documents",
 	"inquiries",
 	"calculators",
+	"admin",
 ] as const;
 export type WorkspaceMenuId = (typeof workspaceMenuIds)[number];
 

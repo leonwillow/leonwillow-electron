@@ -1,7 +1,7 @@
 /**
  * @file Lattice Grid 虚拟化网格布局、固定列、选区轮廓与列拖动样式。
  * 创建时间：2026-11-18
- * 修改时间：2026-11-18
+ * 修改时间：2026-11-21
  * 版本作用：归属 @leonwillow-electron/lattice-grid，仅在使用 DataGrid 的页面按需加载。
  * 被调用：packages/lattice-grid/src/data-grid.tsx。
  * 调用：共享 CSS 语义颜色、圆角、边框与间距令牌；字号由组件通过 text-control 挂载。
@@ -137,7 +137,8 @@
 	opacity: 1;
 }
 @media (prefers-reduced-motion: reduce) {
-	.lg-scroll-area::after {
+	.lg-scroll-area::after,
+	.lg-head::after {
 		transition: none;
 	}
 }
@@ -145,6 +146,9 @@
 	/* macOS 边界回弹会拉开表头/冻结列并露出 viewport 底层焦点框。 */
 	overscroll-behavior: none;
 	outline: none;
+	container-type: scroll-state;
+	container-name: lg-scroller;
+	scroll-padding-top: var(--lg-head-height);
 }
 .lg-scroller:focus-visible {
 	/* 网格已有独立焦点提示，不叠加共享 ScrollArea 的内侧焦点阴影。 */
@@ -167,6 +171,46 @@
 	top: 0;
 	z-index: 4;
 	background: var(--card);
+}
+/* 正文向上滚入表头下方时投射柔和阴影，与左侧冻结列阴影共用令牌。 */
+.lg-head::after {
+	content: "";
+	position: absolute;
+	inset-inline: 0;
+	top: 100%;
+	height: var(--lg-frozen-shadow-width);
+	background: linear-gradient(
+		to bottom,
+		var(--lg-frozen-shadow-color),
+		transparent
+	);
+	pointer-events: none;
+	opacity: 0;
+	transition: opacity 150ms;
+}
+@container lg-scroller scroll-state(scrollable: block-start) {
+	.lg-head::after {
+		opacity: 1;
+	}
+}
+@supports not (container-type: scroll-state) {
+	@supports (animation-timeline: scroll()) {
+		.lg-head::after {
+			animation: lg-head-shadow linear both;
+			animation-timeline: scroll();
+			animation-range: 0 var(--lg-frozen-shadow-width);
+		}
+	}
+	@supports not (animation-timeline: scroll()) {
+		.lg-scroller[data-overflow-y-start] .lg-head::after {
+			opacity: 1;
+		}
+	}
+}
+@keyframes lg-head-shadow {
+	to {
+		opacity: 1;
+	}
 }
 .lg-column-row,
 .lg-group-row,
@@ -400,10 +444,6 @@
 .lg-cell.lg-selected {
 	z-index: 1;
 }
-/* 尚未横滚时，普通格的左线也可以覆盖紧邻的冻结列或行号分隔线。 */
-.lg-scroller:not([data-overflow-x-start]) .lg-cell.lg-selected {
-	z-index: 3;
-}
 .lg-cell-indicator,
 .lg-range-outline,
 .lg-edit-outline {
@@ -413,12 +453,19 @@
 	z-index: 1;
 	pointer-events: none;
 }
-/* 首行的固定区域盖住共用顶线，普通格的选中框随内容滚入它下方。 */
-.lg-scroller:not([data-overflow-y-start])
-	.lg-row:first-child
-	> :is(.lg-gutter, .lg-pinned) {
-	margin-top: calc(-1 * var(--ui-border-width));
-	border-top: var(--ui-border-width) solid var(--ui-line-color, var(--border));
+/* 表头、汇总与冻结列始终高于正文层，首行/末行/首普通列的内收边避开固定边线，避免靠滚动切换 z-index 引发闪烁。 */
+.lg-cell[data-row="0"]
+> :is(.lg-cell-indicator, .lg-range-outline, .lg-edit-outline) {
+	top: 0;
+}
+.lg-row[data-last-row]
+	> .lg-cell
+	> :is(.lg-cell-indicator, .lg-range-outline, .lg-edit-outline) {
+	bottom: 0;
+}
+.lg-cell[data-unpinned-start] > :is(.lg-cell-indicator, .lg-edit-outline),
+.lg-cell[data-unpinned-start] > .lg-range-outline[data-left] {
+	left: 0;
 }
 .lg-cell-indicator {
 	--lg-cell-indicator-duration: 160ms;
@@ -617,11 +664,6 @@
 	margin-top: calc(-1 * var(--ui-border-width));
 	background: var(--card);
 	border-top: var(--ui-border-width) solid var(--ui-line-color, var(--border));
-}
-/* 表头和汇总在自然位置让出与正文共用的边线，吸附后遮挡正文。 */
-.lg-scroller:not([data-overflow-y-start]) .lg-head,
-.lg-scroller:not([data-overflow-y-end]) .lg-summary {
-	z-index: 0;
 }
 .lg-summary-cell {
 	flex: none;

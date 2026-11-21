@@ -1,7 +1,7 @@
 /**
  * @file 自定义主题库的校验与变更规则。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-19
+ * 修改时间：2026-11-21
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：apps/web/test、contexts、utils、utils/theme、components/theme-editor、lib。
  * 调用：chroma-js、configs/fonts、configs/theme-presets、configs/theme-settings、configs/theme-variables、types/theme。
@@ -15,6 +15,7 @@ import { initialSettings } from "@/configs/theme-settings";
 import {
 	COLOR_KEYS,
 	EDITABLE_STYLE_KEYS,
+	OPTIONAL_COLOR_KEYS,
 	STATUS_COLOR_KEYS,
 } from "@/configs/theme-variables";
 import type {
@@ -56,6 +57,7 @@ export function isStyleValue(key: string, value: unknown): value is string {
 	if (
 		(COLOR_KEYS as readonly string[]).includes(key) ||
 		(STATUS_COLOR_KEYS as readonly string[]).includes(key) ||
+		(OPTIONAL_COLOR_KEYS as readonly string[]).includes(key) ||
 		key === "shadow-color"
 	)
 		return isColorValue(value);
@@ -208,8 +210,10 @@ export function saveCustomTheme(
 	};
 }
 
+const MAX_DELETED_TOMBSTONES = 50;
+
 /**
- * 标记删除指定主题，保留样式与名称；删除当前主题时回退到默认配色。
+ * 标记删除指定主题，保留样式与名称；删除当前主题时回退到默认配色，并控制删除记录数量上限。
  * @param preferences 当前快照；保留字号缩放等其他偏好。
  * @param id 要移除的稳定 ID。
  * @returns 新快照；目标不存在时主题内容保持不变。
@@ -218,15 +222,34 @@ export function deleteCustomTheme(
 	preferences: ThemePreferences,
 	id: CustomThemeId,
 ): ThemePreferences {
+	const nextSettings =
+		preferences.settings.themePreset === id
+			? { ...preferences.settings, themePreset: "default" as const }
+			: preferences.settings;
+	const updated = preferences.customThemes.map((theme) =>
+		theme.id === id && !theme.deletedAt
+			? { ...theme, deletedAt: new Date().toISOString() }
+			: theme,
+	);
+	const deleted = updated.filter((theme) => theme.deletedAt);
+	if (deleted.length <= MAX_DELETED_TOMBSTONES) {
+		return {
+			settings: nextSettings,
+			customThemes: updated,
+		};
+	}
+	const keepDeletedIds = new Set(
+		[...deleted]
+			.sort(
+				(a, b) => Date.parse(b.deletedAt ?? "") - Date.parse(a.deletedAt ?? ""),
+			)
+			.slice(0, MAX_DELETED_TOMBSTONES)
+			.map((theme) => theme.id),
+	);
 	return {
-		settings:
-			preferences.settings.themePreset === id
-				? { ...preferences.settings, themePreset: "default" }
-				: preferences.settings,
-		customThemes: preferences.customThemes.map((theme) =>
-			theme.id === id && !theme.deletedAt
-				? { ...theme, deletedAt: new Date().toISOString() }
-				: theme,
+		settings: nextSettings,
+		customThemes: updated.filter(
+			(theme) => !theme.deletedAt || keepDeletedIds.has(theme.id),
 		),
 	};
 }

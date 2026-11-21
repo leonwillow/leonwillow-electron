@@ -1,6 +1,6 @@
 /**
  * @file ReUI 时间选择器的共享输入、弹层与时间分列组件。
- * 创建时间：2026-11-04；修改时间：2026-11-04。
+ * 创建时间：2026-11-04；修改时间：2026-11-21。
  * 版本作用：共享 UI 基础层，管理受控时间、步长、边界、键盘导航与可输入模式。
  * 被调用：笔录日期时间表单；调用：React、Base UI Popover、共享 Button/InputGroup。
  * 功能：值使用 24 小时 HH:mm 或 HH:mm:ss，中文标签，保留清空、当前时间及确认操作。
@@ -1259,7 +1259,7 @@ const LIST_CLASS =
    leaves room for it. The filled pill for the value is this primitive's own:
    a select marks its choice with a check. */
 const OPTION_CLASS =
-	"flex h-(--time-picker-option-height) shrink-0 cursor-default items-center justify-center tabular-nums transition-[color,background-color,box-shadow] duration-100 select-none not-aria-selected:hover:bg-accent not-aria-selected:hover:text-accent-foreground aria-selected:bg-primary aria-selected:font-medium aria-selected:text-primary-foreground aria-disabled:pointer-events-none aria-disabled:opacity-50 forced-colors:aria-selected:bg-[Highlight] forced-colors:aria-selected:text-[HighlightText] forced-colors:group-focus-visible/time-picker-list:data-highlighted:outline-solid forced-colors:group-focus-visible/time-picker-list:data-highlighted:outline-2 group-focus-visible/time-picker-list:data-highlighted:ring-2 ring-ring/30 rounded-md text-control/relaxed";
+	"flex h-(--time-picker-option-height) shrink-0 cursor-default items-center justify-center tabular-nums transition-[color,background-color,box-shadow] duration-100 select-none not-aria-selected:hover:bg-muted not-aria-selected:hover:text-foreground aria-selected:bg-primary aria-selected:font-medium aria-selected:text-primary-foreground aria-disabled:pointer-events-none aria-disabled:opacity-50 forced-colors:aria-selected:bg-[Highlight] forced-colors:aria-selected:text-[HighlightText] forced-colors:group-focus-visible/time-picker-list:data-highlighted:outline-solid forced-colors:group-focus-visible/time-picker-list:data-highlighted:outline-2 group-focus-visible/time-picker-list:data-highlighted:ring-2 ring-ring/30 rounded-md text-control/relaxed";
 
 /* Marks which ends of a list have rows scrolled out of view, for the fade.
    Written to the DOM directly: it changes every scroll frame and nothing

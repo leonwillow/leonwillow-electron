@@ -1,6 +1,6 @@
 /**
  * @file VAT 四项调整与通用 Grid 的金额、事务及汇总回归。
- * 创建时间：2026-11-05；修改时间：2026-11-08。
+ * 创建时间：2026-11-05；修改时间：2026-11-21。
  * 版本作用：验证调增/调减分别保留原值，批量编辑、筛选和汇总沿用整数分规则。
  * 被调用：Web Bun 测试；调用：VAT 列适配、共享表格内核和计税包。
  * 预期结果：四项非负输入原子提交，撤销后恢复完整原值，余额不重复累加。
@@ -731,4 +731,22 @@ test("无效原始金额拒绝整批修改，归档和计算结果仍禁止编�
 	expect((await archived.paste([["250"]])).ok).toBe(false);
 	grid.select({ rowId: "2026-01", columnId: "result-tax" });
 	expect((await grid.paste([["250"]])).ok).toBe(false);
+});
+
+test("存在未填所属期的空行时，留抵余额汇总不把空行误选为首期或末期", () => {
+	const blank: HistoryRow = {
+		id: "blank",
+		periodStart: "",
+		periodEnd: "",
+		x: "0.00",
+		i: "0.00",
+		t: "0.00",
+		tax: "0.00",
+		end: "0.00",
+	};
+	for (const rows of [rowsFor([blank]), rowsFor([month("2026-01"), blank])]) {
+		expect(summary("history-end", rows)).toBe("—");
+		expect(summary("result-b", rows)).toBe("—");
+		expect(summary("result-end", rows)).toBe("—");
+	}
 });

@@ -1,6 +1,6 @@
 /**
  * @file Base UI 右键菜单，沿用共享下拉菜单的项目样式。
- * 创建时间：2026-11-06；修改时间：2026-11-20。
+ * 创建时间：2026-11-06；修改时间：2026-11-21。
  * 版本作用：适配 shadcn base-mira ContextMenu 及子菜单，长内容由 ScrollArea 承载。
  * 被调用：Lattice Grid；调用：Base UI ContextMenu 各部件、共享 ScrollArea 和主题。
  * 预期结果：原生右键/长按定位、键盘和焦点行为由官方组件管理。
@@ -24,7 +24,7 @@ export function ContextMenuSubTrigger({
 		<Primitive.SubmenuTrigger
 			data-slot="context-menu-sub-trigger"
 			className={cn(
-				"flex min-h-control-md cursor-default select-none items-center gap-2 rounded-md px-2 py-1 text-xs/relaxed outline-hidden focus:bg-accent focus:text-accent-foreground data-disabled:pointer-events-none data-open:bg-accent data-popup-open:bg-accent data-open:text-accent-foreground data-popup-open:text-accent-foreground data-disabled:opacity-50 [&_svg:not([class*='size-'])]:size-3.5 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+				"flex min-h-control-md cursor-default select-none items-center gap-2 rounded-md px-2 py-1 text-xs/relaxed outline-hidden focus:bg-muted focus:text-foreground data-disabled:pointer-events-none data-open:bg-accent data-popup-open:bg-accent data-open:text-accent-foreground data-popup-open:text-accent-foreground data-disabled:opacity-50 [&_svg:not([class*='size-'])]:size-3.5 [&_svg]:pointer-events-none [&_svg]:shrink-0",
 				className,
 			)}
 			{...props}
@@ -40,7 +40,7 @@ export function ContextMenuItem({ className, ...props }: Primitive.Item.Props) {
 		<Primitive.Item
 			data-slot="context-menu-item"
 			className={cn(
-				"relative flex min-h-control-md cursor-default select-none items-center gap-2 rounded-md px-2 py-1 text-xs/relaxed outline-hidden focus:bg-accent focus:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg:not([class*='size-'])]:size-3.5 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+				"relative flex min-h-control-md cursor-default select-none items-center gap-2 rounded-md px-2 py-1 text-xs/relaxed outline-hidden focus:bg-muted focus:text-foreground data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg:not([class*='size-'])]:size-3.5 [&_svg]:pointer-events-none [&_svg]:shrink-0",
 				className,
 			)}
 			{...props}
@@ -83,7 +83,7 @@ export function ContextMenuContent({
 				align={align}
 				sideOffset={sideOffset}
 				alignOffset={alignOffset}
-				className="isolate z-50 outline-none"
+				className="isolate z-(--z-popover) outline-none"
 			>
 				<Primitive.Popup
 					data-slot="context-menu-content"

@@ -1,7 +1,7 @@
 /**
  * @file 下拉选择、分组与滚动入口的基础组件。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-19
+ * 修改时间：2026-11-21
  * 版本作用：按 ReUI c-select-1 统一弹出方向、控件令牌与 ScrollArea 列表，提供 cell 内联变体。
  * 被调用：components/layout/theme-customizer.tsx、components/theme-editor/theme-preset-select.tsx、components/theme-editor/theme-control-panel.tsx。
  * 调用：@base-ui/react、ui/lib/utils、lucide-react、react。
@@ -55,7 +55,7 @@ function SelectTrigger({
 			className={cn(
 				variant === "cell"
 					? "cell-control flex items-center justify-between gap-1.5 disabled:cursor-not-allowed disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0"
-					: "flex w-fit min-w-0 items-center justify-between gap-1.5 whitespace-nowrap rounded-md border border-input bg-background px-2 py-1.5 text-control/relaxed outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/20 data-[size=default]:h-control-md data-[size=lg]:h-control-lg data-[size=sm]:h-control-sm data-placeholder:text-muted-foreground *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg:not([class*='size-'])]:size-3.5 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+					: "flex w-fit min-w-0 items-center justify-between gap-1.5 whitespace-nowrap rounded-md border border-input bg-input/20 px-2 py-1.5 text-control/relaxed outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/20 data-[size=default]:h-control-md data-[size=lg]:h-control-lg data-[size=sm]:h-control-sm data-placeholder:text-muted-foreground *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 dark:bg-input/30 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg:not([class*='size-'])]:size-3.5 [&_svg]:pointer-events-none [&_svg]:shrink-0",
 				className,
 			)}
 			{...props}
@@ -92,13 +92,13 @@ function SelectContent({
 				align={align}
 				alignOffset={alignOffset}
 				alignItemWithTrigger={alignItemWithTrigger}
-				className="isolate z-50"
+				className="isolate z-(--z-popover)"
 			>
 				<SelectPrimitive.Popup
 					data-slot="select-content"
 					data-align-trigger={alignItemWithTrigger}
 					className={cn(
-						"data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:fade-in-0 data-open:zoom-in-95 data-closed:fade-out-0 data-closed:zoom-out-95 no-scrollbar ring-(length:--ui-border-width) relative isolate z-50 max-h-(--available-height) w-(--anchor-width) min-w-32 origin-(--transform-origin) overflow-hidden rounded-lg bg-popover text-popover-foreground shadow-md ring-ui-outline duration-100 data-[align-trigger=true]:animate-none data-closed:animate-out data-open:animate-in",
+						"data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:fade-in-0 data-open:zoom-in-95 data-closed:fade-out-0 data-closed:zoom-out-95 no-scrollbar ring-(length:--ui-border-width) relative isolate z-(--z-popover) max-h-(--available-height) w-(--anchor-width) min-w-32 origin-(--transform-origin) overflow-hidden rounded-lg bg-popover text-popover-foreground shadow-md ring-ui-outline duration-100 data-[align-trigger=true]:animate-none data-closed:animate-out data-open:animate-in",
 						className,
 					)}
 					{...props}
@@ -138,7 +138,7 @@ function SelectItem({
 		<SelectPrimitive.Item
 			data-slot="select-item"
 			className={cn(
-				"relative flex min-h-control-md w-full cursor-default select-none items-center gap-2 rounded-md py-1 pr-7 pl-2 text-control/relaxed outline-hidden focus:bg-accent focus:text-accent-foreground not-data-[variant=destructive]:focus:**:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg:not([class*='size-'])]:size-3.5 [&_svg]:pointer-events-none [&_svg]:shrink-0 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
+				"relative flex min-h-control-md w-full cursor-default select-none items-center gap-2 rounded-md py-1 pr-7 pl-2 text-control/relaxed outline-hidden focus:bg-muted focus:text-foreground not-data-[variant=destructive]:focus:**:text-foreground data-disabled:pointer-events-none data-[selected]:bg-accent data-[selected]:text-accent-foreground data-disabled:opacity-50 data-[selected]:focus:bg-accent data-[selected]:focus:text-accent-foreground data-[selected]:**:text-accent-foreground [&_svg:not([class*='size-'])]:size-3.5 [&_svg]:pointer-events-none [&_svg]:shrink-0 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
 				className,
 			)}
 			{...props}

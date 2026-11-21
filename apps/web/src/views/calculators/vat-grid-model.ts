@@ -1,6 +1,6 @@
 /**
  * @file 增值税领域数据与通用 Lattice Grid 的列及批量更新适配。
- * 创建时间：2026-11-05；修改时间：2026-11-08。
+ * 创建时间：2026-11-05；修改时间：2026-11-21。
  * 版本作用：隔离税务字段、整数金额规则与通用表格内核。
  * 被调用：VatTable、适配回归；调用：calculators 金额函数、Grid 类型。
  * 预期结果：原始申报与调整可编辑，一次粘贴/撤销只产生一次方案快照，联动结果只读。
@@ -224,12 +224,14 @@ function sumAmounts(
 	}
 }
 
-/** 余额取所选所属期的时间边界；改变表格排序不会改变首期/末期。 */
+/** 余额取所选所属期的时间边界；改变表格排序不会改变首期/末期，存在未填所属期时不输出伪边界。 */
 function boundaryAmount(
 	rows: readonly VatGridRow[],
 	amount: (row: VatGridRow) => number | null,
 	edge: "first" | "last",
 ) {
+	if (!rows.length || rows.some((row) => !row.periodStart || !row.periodEnd))
+		return "—";
 	const row = rows.reduce<VatGridRow | undefined>(
 		(selected, candidate) =>
 			!selected ||

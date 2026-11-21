@@ -52,12 +52,20 @@ export default function CommandMenuDialog({
 	const navigate = useNavigate();
 	const { caseId } = useSearch({ strict: false });
 
-	const runCommand = useCallback(
-		(command: () => unknown) => {
-			onOpenChange(false);
-			command();
+	const handleOpenChange = useCallback(
+		(nextOpen: boolean) => {
+			if (!nextOpen) setSearch("");
+			onOpenChange(nextOpen);
 		},
 		[onOpenChange],
+	);
+
+	const runCommand = useCallback(
+		(command: () => unknown) => {
+			handleOpenChange(false);
+			command();
+		},
+		[handleOpenChange],
 	);
 
 	const navigateToItem = useCallback(
@@ -81,10 +89,9 @@ export default function CommandMenuDialog({
 			title="命令面板"
 			description="搜索并跳转到工作区页面。"
 			open={open}
-			onOpenChange={onOpenChange}
+			onOpenChange={handleOpenChange}
 		>
 			<Command
-				className="**:data-[slot=command-input-wrapper]:h-12 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-group]]:px-2 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5"
 				filter={(value, queryText, keywords) => {
 					const query = queryText.toLowerCase();
 					const name = value.toLowerCase();
@@ -113,41 +120,24 @@ export default function CommandMenuDialog({
 				/>
 				<CommandList label="搜索结果">
 					<CommandEmpty>没有找到结果。</CommandEmpty>
-					{search ? (
-						groups.map((searchGroup, index) => (
-							<Fragment key={searchGroup.title}>
-								<CommandGroup heading={searchGroup.title}>
-									{searchGroup.data.map((item) => (
-										<CommandItem
-											key={itemKey(item)}
-											value={item.name}
-											keywords={item.tags}
-											onSelect={() => navigateToItem(item)}
-										>
-											<item.icon />
-											<span>{item.name}</span>
-										</CommandItem>
-									))}
-								</CommandGroup>
-								{index !== groups.length - 1 && <CommandSeparator />}
-							</Fragment>
-						))
-					) : (
-						<CommandGroup heading="建议">
-							{groups
-								.flatMap((group) => group.data)
-								.slice(0, 4)
-								.map((item) => (
+					{groups.map((searchGroup, index) => (
+						<Fragment key={searchGroup.title}>
+							<CommandGroup heading={searchGroup.title}>
+								{searchGroup.data.map((item) => (
 									<CommandItem
 										key={itemKey(item)}
+										value={item.name}
+										keywords={item.tags}
 										onSelect={() => navigateToItem(item)}
 									>
 										<item.icon />
 										<span>{item.name}</span>
 									</CommandItem>
 								))}
-						</CommandGroup>
-					)}
+							</CommandGroup>
+							{index !== groups.length - 1 && <CommandSeparator />}
+						</Fragment>
+					))}
 				</CommandList>
 			</Command>
 		</CommandDialog>

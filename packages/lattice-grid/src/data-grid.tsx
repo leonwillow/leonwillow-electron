@@ -2,7 +2,7 @@
 // biome-ignore-all lint/a11y/useFocusableInteractive: The grid owns keyboard focus and exposes its active cell through aria-activedescendant; nested controls keep their own focus behavior.
 /**
  * @file Lattice Grid 的 React / ReUI 可复用表格视图。
- * 创建时间：2026-11-05；修改时间：2026-11-19。
+ * 创建时间：2026-11-05；修改时间：2026-11-21。
  * 版本作用：保留原引擎与选择、编辑、虚拟化控制器，使用当前共享控件与主题呈现。
  * 被调用：业务页面；调用：GridStore、GridView、共享 Base UI 控件与 Sonner。
  * 预期结果：稳定行 ID、受控数据和提交回调与业务解耦；可填满父级剩余高度，汇总始终位于滚动口底部。
@@ -364,6 +364,7 @@ export function DataGrid<T>(props: DataGridProps<T>) {
 					style={
 						{
 							...props.style,
+							"--lg-head-height": `${view.headHeight()}px`,
 							"--lg-header-height": `${view.headerHeight()}px`,
 							"--lg-filter-height": `${view.filterHeight()}px`,
 							"--lg-frozen-edge": `${groupStickyLeft}px`,

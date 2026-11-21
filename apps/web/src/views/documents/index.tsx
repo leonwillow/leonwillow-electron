@@ -1,20 +1,20 @@
 /**
  * @file 文书工作区：类型导航、类型内记录表格与模板管理。
- * 创建时间：2026-10-10；修改时间：2026-11-19。
+ * 创建时间：2026-10-10；修改时间：2026-11-20。
  * 版本作用：按类型组织文书，直接复用 DocumentNavigationProvider 的共享目录与模板定义。
  * 被调用：documents 文件路由；调用：导航上下文、records-workspace、template-panel、AsyncStatusBlock。
  * 功能与预期结果：切换类型隔离表格和编辑状态，停用类型的历史记录仍可进入，消除重复目录加载。
  */
 import { Button } from "@leonwillow-electron/ui/components/button";
-import { TooltipText } from "@leonwillow-electron/ui/components/tooltip";
 import { getRouteApi, useNavigate } from "@tanstack/react-router";
-import { ChevronRightIcon, FileTextIcon } from "lucide-react";
+import { FileTextIcon } from "lucide-react";
 import {
 	AsyncStatusBlock,
 	WorkspaceEmptyState,
 } from "@/components/layout/async-state";
 import { useDocumentNavigation } from "@/components/layout/document-navigation-provider";
 import {
+	WorkspaceBreadcrumb,
 	WorkspaceHeader,
 	WorkspaceTitle,
 } from "@/components/layout/workspace-header";
@@ -41,16 +41,9 @@ export default function DocumentsView() {
 					<div className="flex min-w-0 flex-1 items-center gap-2">
 						<WorkspaceTitle icon={FileTextIcon}>文书取号</WorkspaceTitle>
 						{(managing || selected) && (
-							<>
-								<ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" />
-								<TooltipText
-									content={managing ? "模板管理" : (selected?.name ?? "")}
-								>
-									<span className="truncate">
-										{managing ? "模板管理" : selected?.name}
-									</span>
-								</TooltipText>
-							</>
+							<WorkspaceBreadcrumb
+								label={managing ? "模板管理" : (selected?.name ?? "")}
+							/>
 						)}
 					</div>
 				</WorkspaceHeader>

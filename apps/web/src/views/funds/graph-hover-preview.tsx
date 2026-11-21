@@ -222,7 +222,7 @@ export default function GraphHoverPreview({
 						</p>
 					)}
 					{storageError && (
-						<p role="alert" className="mt-3 text-destructive">
+						<p role="alert" className="mt-3 text-destructive-foreground">
 							{storageError}
 						</p>
 					)}

@@ -1,7 +1,7 @@
 /**
  * @file 常用外观设置的轻量入口触发器。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-19
+ * 修改时间：2026-11-20
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现，弹层内容按需懒加载。
  * 被调用：components/layout/app-sidebar.tsx。
  * 调用：ui 基础触发器组件、next-themes、主题 Store、按需加载的 ThemeCustomizerPanel。
@@ -62,7 +62,7 @@ const ThemeCustomizer = ({ wide = false }: { wide?: boolean }) => {
 									)}
 									variant="ghost"
 									size={wide ? "lg" : "icon-workspace"}
-									aria-label="自定义主题"
+									aria-label={wide ? undefined : "主题设置"}
 									onPointerEnter={warmUp}
 									onFocus={warmUp}
 								/>
@@ -75,7 +75,7 @@ const ThemeCustomizer = ({ wide = false }: { wide?: boolean }) => {
 						<span className="min-w-0 flex-1 truncate text-left">主题设置</span>
 					)}
 				</TooltipTrigger>
-				<TooltipContent side="right">自定义主题</TooltipContent>
+				<TooltipContent side="right">主题设置</TooltipContent>
 			</Tooltip>
 
 			{(loaded || open) && (

@@ -19,12 +19,16 @@ import {
 	dialog,
 	type IpcMainInvokeEvent,
 	ipcMain,
+	nativeTheme,
 	protocol,
 	session,
+	shell,
 } from "electron";
 import { createConnectionStore } from "./connection-store";
 import { createProtocolHandler } from "./protocol-handler";
 import {
+	isAllowedExternalUrl,
+	isAllowedRendererPermission,
 	isAppUrl,
 	isNavigableAppUrl,
 	networkPartition,
@@ -90,7 +94,7 @@ async function start() {
 	rendererSession.setPermissionRequestHandler(
 		(contents, permission, callback, details) =>
 			callback(
-				permission === "fullscreen" &&
+				isAllowedRendererPermission(permission) &&
 					contents === window?.webContents &&
 					details.isMainFrame &&
 					isAppUrl(details.requestingUrl),
@@ -98,7 +102,7 @@ async function start() {
 	);
 	rendererSession.setPermissionCheckHandler(
 		(contents, permission, origin, details) =>
-			permission === "fullscreen" &&
+			isAllowedRendererPermission(permission) &&
 			contents === window?.webContents &&
 			details.isMainFrame &&
 			isAppUrl(origin) &&
@@ -166,6 +170,7 @@ async function start() {
 			minWidth: 480,
 			minHeight: 560,
 			title: "AIDesk",
+			backgroundColor: nativeTheme.shouldUseDarkColors ? "#171717" : "#ffffff",
 			show: false,
 			webPreferences: {
 				preload: join(applicationRoot, "dist/preload.cjs"),
@@ -190,7 +195,12 @@ async function start() {
 				`[desktop] 页面进程退出：${details.reason} (${details.exitCode})。`,
 			);
 		});
-		window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+		window.webContents.setWindowOpenHandler(({ url }) => {
+			if (isAllowedExternalUrl(url)) {
+				void shell.openExternal(url).catch(() => {});
+			}
+			return { action: "deny" };
+		});
 		window.webContents.on("will-navigate", (event, url) => {
 			if (!isNavigableAppUrl(url)) event.preventDefault();
 		});

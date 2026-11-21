@@ -1,6 +1,6 @@
 /**
  * @file 文书类型菜单的内容和模板入口。
- * 创建时间：2026-10-11；修改时间：2026-11-19。
+ * 创建时间：2026-10-11；修改时间：2026-11-21。
  * 版本作用：为统一菜单框提供文书类型标题、模板操作及类型列表。
  * 被调用：WorkspaceSecondaryMenu；调用：DocumentNavigationProvider、目录摘要预览、共享控件、路由。
  * 功能与预期结果：未固定时选类型收起，固定偏好按用户保留，窄窗回到浮层。
@@ -117,7 +117,7 @@ export function useDocumentTypeMenu(): WorkspaceMenuContent {
 															"w-full justify-start",
 															view !== "templates" &&
 																typeId === type.id &&
-																"bg-sidebar-accent",
+																"bg-sidebar-accent text-sidebar-accent-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
 														)}
 													>
 														<FileTextIcon />

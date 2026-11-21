@@ -1,7 +1,7 @@
 /**
  * @file 主题库与 CSS 往返的回归测试。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-20
+ * 修改时间：2026-11-21
  * 版本作用：当前行为的回归约束，不进入产品构建。
  * 被调用：Bun 测试命令。
  * 调用：bun:test、chroma-js、../src/configs/theme-settings、../src/lib/custom-themes、../src/lib/theme-settings、../src/types/theme、../src/utils/theme/color-converter、../src/utils/theme/css-import、../src/utils/theme/parse-css-input、../src/utils/theme/shadows、../src/utils/theme/theme-style-generator。
@@ -22,7 +22,10 @@ import {
 	encodeThemePreferences,
 } from "../src/lib/theme-settings";
 import type { ThemeDraft } from "../src/types/theme";
-import { colorFormatter } from "../src/utils/theme/color-converter";
+import {
+	colorFormatter,
+	resolveSilkColor,
+} from "../src/utils/theme/color-converter";
 import { importThemeCss } from "../src/utils/theme/css-import";
 import {
 	parseCssInput,
@@ -200,6 +203,8 @@ test("CSS 导出可重新导入颜色、透明度、阴影参数及项目字体/
 			...draft.styles,
 			light: {
 				...draft.styles.light,
+				"primary-hover": "#685dd8",
+				"destructive-solid-foreground": "#ffffff",
 				"shadow-color": "#000000",
 				"shadow-opacity": "0.7",
 				"shadow-blur": "8px",
@@ -225,6 +230,12 @@ test("CSS 导出可重新导入颜色、透明度、阴影参数及项目字体/
 	expect(imported.radius).toBe("lg");
 	expect(imported.styles.light["shadow-blur"]).toBe("8px");
 	expect(imported.styles.light["shadow-opacity"]).toBe("0.7");
+	expect(chroma(imported.styles.light["primary-hover"] ?? "").hex()).toBe(
+		"#685dd8",
+	);
+	expect(
+		chroma(imported.styles.light["destructive-solid-foreground"] ?? "").hex(),
+	).toBe("#ffffff");
 	expect(chroma(imported.styles.dark.border ?? "").alpha()).toBeCloseTo(0.1, 2);
 	expect(output).not.toContain("undefined");
 	expect(output).not.toContain("--spacing:");
@@ -277,4 +288,54 @@ test("线性 CSS 解析器面对超长畸形变量输入不触发正则回溯", 
 	const { lightColors } = parseCssInput(pathological);
 	expect(performance.now() - start).toBeLessThan(200);
 	expect(lightColors.primary).toBeUndefined();
+});
+
+test("忽略注释内的示例变量块并合并多块 :root/.dark，同时支持 rgba/hsla 阴影解析", () => {
+	const cssWithComments = `
+	/* 示例：:root { --primary: #000000; --shadow-xs: 0px 4px 12px 0px hsl(0 0% 0% / 0.9); } */
+	:root { --primary: #2563eb; }
+	:root { --shadow-xs: 0px 2px 6px 0px rgba(10, 20, 30, 0.25); }
+	.dark { --primary: #60a5fa; --shadow-xs: 0px 3px 8px 0px hsla(210, 50%, 40%, 0.4); }
+	`;
+	const imported = importThemeCss(cssWithComments, draft);
+	expect(imported.styles.light.primary).toBe("#2563eb");
+	expect(imported.styles.dark.primary).toBe("#60a5fa");
+	expect(imported.styles.light["shadow-blur"]).toBe("6px");
+	expect(imported.styles.light["shadow-opacity"]).toBe("0.25");
+	expect(imported.styles.light["shadow-color"]).toBe("#0a141e");
+	expect(imported.styles.dark["shadow-blur"]).toBe("8px");
+	expect(imported.styles.dark["shadow-opacity"]).toBe("0.4");
+});
+
+test("deleteCustomTheme 自动保留最近 50 条删除墓碑以控制本地存储增长", () => {
+	const saved = saveCustomTheme(empty, draft, "custom:current");
+	const sample = saved.customThemes[0];
+	if (!sample) throw new Error("缺少主题");
+	const existingDeleted = Array.from({ length: 55 }, (_, i) => ({
+		...sample,
+		id: `custom:old-${i}` as const,
+		label: `旧主题-${i}`,
+		deletedAt: new Date(Date.UTC(2026, 0, 1, 0, i)).toISOString(),
+	}));
+	const removed = deleteCustomTheme(
+		{
+			...saved,
+			customThemes: [...existingDeleted, ...saved.customThemes],
+		},
+		"custom:current",
+	);
+	expect(removed.customThemes).toHaveLength(50);
+	expect(
+		removed.customThemes.some((theme) => theme.id === "custom:current"),
+	).toBe(true);
+	expect(
+		removed.customThemes.some((theme) => theme.id === "custom:old-0"),
+	).toBe(false);
+});
+
+test("resolveSilkColor 对默认中性主色回退品牌蓝并在深色模式下限制过亮眩光", () => {
+	expect(resolveSilkColor("#171717", false)).toBe("#2563eb");
+	expect(resolveSilkColor("#e5e5e5", true)).toBe("#1e3a6e");
+	const brightDarkSilk = resolveSilkColor("#fef08a", true);
+	expect(chroma(brightDarkSilk).oklch()[0]).toBeLessThanOrEqual(0.51);
 });

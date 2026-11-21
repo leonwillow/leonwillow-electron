@@ -1,7 +1,7 @@
 /**
  * @file 已登录工作台的展示容器。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-18
+ * 修改时间：2026-11-21
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：routes/_workspace/route.tsx。
  * 调用：共享 UI、主图标栏、唯一菜单导航 Provider、文书/笔录资源 Provider 及菜单内容。
@@ -30,7 +30,9 @@ export default function WorkspaceLayout({ children }: { children: ReactNode }) {
 	);
 	const { user, moduleIds } = getRouteApi("/_workspace").useRouteContext();
 	const enabledMenus = workspaceMenuIds.filter((id) =>
-		canAccessModule({ role: user.role, moduleIds }, id),
+		id === "admin"
+			? user.role === "admin"
+			: canAccessModule({ role: user.role, moduleIds }, id),
 	);
 	return (
 		<TooltipProvider>

@@ -2,7 +2,7 @@
 // biome-ignore-all lint/a11y/useFocusableInteractive: Keyboard focus remains on the grid via aria-activedescendant.
 /**
  * @file 按单元格隔离显示内容与编辑草稿的 React 渲染。
- * 创建时间：2026-11-07；修改时间：2026-11-17。
+ * 创建时间：2026-11-07；修改时间：2026-11-21。
  * 版本作用：浅比较显示依赖，区分选中与活动起点；选区和编辑框保留原几何。
  * 被调用：GridRow；调用：GridView、共享 Input/Select 和列格式化函数。
  * 预期结果：沿用原 DOM、事件和编辑生命周期，渲染函数变化仍及时生效。
@@ -188,6 +188,7 @@ function GridCellView<T>({
 	columnIndex,
 	width,
 	pinLeft,
+	unpinnedStart,
 	selectionMask,
 	rangeSelection,
 	active,
@@ -208,6 +209,7 @@ function GridCellView<T>({
 	columnIndex: number;
 	width: number;
 	pinLeft?: number;
+	unpinnedStart?: boolean;
 	selectionMask: number;
 	rangeSelection: boolean;
 	active: boolean;
@@ -251,6 +253,7 @@ function GridCellView<T>({
 			}
 			data-row={rowIndex}
 			data-col={column.id}
+			data-unpinned-start={unpinnedStart || undefined}
 			data-align={column.align ?? (column.type === "number" ? "end" : "start")}
 			style={{
 				width,

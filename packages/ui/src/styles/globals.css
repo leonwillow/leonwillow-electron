@@ -1,7 +1,7 @@
 /**
  * @file 全局语义令牌、排版缩放与基础 UI 组件共享样式。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-20
+ * 修改时间：2026-11-21
  * 版本作用：共享 UI 基础层唯一全局样式入口，禁止塞入具体业务模块样式。
  * 被调用：apps/web/src/main.tsx。
  * 调用：tailwindcss、tw-animate-css、shadcn、./tokens.css。
@@ -88,9 +88,9 @@
 	--spacing-control-sm: 1.5rem;
 	--spacing-control-md: 1.75rem;
 	--spacing-control-lg: 2rem;
-	--text-control: var(--text-xs);
-	--text-control--line-height: 1.5;
-	--text-caption: 0.625rem;
+	--text-control: 0.8125rem;
+	--text-control--line-height: 1.45;
+	--text-caption: 0.6875rem;
 	--text-caption--line-height: 1.4;
 	--color-background: var(--background);
 	--color-foreground: var(--foreground);
@@ -129,9 +129,9 @@
 	--color-invert: var(--invert);
 	--color-invert-foreground: var(--invert-foreground);
 	--color-destructive-foreground: var(--destructive-foreground);
+	--color-destructive-solid-foreground: var(--destructive-solid-foreground);
+	--color-warning-solid-foreground: var(--warning-solid-foreground);
 	--color-overlay: var(--overlay);
-	--color-presence-online: var(--presence-online);
-	--color-presence-away: var(--presence-away);
 	--color-accent-foreground: var(--accent-foreground);
 	--color-accent: var(--accent);
 	--color-muted-foreground: var(--muted-foreground);
@@ -139,6 +139,10 @@
 	--color-secondary-foreground: var(--secondary-foreground);
 	--color-secondary: var(--secondary);
 	--color-primary-foreground: var(--primary-foreground);
+	--color-primary-hover: var(
+		--primary-hover,
+		color-mix(in oklab, var(--primary) 88%, transparent)
+	);
 	--color-primary: var(--primary);
 	--color-popover-foreground: var(--popover-foreground);
 	--color-popover: var(--popover);
@@ -160,10 +164,15 @@
 	--shadow-2xl: var(--ui-shadow-2xl);
 }
 
-/* 统一 rem 缩放：覆盖所有字号、间距、图标、控件和圆角，禁止逐个改 --text-*。 */
+/* 统一 rem 缩放与浮层层级：禁止在组件里随意跳过 --z-* 阶梯。 */
 :root {
 	--ui-border-width: 1px;
 	--ui-scale: 0.95;
+	--z-floating: 40;
+	--z-modal: 50;
+	--z-popover: 60;
+	--z-tooltip: 70;
+	--z-toast: 80;
 }
 
 [data-theme-scale="sm"] {

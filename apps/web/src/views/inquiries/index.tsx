@@ -111,7 +111,7 @@ export default function InquiriesView() {
 					}
 					footer={
 						creation.error ? (
-							<p role="alert" className="text-destructive text-sm">
+							<p role="alert" className="text-destructive-foreground text-sm">
 								{creation.error}
 							</p>
 						) : null

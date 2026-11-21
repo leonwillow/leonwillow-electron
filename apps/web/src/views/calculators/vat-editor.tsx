@@ -1,13 +1,15 @@
 /**
  * @file 增值税方案的汇总、筛选、录入与导出工作区。
- * 创建时间：2026-11-05；修改时间：2026-11-18。
+ * 创建时间：2026-11-05；修改时间：2026-11-21。
  * 版本作用：表格填满统计卡下方的剩余空间，全部所属期通过虚拟滚动展示；memo 化表格与插槽，隔离顶栏方案名输入重绘。
  * 被调用：CalculatorsView；调用：共享算法、方案保存 Hook、导入弹窗、Lattice Grid 业务适配。
  * 预期结果：四项增减分别保存，清空调整需确认，修改方案名不触发重型虚拟表格重绘。
  */
 
 import {
+	adjustmentFields,
 	calculate,
+	cents,
 	changed,
 	insertVatRows,
 	money,
@@ -191,7 +193,9 @@ export default function VatEditor({
 		);
 	}, []);
 
-	const hasAdjustments = Object.keys(draft.adjustments).length > 0;
+	const hasAdjustments = Object.values(draft.adjustments).some((entry) =>
+		adjustmentFields.some((key) => entry[key] !== ""),
+	);
 	const toolbarSlots = useMemo(
 		() => ({
 			filters: (
@@ -334,11 +338,20 @@ export default function VatEditor({
 		[draft.history.length, readOnly, appendRow],
 	);
 
+	const displayOpening = useMemo(() => {
+		const first = result.rows
+			.filter((row) => row.periodStart && row.periodEnd && row.h)
+			.toSorted((a, b) => a.periodStart.localeCompare(b.periodStart))[0];
+		if (!first?.h) return null;
+		if (cents(first.h.tax) > 0 && cents(first.h.end) > 0) return null;
+		return result.opening;
+	}, [result.rows, result.opening]);
+
 	const helpNotes = useMemo(
 		() => (
-			<VatCalculationNotes opening={result.opening} source={draft.source} />
+			<VatCalculationNotes opening={displayOpening} source={draft.source} />
 		),
-		[result.opening, draft.source],
+		[displayOpening, draft.source],
 	);
 
 	return (
@@ -363,8 +376,8 @@ export default function VatEditor({
 				className="min-h-0 flex-1"
 				contentClassName="flex w-full min-w-0! flex-col p-workspace-gutter"
 			>
-				<div className="flex min-w-0 flex-1 flex-col gap-4">
-					<div className="grid shrink-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+				<div className="flex min-w-0 flex-1 flex-col gap-workspace-gutter">
+					<div className="grid shrink-0 grid-cols-1 gap-workspace-gutter sm:grid-cols-2 xl:grid-cols-4">
 						{[
 							[
 								"原应纳税额合计",
@@ -435,7 +448,7 @@ export default function VatEditor({
 					open={clearing}
 					title="清空全部调整？"
 					confirmLabel="确认清空"
-					confirmVariant="warning"
+					confirmVariant="warning-solid"
 					showCloseButton
 					disabled={editor.saving || readOnly}
 					onClose={() => setClearing(false)}
@@ -456,7 +469,7 @@ export default function VatEditor({
 					cancelLabel="继续编辑"
 					cancelVariant="default"
 					confirmLabel="放弃未保存内容并离开"
-					confirmVariant="warning"
+					confirmVariant="warning-solid"
 					showCloseButton
 					extraActions={
 						<Button variant="outline" onClick={exportBackup}>

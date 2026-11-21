@@ -1,6 +1,6 @@
 # 自定义主题迁移
 
-维护日期：2026-11-19。新增主题功能前的检查点为 `0813a43`；当前采用 Zustand 状态与浮动编辑面板。
+维护日期：2026-11-21。新增主题功能前的检查点为 `0813a43`；当前采用 Zustand 状态与浮动编辑面板。
 
 ## 来源
 
@@ -26,6 +26,7 @@
 
 ## 行为与边界
 
+- 2026-11-21（Vuexy / Claude 官方色板对齐与 Hover / 实心前景色机制优化）：对照 Pixinvent Vuexy 与 Anthropic Claude.ai 官方明暗色板重新校准两套内置预设——Vuexy 浅色恢复 `#F8F7FA` 画布 / `#FFFFFF` 卡片与侧栏 / `#7367F0` 主色 / `#685DD8` 悬停加深 / 四大标志性语义色（`#FF4C51`、`#00BAD1`、`#28C76F`、`#FF9F43`），深色恢复 `#25293C` 画布 / `#2F3349` 纸面与侧栏 / `#7367F0` 白字主按钮与 `#E1DEF5` 前景；Claude 浅色恢复 `#FAF9F5` 羊皮纸 / `#F5F4ED` 侧栏 / `#FFFFFF` 抬升面 / `#C96442` 赤陶主色（悬停 `#B55333`）/ 暖石纸中性 `accent` 与人文大地语义色（`#B53333` 砖红替代偏粉玫红），深色恢复 `#1F1E1D` 深侧栏 < `#262624` 暖炭正文 < `#30302E` 抬升卡片层级与 `#D97757` 白字赤陶主色（悬停 `#C96442`）。同步扩展 `OPTIONAL_COLOR_KEYS`（`primary-hover`、`destructive-solid-foreground`，保持旧快照与 CSS 导入/导出向后兼容，并在编辑器修改 `primary`/`destructive` 时自动清理旧派生色）；共享按钮主悬停接入 `primary-hover`、深色 ghost 移除半透明衰减、outline 改用 `hover:bg-muted`；下拉菜单/右键菜单/Select/Tree/TimePicker/二级目录统一将普通悬停（`muted`）与选中态（`accent` / `sidebar-accent` + 配对前景）分层；内联错误文案统一使用 `text-destructive-foreground`；主导航深色悬停/选中图标混入前景提亮以兼顾暗紫与暖炭可读性。回归测试分层校准为：正文 ≥ 7:1、辅助/强调/浅底语义文字 ≥ 4.5:1、品牌实心按钮与图表 ≥ 3:1，并以感知色差 ΔE ≥ 10 替代机械 25° 色相差限制。
 - 2026-11-19（ColorSwatch 迁至 ReUI ColorPicker）：移除 `theme-color-panel.tsx` 中来自 shadcn studio 的原生 `<input type="color">` 与 `DebouncedInput`，改用共享 ReUI `ColorPicker` + `InputGroup`（支持色域拖动、取色器、透明度与按原格式回写 OKLCH/HEX，同时保留实时文本校验与 `FieldError`）。主题编辑器颜色面板、阴影颜色、资金画布背景与节点标记颜色同步统一样式与交互。
 - 2026-11-19（宽菜单与线条设置精简）：菜单外观扩展为四项 2×2 网格单选（`RadioGroup variant="grid"`：`贴边 / 宽菜单`、`悬浮 / 悬浮时尚`），`Settings.sidebarMode` 新增 `"wide"` 并沿用 v2 快照往返、刷新恢复与跨窗口同步。主题设置弹层改用 `side="right"` + `sideOffset={14}` 避开侧栏边线；移除线条粗细与线条颜色下的冗余辅助描述文案，将「默认」重置按钮收拢至线条颜色标签右侧同行显示。
 - 2026-11-19（内置预设重制与状态语义色联动）：移除原模板中对比度异常或色相突兀的全部旧预设，仅保留系统「默认」并重新设计 14 套明亮、现代、层次分明的工作台内置主题（加上「默认」共 15 项）：**Claude**（暖纸 × 赤陶，重构官方羊皮纸与暖炭黑深色并修复原版危险色/暗色边框异常）、**Vuexy**（经典紫罗兰 × 深靛蓝夜色与标志性四色语义）、**晴空蓝白**（`azure-white`）、**碧海晴天**（`sky-cerulean`）、**极光靛蓝**（`indigo-prism`）、**澄澈青岚**（`aqua-breeze`）、**翡翠青柠**（`mint-spring`）、**银灰极简**（`apple-slate`）、**珊瑚暖阳**（`coral-glow`）、**暖阳蜂蜜**（`honey-amber`）、**绯樱玫瑰**（`rose-petal`）、**曜石流金**（`champagne-noir`）、**深海蔚蓝**（`ocean-deep`）和 **清新森系**（`sage-studio`）。同步在 `STATUS_COLOR_KEYS`（`info`/`info-foreground`、`success`/`success-foreground`、`warning`/`warning-foreground`）扩展可选状态语义色，使各预设在按钮、徽章、表单、侧栏激活态、计算器预警与深浅色卡片上形成整体协调；主题编辑器新增「状态语义」折叠分组并支持 CSS 导出/导入往返，旧自定义主题快照保持完全兼容。同步修正 `ThemePresetSelect` 中「默认」的预览色点使其与共享 `tokens.css` 真实主色一致，并补充所有内置预设的正文/按钮/语义状态微底色对比度及 sRGB 色域回归测试。
@@ -74,6 +75,8 @@
 快照格式仍为 version 2，旧 lg 到 xl 的迁移、损坏数据回退与主题 ID 校验由同一编解码入口处理。草稿归面板管理，保存通过 Store 提交；存储失败保留草稿。后续可以提取局部编辑会话，但这不属于本次工程修正。
 
 ## 验证
+
+2026-11-21（Vuexy / Claude 官方色板对齐与 Hover / 实心前景色优化）：`bun run lint`、`bun run check-types`（14/14）、`bun run test:ui`（17 + 132 项，新增 `primary-hover`/`destructive-solid-foreground` 应用、清理、CSS 往返及分级对比度/ΔE 回归）、`bun run test:architecture`、`bun run test:lattice-grid`、`bun run test:calculators`、`bun run test:server`、`bun run test:desktop`、`bun run test:deploy` 与全量 `bun run build`（7/7）全部通过；浏览器实测 `/admin/users` 在 Vuexy 浅/深、Claude 浅/深四种组合下的页面画布、卡片、侧栏层级、主按钮悬停加深（`--primary-hover`）、ghost/outline 悬停反馈、语义状态徽章、主导航深色提亮图标、Preset Select 选中态（`data-[selected]` -> `accent`）与普通悬停态（`muted`）分层、`390×844` 窄窗无横向溢出及刷新持久化均正常，验证后恢复用户原有主题偏好。
 
 2026-11-19（14 套内置预设重制与状态语义色）：`bun run lint`、`bun run check-types`、`bun run test:ui`（新增所有内置预设正文/按钮/四类状态语义色微底色对比度、sRGB 色域及下线旧预设回退测试）与全量 `bun run build` 通过；浏览器在 `/admin/users` 验证 15 项预设清单（`默认` + 14 套新主题），核对 `Claude`、`Vuexy`、`晴空蓝白`、`翡翠青柠`、`珊瑚暖阳` 浅深色变量与按钮/徽章/卡片对比，确认主题编辑器「状态语义」分组展开展示信息/成功/警告六项语义色。
 

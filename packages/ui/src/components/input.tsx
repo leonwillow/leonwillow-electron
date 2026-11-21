@@ -1,7 +1,7 @@
 /**
  * @file 共享尺寸的文本输入的基础组件。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-05
+ * 修改时间：2026-11-20
  * 版本作用：共享表单输入与继承单元格排版的无内框编辑变体。
  * 被调用：components、components/theme-editor、views/register、views/login。
  * 调用：@base-ui/react、ui/lib/utils、react。
@@ -41,7 +41,7 @@ function Input({
 				variant === "cell"
 					? "cell-control disabled:cursor-not-allowed disabled:opacity-50"
 					: [
-							"w-full min-w-0 rounded-md border border-input bg-input/20 px-2 py-0.5 text-control/relaxed outline-none transition-colors file:inline-flex file:h-control-sm file:border-0 file:bg-transparent file:font-medium file:text-control/relaxed file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/20 dark:bg-input/30 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40",
+							"w-full min-w-0 rounded-md border border-input bg-input/20 px-2 py-0.5 text-control/relaxed outline-none transition-colors file:inline-flex file:h-control-sm file:border-0 file:bg-transparent file:font-medium file:text-control/relaxed file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/20 dark:bg-input/30 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40",
 							inputSizes[size],
 						],
 				className,

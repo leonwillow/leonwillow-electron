@@ -15,6 +15,7 @@ import {
 	getPreset,
 	hasCustomShadow,
 	isCustomThemeId,
+	isStyleValue,
 } from "@/lib/custom-themes";
 import type {
 	ThemeDraft,
@@ -22,6 +23,8 @@ import type {
 	ThemeStyleProps,
 } from "@/types/theme";
 import { getShadowMap } from "@/utils/theme/shadows";
+
+const EDITABLE_STYLE_KEY_SET = new Set<string>(EDITABLE_STYLE_KEYS);
 
 /**
  * 先清除上一次的变量，再应用当前主题，避免不同预设的阴影和颜色互相残留。
@@ -43,8 +46,9 @@ export function applyTheme(
 	const styles: Partial<ThemeStyleProps> | undefined = draft?.styles[mode];
 	if (styles) {
 		for (const [key, value] of Object.entries(styles)) {
-			if (value !== undefined && key !== "radius" && key !== "spacing")
-				root.style.setProperty(`--${key}`, value);
+			if (EDITABLE_STYLE_KEY_SET.has(key) && isStyleValue(key, value)) {
+				root.style.setProperty(`--${key}`, value.trim());
+			}
 		}
 		// 自定义主题使用可编辑的阴影参数；写入 --ui-shadow-* 同步驱动 Tailwind 浮层与手写样式。
 		if (

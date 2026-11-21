@@ -1,9 +1,9 @@
 /**
  * @file 工作台唯一二级菜单框的悬停、固定及焦点控制器。
- * 创建时间：2026-10-13；修改时间：2026-11-19。
+ * 创建时间：2026-10-13；修改时间：2026-11-21。
  * 版本作用：只由工作台 Provider 创建一次，模块切换只替换 activeMenu。
  * 被调用：WorkspaceNavigationProvider；调用：共享状态转换、React、路由及浏览器事件。
- * 功能与预期结果：共享固定和展开状态；固定时忽略导航预览，点击切换，窄窗仍可临时收起。
+ * 功能与预期结果：共享固定和展开状态；固定时忽略导航预览，点击切换，宽菜单与窄窗下自动切换浮层避免双重挤压正文。
  */
 import { createHoverCardHandle } from "@leonwillow-electron/ui/components/hover-card";
 import { useLocation } from "@tanstack/react-router";
@@ -17,6 +17,7 @@ import {
 	workspaceMenuStorageKey,
 	writeWorkspaceMenuPinned,
 } from "@/lib/workspace-menu-state";
+import { useThemeStore } from "@/stores/theme-store";
 import { useWorkspaceMenuWidth } from "./use-workspace-menu-width";
 
 /** Provider 按用户隔离生命周期；卸载时清理窗口监听和待执行焦点操作。 */
@@ -28,6 +29,11 @@ export function useWorkspaceMenu({
 	enabledMenus: readonly WorkspaceMenuId[];
 }) {
 	const menuWidth = useWorkspaceMenuWidth(userId);
+	const sidebarMode = useThemeStore(
+		(store) => store.preferences.settings.sidebarMode,
+	);
+	const dockBreakpoint =
+		sidebarMode === "wide" ? "(min-width: 64rem)" : "(min-width: 48rem)";
 	const pathname = useLocation({ select: (location) => location.pathname });
 	const pathMenu = workspaceMenuForPath(pathname);
 	const routeMenu =
@@ -42,17 +48,19 @@ export function useWorkspaceMenu({
 			),
 	);
 	const [wide, setWide] = useState(
-		() => window.matchMedia("(min-width: 48rem)").matches,
+		() => window.matchMedia(dockBreakpoint).matches,
 	);
 	const fundsTrigger = useRef<HTMLButtonElement>(null);
 	const documentsTrigger = useRef<HTMLButtonElement>(null);
 	const inquiriesTrigger = useRef<HTMLButtonElement>(null);
 	const calculatorsTrigger = useRef<HTMLButtonElement>(null);
+	const adminTrigger = useRef<HTMLButtonElement>(null);
 	const triggerRefs = {
 		funds: fundsTrigger,
 		documents: documentsTrigger,
 		inquiries: inquiriesTrigger,
 		calculators: calculatorsTrigger,
+		admin: adminTrigger,
 	};
 	const navigationRef = useRef<HTMLElement>(null);
 	const panelRef = useRef<HTMLElement>(null);
@@ -87,7 +95,9 @@ export function useWorkspaceMenu({
 		if (focusFrame.current !== null) cancelAnimationFrame(focusFrame.current);
 		focusFrame.current = requestAnimationFrame(() => {
 			focusFrame.current = null;
-			panelRef.current?.querySelector("input")?.focus();
+			panelRef.current
+				?.querySelector<HTMLElement>("input, [data-menu-row] button")
+				?.focus();
 		});
 	};
 	const togglePinned = () => {
@@ -112,11 +122,12 @@ export function useWorkspaceMenu({
 		return () => window.removeEventListener("storage", sync);
 	}, [userId]);
 	useEffect(() => {
-		const media = window.matchMedia("(min-width: 48rem)");
+		const media = window.matchMedia(dockBreakpoint);
+		setWide(media.matches);
 		const resize = () => setWide(media.matches);
 		media.addEventListener("change", resize);
 		return () => media.removeEventListener("change", resize);
-	}, []);
+	}, [dockBreakpoint]);
 	useEffect(
 		() => () => {
 			if (focusFrame.current !== null) cancelAnimationFrame(focusFrame.current);

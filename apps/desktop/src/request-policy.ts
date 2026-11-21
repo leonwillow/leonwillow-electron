@@ -35,6 +35,37 @@ export function isNavigableAppUrl(value: string) {
 	return pathname !== "/api" && !pathname.startsWith("/api/");
 }
 
+const ALLOWED_RENDERER_PERMISSIONS = new Set([
+	"fullscreen",
+	"clipboard-sanitized-write",
+]);
+
+const ALLOWED_EXTERNAL_HOSTS = new Set([
+	"www.samr.gov.cn",
+	"www.chinatax.gov.cn",
+]);
+
+/** 仅向可信主应用页面开放必要的全屏与剪贴板写入权限。 */
+export function isAllowedRendererPermission(permission: string) {
+	return ALLOWED_RENDERER_PERMISSIONS.has(permission);
+}
+
+/** 仅允许通过系统浏览器打开明确列入白名单的 HTTPS 法规依据外链。 */
+export function isAllowedExternalUrl(value: string) {
+	try {
+		const url = new URL(value);
+		return (
+			url.protocol === "https:" &&
+			!url.username &&
+			!url.password &&
+			!url.port &&
+			ALLOWED_EXTERNAL_HOSTS.has(url.hostname)
+		);
+	} catch {
+		return false;
+	}
+}
+
 /** 返回资源根目录内的路径；编码斜线、NUL 和越界路径均拒绝。 */
 export function rendererFile(root: string, pathname: string) {
 	if (/%(?:2f|5c|00)/i.test(pathname)) return null;

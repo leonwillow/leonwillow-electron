@@ -153,7 +153,10 @@ export default function SubjectPanel({
 				</p>
 			)}
 			{(error || resource.error) && (
-				<div role="alert" className="space-y-2 text-destructive text-sm">
+				<div
+					role="alert"
+					className="space-y-2 text-destructive-foreground text-sm"
+				>
 					<p>{error || resource.error}</p>
 					<Button variant="outline" onClick={() => void resource.reload()}>
 						刷新归属资料

@@ -1,7 +1,7 @@
 /**
  * @file 可拖动并受视口约束的 Dialog 内容。
  * 创建时间：未记录（现有文件尚无 Git 创建记录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-11-20
  * 版本作用：共享 UI 基础层，随工作区维护。
  * 被调用：components/theme-editor/theme-editor.tsx。
  * 调用：ui 基础组件/样式、ui/lib/utils、react、react-draggable。
@@ -158,7 +158,7 @@ export function FloatingDialogContent({
 				showOverlay={false}
 				data-slot="floating-dialog-content"
 				className={cn(
-					"top-0 left-0 flex h-[min(48rem,calc(100dvh-2rem))] w-[min(28rem,calc(100vw-2rem))] max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden p-0 shadow-lg transition-none will-change-transform data-closed:animate-none data-open:animate-none sm:max-w-none",
+					"top-0 left-0 z-(--z-floating) flex h-[min(48rem,calc(100dvh-2rem))] w-[min(28rem,calc(100vw-2rem))] max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden p-0 shadow-lg transition-none will-change-transform data-closed:animate-none data-open:animate-none sm:max-w-none",
 					className,
 				)}
 				onKeyDown={(event) => {

@@ -4,9 +4,9 @@
  * 修改时间：2026-11-20
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/auth/auth-shell.tsx。
- * 调用：ui 基础组件/样式、assets/svg/logo-vector、hooks/use-theme-color。
- * 功能：组合品牌文案、核心能力摘要卡片与随主题变色的丝绸背景。
- * 预期结果：浅深色与任意圆角下均保持高对比度与一致几何，窄屏隐藏装饰区域。
+ * 调用：ui 基础组件/样式、assets/svg/logo-vector、hooks/use-theme-color、next-themes、utils/theme/color-converter。
+ * 功能：组合品牌文案、核心能力摘要卡片与经明暗和中性色校准的丝绸背景。
+ * 预期结果：浅深色与任意圆角下均保持高对比度与沉稳色调，窄屏隐藏装饰区域。
  */
 import Silk from "@leonwillow-electron/ui/components/bg-silk";
 import {
@@ -15,8 +15,10 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@leonwillow-electron/ui/components/card";
+import { useTheme } from "next-themes";
 import LogoVector from "@/assets/svg/logo-vector";
 import { useThemeColorHex } from "@/hooks/use-theme-color";
+import { resolveSilkColor } from "@/utils/theme/color-converter";
 
 export type AuthShowcaseContent = {
 	title: string;
@@ -34,6 +36,11 @@ export default function AuthShowcase({
 	panelDescription,
 }: AuthShowcaseContent) {
 	const primary = useThemeColorHex("--primary", "#007595");
+	const { forcedTheme, resolvedTheme } = useTheme();
+	const silkColor = resolveSilkColor(
+		primary,
+		(forcedTheme ?? resolvedTheme) === "dark",
+	);
 
 	return (
 		<div className="h-dvh bg-primary/15 p-5 max-lg:hidden">
@@ -42,7 +49,7 @@ export default function AuthShowcase({
 					<Silk
 						speed={10}
 						scale={1}
-						color={primary}
+						color={silkColor}
 						noiseIntensity={0}
 						rotation={8}
 					/>

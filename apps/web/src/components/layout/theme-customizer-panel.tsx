@@ -1,11 +1,11 @@
 /**
  * @file 常用外观设置弹层的按需加载面板内容。
  * 创建时间：2026-11-18
- * 修改时间：2026-11-19
+ * 修改时间：2026-11-20
  * 版本作用：将重型色盘、字体选择器与预设列表从工作台首屏拆出，打开或预热时再加载。
  * 被调用：components/layout/theme-customizer.tsx。
- * 调用：ui 基础组件、next-themes、ThemeLineSettings、ThemePresetSelect、主题过渡、主题 Store 与字体配置。
- * 功能：组合预设、字体、明暗、圆角、线条、缩放、菜单外观及重置控件。
+ * 调用：ui 基础组件、next-themes、sonner、ThemeLineSettings、ThemePresetSelect、主题过渡、主题 Store 与字体配置。
+ * 功能：组合预设、精选字体、明暗、圆角、线条、缩放、菜单外观及带撤销提示的重置控件。
  * 预期结果：保持原面板全部无障碍语义、明暗渐变过渡、即时预览持久化与编辑器跳转行为。
  */
 import { Button } from "@leonwillow-electron/ui/components/button";
@@ -36,9 +36,15 @@ import {
 	SettingsIcon,
 } from "lucide-react";
 import { useTheme } from "next-themes";
+import { toast } from "sonner";
 import { ThemeLineSettings } from "@/components/layout/theme-line-settings";
 import ThemePresetSelect from "@/components/theme-editor/theme-preset-select";
-import { FONT_CONFIG, FONT_GROUPS, type FontKey } from "@/configs/fonts";
+import {
+	CURATED_FONTS,
+	FONT_CONFIG,
+	FONT_GROUPS,
+	type FontKey,
+} from "@/configs/fonts";
 import { initialSettings } from "@/configs/theme-settings";
 import { resolveThemeMode, runThemeTransition } from "@/lib/theme-transition";
 import { useThemeStore } from "@/stores/theme-store";
@@ -85,6 +91,9 @@ export default function ThemeCustomizerPanel({
 	const settings = useThemeStore((state) => state.preferences.settings);
 	const updateSettings = useThemeStore((state) => state.updateSettings);
 	const { forcedTheme, setTheme, systemTheme } = useTheme();
+	const visibleFonts: FontKey[] = CURATED_FONTS.includes(settings.font)
+		? [...CURATED_FONTS]
+		: [settings.font, ...CURATED_FONTS];
 
 	const hasChanges = (
 		Object.keys(initialSettings) as (keyof typeof initialSettings)[]
@@ -103,19 +112,45 @@ export default function ThemeCustomizerPanel({
 	};
 
 	const resetTheme = () => {
+		const previousSettings = { ...settings };
 		const commit = () => {
 			updateSettings(initialSettings);
 			setTheme(initialSettings.mode);
 		};
 		if (forcedTheme) {
 			commit();
-			return;
+		} else {
+			runThemeTransition(
+				mode,
+				resolveThemeMode(initialSettings.mode, systemTheme),
+				commit,
+			);
 		}
-		runThemeTransition(
-			mode,
-			resolveThemeMode(initialSettings.mode, systemTheme),
-			commit,
-		);
+		toast.success("已恢复默认主题设置", {
+			action: {
+				label: "撤销",
+				onClick: () => {
+					const restore = () => {
+						updateSettings(previousSettings);
+						setTheme(previousSettings.mode);
+					};
+					if (forcedTheme) {
+						restore();
+						return;
+					}
+					const currentResolved = document.documentElement.classList.contains(
+						"dark",
+					)
+						? "dark"
+						: "light";
+					runThemeTransition(
+						currentResolved,
+						resolveThemeMode(previousSettings.mode, systemTheme),
+						restore,
+					);
+				},
+			},
+		});
 	};
 
 	return (
@@ -165,20 +200,31 @@ export default function ThemeCustomizerPanel({
 							</TooltipContent>
 						</Tooltip>
 
-						<Button
-							size="icon-sm"
-							variant="ghost"
-							aria-label="重置主题"
-							className="relative"
-							onClick={resetTheme}
-						>
-							<RefreshCcwIcon />
-							{hasChanges && (
-								<span className="absolute top-1.5 right-1.5 size-1 rounded-full bg-destructive ring-2 ring-popover">
-									<span className="sr-only">主题设置已修改</span>
-								</span>
-							)}
-						</Button>
+						<Tooltip>
+							<TooltipTrigger
+								render={
+									<Button
+										size="icon-sm"
+										variant="ghost"
+										aria-label="重置主题"
+										className="relative"
+										disabled={!hasChanges}
+										focusableWhenDisabled
+										onClick={resetTheme}
+									/>
+								}
+							>
+								<RefreshCcwIcon />
+								{hasChanges && (
+									<span className="absolute top-1.5 right-1.5 size-1 rounded-full bg-destructive ring-2 ring-popover">
+										<span className="sr-only">主题设置已修改</span>
+									</span>
+								)}
+							</TooltipTrigger>
+							<TooltipContent>
+								{hasChanges ? "重置为默认外观" : "当前已是默认外观"}
+							</TooltipContent>
+						</Tooltip>
 					</div>
 				</div>
 			</div>
@@ -194,7 +240,12 @@ export default function ThemeCustomizerPanel({
 			</div>
 
 			<div className="flex flex-col gap-1 px-3">
-				<Label htmlFor="font">字体</Label>
+				<div className="flex items-center justify-between gap-2">
+					<Label htmlFor="font">字体</Label>
+					<span className="text-caption text-muted-foreground">
+						主要影响英文与数字
+					</span>
+				</div>
 				<Select
 					id="font"
 					items={FONT_ITEMS}
@@ -213,12 +264,9 @@ export default function ThemeCustomizerPanel({
 					</SelectTrigger>
 					<SelectContent>
 						{FONT_GROUPS.map(({ key: groupKey, label: groupLabel }) => {
-							const fonts = (
-								Object.entries(FONT_CONFIG) as [
-									FontKey,
-									(typeof FONT_CONFIG)[FontKey],
-								][]
-							).filter(([, config]) => config.group === groupKey);
+							const fonts = visibleFonts
+								.map((key) => [key, FONT_CONFIG[key]] as const)
+								.filter(([, config]) => config.group === groupKey);
 
 							if (fonts.length === 0) return null;
 
@@ -244,10 +292,14 @@ export default function ThemeCustomizerPanel({
 			</div>
 
 			<div className="flex flex-col gap-1 px-3">
-				<Label htmlFor="color-mode">颜色模式</Label>
+				<span
+					id="color-mode-label"
+					className="font-medium text-xs leading-none"
+				>
+					颜色模式
+				</span>
 				<RadioGroup
-					id="color-mode"
-					aria-label="颜色模式"
+					aria-labelledby="color-mode-label"
 					variant="segmented"
 					size="default"
 					className="grid-cols-3"
@@ -268,10 +320,11 @@ export default function ThemeCustomizerPanel({
 			</div>
 
 			<div className="flex flex-col gap-1 px-3">
-				<Label htmlFor="radius">圆角</Label>
+				<span id="radius-label" className="font-medium text-xs leading-none">
+					圆角
+				</span>
 				<RadioGroup
-					id="radius"
-					aria-label="圆角"
+					aria-labelledby="radius-label"
 					variant="segmented"
 					size="default"
 					className="grid-cols-4"
@@ -300,10 +353,11 @@ export default function ThemeCustomizerPanel({
 			<ThemeLineSettings key={mode} mode={mode} />
 
 			<div className="flex flex-col gap-1 px-3">
-				<Label htmlFor="scale">界面缩放</Label>
+				<span id="scale-label" className="font-medium text-xs leading-none">
+					界面缩放
+				</span>
 				<RadioGroup
-					id="scale"
-					aria-label="界面缩放"
+					aria-labelledby="scale-label"
 					variant="segmented"
 					size="default"
 					className="grid-cols-4"
@@ -324,10 +378,14 @@ export default function ThemeCustomizerPanel({
 			</div>
 
 			<div className="flex flex-col gap-1 px-3">
-				<Label htmlFor="sidebar-mode">菜单外观</Label>
+				<span
+					id="sidebar-mode-label"
+					className="font-medium text-xs leading-none"
+				>
+					菜单外观
+				</span>
 				<RadioGroup
-					id="sidebar-mode"
-					aria-label="菜单外观"
+					aria-labelledby="sidebar-mode-label"
 					variant="grid"
 					size="default"
 					className="grid-cols-2"

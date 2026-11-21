@@ -8,6 +8,7 @@
  * 功能：识别简单 :root/.dark 块并解析颜色与阴影参数。
  * 预期结果：返回部分变量供导入层校验；不会执行 CSS。
  */
+import chroma from "chroma-js";
 import { EDITABLE_STYLE_KEYS } from "@/configs/theme-variables";
 import type { ThemeStyleProps } from "@/types/theme";
 
@@ -51,17 +52,8 @@ export const parseCssInput = (input: string) => {
 	return { lightColors, darkColors };
 };
 
-const extractCssBlockContent = (
-	input: string,
-	selector: string,
-): string | null => {
-	const regex = new RegExp(`${escapeRegExp(selector)}\\s*{([^}]+)}`);
-
-	return input.match(regex)?.[1]?.trim() || null;
-};
-
 /** 线性扫描去除 CSS 块注释，避免正则回溯。 */
-const stripCssComments = (input: string) => {
+export const stripCssComments = (input: string) => {
 	let result = "";
 	let index = 0;
 	while (index < input.length) {
@@ -76,6 +68,21 @@ const stripCssComments = (input: string) => {
 		index = end + 2;
 	}
 	return result;
+};
+
+/** 剥离注释后提取全部同名 `:root` 或 `.dark` 声明块内容。 */
+export const extractCssBlockContent = (
+	input: string,
+	selector: string,
+): string | null => {
+	const cleaned = stripCssComments(input);
+	const regex = new RegExp(`${escapeRegExp(selector)}\\s*\\{([^}]+)\\}`, "g");
+	const blocks: string[] = [];
+	for (const match of cleaned.matchAll(regex)) {
+		const body = match[1]?.trim();
+		if (body) blocks.push(body);
+	}
+	return blocks.length > 0 ? blocks.join(";\n") : null;
 };
 
 /** 线性拆分分号声明并提取 --name: value，避免全局回溯型正则。 */
@@ -168,6 +175,27 @@ const DIRECT_SHADOW_KEYS = new Set([
 	"shadow-offset-y",
 ]);
 
+const hasTopLevelComma = (value: string) => {
+	let depth = 0;
+	for (const ch of value) {
+		if (ch === "(") depth += 1;
+		else if (ch === ")" && depth > 0) depth -= 1;
+		else if (ch === "," && depth === 0) return true;
+	}
+	return false;
+};
+
+const firstShadowLayer = (value: string) => {
+	let depth = 0;
+	for (let i = 0; i < value.length; i += 1) {
+		const ch = value[i];
+		if (ch === "(") depth += 1;
+		else if (ch === ")" && depth > 0) depth -= 1;
+		else if (ch === "," && depth === 0) return value.slice(0, i).trim();
+	}
+	return value.trim();
+};
+
 const extractBasicShadowProperties = (
 	cssContent: string,
 	target: Partial<ThemeStyleProps>,
@@ -196,7 +224,7 @@ const extractBasicShadowProperties = (
 		.filter(([name]) => /^shadow(?:-[a-z0-9]+)?$/.test(name))
 		.map(([name, value]) => ({
 			value,
-			hasComma: value.includes(","),
+			hasComma: hasTopLevelComma(value),
 			name,
 		}));
 
@@ -222,7 +250,7 @@ const extractBasicShadowProperties = (
 
 	if (!bestShadow) return;
 
-	const parts = (bestShadow.value.split(",")[0] ?? "").trim().split(/\s+/);
+	const parts = firstShadowLayer(bestShadow.value).split(/\s+/);
 
 	if (parts.length >= 5) {
 		target["shadow-offset-x"] = parts[0];
@@ -232,12 +260,12 @@ const extractBasicShadowProperties = (
 
 		const colorPart = parts.slice(4).join(" ");
 
-		const colorRegex = /(?:hsl|rgb|oklch)\(([^/]+)(?:\/\s*([^)]+))?\)/;
+		const colorRegex = /^(?:hsl|rgb|oklch)\(([^/]+)(?:\/\s*([^)]+))?\)$/i;
 		const colorMatch = colorPart.match(colorRegex);
 
 		if (colorMatch) {
 			const [, colorValues, opacity] = colorMatch;
-			const colorType = colorPart.substring(0, 3);
+			const colorType = colorPart.substring(0, 3).toLowerCase();
 
 			target["shadow-color"] =
 				`${colorType}${colorType === "okl" ? "ch" : ""}(${colorValues})`;
@@ -245,6 +273,10 @@ const extractBasicShadowProperties = (
 			if (opacity) {
 				target["shadow-opacity"] = formatOpacity(opacity);
 			}
+		} else if (chroma.valid(colorPart)) {
+			const parsed = chroma(colorPart);
+			target["shadow-color"] = parsed.alpha(1).hex();
+			target["shadow-opacity"] = String(Number(parsed.alpha().toFixed(4)));
 		}
 	}
 };

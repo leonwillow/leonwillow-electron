@@ -1,6 +1,6 @@
 /**
  * @file 工作台二级菜单统一状态与旧偏好迁移的回归测试。
- * 创建时间：2026-11-04；修改时间：2026-11-05。
+ * 创建时间：2026-11-04；修改时间：2026-11-21。
  * 版本作用：覆盖固定后跨模块切换、统一取消固定、恢复和存储失败，不镜像界面结构。
  * 被调用：Bun test、test:ui；调用：workspace-menu-state。
  * 预期结果：任意内容切换都使用同一固定状态，用户及历史偏好不会互相覆盖。
@@ -70,16 +70,16 @@ test("显式点击导航后路由变化保持打开，关闭后同路由更新�
 	).toBe(false);
 });
 
-test("资金固定后切换文书和笔录保持固定，在任一模块取消后所有模块共用未固定状态", () => {
+test("资金固定后切换文书、笔录和管理中心保持固定，在任一模块取消后所有模块共用未固定状态", () => {
 	let state = workspaceMenuReducer(initial, { type: "pin", pinned: true });
-	for (const menuId of ["documents", "inquiries", "funds"] as const) {
+	for (const menuId of ["documents", "inquiries", "admin", "funds"] as const) {
 		state = workspaceMenuReducer(state, { type: "show", menuId });
 		state = workspaceMenuReducer(state, { type: "route", menuId });
 		expect(state.activeMenu).toBe(menuId);
 		expect(state.pinned).toBe(true);
 	}
 	state = workspaceMenuReducer(state, { type: "pin", pinned: false });
-	for (const menuId of ["inquiries", "documents", "funds"] as const) {
+	for (const menuId of ["admin", "inquiries", "documents", "funds"] as const) {
 		state = workspaceMenuReducer(state, { type: "route", menuId });
 		expect(state.pinned).toBe(false);
 	}
@@ -191,6 +191,10 @@ test("内部页面识别为同一菜单，未知或相似路由不会误选内�
 	expect(workspaceMenuForPath("/funds/cases")).toBe("funds");
 	expect(workspaceMenuForPath("/documents")).toBe("documents");
 	expect(workspaceMenuForPath("/inquiries")).toBe("inquiries");
+	expect(workspaceMenuForPath("/calculators/late-fees")).toBe("calculators");
+	expect(workspaceMenuForPath("/admin/users")).toBe("admin");
+	expect(workspaceMenuForPath("/admin/showcase")).toBe("admin");
 	expect(workspaceMenuForPath("/funds-other")).toBeNull();
+	expect(workspaceMenuForPath("/admin-other")).toBeNull();
 	expect(workspaceMenuForPath("/settings/profile")).toBeNull();
 });

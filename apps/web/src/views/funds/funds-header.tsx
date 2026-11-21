@@ -1,7 +1,7 @@
 /**
  * @file 资金分析模块的共享页头与内部导航。
  * 创建时间：2026-10-06
- * 修改时间：2026-11-19
+ * 修改时间：2026-11-20
  * 版本作用：顶栏与案件菜单共用高度，模块与案件名按路径层级排列。
  * 被调用：FundsView、CasesView；调用：共享工作区标题栏、共享 Button 与 TanStack Router。
  * 功能：显示模块标题及可选案件名，切换内部页面时携带 caseId。
@@ -9,10 +9,10 @@
  */
 
 import { Button } from "@leonwillow-electron/ui/components/button";
-import { TooltipText } from "@leonwillow-electron/ui/components/tooltip";
 import { useLocation, useNavigate } from "@tanstack/react-router";
-import { ChevronRightIcon, WaypointsIcon } from "lucide-react";
+import { WaypointsIcon } from "lucide-react";
 import {
+	WorkspaceBreadcrumb,
 	WorkspaceHeader,
 	WorkspaceTitle,
 } from "@/components/layout/workspace-header";
@@ -35,19 +35,7 @@ export default function FundsHeader({
 		<WorkspaceHeader className="justify-between">
 			<div className="flex min-w-0 flex-1 items-center gap-2">
 				<WorkspaceTitle icon={WaypointsIcon}>资金分析</WorkspaceTitle>
-				{caseName && (
-					<>
-						<ChevronRightIcon
-							aria-hidden="true"
-							className="size-4 shrink-0 text-muted-foreground"
-						/>
-						<TooltipText content={caseName}>
-							<p className="min-w-0 truncate text-muted-foreground text-sm">
-								{caseName}
-							</p>
-						</TooltipText>
-					</>
-				)}
+				{caseName && <WorkspaceBreadcrumb label={caseName} />}
 			</div>
 			{caseId && (
 				<nav

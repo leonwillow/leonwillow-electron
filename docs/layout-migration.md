@@ -1,6 +1,6 @@
 # 布局与框架适配
 
-维护日期：2026-11-19。原项目只读：`/Users/leonwillow/Downloads/shadcn-nextjs-aidesk-app-template-1.0.0`。
+维护日期：2026-11-21。原项目只读：`/Users/leonwillow/Downloads/shadcn-nextjs-aidesk-app-template-1.0.0`。
 
 | 来源 | 当前实现 | 必要适配 |
 | --- | --- | --- |
@@ -96,3 +96,5 @@ Web 默认资源 base 为 `/`。子路径构建使用 Vite `--base=/desk/`，Rou
 2026-11-19：新增共享 `SearchInput`（`packages/ui/src/components/search-input.tsx`）统一全站搜索输入框（二级菜单、账户目录、数据表格、管理页与各业务检索栏），固定左侧搜索图标、统一 `h-control-md` 高度与右侧非空一键清空，显式提交场景保留原生 `<form>` IME 安全回车提交；四个二级菜单统一使用 `p-2 text-muted-foreground text-xs` 空状态并补齐计算器搜索空态，同时修复笔录目录筛选加载时因空数组引用不稳定引发 `@headless-tree/core` 无限重渲染的问题。
 
 2026-11-19：菜单外观新增「宽菜单」（`wide`）模式，在「贴边」基础上横向展开至共享 `--spacing-workspace-rail-wide`（`13.5rem`），顶部展示「AIDesk / 工作台」品牌头与带快捷键提示的「搜索 ⌘K」入口，中部按「工作台」分组列出已授权入口（资金分析、文书取号、笔录、计算器）并保留悬停即显的二级浮层与固定分栏，底部按「系统」分组展示管理中心、主题设置、明暗模式（附当前明暗状态）、全屏显示及底部账号卡片。低于 `40rem` 窄视口下自动回落为紧凑图标栏，避免挤占正文；切换四种菜单外观时保持底部弹层与菜单组件挂载槽位稳定，不关闭已打开的主题设置弹层。
+
+2026-11-21：管理员的「管理中心」入口（`AdminMenu`）由独立 `DropdownMenu` + 悬停 `Tooltip` 气泡切换为工作台统一二级菜单（`WorkspaceMenu` + `useAdminMenu`），在 `workspaceMenuIds` 中登记 `"admin"` 并仅向 `role === "admin"` 启用。未固定时悬停「管理中心」直接展开共享二级菜单浮层且不弹出提示气泡；固定后与其他模块共用同一停靠面板、拖拽宽度与键盘焦点（`ArrowRight`/`Tab`/`Escape`）。同时在 `adminNav`、命令搜索及 `packages/access`（仅管理员可访问）中新增「组件演示」页面（`/admin/showcase`，视图位于 `views/admin/showcase/`），集中演示当前生效主题的实时颜色令牌与语义状态色、共享排版与内置字体试切、全部基础按钮/徽章/表单/日期时间取色器，以及表格、导航态、菜单、弹窗、抽屉与通知组件，并在页头提供快捷主题预设切换、明暗切换与浮动主题编辑器入口。

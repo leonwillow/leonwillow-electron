@@ -520,7 +520,7 @@ export default function GraphCanvas({
 				{backgroundPreferences.error && (
 					<p
 						role="alert"
-						className="absolute top-3 left-3 max-w-[calc(100%-1.5rem)] rounded-md bg-background p-2 text-destructive text-xs"
+						className="absolute top-3 left-3 max-w-[calc(100%-1.5rem)] rounded-md bg-background p-2 text-destructive-foreground text-xs"
 					>
 						{backgroundPreferences.error}
 					</p>
@@ -528,7 +528,7 @@ export default function GraphCanvas({
 				{toolbarPreferences.error && (
 					<p
 						role="alert"
-						className="absolute top-3 left-3 max-w-[calc(100%-1.5rem)] rounded-md bg-background p-2 text-destructive text-xs"
+						className="absolute top-3 left-3 max-w-[calc(100%-1.5rem)] rounded-md bg-background p-2 text-destructive-foreground text-xs"
 					>
 						{toolbarPreferences.error}
 					</p>
@@ -559,7 +559,7 @@ export default function GraphCanvas({
 				{error && (
 					<p
 						role="alert"
-						className="absolute top-4 left-4 bg-background p-2 text-destructive text-xs"
+						className="absolute top-4 left-4 bg-background p-2 text-destructive-foreground text-xs"
 					>
 						{error}
 					</p>

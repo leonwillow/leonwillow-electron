@@ -1,7 +1,7 @@
 /**
  * @file 工作台的主导航侧栏。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-19
+ * 修改时间：2026-11-20
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/layout/workspace-layout.tsx。
  * 调用：共享 UI、路由、导航目录、工作台统一导航上下文、管理中心、搜索、品牌、主题与个人菜单。
@@ -86,7 +86,7 @@ const AppSidebar = () => {
 					pillMode
 						? "workspace-rail-pill workspace-rail-group"
 						: cn(
-								"flex h-workspace-header w-full shrink-0 items-center border-border border-b",
+								"flex h-workspace-header w-full shrink-0 items-center border-sidebar-border border-b",
 								wideMode ? "justify-start px-3" : "justify-center",
 							)
 				}
@@ -160,7 +160,7 @@ const AppSidebar = () => {
 											}
 										: undefined
 								}
-								aria-label={item.title}
+								aria-label={wideMode ? undefined : item.title}
 								aria-current={active ? "page" : undefined}
 								className={cn(
 									"workspace-nav-item",

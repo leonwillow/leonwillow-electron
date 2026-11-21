@@ -1,7 +1,7 @@
 /**
  * @file 主题 CSS 的输入和错误反馈对话框。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-19
+ * 修改时间：2026-11-20
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：components/theme-editor/theme-control-panel.tsx。
  * 调用：ui 基础组件/样式、react。
@@ -112,14 +112,10 @@ const CssImportDialog = ({
 					{error && <FieldError>{error}</FieldError>}
 				</Field>
 				<DialogFooter>
-					<Button
-						variant="outline"
-						onClick={handleClose}
-						className="cursor-pointer text-foreground"
-					>
+					<Button variant="outline" size="lg" onClick={handleClose}>
 						取消
 					</Button>
-					<Button onClick={handleImport} className="cursor-pointer">
+					<Button size="lg" onClick={handleImport}>
 						导入预览
 					</Button>
 				</DialogFooter>

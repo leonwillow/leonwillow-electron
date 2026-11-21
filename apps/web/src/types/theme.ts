@@ -1,7 +1,7 @@
 /**
  * @file 主题设置、预设、草稿与快照的共享类型。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-19
+ * 修改时间：2026-11-21
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：apps/web/test、contexts、utils、utils/theme、components/layout、components/theme-editor、configs、lib。
  * 调用：configs/fonts、configs/theme-presets。
@@ -20,6 +20,7 @@ export type ThemeStyleProps = {
 	"popover-foreground": string;
 	primary: string;
 	"primary-foreground": string;
+	"primary-hover"?: string;
 	secondary: string;
 	"secondary-foreground": string;
 	muted: string;
@@ -28,6 +29,7 @@ export type ThemeStyleProps = {
 	"accent-foreground": string;
 	destructive: string;
 	"destructive-foreground": string;
+	"destructive-solid-foreground"?: string;
 	info?: string;
 	"info-foreground"?: string;
 	success?: string;

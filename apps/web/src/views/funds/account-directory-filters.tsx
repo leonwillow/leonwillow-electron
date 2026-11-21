@@ -164,7 +164,11 @@ export default function AccountDirectoryFilters({
 						))}
 					</div>
 					{error && (
-						<p id={`${id}-error`} role="alert" className="text-destructive">
+						<p
+							id={`${id}-error`}
+							role="alert"
+							className="text-destructive-foreground"
+						>
 							{error}
 						</p>
 					)}

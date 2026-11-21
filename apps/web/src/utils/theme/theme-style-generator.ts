@@ -1,14 +1,17 @@
 /**
  * @file 主题草稿的 CSS 导出。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-19
+ * 修改时间：2026-11-21
  * 版本作用：Web 与未来桌面 renderer 共用的 CSR 实现。
  * 被调用：apps/web/test/custom-themes.test.ts、components/theme-editor/theme-control-panel.tsx。
  * 调用：lib/custom-themes、types/theme、./color-converter、./shadows。
  * 功能：输出浅深色变量、字体、圆角及需要的阴影令牌。
  * 预期结果：复制的文本可供本项目导入，界面缩放规则保持独立。
  */
-import { STATUS_COLOR_KEYS } from "@/configs/theme-variables";
+import {
+	OPTIONAL_COLOR_KEYS,
+	STATUS_COLOR_KEYS,
+} from "@/configs/theme-variables";
 import { hasCustomShadow } from "@/lib/custom-themes";
 import type { ThemeStyleProps, ThemeStyles } from "@/types/theme";
 import type { ColorFormat } from "./color-converter";
@@ -44,7 +47,8 @@ export const generateThemeCode = (
 	const formatColor = (color: string | undefined) =>
 		color ? colorFormatter(color, colorFormat) : "";
 	const formatStatusLines = (modeStyles: Partial<ThemeStyleProps>) =>
-		STATUS_COLOR_KEYS.filter((key) => modeStyles[key])
+		[...STATUS_COLOR_KEYS, ...OPTIONAL_COLOR_KEYS]
+			.filter((key) => modeStyles[key])
 			.map((key) => `\n  --${key}: ${formatColor(modeStyles[key])};`)
 			.join("");
 

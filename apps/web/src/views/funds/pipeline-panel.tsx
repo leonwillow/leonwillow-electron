@@ -237,7 +237,7 @@ export default function PipelinePanel({
 					</p>
 				) : null}
 				{error ? (
-					<p role="alert" className="text-destructive text-sm">
+					<p role="alert" className="text-destructive-foreground text-sm">
 						{error}
 					</p>
 				) : null}
@@ -289,7 +289,7 @@ export default function PipelinePanel({
 									: ""}
 							</p>
 							{job.error ? (
-								<p className="break-words text-destructive text-xs">
+								<p className="break-words text-destructive-foreground text-xs">
 									{job.error}
 									{job.status === "queued" ? " 系统将自动重试。" : ""}
 								</p>

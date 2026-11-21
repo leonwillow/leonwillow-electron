@@ -1,10 +1,10 @@
 /**
  * @file 人员与权限管理页面。
  * 创建时间：2026-10-04
- * 修改时间：2026-11-19
- * 版本作用：复用原模板 teammates 的页头、表格和弹窗组织方式。
+ * 修改时间：2026-11-20
+ * 版本作用：复用原模板 teammates 的页头、表格和弹窗组织方式，并对齐全站 WorkspaceHeader 与语义状态色。
  * 被调用：admin.users 路由。
- * 调用：共享 UI、路由加载数据、人员编辑和密码弹窗。
+ * 调用：共享 UI、WorkspaceHeader/WorkspaceTitle、路由加载数据、人员编辑和密码弹窗。
  * 功能：管理真实账号、查看功能授权与最近管理操作。
  * 预期结果：管理员在同一工作台完成管理，普通人员没有该入口。
  */
@@ -41,8 +41,13 @@ import {
 	PencilIcon,
 	PlusIcon,
 	RefreshCwIcon,
+	UsersIcon,
 } from "lucide-react";
 import { useState } from "react";
+import {
+	WorkspaceHeader,
+	WorkspaceTitle,
+} from "@/components/layout/workspace-header";
 import type { AuditEvent, ManagedUser } from "@/lib/access";
 import PasswordDialog from "./password-dialog";
 import PersonDialog from "./person-dialog";
@@ -95,15 +100,13 @@ export default function UsersView() {
 	};
 	return (
 		<div className="flex h-full min-h-0 flex-col">
-			<header className="shrink-0 border-b">
-				<div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 p-4 sm:px-6">
-					<h1 className="font-semibold text-lg">人员与权限</h1>
-					<Button onClick={() => setDialog({ kind: "create" })}>
-						<PlusIcon />
-						添加人员
-					</Button>
-				</div>
-			</header>
+			<WorkspaceHeader className="justify-between">
+				<WorkspaceTitle icon={UsersIcon}>人员与权限</WorkspaceTitle>
+				<Button onClick={() => setDialog({ kind: "create" })}>
+					<PlusIcon data-icon="inline-start" />
+					添加人员
+				</Button>
+			</WorkspaceHeader>
 			<ScrollArea className="flex-1" contentClassName="">
 				<div className="mx-auto max-w-6xl space-y-6 p-4 sm:p-6">
 					<section aria-label="人员列表" className="space-y-3">
@@ -129,7 +132,7 @@ export default function UsersView() {
 									{users.length} 人
 								</span>
 								<Button variant="outline" onClick={refresh}>
-									<RefreshCwIcon />
+									<RefreshCwIcon data-icon="inline-start" />
 									刷新
 								</Button>
 							</div>
@@ -156,7 +159,7 @@ export default function UsersView() {
 														</AvatarFallback>
 													</Avatar>
 													<div className="min-w-0">
-														<p className="font-medium">
+														<p className="truncate font-medium">
 															{person.name}
 															{person.id === user.id && (
 																<span className="ml-1 text-muted-foreground">
@@ -164,7 +167,7 @@ export default function UsersView() {
 																</span>
 															)}
 														</p>
-														<p className="text-muted-foreground">
+														<p className="truncate text-muted-foreground">
 															{person.username}
 														</p>
 													</div>
@@ -182,7 +185,7 @@ export default function UsersView() {
 											</TableCell>
 											<TableCell>
 												<Badge
-													variant={person.disabled ? "secondary" : "outline"}
+													variant={person.disabled ? "destructive" : "success"}
 												>
 													{person.disabled ? "已停用" : "正常"}
 												</Badge>
