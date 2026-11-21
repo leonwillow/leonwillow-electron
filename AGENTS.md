@@ -21,6 +21,7 @@
 
 ## 验证与按需阅读
 
+- 开始任何任务前先检查项目开发服务是否已启动（API `:3000/api/health` 与 Web `:3001`）；若已运行则保持原状，若未启动则先用 `bun run dev` 在后台启动。
 - 改动运行 `bun run lint`、`bun run check-types`、`bun run build`；API 契约改动加 `bun run test:api`，UI 规范或主题存储改动加 `bun run test:ui`。
 - 布局、主题和交互改动在浏览器验证相关外观、导航、键盘、缩放、小窗口及持久化；不为纯布局写镜像测试。
 - 修改对应模块前阅读相关文档，具体实现和迁移记录维护在那里：
