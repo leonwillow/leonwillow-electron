@@ -1,7 +1,7 @@
 /**
  * @file Bun 服务进程的启动入口。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-10
+ * 修改时间：2026-11-21
  * 版本作用：Bun 服务进程的唯一启动入口。
  * 被调用：server 的 dev/start 命令。
  * 调用：Varlock、auth/db 工厂、app、env、lifecycle、server-resources、auth/client-ip。
@@ -48,6 +48,8 @@ try {
 	const app = createApp().listen({
 		port: ENV.PORT,
 		hostname: ENV.NODE_ENV === "production" ? "0.0.0.0" : "127.0.0.1",
+		// 覆盖单批流水 100 MB 业务上限及 multipart 开销，收敛 Bun 默认 128 MB 上限。
+		maxRequestBodySize: 105 * 1024 * 1024,
 	});
 	const server = app.server;
 	if (!server) throw new Error("API 未建立监听。");

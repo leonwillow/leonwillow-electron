@@ -295,6 +295,24 @@ export function validateFields(keys: DocumentField[], fields: DocumentField[]) {
 	);
 }
 
+/** 已落库的不可变模板在入库时已通过 inspectTemplate 的全量安全与结构检查；渲染时直接加载避免重复全量 XML DOM 扫描。 */
+function loadStoredTemplate(bytes: Uint8Array) {
+	if (!bytes.length || bytes.length > MAX_ARCHIVE_BYTES)
+		badTemplate("模板文件大小异常。");
+	const zip = new PizZip(bytes);
+	if (!zip.file("word/document.xml"))
+		badTemplate("请使用 Word DOCX 文书模板。");
+	return new Docxtemplater(zip, {
+		paragraphLoop: false,
+		linebreaks: true,
+		errorLogging: false,
+		parser: (tag) => ({
+			get: (scope: Record<string, string>) =>
+				Object.hasOwn(scope, tag) ? scope[tag] : "",
+		}),
+	});
+}
+
 /** 只填充文本和系统号码，输出保留模板排版的 DOCX；失败返回 400，调用方事务回滚。 */
 export function renderDocument(
 	bytesBase64: string,
@@ -306,7 +324,7 @@ export function renderDocument(
 	name: string,
 ) {
 	try {
-		const { doc } = parse(Buffer.from(bytesBase64, "base64"));
+		const doc = loadStoredTemplate(Buffer.from(bytesBase64, "base64"));
 		const data: Record<string, string> = Object.create(null);
 		for (const field of fields) {
 			const value = values[field.key] ?? "";

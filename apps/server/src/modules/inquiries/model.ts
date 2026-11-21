@@ -1,6 +1,6 @@
 /**
  * @file 笔录 API 的有界输入契约。
- * 创建时间：2026-11-04；修改时间：2026-11-05。
+ * 创建时间：2026-11-04；修改时间：2026-11-21。
  * 版本作用：Eden 从 TypeBox 推导字段，保存允许渐进填写，内容一致性由 service 校验。
  * 被调用：inquiries 路由；调用：Elysia TypeBox。
  * 预期结果：拒绝额外字段、无效 ID、超大问答和无效版本号，返回 422。
@@ -80,8 +80,10 @@ export const InquiriesModel = {
 	list: t.Object({
 		archived: t.Optional(t.BooleanString()),
 		q: t.Optional(text(160)),
-		offset: t.Optional(t.Numeric({ minimum: 0, maximum: 1_000_000 })),
-		limit: t.Optional(t.Numeric({ minimum: 1, maximum: 100 })),
+		offset: t.Optional(
+			t.Numeric({ minimum: 0, maximum: 1_000_000, multipleOf: 1 }),
+		),
+		limit: t.Optional(t.Numeric({ minimum: 1, maximum: 100, multipleOf: 1 })),
 	}),
 	inquirer: t.Object(
 		{ name, badgeNumber: name },

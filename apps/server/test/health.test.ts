@@ -1,7 +1,7 @@
 /**
  * @file 公共接口与认证模块隔离的回归测试。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-11-20
+ * 修改时间：2026-11-21
  * 版本作用：当前行为的回归约束，不进入产品构建。
  * 被调用：Bun 测试命令。
  * 调用：bun:test、@elysiajs/eden、../src/app。
@@ -10,7 +10,10 @@
  */
 import { expect, test } from "bun:test";
 import { treaty } from "@elysiajs/eden";
+import { Elysia } from "elysia";
 import { createApp } from "../src/app";
+import { DocumentsModel } from "../src/modules/documents/model";
+import { InquiriesModel } from "../src/modules/inquiries/model";
 
 test("畸形 JSON 返回 400，字段校验失败返回 422", async () => {
 	for (const [body, expected] of [
@@ -78,4 +81,33 @@ test("缺少认证配置时返回 503，认证和权限插件不影响后续公�
 	expect(denied.error?.value).toMatchObject({ code: "INVALID_ORIGIN" });
 	expect((await api.api.public.get()).data).toEqual({ public: true });
 	expect((await api.api.health.get()).status).toBe(200);
+});
+
+test("文书与笔录数值查询参数拒绝浮点数，仅接受整数", async () => {
+	const probe = new Elysia()
+		.get("/docs", ({ query }) => query, { query: DocumentsModel.list })
+		.get("/inquiries", ({ query }) => query, { query: InquiriesModel.list });
+	expect(
+		(
+			await probe.handle(
+				new Request("http://localhost/docs?year=2026&offset=0&limit=20"),
+			)
+		).status,
+	).toBe(200);
+	expect(
+		(await probe.handle(new Request("http://localhost/docs?year=2026.5")))
+			.status,
+	).toBe(422);
+	expect(
+		(await probe.handle(new Request("http://localhost/docs?offset=1.5")))
+			.status,
+	).toBe(422);
+	expect(
+		(await probe.handle(new Request("http://localhost/inquiries?limit=10.5")))
+			.status,
+	).toBe(422);
+	expect(
+		(await probe.handle(new Request("http://localhost/inquiries?offset=2.2")))
+			.status,
+	).toBe(422);
 });

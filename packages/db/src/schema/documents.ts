@@ -1,10 +1,11 @@
 /**
  * @file 文书类型、不可变模板、年度号码与文书版本的持久化定义。
- * 创建时间：2026-10-10；修改时间：2026-10-10。
+ * 创建时间：2026-10-10；修改时间：2026-11-21。
  * 版本作用：按文书类型和年份分配号码，历史文书保留原模板与内容。
  * 被调用：schema 出口、documents 服务和迁移工具；调用：Drizzle、认证 user 表。
- * 功能与预期结果：数据库约束阻止重复号码，业务删除保留原行和已用序号。
+ * 功能与预期结果：数据库约束阻止重复号码，业务删除保留原行和已用序号；列表常用筛选条件均有局部索引支撑。
  */
+import { sql } from "drizzle-orm";
 import {
 	index,
 	integer,
@@ -100,8 +101,18 @@ export const documentRecord = pgTable(
 			table.year,
 			table.sequence,
 		),
-		index("document_record_created_idx").on(table.createdAt),
-		index("document_record_type_created_idx").on(table.typeId, table.createdAt),
+		index("document_record_created_idx")
+			.on(table.createdAt)
+			.where(sql`${table.deletedAt} is null`),
+		index("document_record_type_created_idx")
+			.on(table.typeId, table.createdAt)
+			.where(sql`${table.deletedAt} is null`),
+		index("document_record_owner_created_idx")
+			.on(table.ownerId, table.createdAt)
+			.where(sql`${table.deletedAt} is null`),
+		index("document_record_year_created_idx")
+			.on(table.year, table.createdAt)
+			.where(sql`${table.deletedAt} is null`),
 	],
 );
 

@@ -1,6 +1,6 @@
 /**
  * @file 按当前人员隔离的笔录事务服务。
- * 创建时间：2026-11-04；修改时间：2026-11-05。
+ * 创建时间：2026-11-04；修改时间：2026-11-21。
  * 版本作用：案件行锁协调归档与写入，修订号检查防止多窗口覆盖。
  * 被调用：inquiries 路由；调用：共用数据库、Drizzle、领域校验。
  * 功能与预期结果：只有所有者能访问案件/笔录/常用询问人，删除保留笔录原行。
@@ -102,32 +102,34 @@ const archiveCondition = (archived?: boolean) =>
 			? or(eq(inquiryCase.archived, true), eq(inquiryRecord.archived, true))
 			: and(eq(inquiryCase.archived, false), eq(inquiryRecord.archived, false));
 
-/** 目录共用的轻量投影；只提取预览字段，人员保留顺序和姓名，不传证号、联系方式或问答。 */
+/** 目录共用的轻量投影；只提取预览字段，文件夹空联结行不触发 JSONB 数组展开。 */
 const recordSummary = {
 	id: inquiryRecord.id,
 	title: inquiryRecord.title,
 	revision: inquiryRecord.revision,
 	archived: inquiryRecord.archived,
 	updatedAt: inquiryRecord.updatedAt,
-	subjectName: sql<string>`coalesce(${inquiryRecord.content}->>'subjectName', '')`,
-	subjectOrg: sql<string>`coalesce(${inquiryRecord.content}->>'subjectOrg', '')`,
-	inquiryStartAt: sql<string>`coalesce(${inquiryRecord.content}->>'inquiryStartAt', '')`,
-	inquiryEndAt: sql<string>`coalesce(${inquiryRecord.content}->>'inquiryEndAt', '')`,
-	inquiryLocation: sql<string>`coalesce(${inquiryRecord.content}->>'inquiryLocation', '')`,
-	inquirerNames: sql<string[]>`(
+	subjectName: sql<string>`case when ${inquiryRecord.id} is null then '' else coalesce(${inquiryRecord.content}->>'subjectName', '') end`,
+	subjectOrg: sql<string>`case when ${inquiryRecord.id} is null then '' else coalesce(${inquiryRecord.content}->>'subjectOrg', '') end`,
+	inquiryStartAt: sql<string>`case when ${inquiryRecord.id} is null then '' else coalesce(${inquiryRecord.content}->>'inquiryStartAt', '') end`,
+	inquiryEndAt: sql<string>`case when ${inquiryRecord.id} is null then '' else coalesce(${inquiryRecord.content}->>'inquiryEndAt', '') end`,
+	inquiryLocation: sql<string>`case when ${inquiryRecord.id} is null then '' else coalesce(${inquiryRecord.content}->>'inquiryLocation', '') end`,
+	inquirerNames: sql<
+		string[]
+	>`case when ${inquiryRecord.id} is null then '[]'::jsonb else (
 		select coalesce(jsonb_agg(btrim(person->>'name') order by position), '[]'::jsonb)
 		from jsonb_array_elements(
 			case when jsonb_typeof(${inquiryRecord.content}->'inquirers') = 'array'
 				then ${inquiryRecord.content}->'inquirers' else '[]'::jsonb end
 		) with ordinality as people(person, position)
 		where nullif(btrim(person->>'name'), '') is not null
-	)`,
+	) end`,
 };
 
 /**
  * 返回当前人员的目录摘要；q 匹配文件夹名、笔录标题或被询问人。
  * 文件夹名匹配时保留该文件夹；子笔录标题和被询问人匹配时返回所属目录。
- * 子查询覆盖全部有效笔录，不受目录展开或笔录分页影响，也不向客户端发送正文。
+ * 用单次聚合联结替代逐行相关 COUNT 子查询，并施加 500 条目录上限。
  */
 export async function listCases(
 	access: AccessSession,
@@ -159,6 +161,23 @@ export async function listCases(
 				),
 			),
 	);
+	const recordCounts = db()
+		.select({
+			caseId: inquiryRecord.caseId,
+			total: count().as("record_count"),
+		})
+		.from(inquiryRecord)
+		.innerJoin(inquiryCase, eq(inquiryCase.id, inquiryRecord.caseId))
+		.where(
+			and(
+				eq(inquiryCase.ownerId, access.user.id),
+				isNull(inquiryCase.deletedAt),
+				isNull(inquiryRecord.deletedAt),
+				archiveCondition(query.archived),
+			),
+		)
+		.groupBy(inquiryRecord.caseId)
+		.as("case_record_counts");
 	const rows = await db()
 		.select({
 			id: inquiryCase.id,
@@ -169,16 +188,10 @@ export async function listCases(
 			createdAt: inquiryCase.createdAt,
 			updatedAt: inquiryCase.updatedAt,
 			record: recordSummary,
-			recordCount: db().$count(
-				inquiryRecord,
-				and(
-					eq(inquiryRecord.caseId, inquiryCase.id),
-					isNull(inquiryRecord.deletedAt),
-					archiveCondition(query.archived),
-				),
-			),
+			recordCount: sql<number>`coalesce(${recordCounts.total}, 0)::int`,
 		})
 		.from(inquiryCase)
+		.leftJoin(recordCounts, eq(recordCounts.caseId, inquiryCase.id))
 		.leftJoin(
 			inquiryRecord,
 			and(
@@ -207,7 +220,8 @@ export async function listCases(
 				search ? or(nameMatches, matchingRecord) : undefined,
 			),
 		)
-		.orderBy(desc(inquiryCase.updatedAt), inquiryCase.id);
+		.orderBy(desc(inquiryCase.updatedAt), inquiryCase.id)
+		.limit(500);
 	// LEFT JOIN 的 JSON 默认值不能把普通文件夹变成一份空笔录。
 	return rows.map((row) => ({
 		...row,
@@ -530,28 +544,67 @@ export async function saveInquirer(
 			badgeNumber: input.badgeNumber.trim(),
 		};
 		if (!id) {
-			const [row] = await db()
-				.insert(inquiryInquirer)
-				.values({ ...values, id: crypto.randomUUID(), ownerId: access.user.id })
-				.onConflictDoUpdate({
-					target: [inquiryInquirer.ownerId, inquiryInquirer.badgeNumber],
-					set: {
+			return await db().transaction(async (tx) => {
+				const [active] = await tx
+					.select({ id: inquiryInquirer.id })
+					.from(inquiryInquirer)
+					.where(
+						and(
+							eq(inquiryInquirer.ownerId, access.user.id),
+							eq(inquiryInquirer.badgeNumber, values.badgeNumber),
+							isNull(inquiryInquirer.deletedAt),
+						),
+					)
+					.limit(1);
+				if (active)
+					throw new AccessError(
+						409,
+						"INQUIRER_EXISTS",
+						"该检查证号已在常用询问人中。",
+					);
+				// 局部唯一索引下恢复最近一条软删除记录（保持原 ID 与递增 revision），无软删记录则新建。
+				const [deleted] = await tx
+					.select({ id: inquiryInquirer.id })
+					.from(inquiryInquirer)
+					.where(
+						and(
+							eq(inquiryInquirer.ownerId, access.user.id),
+							eq(inquiryInquirer.badgeNumber, values.badgeNumber),
+							isNotNull(inquiryInquirer.deletedAt),
+						),
+					)
+					.orderBy(desc(inquiryInquirer.updatedAt))
+					.limit(1);
+				if (deleted) {
+					const [restored] = await tx
+						.update(inquiryInquirer)
+						.set({
+							...values,
+							deletedAt: null,
+							deletedBy: null,
+							revision: sql`${inquiryInquirer.revision} + 1`,
+							updatedAt: new Date(),
+						})
+						.where(eq(inquiryInquirer.id, deleted.id))
+						.returning();
+					if (restored) return restored;
+				}
+				const [created] = await tx
+					.insert(inquiryInquirer)
+					.values({
 						...values,
-						deletedAt: null,
-						deletedBy: null,
-						revision: sql`${inquiryInquirer.revision} + 1`,
-						updatedAt: new Date(),
-					},
-					setWhere: isNotNull(inquiryInquirer.deletedAt),
-				})
-				.returning();
-			if (!row)
-				throw new AccessError(
-					409,
-					"INQUIRER_EXISTS",
-					"该检查证号已在常用询问人中。",
-				);
-			return row;
+						id: crypto.randomUUID(),
+						ownerId: access.user.id,
+					})
+					.returning();
+				if (!created)
+					throw new AccessError(
+						409,
+						"INQUIRER_EXISTS",
+						"该检查证号已在常用询问人中。",
+					);
+				return created;
+			});
 		}
 		const [row] = await db()
 			.update(inquiryInquirer)
@@ -569,7 +622,19 @@ export async function saveInquirer(
 				),
 			)
 			.returning();
-		return row ?? conflict();
+		if (row) return row;
+		const [existsActive] = await db()
+			.select({ id: inquiryInquirer.id })
+			.from(inquiryInquirer)
+			.where(
+				and(
+					eq(inquiryInquirer.id, id),
+					eq(inquiryInquirer.ownerId, access.user.id),
+					isNull(inquiryInquirer.deletedAt),
+				),
+			)
+			.limit(1);
+		return existsActive ? conflict() : missing();
 	} catch (error) {
 		const cause =
 			error instanceof Error && "cause" in error ? error.cause : error;
@@ -609,6 +674,17 @@ export async function deleteInquirer(
 			),
 		)
 		.returning({ id: inquiryInquirer.id });
-	if (!rows.length) return conflict();
-	return { ok: true };
+	if (rows.length) return { ok: true };
+	const [existsActive] = await db()
+		.select({ id: inquiryInquirer.id })
+		.from(inquiryInquirer)
+		.where(
+			and(
+				eq(inquiryInquirer.id, id),
+				eq(inquiryInquirer.ownerId, access.user.id),
+				isNull(inquiryInquirer.deletedAt),
+			),
+		)
+		.limit(1);
+	return existsActive ? conflict() : missing();
 }

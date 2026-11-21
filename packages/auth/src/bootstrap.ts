@@ -1,17 +1,17 @@
 /**
  * @file 显式管理员初始化入口。
  * 创建时间：2026-10-04（Git 首次收录）
- * 修改时间：2026-10-04
+ * 修改时间：2026-11-21
  * 版本作用：服务端认证基础层，随工作区维护。
  * 被调用：apps/server/test/auth.test.ts、apps/server/src/init-admin.ts。
  * 调用：@leonwillow-electron/db、drizzle-orm、./index。
- * 功能：用事务锁串行化检查，通过认证库创建缺失的管理员。
- * 预期结果：多实例启动不重复创建，也不覆盖已有密码或角色。
+ * 功能：用事务锁串行化检查，并在同一事务内通过认证库创建缺失的管理员。
+ * 预期结果：多实例启动不重复创建，外层事务回滚时不会留下半成品账号。
  */
 import type { Database } from "@leonwillow-electron/db";
 import { account, user } from "@leonwillow-electron/db/schema";
 import { and, eq, sql } from "drizzle-orm";
-import type { Auth } from "./index";
+import { type Auth, authInTransaction } from "./index";
 
 // 仅受控管理命令调用；普通应用启动不创建账号。
 /**
@@ -54,7 +54,7 @@ export async function initializeAdmin(
 				);
 			return false;
 		}
-		await auth.api.createUser({
+		await authInTransaction(auth, tx).api.createUser({
 			body: {
 				email: "admin@leonwillow.com",
 				name: "管理员",

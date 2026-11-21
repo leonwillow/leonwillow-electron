@@ -1,7 +1,7 @@
 /**
  * @file 文书模板管理、年度取号与归属权限的事务服务。
- * 创建时间：2026-10-10；修改时间：2026-10-11。
- * 版本作用：数据库分配唯一序号，模板版本和文书修订分别留存。
+ * 创建时间：2026-10-10；修改时间：2026-11-21。
+ * 版本作用：数据库分配唯一序号，模板版本和文书修订分别留存；元信息读写不传输模板字节。
  * 被调用：documents API；调用：server-resources、Drizzle、模板编解码。
  * 功能与预期结果：所有获授权人员可查看，普通人员仅编辑本人，管理员标记删除。
  */
@@ -14,7 +14,17 @@ import {
 	documentTemplate,
 	documentType,
 } from "@leonwillow-electron/db/schema";
-import { and, count, desc, eq, exists, ilike, isNull, or } from "drizzle-orm";
+import {
+	and,
+	count,
+	desc,
+	eq,
+	exists,
+	ilike,
+	isNull,
+	or,
+	sql,
+} from "drizzle-orm";
 import { getServerResources } from "../../server-resources";
 import { AccessError, type AccessSession } from "../access/service";
 import example from "./assets/inquiry-notice.json";
@@ -79,6 +89,31 @@ async function templateFor(
 ) {
 	const [template] = await (tx ?? db())
 		.select()
+		.from(documentTemplate)
+		.where(
+			and(
+				eq(documentTemplate.typeId, typeId),
+				eq(documentTemplate.version, version),
+			),
+		);
+	return template ?? missing();
+}
+
+/** 仅读取模板元信息（不含 bytes_base64），避免在锁内和列表/校验路径重复传输大体积 Word 字节。 */
+async function templateMetaFor(
+	typeId: string,
+	version: number,
+	tx?: DatabaseTransaction,
+) {
+	const [template] = await (tx ?? db())
+		.select({
+			typeId: documentTemplate.typeId,
+			version: documentTemplate.version,
+			fileName: documentTemplate.fileName,
+			fields: documentTemplate.fields,
+			createdBy: documentTemplate.createdBy,
+			createdAt: documentTemplate.createdAt,
+		})
 		.from(documentTemplate)
 		.where(
 			and(
@@ -195,7 +230,7 @@ export async function updateType(
 	await db().transaction(async (tx) => {
 		const type = await activeType(id, tx);
 		if (type.revision !== revision) conflict();
-		const current = await templateFor(id, type.currentVersion, tx);
+		const current = await templateMetaFor(id, type.currentVersion, tx);
 		const fields =
 			settings?.fields ??
 			discovered?.map(
@@ -204,16 +239,24 @@ export async function updateType(
 			current.fields;
 		validateFields(discovered ?? current.fields, fields);
 		const version = type.currentVersion + 1;
-		await tx.insert(documentTemplate).values({
-			typeId: id,
-			version,
-			fileName: file?.name ?? current.fileName,
-			bytesBase64: uploaded
-				? Buffer.from(uploaded).toString("base64")
-				: current.bytesBase64,
-			fields,
-			createdBy: access.user.id,
-		});
+		if (uploaded) {
+			await tx.insert(documentTemplate).values({
+				typeId: id,
+				version,
+				fileName: file?.name ?? current.fileName,
+				bytesBase64: Buffer.from(uploaded).toString("base64"),
+				fields,
+				createdBy: access.user.id,
+			});
+		} else {
+			// 未更换 Word 文件时在数据库侧复用原模板字节，避免将数 MB Base64 往返传回应用进程。
+			await tx.execute(sql`
+				INSERT INTO document_template (type_id, version, file_name, bytes_base64, fields, created_by)
+				SELECT type_id, ${version}, file_name, bytes_base64, ${JSON.stringify(fields)}::jsonb, ${access.user.id}
+				FROM document_template
+				WHERE type_id = ${id} AND version = ${type.currentVersion}
+			`);
+		}
 		await tx
 			.update(documentType)
 			.set({
@@ -331,7 +374,7 @@ export async function createRecord(
 			.from(documentRecord)
 			.where(eq(documentRecord.id, input.requestId));
 		if (existing) {
-			const original = await templateFor(
+			const original = await templateMetaFor(
 				existing.typeId,
 				existing.templateVersion,
 				tx,
@@ -358,7 +401,7 @@ export async function createRecord(
 				);
 			return { id: existing.id, documentNumber: existing.documentNumber };
 		}
-		const template = await templateFor(type.id, type.currentVersion, tx);
+		const template = await templateMetaFor(type.id, type.currentVersion, tx);
 		const values = validateValues(template.fields, input.values, true);
 		const [counter] = await tx
 			.select()
@@ -472,7 +515,7 @@ async function recordFor(id: string, tx?: DatabaseTransaction) {
 }
 export async function recordDetails(id: string) {
 	const record = await recordFor(id);
-	const template = await templateFor(record.typeId, record.templateVersion);
+	const template = await templateMetaFor(record.typeId, record.templateVersion);
 	const history = await db()
 		.select({
 			revision: documentRevision.revision,
@@ -506,7 +549,7 @@ export async function updateRecord(
 				"只能修改本人取号的文书。",
 			);
 		if (record.revision !== input.revision) conflict();
-		const template = await templateFor(
+		const template = await templateMetaFor(
 			record.typeId,
 			record.templateVersion,
 			tx,

@@ -1,10 +1,11 @@
 /**
  * @file 笔录案件、询问内容与个人常用询问人的持久化定义。
- * 创建时间：2026-11-04；修改时间：2026-11-05。
+ * 创建时间：2026-11-04；修改时间：2026-11-21。
  * 版本作用：独立于资金案件；内容按案件所有者隔离，修订号防止覆盖。
- * 被调用：schema 出口、inquiries 服务、Drizzle 迁移；调用：pg-core、认证 user 表。
- * 功能与预期结果：kind 区分多笔录文件夹和独立笔录容器，归档和标记删除保留原资料。
+ * 被调用：schema 出口、inquiries 服务、Drizzle 迁移；调用：pg-core、drizzle-orm、认证 user 表。
+ * 功能与预期结果：kind 区分多笔录文件夹和独立笔录容器，软删除记录不阻塞活跃询问人证号修改。
  */
+import { sql } from "drizzle-orm";
 import {
 	boolean,
 	index,
@@ -63,7 +64,9 @@ export const inquiryCase = pgTable(
 		deletedBy: text("deleted_by").references(() => user.id),
 	},
 	(table) => [
-		index("inquiry_case_owner_idx").on(table.ownerId, table.updatedAt),
+		index("inquiry_case_owner_idx")
+			.on(table.ownerId, table.updatedAt)
+			.where(sql`${table.deletedAt} is null`),
 	],
 );
 
@@ -84,7 +87,9 @@ export const inquiryRecord = pgTable(
 		deletedBy: text("deleted_by").references(() => user.id),
 	},
 	(table) => [
-		index("inquiry_record_case_idx").on(table.caseId, table.updatedAt),
+		index("inquiry_record_case_idx")
+			.on(table.caseId, table.updatedAt)
+			.where(sql`${table.deletedAt} is null`),
 	],
 );
 
@@ -104,9 +109,8 @@ export const inquiryInquirer = pgTable(
 		updatedAt: timestamp("updated_at").notNull().defaultNow(),
 	},
 	(table) => [
-		uniqueIndex("inquiry_inquirer_owner_badge_unique").on(
-			table.ownerId,
-			table.badgeNumber,
-		),
+		uniqueIndex("inquiry_inquirer_owner_badge_unique")
+			.on(table.ownerId, table.badgeNumber)
+			.where(sql`${table.deletedAt} is null`),
 	],
 );

@@ -1,6 +1,6 @@
 /**
  * @file 计算器方案 API 的有界输入模型。
- * 创建时间：2026-11-05；修改时间：2026-11-07。
+ * 创建时间：2026-11-05；修改时间：2026-11-21。
  * 版本作用：Eden 推导契约；历史数值由共享领域规则再校验。
  * 被调用：计算器路由与服务；调用：Elysia TypeBox。
  * 预期结果：限制所属期数量、字符串长度和请求形状，拒绝客户端提供计算结果。
@@ -14,7 +14,7 @@ import { t } from "elysia";
 
 const name = t.String({ minLength: 1, maxLength: 80, pattern: "\\S" });
 const amount = t.String({ maxLength: 100 });
-// 禁止混合版本；其余额外字段保留给领域校验拒绝，避免 normalize 静默清理金额。
+// 禁止混合版本；保留有限长度的额外字符串字段交由领域校验返回“未知字段”400，阻止任意大对象注入。
 const adjustment = t.Union([
 	t.Object(
 		{
@@ -25,7 +25,7 @@ const adjustment = t.Union([
 			dx: t.Optional(t.Never()),
 			di: t.Optional(t.Never()),
 		},
-		{ additionalProperties: true },
+		{ additionalProperties: amount, maxProperties: 8 },
 	),
 	t.Object(
 		{
@@ -36,7 +36,7 @@ const adjustment = t.Union([
 			inputIncrease: t.Optional(t.Never()),
 			inputDecrease: t.Optional(t.Never()),
 		},
-		{ additionalProperties: true },
+		{ additionalProperties: amount, maxProperties: 8 },
 	),
 ]);
 export const CalculatorsModel = {

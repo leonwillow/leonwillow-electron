@@ -1,6 +1,6 @@
 /**
  * @file 文书取号与管理员模板操作的 HTTP 输入契约。
- * 创建时间：2026-10-10；修改时间：2026-10-10。
+ * 创建时间：2026-10-10；修改时间：2026-11-21。
  * 版本作用：限制年份、序号、上传大小和动态字段；供 Eden 推导客户端类型。
  * 被调用：documents 路由；调用：Elysia TypeBox。
  * 预期结果：身份、号码与模板版本由服务端确定，错误输入返回 422。
@@ -44,8 +44,12 @@ export const DocumentsModel = {
 		file: t.File({ maxSize: "5m" }),
 		name,
 		prefix,
-		year: t.Numeric({ minimum: 2000, maximum: 9999 }),
-		nextNumber: t.Numeric({ minimum: 1, maximum: 2_000_000_000 }),
+		year: t.Numeric({ minimum: 2000, maximum: 9999, multipleOf: 1 }),
+		nextNumber: t.Numeric({
+			minimum: 1,
+			maximum: 2_000_000_000,
+			multipleOf: 1,
+		}),
 	}),
 	inspect: t.Object({ file: t.File({ maxSize: "5m" }) }),
 	sample: t.Object({ name, prefix, year, nextNumber }),
@@ -60,10 +64,12 @@ export const DocumentsModel = {
 	),
 	replace: t.Object({
 		file: t.File({ maxSize: "5m" }),
-		revision: t.Numeric({ minimum: 1 }),
+		revision: t.Numeric({ minimum: 1, multipleOf: 1 }),
 	}),
 	sequence: t.Object({ year, nextNumber }, { additionalProperties: false }),
-	year: t.Object({ year: t.Numeric({ minimum: 2000, maximum: 9999 }) }),
+	year: t.Object({
+		year: t.Numeric({ minimum: 2000, maximum: 9999, multipleOf: 1 }),
+	}),
 	draft: t.Object(draft, { additionalProperties: false }),
 	create: t.Object(
 		{ ...draft, requestId: t.String({ format: "uuid" }) },
@@ -80,9 +86,13 @@ export const DocumentsModel = {
 	list: t.Object({
 		q: t.Optional(t.String({ maxLength: 160 })),
 		typeId: t.Optional(t.String({ format: "uuid" })),
-		year: t.Optional(t.Numeric({ minimum: 2000, maximum: 9999 })),
+		year: t.Optional(
+			t.Numeric({ minimum: 2000, maximum: 9999, multipleOf: 1 }),
+		),
 		mine: t.Optional(t.Union([t.Literal("true"), t.Literal("false")])),
-		offset: t.Optional(t.Numeric({ minimum: 0, maximum: 1_000_000 })),
-		limit: t.Optional(t.Numeric({ minimum: 1, maximum: 100 })),
+		offset: t.Optional(
+			t.Numeric({ minimum: 0, maximum: 1_000_000, multipleOf: 1 }),
+		),
+		limit: t.Optional(t.Numeric({ minimum: 1, maximum: 100, multipleOf: 1 })),
 	}),
 };

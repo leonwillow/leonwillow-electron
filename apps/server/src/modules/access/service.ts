@@ -18,9 +18,21 @@ import { userModuleAccess } from "@leonwillow-electron/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
 import { getServerResources } from "../../server-resources";
 
+export type AccessStatusCode =
+	| 400
+	| 401
+	| 403
+	| 404
+	| 409
+	| 413
+	| 422
+	| 429
+	| 500
+	| 503;
+
 export class AccessError extends Error {
 	constructor(
-		public statusCode: 400 | 401 | 403 | 404 | 409 | 503,
+		public statusCode: AccessStatusCode,
 		public code: string,
 		message: string,
 	) {
