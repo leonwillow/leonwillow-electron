@@ -57,7 +57,7 @@ function DefaultEditor<T>({
 }) {
 	const [selectOpen, setSelectOpen] = useState(false);
 	const onKeyDown = async (e: KeyboardEvent) => {
-		if (e.nativeEvent.isComposing) return;
+		if (e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229) return;
 		if (e.key === "Escape") {
 			e.preventDefault();
 			e.stopPropagation();

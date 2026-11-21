@@ -286,6 +286,23 @@ export const vatGridColumns: Column<VatGridRow>[] = [
 		getValue: vatPeriodValue,
 		parse: (input) => vatPeriodValue(parseVatPeriod(input)),
 		format: (_value, row) => reportingPeriodLabel(row),
+		filter: (value, filter, row) => {
+			if (Array.isArray(filter))
+				return (
+					filter.includes(String(value ?? "")) ||
+					filter.includes(reportingPeriodLabel(row))
+				);
+			const q = String(filter).trim().toLocaleLowerCase("zh-CN");
+			if (!q) return true;
+			return (
+				reportingPeriodLabel(row).toLocaleLowerCase("zh-CN").includes(q) ||
+				String(value ?? "")
+					.toLocaleLowerCase("zh-CN")
+					.includes(q) ||
+				row.periodStart.toLocaleLowerCase("zh-CN").includes(q) ||
+				row.periodEnd.toLocaleLowerCase("zh-CN").includes(q)
+			);
+		},
 		compare: (_a, _b, a, b) =>
 			a.periodStart.localeCompare(b.periodStart) ||
 			a.periodEnd.localeCompare(b.periodEnd),

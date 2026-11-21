@@ -1,6 +1,6 @@
 /**
  * @file 快速滚动和大跨度跳转的虚拟窗口覆盖回归。
- * 创建时间：2026-11-06；修改时间：2026-11-06。
+ * 创建时间：2026-11-06；修改时间：2026-11-21。
  * 调用：无 DOM 范围计算；预期：每次跳转都覆盖视口、边界有界且缓冲内不反复通知。
  */
 import { expect, test } from "bun:test";
@@ -28,4 +28,14 @@ test("缓冲内复用窗口，缩减数据后不会留下越界虚拟行", () =>
 		start: 0,
 		end: 300,
 	});
+});
+
+test("跨越 200 行阈值或缩小视口后窗口自动收缩", () => {
+	const full200 = virtualRange(200, 32, 0, 320, { start: 0, end: 25 });
+	expect(full200).toEqual({ start: 0, end: 200 });
+	const shrunk = virtualRange(201, 32, 0, 320, full200);
+	expect(shrunk.end - shrunk.start).toBeLessThan(60);
+	const tall = virtualRange(1000, 32, 0, 1600, { start: 0, end: 25 });
+	const narrow = virtualRange(1000, 32, 0, 320, tall);
+	expect(narrow.end - narrow.start).toBeLessThan(tall.end - tall.start);
 });

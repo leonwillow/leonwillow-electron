@@ -79,6 +79,11 @@ test("所属期复制和撤销保留标准月季及旧非标准范围，日期�
 	]);
 	grid.select({ rowId: "q1", columnId: "period" });
 	expect(grid.copySelection()).toBe("2026-Q1");
+	grid.setState({ filters: { period: "第1季度" } });
+	expect(grid.getSnapshot().viewRows.map((row) => row.id)).toEqual(["q1"]);
+	grid.setState({ filters: { period: "2026年4月" } });
+	expect(grid.getSnapshot().viewRows.map((row) => row.id)).toEqual(["2026-04"]);
+	grid.setState({ filters: {} });
 });
 
 test("筛选中删除只移除勾选行，撤销恢复原位置和调整，重做可持久化完整快照", async () => {

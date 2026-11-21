@@ -1,6 +1,6 @@
 /**
  * @file 普通税款滞纳金的日期、分次缴款与精确计费规则。
- * 创建时间：2026-11-05；修改时间：2026-11-05。
+ * 创建时间：2026-11-05；修改时间：2026-11-21。
  * 版本作用：浏览器与 API 共用万分之五单利算法，不推定申报期限或减免资格。
  * 被调用：滞纳金编辑器、事务服务和测试；调用：共享整数金额工具。
  * 预期结果：缴款日计费、次日减本金；按税款汇总后四舍五入至分，无效输入不产出合计。
@@ -99,7 +99,7 @@ export function calculateLiability(
 	row: TaxLiability,
 	cutoff: string,
 ): LiabilityResult {
-	if (!(row.taxType in taxTypes)) throw Error("请选择税种");
+	if (!Object.hasOwn(taxTypes, row.taxType)) throw Error("请选择税种");
 	const deadline = readDay(row.deadline, "确认缴款期限");
 	const end = readDay(cutoff, "测算截止日");
 	const principal = nonnegative(row.principal, "税款本金");

@@ -1,6 +1,6 @@
 /**
  * @file 增值税所属期的月报/季报选择浮层。
- * 创建时间：2026-11-08；修改时间：2026-11-08。
+ * 创建时间：2026-11-08；修改时间：2026-11-21。
  * 版本作用：将申报周期、年份及月份/季度一次提交为所属期，不使用日历。
  * 被调用：VatTable 自定义单元格编辑器；调用：领域期间函数、共享 Popover/Select/Field。
  * 预期结果：新行默认月报，确认才提交；取消不改原值，冲突保持浮层供修正。
@@ -103,7 +103,6 @@ export default function VatPeriodEditor({
 						type="button"
 						variant="outline"
 						className="lg-period-editor"
-						data-lg-editor
 						aria-label="选择所属期"
 					/>
 				}
@@ -140,7 +139,11 @@ export default function VatPeriodEditor({
 								});
 							}}
 						>
-							<SelectTrigger id={`${id}-cycle`} aria-label="申报周期">
+							<SelectTrigger
+								id={`${id}-cycle`}
+								data-lg-editor
+								aria-label="申报周期"
+							>
 								<SelectValue />
 							</SelectTrigger>
 							<SelectContent data-lg-edit-scope={context.editScope}>

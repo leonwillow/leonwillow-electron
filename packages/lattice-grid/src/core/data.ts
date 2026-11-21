@@ -252,10 +252,13 @@ export function selectionBounds<T>(
 	rows: readonly T[],
 	columns: readonly Column<T>[],
 	getRowId: (row: T) => string,
+	cachedRowIndices?: ReadonlyMap<string, number>,
 ): readonly { r0: number; r1: number; c0: number; c1: number }[] {
 	const ranges = selectionRanges(state);
 	if (!ranges.length) return [];
-	const rowIndices = new Map(rows.map((row, index) => [getRowId(row), index]));
+	const rowIndices =
+		cachedRowIndices ??
+		new Map(rows.map((row, index) => [getRowId(row), index]));
 	const columnIndices = new Map(
 		columns.map((column, index) => [column.id, index]),
 	);
@@ -291,6 +294,7 @@ export function rangeBounds<T>(
 	rows: readonly T[],
 	columns: readonly Column<T>[],
 	getRowId: (row: T) => string,
+	cachedRowIndices?: ReadonlyMap<string, number>,
 ) {
 	return (
 		selectionBounds(
@@ -298,6 +302,7 @@ export function rangeBounds<T>(
 			rows,
 			columns,
 			getRowId,
+			cachedRowIndices,
 		)[0] ?? null
 	);
 }

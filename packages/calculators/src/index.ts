@@ -79,7 +79,7 @@ export function cents(value: unknown, emptyZero = false): number {
 		throw Error("请输入金额");
 	let s = String(value).trim().replace(/−/g, "-").replace(/，/g, ",");
 	if (!s && emptyZero) return 0;
-	s = s.replace(/^([+-]?)\./, "$10.");
+	s = s.replace(/^([+-]?)\.(?=\d)/, "$10.");
 	if (!/^[+-]?(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d{0,2})?$/.test(s))
 		throw Error("金额须为数字，最多两位小数");
 	const negative = s.startsWith("-");

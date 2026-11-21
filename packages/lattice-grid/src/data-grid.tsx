@@ -246,15 +246,22 @@ export function DataGrid<T>(props: DataGridProps<T>) {
 		view.select(request);
 	}, [props.revealCell, s.viewRows, s.columns, store, view]);
 	useEffect(() => {
+		if (!s.errorId && !s.error) return;
 		if (s.error && !props.onError)
 			toast.error(formatError(s.error), {
 				id: `${id}-error`,
 			});
 		else if (!s.error) toast.dismiss(`${id}-error`);
-	}, [s.error, props.onError, formatError, id]);
+	}, [s.error, s.errorId, props.onError, formatError, id]);
+	useEffect(() => {
+		if (props.statusBar !== false || !v.noticeId) return;
+		if (v.notice && v.noticeKind === "error")
+			toast.error(v.notice, { id: `${id}-notice` });
+	}, [props.statusBar, v.notice, v.noticeKind, v.noticeId, id]);
 	useEffect(
 		() => () => {
 			toast.dismiss(`${id}-error`);
+			toast.dismiss(`${id}-notice`);
 		},
 		[id],
 	);
@@ -287,8 +294,25 @@ export function DataGrid<T>(props: DataGridProps<T>) {
 		layout.some((column) => column.pinned) &&
 		layout.some((column) => !column.pinned);
 	const bounds = useMemo(
-		() => selectionBounds(s.state, s.viewRows, s.columns, props.getRowId),
-		[s.state, s.viewRows, s.columns, props.getRowId],
+		() =>
+			selectionBounds(
+				{
+					selection: s.state.selection,
+					additionalSelections: s.state.additionalSelections,
+				},
+				s.viewRows,
+				s.columns,
+				props.getRowId,
+				view.rowIndexMap(),
+			),
+		[
+			s.state.selection,
+			s.state.additionalSelections,
+			s.viewRows,
+			s.columns,
+			props.getRowId,
+			view,
+		],
 	);
 	const rangeSelection =
 		v.selecting ||
@@ -298,10 +322,30 @@ export function DataGrid<T>(props: DataGridProps<T>) {
 		() => selectionColumns(bounds, layout.length),
 		[bounds, layout.length],
 	);
-	const selected = new Set(s.state.selectedRows);
-	const visibleSelected = s.viewRows.filter((row) =>
-		selected.has(props.getRowId(row)),
-	).length;
+	const selected = useMemo(
+		() => new Set(s.state.selectedRows),
+		[s.state.selectedRows],
+	);
+	const visibleSelected = useMemo(
+		() =>
+			selected.size === 0
+				? 0
+				: s.viewRows.reduce(
+						(count, row) => count + (selected.has(props.getRowId(row)) ? 1 : 0),
+						0,
+					),
+		[selected, s.viewRows, props.getRowId],
+	);
+	const activeSelectedCount = useMemo(
+		() =>
+			selected.size === 0
+				? 0
+				: s.rows.reduce(
+						(count, row) => count + (selected.has(props.getRowId(row)) ? 1 : 0),
+						0,
+					),
+		[selected, s.rows, props.getRowId],
+	);
 	const active = s.state.selection?.focus;
 	const retainOffscreen = (columnId?: string) => {
 		const index = layout.findIndex((item) => item.column.id === columnId);
@@ -330,6 +374,18 @@ export function DataGrid<T>(props: DataGridProps<T>) {
 		],
 	);
 	const activeIndex = active ? view.rowIndex(active.rowId) : -1;
+	const editingRowIndex = v.editing ? view.rowIndex(v.editing.rowId) : -1;
+	const renderedRowIndices = useMemo(() => {
+		const indices: number[] = [];
+		const end = Math.min(v.end, s.viewRows.length);
+		if (editingRowIndex >= 0 && editingRowIndex < v.start)
+			indices.push(editingRowIndex);
+		for (let r = v.start; r < end; r++) indices.push(r);
+		if (editingRowIndex >= end && editingRowIndex < s.viewRows.length)
+			indices.push(editingRowIndex);
+		return indices;
+	}, [v.start, v.end, s.viewRows.length, editingRowIndex]);
+	const focusKey = active ? `${active.rowId}\0${active.columnId}` : "";
 	const selectionAnchor = rangeSelection
 		? selectionAnchorCell(
 				s.state.selection,
@@ -406,7 +462,7 @@ export function DataGrid<T>(props: DataGridProps<T>) {
 							<div className="lg-toolbar-tools">
 								<div className="lg-toolbar-group">
 									{props.toolbarSlots?.actions}
-									{selected.size > 0 && (
+									{activeSelectedCount > 0 && (
 										<div className="lg-bulk">
 											<IconButton
 												label={m.clearSelection}
@@ -417,7 +473,7 @@ export function DataGrid<T>(props: DataGridProps<T>) {
 												<XIcon />
 											</IconButton>
 											<span>
-												{selected.size} {m.selected}
+												{activeSelectedCount} {m.selected}
 											</span>
 											{props.allowDelete && (
 												<DeleteRowsButton
@@ -618,8 +674,9 @@ export function DataGrid<T>(props: DataGridProps<T>) {
 							>
 								{!(props.loading || props.error) &&
 									s.columns.length > 0 &&
-									s.viewRows.slice(v.start, v.end).map((row, index) => {
-										const r = index + v.start;
+									renderedRowIndices.map((r) => {
+										const row = s.viewRows[r];
+										if (!row) return null;
 										const rowId = props.getRowId(row);
 										const editing = v.editing?.rowId === rowId;
 										const selectionCells = selectionRowCells(
@@ -670,7 +727,17 @@ export function DataGrid<T>(props: DataGridProps<T>) {
 											/>
 										);
 									})}
-								{!rangeSelection && <CellIndicator view={view} />}
+								{!rangeSelection && (
+									<CellIndicator
+										view={view}
+										focusKey={focusKey}
+										editing={!!v.editing}
+										start={v.start}
+										end={v.end}
+										columnStart={v.columnStart}
+										columnEnd={v.columnEnd}
+									/>
+								)}
 								{(props.loading ||
 									props.error ||
 									!s.viewRows.length ||

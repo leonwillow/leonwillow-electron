@@ -68,6 +68,7 @@ export class GridStore<T> {
 	private future: History<T>[] = [];
 	private pending = false;
 	private error = "";
+	private errorId = 0;
 	private revision = 0;
 	private externalRevision = 0;
 	private epoch = 0;
@@ -185,6 +186,7 @@ export class GridStore<T> {
 			state,
 			pending: this.pending,
 			error: this.error,
+			errorId: this.errorId,
 			canUndo:
 				!!this.past.length &&
 				!this.options.readOnly &&
@@ -259,6 +261,17 @@ export class GridStore<T> {
 			if (!derivedEcho) {
 				this.past = [];
 				this.future = [];
+			}
+			// 外部行集合变化后剔除已不存在的勾选行 ID，避免残留幽灵选择。
+			const currentState = next.state ?? this.state;
+			if (currentState.selectedRows.length) {
+				const existing = new Set(next.rows.map(next.getRowId));
+				const kept = currentState.selectedRows.filter((id) => existing.has(id));
+				if (kept.length !== currentState.selectedRows.length) {
+					const pruned = { ...currentState, selectedRows: kept };
+					if (!next.state) this.state = pruned;
+					next.onStateChange?.(pruned, "selectedRows");
+				}
 			}
 		}
 		if (schemaChanged) {
@@ -447,6 +460,7 @@ export class GridStore<T> {
 	private report(error: unknown): CommitResult {
 		const e = error instanceof Error ? error : new Error(String(error));
 		this.error = e.message;
+		this.errorId++;
 		this.emit();
 		this.options.onError?.(e);
 		return { ok: false, error: e.message };

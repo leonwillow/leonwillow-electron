@@ -79,6 +79,8 @@ export interface ViewState {
 	editing: CellPosition | null;
 	draft: string;
 	notice: string;
+	noticeKind: "info" | "error";
+	noticeId: number;
 	scrollX: boolean;
 	/** 指针已离开起始格并正在扩展选区；普通单击保持原选中框动画。 */
 	selecting: boolean;
@@ -106,6 +108,8 @@ export class GridView<T> {
 		editing: null,
 		draft: "",
 		notice: "",
+		noticeKind: "info",
+		noticeId: 0,
 		scrollX: false,
 		selecting: false,
 	};
@@ -150,7 +154,7 @@ export class GridView<T> {
 		gutter: number;
 		result: ColumnLayout<T>[];
 	};
-	rowIndex(id: string) {
+	rowIndexMap(): ReadonlyMap<string, number> {
 		const rows = this.store.getSnapshot().viewRows;
 		if (this.rowIndexCache?.rows !== rows)
 			this.rowIndexCache = {
@@ -159,7 +163,10 @@ export class GridView<T> {
 					rows.map((row, i) => [this.store.getOptions().getRowId(row), i]),
 				),
 			};
-		return this.rowIndexCache.index.get(id) ?? -1;
+		return this.rowIndexCache.index;
+	}
+	rowIndex(id: string) {
+		return this.rowIndexMap().get(id) ?? -1;
 	}
 	private totalsCache?: {
 		rows: readonly T[];
@@ -182,6 +189,7 @@ export class GridView<T> {
 			viewRows,
 			columns,
 			this.store.getOptions().getRowId,
+			this.rowIndexMap(),
 		);
 		let count = 0;
 		let sum = 0;
@@ -226,6 +234,7 @@ export class GridView<T> {
 			viewRows,
 			columns,
 			this.store.getOptions().getRowId,
+			this.rowIndexMap(),
 		).some(
 			(bounds) =>
 				row >= bounds.r0 &&
@@ -452,20 +461,47 @@ export class GridView<T> {
 	};
 	// 滚动事件中同步发布窗口，避免额外 rAF 延迟后 React 才开始渲染。
 	onScroll = () => this.measure();
-	announce(message: string) {
+	announce(message: string, kind: "info" | "error" = "info") {
 		clearTimeout(this.timer);
-		this.set({ notice: message });
+		this.set({
+			notice: message,
+			noticeKind: kind,
+			noticeId: this.snapshot.noticeId + 1,
+		});
 		this.timer = setTimeout(() => this.set({ notice: "" }), 4000);
 	}
 	focusGrid() {
 		this.scroller?.focus({ preventScroll: true });
 	}
+	private queryEditor() {
+		const inRoot =
+			this.root?.querySelector<HTMLInputElement>("[data-lg-editor]");
+		if (inRoot) return inRoot;
+		const doc = this.root?.ownerDocument;
+		if (!doc || typeof doc.querySelector !== "function") return null;
+		const scope =
+			typeof CSS !== "undefined" && typeof CSS.escape === "function"
+				? CSS.escape(this.options.id)
+				: this.options.id.replace(/["\\]/g, "\\$&");
+		return doc.querySelector<HTMLInputElement>(
+			`[data-lg-edit-scope="${scope}"] [data-lg-editor]`,
+		);
+	}
 	focusEditor(selectAll = true) {
 		clearTimeout(this.focusTimer);
 		this.focusTimer = setTimeout(() => {
-			const el = this.root?.querySelector<HTMLInputElement>("[data-lg-editor]");
+			const el = this.queryEditor();
 			el?.focus({ preventScroll: true });
-			if (selectAll) el?.select?.();
+			if (selectAll) {
+				el?.select?.();
+			} else if (el && typeof el.setSelectionRange === "function") {
+				try {
+					const end = el.value?.length ?? 0;
+					el.setSelectionRange(end, end);
+				} catch {
+					// date 等不支持选区设置的输入框忽略光标定位。
+				}
+			}
 		}, 0);
 	}
 	togglePopup(kind: Popup["kind"], event: Event, id?: string) {
@@ -544,10 +580,15 @@ export class GridView<T> {
 			options.error ||
 			snapshot.externalRevision !== this.editExternalRevision
 		) {
-			const editor = this.root?.querySelector<HTMLElement>("[data-lg-editor]");
-			const restoreFocus = !!editor?.contains(
-				this.root?.ownerDocument.activeElement ?? null,
-			);
+			const editor = this.queryEditor();
+			const activeEl = this.root?.ownerDocument.activeElement ?? null;
+			const restoreFocus =
+				!!editor?.contains(activeEl) ||
+				(activeEl !== null &&
+					typeof (activeEl as Element).closest === "function" &&
+					(activeEl as Element)
+						.closest("[data-lg-edit-scope]")
+						?.getAttribute("data-lg-edit-scope") === this.options.id);
 			this.editSession++;
 			clearTimeout(this.focusTimer);
 			this.set({ editing: null, draft: "" });
@@ -556,15 +597,15 @@ export class GridView<T> {
 		}
 	}
 	startEdit(pos: CellPosition, initial?: string) {
-		const row = this.store
-			.getSnapshot()
-			.viewRows.find((r) => this.store.getOptions().getRowId(r) === pos.rowId);
-		const col = this.store
-			.getOptions()
-			.columns.find((c) => c.id === pos.columnId);
+		const snapshot = this.store.getSnapshot();
+		const rowIndex = this.rowIndex(pos.rowId);
+		const row = rowIndex >= 0 ? snapshot.viewRows[rowIndex] : undefined;
+		const colIndex = snapshot.columns.findIndex((c) => c.id === pos.columnId);
+		const col = colIndex >= 0 ? snapshot.columns[colIndex] : undefined;
 		if (!row || !col || !this.store.isEditable(row, col)) return;
+		this.ensureVisible(rowIndex, colIndex);
 		this.store.clearError();
-		this.editExternalRevision = this.store.getSnapshot().externalRevision;
+		this.editExternalRevision = snapshot.externalRevision;
 		this.editSession++;
 		const value = getCellValue(row, col);
 		this.editInitialDraft = col.formatEdit?.(value, row) ?? String(value ?? "");
@@ -687,6 +728,12 @@ export class GridView<T> {
 		const summaryH = this.summaryHeight();
 		const gutterW = this.gutterWidth();
 		const clientWidth = this.scroller.clientWidth;
+		const { viewRows: rows } = this.store.getSnapshot();
+		const layout = this.layout();
+		const frozenEdge = layout.reduce(
+			(width, col) => width + (col.pinned ? col.width : 0),
+			gutterW,
+		);
 		let scrollTop = this.scroller.scrollTop;
 		let scrollLeft = this.scroller.scrollLeft;
 		if (scroll) {
@@ -695,7 +742,7 @@ export class GridView<T> {
 			if (e.clientY < rect.top + headH + 16) nextTop -= rowH;
 			if (e.clientY > rect.bottom - summaryH) nextTop += rowH;
 			if (e.clientX > rect.right - 24) nextLeft += 24;
-			if (e.clientX < rect.left + 24) nextLeft -= 24;
+			if (e.clientX < rect.left + frozenEdge + 24) nextLeft -= 24;
 			if (nextTop !== scrollTop) {
 				this.scroller.scrollTop = nextTop;
 				scrollTop = this.scroller.scrollTop;
@@ -705,8 +752,6 @@ export class GridView<T> {
 				scrollLeft = this.scroller.scrollLeft;
 			}
 		}
-		const { viewRows: rows } = this.store.getSnapshot();
-		const layout = this.layout();
 		const rowIndex = Math.max(
 			0,
 			Math.min(
@@ -809,25 +854,22 @@ export class GridView<T> {
 		const { state, viewRows, columns } = this.store.getSnapshot();
 		if (!viewRows.length || !columns.length) return;
 		const focus = state.selection?.focus;
-		let r = Math.max(
-			0,
-			viewRows.findIndex(
-				(row) => this.store.getOptions().getRowId(row) === focus?.rowId,
-			),
-		);
-		let c = Math.max(
-			0,
-			columns.findIndex((col) => col.id === focus?.columnId),
-		);
-		r = Math.max(0, Math.min(viewRows.length - 1, r + dr));
-		c = Math.max(0, Math.min(columns.length - 1, c + dc));
-		if (absolute === "start") {
-			r = 0;
-			c = 0;
-		}
-		if (absolute === "end") {
-			r = viewRows.length - 1;
-			c = columns.length - 1;
+		let r = focus ? this.rowIndex(focus.rowId) : -1;
+		let c = focus ? columns.findIndex((col) => col.id === focus.columnId) : -1;
+		if (r < 0 || c < 0) {
+			r = absolute === "end" ? viewRows.length - 1 : 0;
+			c = absolute === "end" ? columns.length - 1 : 0;
+		} else {
+			r = Math.max(0, Math.min(viewRows.length - 1, r + dr));
+			c = Math.max(0, Math.min(columns.length - 1, c + dc));
+			if (absolute === "start") {
+				r = 0;
+				c = 0;
+			}
+			if (absolute === "end") {
+				r = viewRows.length - 1;
+				c = columns.length - 1;
+			}
 		}
 		const row = viewRows[r];
 		const column = columns[c];
@@ -848,6 +890,51 @@ export class GridView<T> {
 			)
 		)
 			return;
+		const composing = event.isComposing || event.keyCode === 229;
+		if (this.snapshot.editing) {
+			if (composing) return;
+			if (event.key === "Escape") {
+				event.preventDefault();
+				this.cancelEdit();
+				return;
+			}
+			if (event.key === "Enter" || event.key === "Tab") {
+				event.preventDefault();
+				const dr = event.key === "Enter" ? (event.shiftKey ? -1 : 1) : 0;
+				const dc = event.key === "Tab" ? (event.shiftKey ? -1 : 1) : 0;
+				void this.commitEdit().then((ok) => {
+					if (ok) this.move(dr, dc);
+				});
+				return;
+			}
+			if (event.key === "Backspace") {
+				event.preventDefault();
+				this.set({ draft: this.snapshot.draft.slice(0, -1) });
+				return;
+			}
+			if (
+				!(event.metaKey || event.ctrlKey) &&
+				!event.altKey &&
+				event.key.length === 1
+			) {
+				const editCol = this.store
+					.getOptions()
+					.columns.find(
+						(candidate) => candidate.id === this.snapshot.editing?.columnId,
+					);
+				const isPicker =
+					!!editCol &&
+					(editCol.editOnClick === true ||
+						!!editCol.options ||
+						editCol.type === "boolean");
+				if (!isPicker) {
+					event.preventDefault();
+					this.set({ draft: this.snapshot.draft + event.key });
+				}
+			}
+			return;
+		}
+		if (composing) return;
 		const mod = event.metaKey || event.ctrlKey;
 		if (mod && event.key.toLowerCase() === "z") {
 			event.preventDefault();
@@ -967,7 +1054,7 @@ export class GridView<T> {
 		if (
 			event.key === "Enter" ||
 			event.key === "F2" ||
-			(!mod && !event.altKey && !event.isComposing && event.key.length === 1)
+			(!mod && !event.altKey && !composing && event.key.length === 1)
 		) {
 			event.preventDefault();
 			this.startEdit(focus, event.key.length === 1 ? event.key : undefined);
@@ -1004,10 +1091,10 @@ export class GridView<T> {
 			);
 		} catch (e) {
 			const message = String(e);
-			this.announce(this.options.formatError?.(message) ?? message);
+			this.announce(this.options.formatError?.(message) ?? message, "error");
 		}
 	};
-	/** TSV 没有不连续区域的无损表示；阻止仅处理活动区域并向可见状态栏说明。 */
+	/** TSV 没有不连续区域的无损表示；阻止仅处理活动区域并向可见状态栏或 Toast 说明。 */
 	private canUseClipboard() {
 		const { state, viewRows, columns } = this.store.getSnapshot();
 		if (
@@ -1016,10 +1103,11 @@ export class GridView<T> {
 				viewRows,
 				columns,
 				this.store.getOptions().getRowId,
+				this.rowIndexMap(),
 			).length <= 1
 		)
 			return true;
-		this.announce(this.messages().multipleSelectionsClipboard);
+		this.announce(this.messages().multipleSelectionsClipboard, "error");
 		return false;
 	}
 	async copy() {
@@ -1029,13 +1117,18 @@ export class GridView<T> {
 			await copyText(this.store.copySelection(), this.root.ownerDocument);
 			this.announce(this.messages().copied);
 		} catch {
-			this.announce(this.messages().clipboardUnavailable);
+			this.announce(this.messages().clipboardUnavailable, "error");
 		}
 	}
 	export() {
-		const csv = this.store.exportCSV(
-			this.store.getSnapshot().state.selectedRows.length > 0,
-		);
+		const { state, viewRows } = this.store.getSnapshot();
+		const selected = new Set(state.selectedRows);
+		const hasVisibleSelected =
+			selected.size > 0 &&
+			viewRows.some((row) =>
+				selected.has(this.store.getOptions().getRowId(row)),
+			);
+		const csv = this.store.exportCSV(hasVisibleSelected);
 		if (this.options.onExport) {
 			this.options.onExport(csv);
 			return;
@@ -1067,15 +1160,20 @@ export class GridView<T> {
 			return cache.result;
 		let left = gutter;
 		let pinLeft = gutter;
+		let pinBroken = false;
+		const maxPinEdge = Math.max(220, viewportWidth - 120);
 		const result = columns.map((column) => {
 			const cs = state.columns.find((c) => c.id === column.id);
 			const width = cs?.width ?? column.width ?? 160;
-			const pinned =
-				!!cs?.pinned && pinLeft + width <= Math.max(220, viewportWidth - 120);
-			const result = { column, width, left, pinned, pinLeft };
+			let pinned = false;
+			if (cs?.pinned && !pinBroken) {
+				if (pinLeft + width <= maxPinEdge) pinned = true;
+				else pinBroken = true;
+			}
+			const entry = { column, width, left, pinned, pinLeft };
 			left += width;
 			if (pinned) pinLeft += width;
-			return result;
+			return entry;
 		});
 		this.layoutCache = {
 			columns: source,
@@ -1093,6 +1191,7 @@ export class GridView<T> {
 			viewRows,
 			columns,
 			this.store.getOptions().getRowId,
+			this.rowIndexMap(),
 		);
 		return bounds
 			.map(

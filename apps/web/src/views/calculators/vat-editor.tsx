@@ -51,7 +51,7 @@ import {
 	RotateCcwIcon,
 	UploadIcon,
 } from "lucide-react";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
 	calculatorError,
@@ -110,6 +110,9 @@ export default function VatEditor({
 			].sort(),
 		[result.rows],
 	);
+	useEffect(() => {
+		if (year !== "all" && !years.includes(year)) setYear("all");
+	}, [year, years]);
 	const visible = useMemo(
 		() =>
 			result.rows.filter(
@@ -136,11 +139,12 @@ export default function VatEditor({
 		(anchorId: string | null, position: "above" | "below", count = 1) => {
 			if (readOnly) throw Error("当前方案不可编辑");
 			const ids = Array.from({ length: count }, () => randomUUID());
-			const current = draftRef.current;
-			const next = insertVatRows(current, anchorId, position, ids);
+			setDraft((prev) => {
+				const next = insertVatRows(prev, anchorId, position, ids);
+				return { ...prev, ...next };
+			});
 			setYear("all");
 			setChangedOnly(false);
-			setDraft({ ...current, ...next });
 			setRevealRowId(ids[0]);
 			toast.success(`已插入 ${count} 行`, {
 				description: "点击“所属期”，选择年份和月份或季度。",

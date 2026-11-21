@@ -303,13 +303,17 @@ export function useScenario<
 		[register, kind, record.id, flush, clearAutoSaveTimer, scheduleAutoSave],
 	);
 
+	const shouldBlockFn = useCallback(async () => {
+		if (mutationLock.current) return true;
+		return !(await flush());
+	}, [flush]);
+	const enableBeforeUnload = useCallback(
+		() => !!pending.current || version.current !== savedVersion.current,
+		[],
+	);
 	const blocker = useBlocker({
-		shouldBlockFn: async () => {
-			if (mutationLock.current) return true;
-			return !(await flush());
-		},
-		enableBeforeUnload: () =>
-			!!pending.current || version.current !== savedVersion.current,
+		shouldBlockFn,
+		enableBeforeUnload,
 		withResolver: true,
 	});
 

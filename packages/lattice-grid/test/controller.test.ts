@@ -1,6 +1,6 @@
 /**
  * @file 编辑控制器的权限、复制选区和异步提交生命周期回归。
- * 创建时间：2026-11-05；修改时间：2026-11-07。
+ * 创建时间：2026-11-05；修改时间：2026-11-21。
  * 被调用：bun test；调用：真实 GridStore 与 GridView 的无 DOM 数据订阅。
  * 预期结果：失效草稿及时退出，自己的提交和派生回写不中断编辑，新会话不被旧请求关闭。
  */
@@ -493,6 +493,110 @@ describe("局部渲染订阅与列布局缓存", () => {
 			rowHeightValue = "2.5rem";
 			resizeCb?.();
 			expect(view.rowHeight()).toBe(40);
+		} finally {
+			cleanup();
+		}
+	});
+
+	it("快速连续打字不吞字、窄窗多列冻结不叠盖、无选区首按定位首格且同步剔除幽灵勾选", async () => {
+		const store = createGrid({
+			rows: [
+				{ id: "r1", a: 1, b: 2, c: 3 },
+				{ id: "r2", a: 4, b: 5, c: 6 },
+			],
+			columns: [
+				{
+					id: "a",
+					field: "a",
+					header: "列A",
+					type: "number",
+					width: 150,
+					pinned: true,
+				},
+				{
+					id: "b",
+					field: "b",
+					header: "列B",
+					type: "number",
+					width: 150,
+					pinned: true,
+				},
+				{
+					id: "c",
+					field: "c",
+					header: "列C",
+					type: "number",
+					width: 150,
+					pinned: true,
+				},
+			],
+			getRowId: (row) => row.id,
+		});
+		const view = new GridView(store, { id: "fast-type-test" });
+		const cleanup = view.mount();
+		try {
+			const eventTarget = { closest: () => null };
+			// 无选区时首次按方向键落在首行首列 (0, 0)
+			view.onKeyDown({
+				key: "ArrowDown",
+				target: eventTarget,
+				preventDefault() {},
+			} as unknown as KeyboardEvent);
+			expect(store.getSnapshot().state.selection?.focus).toEqual({
+				rowId: "r1",
+				columnId: "a",
+			});
+
+			// 连续打字在 focusEditor 异步焦点转移前追加到 draft，Enter 提交而非重置
+			view.onKeyDown({
+				key: "1",
+				target: eventTarget,
+				preventDefault() {},
+			} as unknown as KeyboardEvent);
+			view.onKeyDown({
+				key: "2",
+				target: eventTarget,
+				preventDefault() {},
+			} as unknown as KeyboardEvent);
+			expect(view.getSnapshot().draft).toBe("12");
+			// IME keyCode 229 不应插入草稿
+			view.onKeyDown({
+				key: "a",
+				keyCode: 229,
+				target: eventTarget,
+				preventDefault() {},
+			} as unknown as KeyboardEvent);
+			expect(view.getSnapshot().draft).toBe("12");
+			view.onKeyDown({
+				key: "Enter",
+				target: eventTarget,
+				preventDefault() {},
+			} as unknown as KeyboardEvent);
+			await Bun.sleep(0);
+			expect(store.getSnapshot().rows[0]?.a).toBe(12);
+			expect(view.getSnapshot().editing).toBeNull();
+
+			// 窄视口下前序冻结列超限后，后续列不得继续冻结叠盖
+			view.set({ width: 320 });
+			const narrowLayout = view.layout(320);
+			expect(narrowLayout[0]?.pinned).toBe(true);
+			expect(narrowLayout[1]?.pinned).toBe(false);
+			expect(narrowLayout[2]?.pinned).toBe(false);
+
+			// 外部行集合缩小后剔除不存在的幽灵勾选，相同报错单调递增 errorId
+			store.toggleRow("r1");
+			store.toggleRow("r2");
+			store.updateOptions({
+				...store.getOptions(),
+				rows: [{ id: "r1", a: 12, b: 2, c: 3 }],
+			});
+			expect(store.getSnapshot().state.selectedRows).toEqual(["r1"]);
+			const firstErr = await store.edit({ rowId: "r1", columnId: "a" }, "abc");
+			expect(firstErr.ok).toBe(false);
+			const id1 = store.getSnapshot().errorId;
+			const secondErr = await store.edit({ rowId: "r1", columnId: "a" }, "abc");
+			expect(secondErr.ok).toBe(false);
+			expect(store.getSnapshot().errorId).toBeGreaterThan(id1);
 		} finally {
 			cleanup();
 		}

@@ -26,7 +26,23 @@ function cellClipLeft<T>(view: GridView<T>, cell: HTMLElement, line: number) {
 	return viewport.getBoundingClientRect().left + edge - sharedLine;
 }
 
-export function CellIndicator<T>({ view }: { view: GridView<T> }) {
+export function CellIndicator<T>({
+	view,
+	focusKey,
+	editing,
+	start,
+	end,
+	columnStart,
+	columnEnd,
+}: {
+	view: GridView<T>;
+	focusKey: string;
+	editing: boolean;
+	start: number;
+	end: number;
+	columnStart: number;
+	columnEnd: number;
+}) {
 	const [anchor, setAnchor] = useState<HTMLElement | null>(null);
 	const borderRef = useRef<HTMLDivElement>(null);
 	const motionRef = useRef<{
@@ -36,16 +52,16 @@ export function CellIndicator<T>({ view }: { view: GridView<T> }) {
 	const previousSelection = useRef("");
 	const originRef = useRef<{ rect: DOMRect; clipLeft: number } | null>(null);
 
-	// 虚拟行提交后解析真实单元格；只在挂载目标改变时更新 Portal。
+	// 虚拟行/列窗口、焦点或编辑态变化后解析真实单元格；只在挂载目标改变时更新 Portal。
 	useLayoutEffect(() => {
 		const viewport = view.scroller;
-		const focus = view.store.getSnapshot().state.selection?.focus;
-		const selection = JSON.stringify(focus);
-		const changed = previousSelection.current !== selection;
-		previousSelection.current = selection;
-		const target = view.getSnapshot().editing
-			? null
-			: (viewport?.querySelector<HTMLElement>(".lg-cell.lg-active") ?? null);
+		const changed = previousSelection.current !== focusKey;
+		previousSelection.current = focusKey;
+		const inWindow = start <= end && columnStart <= columnEnd;
+		const target =
+			editing || !focusKey || !inWindow
+				? null
+				: (viewport?.querySelector<HTMLElement>(".lg-cell.lg-active") ?? null);
 		if (target === anchor) return;
 
 		originRef.current = null;
@@ -80,7 +96,7 @@ export function CellIndicator<T>({ view }: { view: GridView<T> }) {
 			}
 		}
 		setAnchor(target);
-	});
+	}, [view, anchor, focusKey, editing, start, end, columnStart, columnEnd]);
 
 	useLayoutEffect(() => {
 		const border = borderRef.current;

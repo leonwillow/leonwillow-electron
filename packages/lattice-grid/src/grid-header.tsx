@@ -2,7 +2,7 @@
 // biome-ignore-all lint/a11y/useFocusableInteractive: Header controls own keyboard focus; row/group containers are not additional tab stops.
 /**
  * @file 隔离正文滚动更新的网格表头。
- * 创建时间：2026-11-08；修改时间：2026-11-17。
+ * 创建时间：2026-11-08；修改时间：2026-11-21。
  * 版本作用：表头仅响应实际数据、列状态和高亮变化，跳过虚拟滚动及同列范围内的拖选更新。
  * 被调用：DataGrid；调用：原共享 Sortable、Checkbox、Popover 和 ColumnMenu。
  * 预期结果：保留分组、冻结、调宽、菜单和键盘交互，减少滚动中的重复工作。
@@ -29,6 +29,15 @@ import { formatValue, numericFilter } from "./core/data";
 import type { Column, GridSnapshot } from "./core/types";
 import type { useColumnDrag } from "./use-column-drag";
 import type { GridView } from "./view-controller";
+
+const WIDE_CHAR = /[\u2E80-\u9FFF\uF900-\uFAFF\uFE30-\uFE4F\uFF00-\uFFEF]/;
+
+/** 估算包含中英文字符的显示单元宽度，防止双击自适应列宽截断中文。 */
+function displayUnits(text: string): number {
+	let units = 0;
+	for (const ch of text) units += WIDE_CHAR.test(ch) ? 1.9 : 1;
+	return units;
+}
 
 const horizontalDrag: NonNullable<SortableRootProps<unknown>["modifiers"]> = [
 	({ transform }) => ({ ...transform, y: 0 }),
@@ -366,15 +375,20 @@ function GridHeaderView<T>({
 												store.setColumn(col.id, {
 													width: Math.min(
 														480,
-														Math.max(
-															col.header.length * 8 + 56,
-															...s.viewRows
-																.slice(0, 300)
-																.map(
-																	(row) =>
-																		formatValue(row, col, locale).length * 7.6 +
-																		26,
-																),
+														Math.ceil(
+															Math.max(
+																displayUnits(col.header) * 8 + 64,
+																...s.viewRows
+																	.slice(0, 300)
+																	.map(
+																		(row) =>
+																			displayUnits(
+																				formatValue(row, col, locale),
+																			) *
+																				7.8 +
+																			28,
+																	),
+															),
 														),
 													),
 												})

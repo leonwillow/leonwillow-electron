@@ -190,7 +190,6 @@ export default function LateFeeEditor({
 			});
 	};
 	const add = () => {
-		if (draft.liabilities.length >= MAX_LIABILITIES) return;
 		const row: TaxLiability = {
 			id: randomUUID(),
 			taxType: "vat",
@@ -200,7 +199,10 @@ export default function LateFeeEditor({
 			note: "",
 			payments: [],
 		};
-		setDraft((prev) => ({ ...prev, liabilities: [...prev.liabilities, row] }));
+		setDraft((prev) => {
+			if (prev.liabilities.length >= MAX_LIABILITIES) return prev;
+			return { ...prev, liabilities: [...prev.liabilities, row] };
+		});
 	};
 	return (
 		<>
