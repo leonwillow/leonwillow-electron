@@ -1,10 +1,10 @@
 /**
  * @file 跨文件去重、双边记账核对及案件图快照生成。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-06
+ * 修改时间：2026-11-21
  * 版本作用：可重放的纯计算；姓名相同不构成账户归并依据。
  * 被调用：导入/核对服务与测试；调用：parser.digest、内部契约。
- * 功能：保留文件内重复次数、跨文件证据、未确认双边候选及未知对手。
+ * 功能：保留文件内重复次数、跨文件证据、滑窗 60 秒双边候选匹配及未知对手。
  * 预期结果：相同银行流水号的手续费不吞并；双边互唯一和完整同额组自动匹配，冲突暂缓入图。
  */
 import { digest } from "./parser";
@@ -75,22 +75,36 @@ export function reconcile(
 	const near: MatchCandidate[] = [];
 	const exact = new Map<string, string[]>();
 	for (const bucket of buckets.values()) {
-		const incoming = bucket
-			.filter((group) => group.observation.direction === "in")
-			.sort((a, b) =>
-				a.observation.timestamp.localeCompare(b.observation.timestamp),
+		type TimedGroup = { group: Group; ms: number };
+		const incoming: TimedGroup[] = [];
+		const outgoing: TimedGroup[] = [];
+		for (const group of bucket) {
+			const entry = { group, ms: Date.parse(group.observation.timestamp) };
+			if (group.observation.direction === "in") incoming.push(entry);
+			else outgoing.push(entry);
+		}
+		if (!incoming.length || !outgoing.length) continue;
+		const byTime = (a: TimedGroup, b: TimedGroup) =>
+			a.ms - b.ms ||
+			a.group.observation.timestamp.localeCompare(
+				b.group.observation.timestamp,
 			);
-		for (const out of bucket.filter(
-			(group) => group.observation.direction === "out",
-		)) {
-			for (const into of incoming) {
-				const seconds =
-					Math.abs(
-						Date.parse(out.observation.timestamp) -
-							Date.parse(into.observation.timestamp),
-					) / 1000;
-				if (seconds > 60) continue;
-				const [from = "", to = ""] = endpoints(out.observation);
+		incoming.sort(byTime);
+		outgoing.sort(byTime);
+		// 60 秒窗口双指针扫描，避免同金额桶内 O(N²) 退化与重复 Date.parse。
+		let left = 0;
+		for (const { group: out, ms: outMs } of outgoing) {
+			while (
+				left < incoming.length &&
+				(incoming[left]?.ms ?? 0) < outMs - 60_000
+			)
+				left++;
+			const [from = "", to = ""] = endpoints(out.observation);
+			for (let j = left; j < incoming.length; j++) {
+				const candidate = incoming[j];
+				if (!candidate || candidate.ms > outMs + 60_000) break;
+				const into = candidate.group;
+				const seconds = Math.abs(outMs - candidate.ms) / 1000;
 				near.push({
 					id: digest(`${out.id}:${into.id}`),
 					left: out.id,
@@ -101,8 +115,12 @@ export function reconcile(
 					to,
 				});
 				if (!seconds) {
-					exact.set(out.id, [...(exact.get(out.id) ?? []), into.id]);
-					exact.set(into.id, [...(exact.get(into.id) ?? []), out.id]);
+					const outExact = exact.get(out.id) ?? [];
+					outExact.push(into.id);
+					exact.set(out.id, outExact);
+					const inExact = exact.get(into.id) ?? [];
+					inExact.push(out.id);
+					exact.set(into.id, inExact);
 				}
 			}
 		}
@@ -116,11 +134,10 @@ export function reconcile(
 			.filter((d) => d.action === "separate")
 			.map((d) => digest(`${d.left}:${d.right}`)),
 	);
+	const nearPairs = new Set(near.map((c) => `${c.left}:${c.right}`));
 	for (const decision of decisions.filter((d) => d.action === "merge")) {
 		if (
-			near.some(
-				(c) => c.left === decision.left && c.right === decision.right,
-			) &&
+			nearPairs.has(`${decision.left}:${decision.right}`) &&
 			!matched.has(decision.left) &&
 			!matched.has(decision.right)
 		) {
@@ -237,11 +254,14 @@ export function reconcile(
 		if (name && !item.names.includes(name)) item.names.push(name);
 		if (own && name && !item.ownNames.includes(name)) item.ownNames.push(name);
 		item.hasStatement ||= own;
-		item.firstSeen = [item.firstSeen, timestamp].sort()[0] ?? timestamp;
-		item.lastSeen = [item.lastSeen, timestamp].sort()[1] ?? timestamp;
+		if (timestamp < item.firstSeen) item.firstSeen = timestamp;
+		if (timestamp > item.lastSeen) item.lastSeen = timestamp;
 		accounts.set(number, item);
 	}
+	const firstOwnRow = new Map<string, Observation>();
 	for (const row of all) {
+		if (row.ownerAccount && !firstOwnRow.has(row.ownerAccount))
+			firstOwnRow.set(row.ownerAccount, row);
 		remember(row.ownerAccount, row.ownerName, true, row.timestamp);
 		remember(row.otherAccount, row.otherName, false, row.timestamp);
 	}
@@ -290,7 +310,7 @@ export function reconcile(
 		(account) => account.ownNames.length > 1,
 	);
 	for (const account of conflicted) {
-		const row = all.find((item) => item.ownerAccount === account.id);
+		const row = firstOwnRow.get(account.id);
 		if (row)
 			issues.push({
 				id: digest(`name:${account.id}`),

@@ -1,14 +1,15 @@
 /**
  * @file 资金调查案件 API。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-06
- * 版本作用：经过功能权限和案件归属检查的整案导入与查询。
+ * 修改时间：2026-11-21
+ * 版本作用：经过功能权限和案件归属检查的整案导入与查询；上传前先校验归属、数量、大小和扩展名再读入内存。
  * 被调用：app.ts、Web Eden；调用：accessPlugin、FundsModel、普通服务函数。
  * 功能：文件上传、清洗报告、来源核对、资金图、分页交易、时间路径。
  * 预期结果：未登录 401，越权 403/404，输入错误 400/422，旧图 409，图故障 503。
  */
 import { Elysia, t } from "elysia";
 import { accessPlugin } from "../access/plugin";
+import { AccessError } from "../access/service";
 import * as analysisService from "./analysis-service";
 import * as links from "./case-links";
 import * as caseService from "./case-service";
@@ -16,6 +17,46 @@ import { csvDocument, templateHeaders } from "./export";
 import * as jobs from "./jobs";
 import { FundsModel } from "./model";
 import * as reconcileService from "./reconcile-service";
+
+const MAX_UPLOAD_FILES = 32;
+const MAX_UPLOAD_FILE_BYTES = 20 * 1024 * 1024;
+const MAX_UPLOAD_BATCH_BYTES = 100 * 1024 * 1024;
+
+/** 在读取文件字节前先校验案件归属、文件数量、单文件与总大小及扩展名，避免非法批量上传耗尽内存。 */
+async function readValidatedUploadFiles(
+	actor: caseService.Actor,
+	caseId: string,
+	files: File[],
+) {
+	await caseService.findCase(actor, caseId);
+	if (
+		!files.length ||
+		files.length > MAX_UPLOAD_FILES ||
+		files.some((f) => !f.size || f.size > MAX_UPLOAD_FILE_BYTES) ||
+		files.reduce((sum, f) => sum + f.size, 0) > MAX_UPLOAD_BATCH_BYTES
+	) {
+		throw new AccessError(
+			400,
+			"IMPORT_LIMIT",
+			"每批 1–32 个文件，单文件不超过 20 MB，整批不超过 100 MB。",
+		);
+	}
+	if (files.some((f) => !/\.(csv|tsv|xlsx|xls)$/i.test(f.name))) {
+		throw new AccessError(
+			400,
+			"FILE_UNSUPPORTED",
+			"当前支持 Excel、CSV、TSV，请将图文文件转换为表格后上传。",
+		);
+	}
+	const result: { name: string; bytes: Uint8Array }[] = [];
+	for (const file of files) {
+		result.push({
+			name: file.name,
+			bytes: new Uint8Array(await file.arrayBuffer()),
+		});
+	}
+	return result;
+}
 
 export const fundsModule = new Elysia({ name: "funds", prefix: "/api/funds" })
 	.use(accessPlugin)
@@ -104,12 +145,7 @@ export const fundsModule = new Elysia({ name: "funds", prefix: "/api/funds" })
 			jobs.enqueueImport(
 				access,
 				params.caseId,
-				await Promise.all(
-					body.files.map(async (file) => ({
-						name: file.name,
-						bytes: new Uint8Array(await file.arrayBuffer()),
-					})),
-				),
+				await readValidatedUploadFiles(access, params.caseId, body.files),
 				"standard",
 			),
 		{ params: FundsModel.id, body: FundsModel.upload },
@@ -171,12 +207,7 @@ export const fundsModule = new Elysia({ name: "funds", prefix: "/api/funds" })
 			jobs.enqueueImport(
 				access,
 				params.caseId,
-				await Promise.all(
-					body.files.map(async (file) => ({
-						name: file.name,
-						bytes: new Uint8Array(await file.arrayBuffer()),
-					})),
-				),
+				await readValidatedUploadFiles(access, params.caseId, body.files),
 				"ai",
 			),
 		{ params: FundsModel.id, body: FundsModel.upload },

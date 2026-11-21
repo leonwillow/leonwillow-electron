@@ -1,7 +1,7 @@
 /**
  * @file 资金案件归属校验、版本持久化与目录生命周期服务。
  * 创建时间：2026-10-06
- * 修改时间：2026-11-18
+ * 修改时间：2026-11-21
  * 版本作用：管理案件目录、归属锁、版本落库、原件下载与标准导出，供核对与图分析复用。
  * 被调用：funds API、reconcile-service、analysis-service、jobs、case-links 及离线脚本。
  * 调用：PostgreSQL/Drizzle、canonical、export、file-store、reconcile、subjects。
@@ -110,8 +110,18 @@ export async function saveRevision(
 	action: string,
 	snapshot: FundsSnapshot,
 	decisions: MatchDecision[],
-	enqueueProjection = true,
+	options:
+		| boolean
+		| { enqueueProjection?: boolean; transactionsUnchanged?: boolean } = true,
 ) {
+	const enqueueProjection =
+		typeof options === "boolean"
+			? options
+			: (options.enqueueProjection ?? true);
+	const transactionsUnchanged =
+		typeof options === "boolean"
+			? false
+			: (options.transactionsUnchanged ?? false);
 	const [previous] = await tx
 		.select()
 		.from(fundsRevision)
@@ -135,41 +145,44 @@ export async function saveRevision(
 		decisions,
 	});
 	await tx.update(fundsCase).set({ revision }).where(eq(fundsCase.id, caseId));
-	await tx
-		.update(fundsTransaction)
-		.set({ deletedAt: new Date() })
-		.where(
-			and(
-				eq(fundsTransaction.caseId, caseId),
-				isNull(fundsTransaction.deletedAt),
-			),
-		);
-	const held = new Set(snapshot.heldTransactionIds ?? []);
-	const accepted = snapshot.transactions.filter((t) => !held.has(t.id));
-	for (let i = 0; i < accepted.length; i += 1000)
+	// 仅变更主体归属（不改变规范交易及暂缓集合）时跳过全表 funds_transaction 软删与重写。
+	if (!transactionsUnchanged) {
 		await tx
-			.insert(fundsTransaction)
-			.values(
-				accepted.slice(i, i + 1000).map((t) => ({
-					caseId,
-					id: t.id,
-					revision,
-					fromAccount: t.from,
-					toAccount: t.to,
-					data: t,
-					deletedAt: null,
-				})),
-			)
-			.onConflictDoUpdate({
-				target: [fundsTransaction.caseId, fundsTransaction.id],
-				set: {
-					revision,
-					fromAccount: sql`excluded.from_account`,
-					toAccount: sql`excluded.to_account`,
-					data: sql`excluded.data`,
-					deletedAt: null,
-				},
-			});
+			.update(fundsTransaction)
+			.set({ deletedAt: new Date() })
+			.where(
+				and(
+					eq(fundsTransaction.caseId, caseId),
+					isNull(fundsTransaction.deletedAt),
+				),
+			);
+		const held = new Set(snapshot.heldTransactionIds ?? []);
+		const accepted = snapshot.transactions.filter((t) => !held.has(t.id));
+		for (let i = 0; i < accepted.length; i += 1000)
+			await tx
+				.insert(fundsTransaction)
+				.values(
+					accepted.slice(i, i + 1000).map((t) => ({
+						caseId,
+						id: t.id,
+						revision,
+						fromAccount: t.from,
+						toAccount: t.to,
+						data: t,
+						deletedAt: null,
+					})),
+				)
+				.onConflictDoUpdate({
+					target: [fundsTransaction.caseId, fundsTransaction.id],
+					set: {
+						revision,
+						fromAccount: sql`excluded.from_account`,
+						toAccount: sql`excluded.to_account`,
+						data: sql`excluded.data`,
+						deletedAt: null,
+					},
+				});
+	}
 	if (enqueueProjection)
 		await tx.insert(fundsJob).values({
 			id: crypto.randomUUID(),

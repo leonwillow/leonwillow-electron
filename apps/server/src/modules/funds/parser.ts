@@ -56,10 +56,17 @@ export function moneyMinor(value: string): string | null {
 	return amount <= 9_223_372_036_854_775_807n ? amount.toString() : null;
 }
 
-function accountNumber(value: string) {
+/** 清洗账号中的空白字符、零宽空格与前导单引号，排除全零与无效占位词。 */
+export function normalizeAccountNumber(value: string) {
 	const text = value.replace(/[\s\u200B]/g, "").replace(/^['’]/, "");
 	if (!text || /^0+$/.test(text) || /^(无|不详|未知|NULL|N\/A|-)$/i.test(text))
 		return "";
+	return text;
+}
+
+function accountNumber(value: string) {
+	const text = normalizeAccountNumber(value);
+	if (!text) return "";
 	if (/^[\d.]+e[+-]?\d+$/i.test(text))
 		throw new Error("账号是科学计数形式，需核对原始账号，不能自动补位");
 	return text;

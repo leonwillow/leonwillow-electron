@@ -1,11 +1,11 @@
 /**
  * @file Neo4j 资金图连接、原子投影及受限查询。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-06
+ * 修改时间：2026-11-21
  * 版本作用：规范交易以 TRANSFER 边存储，统计、列表和穿透均查询图。
  * 被调用：启动入口和 funds 服务；调用：neo4j-driver。
- * 功能：按案件替换完整图版本，提供参数化分页、账户筛选和时间有序路径。
- * 预期结果：案件隔离、整数金额无精度损失，图版本落后时由服务拒绝分析。
+ * 功能：按案件替换完整图版本，提供去重节点投影、索引锚定时间有序路径与分页明细。
+ * 预期结果：案件隔离、节点详情按 V 仅解析一次、路径追踪不触发全图组合爆炸。
  */
 import neo4j, { type Driver, type QueryResult } from "neo4j-driver";
 import type {
@@ -199,29 +199,54 @@ export function createFundsGraph(
 				transactionCount: number(r.get("count")),
 			}));
 		},
-		/** 完整返回已入图的事实，含仅见对手的节点；无筛选时也返回无边节点，不设交易笔数上限。 */
+		/** 完整返回已入图的事实，含仅见对手的节点；同一读会话先查边再按去重 ID 拉节点，避免 O(E) 重复传输与 JSON.parse。 */
 		async graph(caseId: string, filter: Omit<GraphFilter, "limit" | "offset">) {
 			const parameters = graphParameters(caseId, filter);
-			const result = await run(
-				`MATCH (a:FundsSubject)-[t:TRANSFER]->(b:FundsSubject)
+			const unfiltered =
+				!filter.account &&
+				!filter.counterparty &&
+				!filter.transaction &&
+				!filter.from &&
+				!filter.to;
+			const session = driver.session({
+				database: "neo4j",
+				defaultAccessMode: neo4j.session.READ,
+			});
+			try {
+				const edgeResult = await session.run(
+					`MATCH (a:FundsSubject)-[t:TRANSFER]->(b:FundsSubject)
 WHERE ${transactionWhere}
-RETURN a,t,b ORDER BY t.timestamp, t.transactionId
-UNION ALL
-MATCH (a:FundsSubject {caseId: $caseId})
-WHERE $unfiltered AND NOT (a)-[:TRANSFER {caseId: $caseId}]-()
-RETURN a, null AS t, null AS b`,
-				{
-					...parameters,
-					unfiltered:
-						!filter.account &&
-						!filter.counterparty &&
-						!filter.transaction &&
-						!filter.from &&
-						!filter.to,
-				},
-			);
-			const graph = graphRows(result);
-			return { ...graph, total: graph.edges.length };
+RETURN a.subjectId AS fromId, b.subjectId AS toId, t ORDER BY t.timestamp, t.transactionId`,
+					parameters,
+					{ timeout: 15_000 },
+				);
+				const nodeIds = new Set<string>();
+				const edges: ReturnType<typeof transferProps>[] = [];
+				for (const record of edgeResult.records) {
+					const fromId = record.get("fromId");
+					const toId = record.get("toId");
+					if (fromId) nodeIds.add(String(fromId));
+					if (toId) nodeIds.add(String(toId));
+					const transfer = record.get("t");
+					if (transfer) edges.push(transferProps(transfer.properties));
+				}
+				const nodeResult =
+					nodeIds.size > 0 || unfiltered
+						? await session.run(
+								`MATCH (n:FundsSubject {caseId: $caseId})
+WHERE n.subjectId IN $nodeIds OR ($unfiltered AND NOT (n)-[:TRANSFER {caseId: $caseId}]-())
+RETURN n`,
+								{ caseId, nodeIds: [...nodeIds], unfiltered },
+								{ timeout: 15_000 },
+							)
+						: null;
+				const nodes = (nodeResult?.records ?? []).map((record) =>
+					accountProps(record.get("n").properties),
+				);
+				return { nodes, edges, total: edges.length };
+			} finally {
+				await session.close();
+			}
 		},
 		/** 返回筛选后的交易分页及精确总笔数；分页仅用于明细，不限制完整图。 */
 		async transactions(caseId: string, filter: GraphFilter) {
@@ -243,7 +268,7 @@ RETURN a, null AS t, null AS b`,
 				total: number(count.records[0]?.get("count") ?? 0),
 			};
 		},
-		/** 有向时间有序关联路径；不做资金归属分配，不宣称路径是同一笔钱。 */
+		/** 有向时间有序关联路径；先按案件+账户锚定起点节点再展开跳数，避免全图组合爆炸。 */
 		async trace(
 			caseId: string,
 			account: string,
@@ -253,31 +278,68 @@ RETURN a, null AS t, null AS b`,
 			to: string,
 		) {
 			const hops = Math.max(1, Math.min(4, Math.trunc(depth)));
-			const result = await run(
-				`MATCH p=(a:FundsSubject {caseId: $caseId})-[:TRANSFER*1..${hops}]->(b:FundsSubject)
-    WHERE (a.subjectId = $account OR relationships(p)[0].fromAccount = $account) AND all(t IN relationships(p) WHERE t.caseId = $caseId AND ($from = '' OR t.timestamp >= $from) AND ($to = '' OR t.timestamp <= $to))
-    AND ($transaction = '' OR relationships(p)[0].transactionId = $transaction)
-    AND all(i IN range(1, size(relationships(p)) - 1) WHERE relationships(p)[i].timestamp >= relationships(p)[i-1].timestamp AND relationships(p)[i].fromAccount = relationships(p)[i-1].toAccount)
-    RETURN p LIMIT 201`,
-				{
-					caseId,
-					account,
-					transaction,
-					from: from ? `${from}T00:00:00+08:00` : "",
-					to: to ? `${to}T23:59:59+08:00` : "",
-				},
-			);
+			const params = {
+				caseId,
+				account,
+				transaction,
+				from: from ? `${from}T00:00:00+08:00` : "",
+				to: to ? `${to}T23:59:59+08:00` : "",
+			};
 			const nodes = new Map<string, ReturnType<typeof accountProps>>();
 			const edges = new Map<string, ReturnType<typeof transferProps>>();
-			for (const row of result.records.slice(0, 200))
-				for (const segment of row.get("p").segments) {
-					for (const node of [segment.start, segment.end]) {
-						const item = accountProps(node.properties);
-						nodes.set(item.id, item);
+			const rememberNode = (node: { properties: Record<string, unknown> }) => {
+				const id = String(node.properties.subjectId);
+				if (!nodes.has(id)) nodes.set(id, accountProps(node.properties));
+			};
+			const rememberEdge = (rel: { properties: Record<string, unknown> }) => {
+				const id = String(rel.properties.transactionId);
+				if (!edges.has(id)) edges.set(id, transferProps(rel.properties));
+			};
+			const query =
+				hops === 1
+					? `MATCH (a:FundsSubject {caseId: $caseId})
+WHERE a.subjectId = $account OR $account IN a.accountNumbers
+WITH a
+MATCH (a)-[r0:TRANSFER]->(m:FundsSubject)
+WHERE r0.caseId = $caseId AND m.caseId = $caseId
+  AND (a.subjectId = $account OR r0.fromAccount = $account)
+  AND ($transaction = '' OR r0.transactionId = $transaction)
+  AND ($from = '' OR r0.timestamp >= $from)
+  AND ($to = '' OR r0.timestamp <= $to)
+RETURN a, r0, m, null AS tail LIMIT 201`
+					: `MATCH (a:FundsSubject {caseId: $caseId})
+WHERE a.subjectId = $account OR $account IN a.accountNumbers
+WITH a
+MATCH (a)-[r0:TRANSFER]->(m:FundsSubject)
+WHERE r0.caseId = $caseId AND m.caseId = $caseId
+  AND (a.subjectId = $account OR r0.fromAccount = $account)
+  AND ($transaction = '' OR r0.transactionId = $transaction)
+  AND ($from = '' OR r0.timestamp >= $from)
+  AND ($to = '' OR r0.timestamp <= $to)
+WITH a, r0, m
+MATCH tail=(m)-[:TRANSFER*0..${hops - 1}]->(b:FundsSubject)
+WHERE b.caseId = $caseId
+  AND all(t IN relationships(tail) WHERE t.caseId = $caseId AND ($from = '' OR t.timestamp >= $from) AND ($to = '' OR t.timestamp <= $to))
+  AND (size(relationships(tail)) = 0 OR (
+    relationships(tail)[0].timestamp >= r0.timestamp
+    AND relationships(tail)[0].fromAccount = r0.toAccount
+    AND all(i IN range(1, size(relationships(tail)) - 1) WHERE relationships(tail)[i].timestamp >= relationships(tail)[i-1].timestamp AND relationships(tail)[i].fromAccount = relationships(tail)[i-1].toAccount)
+  ))
+RETURN a, r0, m, tail LIMIT 201`;
+			const result = await run(query, params);
+			for (const row of result.records.slice(0, 200)) {
+				rememberNode(row.get("a"));
+				rememberNode(row.get("m"));
+				rememberEdge(row.get("r0"));
+				const tail = row.get("tail");
+				if (tail?.segments) {
+					for (const segment of tail.segments) {
+						rememberNode(segment.start);
+						rememberNode(segment.end);
+						rememberEdge(segment.relationship);
 					}
-					const item = transferProps(segment.relationship.properties);
-					edges.set(item.id, item);
 				}
+			}
 			return {
 				nodes: [...nodes.values()],
 				edges: [...edges.values()],
@@ -295,6 +357,7 @@ async function ensureConstraints(driver: Driver) {
 			"CREATE CONSTRAINT funds_subject IF NOT EXISTS FOR (a:FundsSubject) REQUIRE (a.caseId, a.subjectId) IS UNIQUE",
 			"CREATE CONSTRAINT funds_case IF NOT EXISTS FOR (c:FundsCase) REQUIRE c.caseId IS UNIQUE",
 			"CREATE CONSTRAINT funds_transaction IF NOT EXISTS FOR ()-[t:TRANSFER]-() REQUIRE (t.caseId, t.transactionId) IS UNIQUE",
+			"CREATE INDEX funds_node_case IF NOT EXISTS FOR (n:FundsNode) ON (n.caseId)",
 		])
 			await session.run(query);
 	} finally {
@@ -308,8 +371,8 @@ function graphRows(result: QueryResult) {
 		for (const key of ["a", "b"]) {
 			const node = record.get(key);
 			if (!node) continue;
-			const item = accountProps(node.properties);
-			nodes.set(item.id, item);
+			const id = String(node.properties.subjectId);
+			if (!nodes.has(id)) nodes.set(id, accountProps(node.properties));
 		}
 		const transfer = record.get("t");
 		if (transfer) edges.push(transferProps(transfer.properties));

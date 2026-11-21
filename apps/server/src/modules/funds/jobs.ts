@@ -12,6 +12,7 @@ import {
 	fundsCase,
 	fundsJob,
 	fundsJobFile,
+	fundsRevision,
 	user,
 } from "@leonwillow-electron/db/schema";
 import {
@@ -523,6 +524,7 @@ export async function processNextFundsJob(
 		let imported:
 			| { added: number; skipped: number; revision: number }
 			| undefined;
+		const priorResult = job.result as Partial<JobResult> | null;
 		if (job.mode === "subjects") {
 			await progress(
 				"identifying",
@@ -540,8 +542,12 @@ export async function processNextFundsJob(
 			let count = 0;
 			for (const file of files) {
 				signal.throwIfAborted();
-				const bytes = await readStoredFile(job.caseId, file);
 				let source = file.parsed as ParsedSource | null;
+				// 已缓存解析结果且已有对象存储引用时跳过 S3 重复下载，避免重试反复读取大文件。
+				const bytes =
+					!source || !file.fileRef
+						? await readStoredFile(job.caseId, file)
+						: new Uint8Array();
 				if (!source) {
 					await progress(
 						job.mode === "ai" ? "standardizing" : "validating",
@@ -590,10 +596,37 @@ export async function processNextFundsJob(
 				"全部文件校验完成，正在按案件进行重复识别、双边配对、主体归属识别和规范交易入库。",
 				files.length,
 			);
-			imported = await commitPreparedSources(actor, job.caseId, prepared, {
-				jobId: job.id,
-				owner,
-			});
+			const committed = await commitPreparedSources(
+				actor,
+				job.caseId,
+				prepared,
+				{
+					jobId: job.id,
+					owner,
+				},
+			);
+			// 若首次尝试已落库文件、重试仅执行图同步，保留首次入库的 added/skipped 统计避免被 0 覆写。
+			imported =
+				committed.added === 0 &&
+				typeof priorResult?.added === "number" &&
+				priorResult.added > 0
+					? {
+							added: priorResult.added,
+							skipped: priorResult.skipped ?? committed.skipped,
+							revision: committed.revision,
+						}
+					: committed;
+			await db
+				.update(fundsJob)
+				.set({
+					result: {
+						...(priorResult ?? {}),
+						added: imported.added,
+						skipped: imported.skipped,
+					},
+					updatedAt: new Date(),
+				})
+				.where(predicate);
 		}
 		await progress(
 			"projecting",
@@ -604,7 +637,26 @@ export async function processNextFundsJob(
 		if (!projection.graphReady) throw new Error(projection.message);
 		const details = await caseDetails(actor, job.caseId);
 		const summary = await getServerResources().fundsGraph?.summary(job.caseId);
-		if (!summary || summary.transactions !== details.totals.transactionCount)
+		// 按本次实际投影版本比对交易数，避免并发产生的新版本引发无锁竞态误重试。
+		let expectedTransactions = details.totals.transactionCount;
+		if (details.revision !== projection.projectedRevision) {
+			const [projectedRow] = await db
+				.select({
+					count: sql<
+						number | null
+					>`(${fundsRevision.snapshot}->'totals'->>'transactionCount')::int`,
+				})
+				.from(fundsRevision)
+				.where(
+					and(
+						eq(fundsRevision.caseId, job.caseId),
+						eq(fundsRevision.revision, projection.projectedRevision),
+					),
+				);
+			if (projectedRow?.count !== null && projectedRow?.count !== undefined)
+				expectedTransactions = projectedRow.count;
+		}
+		if (!summary || summary.transactions !== expectedTransactions)
 			throw new Error("图中交易数与规范交易数不一致，尚未通过落库核验。");
 		await progress(
 			"completed",
@@ -617,7 +669,8 @@ export async function processNextFundsJob(
 			graphRevision: details.graphRevision,
 			totals: details.totals,
 			subjectSummary: details.subjectSummary,
-			...projection,
+			graphReady: projection.graphReady,
+			message: projection.message,
 		};
 		await db
 			.update(fundsJob)

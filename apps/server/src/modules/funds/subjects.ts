@@ -1,12 +1,12 @@
 /**
  * @file 案件内账户归属识别及可撤销人工调整。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-06
+ * 修改时间：2026-11-21
  * 版本作用：证件优先，完整一致户名自动归组并标明推断，冲突账户保持独立。
  * 被调用：canonical / Worker；调用：纯快照与摘要函数。
- * 预期结果：每个账户恰好属于一个主体，原账户和交易不改写，人工调整保留历史。
+ * 预期结果：每个账户恰好属于一个主体，开户资料账号经统一清洗后参与证件归组，人工调整保留历史。
  */
-import { digest } from "./parser";
+import { digest, normalizeAccountNumber } from "./parser";
 import type {
 	FundsAccount,
 	FundsSubject,
@@ -36,15 +36,15 @@ export function identifySubjects(
 			]),
 		);
 		for (const row of source.rows) {
-			const account = (
+			const account = normalizeAccountNumber(
 				owners.get(JSON.stringify([row.sheet, row.row])) ||
-				row.fields["查询涉及账（卡）号"] ||
-				row.fields["查询涉及账(卡)号"] ||
-				row.fields.账号 ||
-				row.fields.本方账号 ||
-				row.fields.账户号码 ||
-				""
-			).trim();
+					row.fields["查询涉及账（卡）号"] ||
+					row.fields["查询涉及账(卡)号"] ||
+					row.fields.账号 ||
+					row.fields.本方账号 ||
+					row.fields.账户号码 ||
+					"",
+			);
 			const identity = (
 				row.fields.证件号码 ||
 				row.fields.本方证件号码 ||

@@ -1,7 +1,7 @@
 /**
  * @file 资金流水导入提交、图同步、配对核对与主体归属调整服务。
  * 创建时间：2026-10-06
- * 修改时间：2026-11-18
+ * 修改时间：2026-11-21
  * 版本作用：承接文件解析提交、Neo4j 重放同步、对手核对决定及案件主体调整。
  * 被调用：funds API、jobs 队列及离线导入脚本。
  * 调用：case-service、file-store、parser、reconcile、subjects、PostgreSQL 与 Neo4j。
@@ -184,43 +184,63 @@ export async function commitPreparedSources(
 	});
 }
 
-/** 持有案件锁重放最新完整版本；失败返回待同步状态，已保存的原文不回滚。 */
+/** 在 PostgreSQL 事务外执行 Neo4j 投影，再用短事务条件推进 graphRevision，避免跨图库 60 秒长锁。 */
 export async function synchronize(actor: Actor, caseId: string) {
 	const { db, fundsGraph } = getServerResources();
-	await findCase(actor, caseId);
+	const record = await findCase(actor, caseId);
 	if (!fundsGraph)
 		return {
 			graphReady: false,
+			projectedRevision: record.graphRevision,
 			message: "原文已保存，图服务未配置，请配置后重试同步。",
 		};
+	if (record.revision === record.graphRevision) {
+		return {
+			graphReady: true,
+			projectedRevision: record.revision,
+			message: "案件数据已保存，资金图已同步。",
+		};
+	}
 	try {
-		await db.transaction(async (tx) => {
-			const record = await lockCase(tx, actor, caseId);
-			if (record.revision === record.graphRevision) return;
-			const [version] = await tx
-				.select()
-				.from(fundsRevision)
-				.where(
-					and(
-						eq(fundsRevision.caseId, caseId),
-						eq(fundsRevision.revision, record.revision),
-					),
-				);
-			if (!version) throw new Error("缺少可重放的案件版本");
-			await fundsGraph.project(
-				caseId,
-				record.revision,
-				version.snapshot as FundsSnapshot,
+		const targetRevision = record.revision;
+		const [version] = await db
+			.select()
+			.from(fundsRevision)
+			.where(
+				and(
+					eq(fundsRevision.caseId, caseId),
+					eq(fundsRevision.revision, targetRevision),
+				),
 			);
-			await tx
-				.update(fundsCase)
-				.set({ graphRevision: record.revision })
-				.where(eq(fundsCase.id, caseId));
+		if (!version) throw new Error("缺少可重放的案件版本");
+		await fundsGraph.project(
+			caseId,
+			targetRevision,
+			version.snapshot as FundsSnapshot,
+		);
+		await db.transaction(async (tx) => {
+			const latestCase = await lockCase(tx, actor, caseId);
+			// 仅当案件仍处于本次投影的版本时推进 graphRevision；若期间已有新版本，留给后续同步任务处理。
+			if (latestCase.revision === targetRevision) {
+				await tx
+					.update(fundsCase)
+					.set({ graphRevision: targetRevision })
+					.where(eq(fundsCase.id, caseId));
+			}
 		});
-		return { graphReady: true, message: "案件数据已保存，资金图已同步。" };
-	} catch {
+		return {
+			graphReady: true,
+			projectedRevision: targetRevision,
+			message: "案件数据已保存，资金图已同步。",
+		};
+	} catch (error) {
+		console.error("[funds] 图同步失败:", {
+			caseId,
+			error: error instanceof Error ? error.message : String(error),
+		});
 		return {
 			graphReady: false,
+			projectedRevision: record.graphRevision,
 			message:
 				"原文与清洗结果已保存，图同步失败。请检查 Neo4j 后点击重试同步。",
 		};
@@ -336,7 +356,7 @@ export async function rescanSubjects(
 			`subjects:scan:${job.id}`,
 			snapshot,
 			decisions,
-			false,
+			{ enqueueProjection: false, transactionsUnchanged: true },
 		);
 	});
 }
@@ -404,6 +424,7 @@ export async function adjustSubjects(
 			"undo" in change ? "subjects:undo" : `subjects:${change.action}`,
 			snapshot,
 			decisions,
+			{ enqueueProjection: true, transactionsUnchanged: true },
 		);
 	});
 	return { message: "主体归属已保存，后台正在更新资金图。" };

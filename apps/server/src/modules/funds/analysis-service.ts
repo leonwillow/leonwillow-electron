@@ -1,17 +1,19 @@
 /**
  * @file 资金图分析、交易查询、时间有序追踪与原始证据回溯服务。
  * 创建时间：2026-10-06
- * 修改时间：2026-11-18
+ * 修改时间：2026-11-21
  * 版本作用：封装 Neo4j 投影查询与关系库原始证据行对齐，统一校验图同步版本。
  * 被调用：funds API 及离线导入核验脚本。
- * 调用：case-service、server-resources（Neo4j fundsGraph）。
- * 功能：读取案件汇总、账户列表、资金图、分页交易、路径追踪及单笔证据。
- * 预期结果：图未同步返回 409，图服务不可用返回 503，不暴露部分或陈旧图数据。
+ * 调用：case-service、server-resources（PostgreSQL/Neo4j fundsGraph）。
+ * 功能：读取案件汇总、账户列表、资金图、分页交易、路径追踪及按主键/证据定位的单笔证据。
+ * 预期结果：图未同步返回 409，图服务不可用返回 503，证据溯源不再全量加载无关来源与快照。
  */
+import { fundsSource, fundsTransaction } from "@leonwillow-electron/db/schema";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { getServerResources } from "../../server-resources";
 import { AccessError } from "../access/service";
-import { type Actor, findCase, latest, sourcesFor } from "./case-service";
-import type { GraphFilter } from "./types";
+import { type Actor, findCase, latest } from "./case-service";
+import type { GraphFilter, ParsedSource, Transaction } from "./types";
 
 export async function evidence(
 	actor: Actor,
@@ -19,10 +21,25 @@ export async function evidence(
 	transactionId: string,
 ) {
 	const record = await findCase(actor, caseId);
-	const { snapshot } = await latest(caseId, record.revision);
-	const transaction = snapshot.transactions.find(
-		(t) => t.id === transactionId || t.groupIds?.includes(transactionId),
-	);
+	const { db } = getServerResources();
+	// 优先按 (caseId, id) 主键直查规范交易，避免全量反序列化整案 snapshot JSONB；未命中再按 groupIds 回退。
+	const [direct] = await db
+		.select({ data: fundsTransaction.data })
+		.from(fundsTransaction)
+		.where(
+			and(
+				eq(fundsTransaction.caseId, caseId),
+				eq(fundsTransaction.id, transactionId),
+				isNull(fundsTransaction.deletedAt),
+			),
+		);
+	let transaction = direct?.data as Transaction | undefined;
+	if (!transaction) {
+		const { snapshot } = await latest(caseId, record.revision);
+		transaction = snapshot.transactions.find(
+			(t) => t.id === transactionId || t.groupIds?.includes(transactionId),
+		);
+	}
 	if (!transaction)
 		throw new AccessError(
 			404,
@@ -30,20 +47,39 @@ export async function evidence(
 			"交易不存在或已归并，请刷新列表。",
 		);
 	const ids = new Set(transaction.evidenceIds);
-	const sources = await sourcesFor(caseId);
+	if (!ids.size) return { transaction, observations: [] };
+	const evidenceIdArray = [...ids];
+	const sourceRows = await db
+		.select({ parsed: fundsSource.parsed })
+		.from(fundsSource)
+		.where(
+			and(
+				eq(fundsSource.caseId, caseId),
+				eq(fundsSource.active, true),
+				sql`EXISTS (
+					SELECT 1 FROM jsonb_array_elements(${fundsSource.parsed}->'observations') AS obs
+					WHERE obs->>'id' IN (${sql.join(
+						evidenceIdArray.map((id) => sql`${id}`),
+						sql`, `,
+					)})
+				)`,
+			),
+		);
+	const sources = sourceRows.map((row) => row.parsed as ParsedSource);
 	return {
 		transaction,
-		observations: sources.flatMap((source) =>
-			source.observations
-				.filter((o) => ids.has(o.id))
-				.map((o) => ({
-					...o,
-					file: source.name,
-					raw:
-						source.rows.find((r) => r.sheet === o.sheet && r.row === o.row)
-							?.fields ?? {},
-				})),
-		),
+		observations: sources.flatMap((source) => {
+			const matched = source.observations.filter((o) => ids.has(o.id));
+			if (!matched.length) return [];
+			const rowMap = new Map(
+				source.rows.map((r) => [`${r.sheet}\0${r.row}`, r.fields]),
+			);
+			return matched.map((o) => ({
+				...o,
+				file: source.name,
+				raw: rowMap.get(`${o.sheet}\0${o.row}`) ?? {},
+			}));
+		}),
 	};
 }
 

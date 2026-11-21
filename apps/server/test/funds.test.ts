@@ -914,3 +914,37 @@ test("Worker 优雅退出或心跳中断重新入队且不扣重试次数，租�
 		attempts: 3,
 	});
 });
+
+test("主体识别清洗开户资料账号中的空格与前导单引号，保证证件归组命中", () => {
+	const make = (id: string): FundsAccount => ({
+		id,
+		number: id,
+		names: ["赵佳"],
+		ownNames: ["赵佳"],
+		hasStatement: true,
+		unknown: false,
+		firstSeen: "",
+		lastSeen: "",
+	});
+	const auxiliary = source("aux.csv", [row(), row()]);
+	auxiliary.observations = [];
+	if (!auxiliary.rows[0] || !auxiliary.rows[1]) throw new Error("缺少测试行");
+	auxiliary.rows[0].fields = {
+		账号: "'6217 0037 6015 0001",
+		证件号码: "123456789000000088",
+	};
+	auxiliary.rows[1].fields = {
+		账号: "’6217003760150002\u200B",
+		证件号码: "123456789000000088",
+	};
+	const groups = identifySubjects(
+		[make("6217003760150001"), make("6217003760150002")],
+		[auxiliary],
+	);
+	expect(groups).toHaveLength(1);
+	expect(groups[0]?.identityStatus).toBe("documented");
+	expect(groups[0]?.accounts.sort()).toEqual([
+		"6217003760150001",
+		"6217003760150002",
+	]);
+});
