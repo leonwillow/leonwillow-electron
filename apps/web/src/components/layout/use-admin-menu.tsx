@@ -9,11 +9,14 @@
  * 预期结果：管理员在侧栏悬停或点击管理中心即可浏览并切换全部管理页面。
  */
 
+import { Badge } from "@leonwillow-electron/ui/components/badge";
 import { Button } from "@leonwillow-electron/ui/components/button";
 import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
 import { cn } from "@leonwillow-electron/ui/lib/utils";
 import { useLocation, useNavigate } from "@tanstack/react-router";
+import { ScanEyeIcon } from "lucide-react";
 import { adminNav } from "@/assets/data/navigation";
+import { useThemeInspectorStore } from "@/stores/theme-inspector-store";
 import type { WorkspaceMenuContent } from "./workspace-menu";
 import { useWorkspaceNavigation } from "./workspace-navigation-provider";
 
@@ -23,6 +26,10 @@ export function useAdminMenu(): WorkspaceMenuContent {
 		select: (location) => location.pathname.replace(/\/$/, ""),
 	});
 	const navigate = useNavigate();
+	const inspectorEnabled = useThemeInspectorStore((state) => state.enabled);
+	const toggleInspector = useThemeInspectorStore(
+		(state) => state.toggleEnabled,
+	);
 
 	return {
 		label: "管理中心菜单",
@@ -63,6 +70,34 @@ export function useAdminMenu(): WorkspaceMenuContent {
 						);
 					})}
 				</ul>
+
+				<div className="mt-3 border-sidebar-border border-t pt-3">
+					<p className="px-2.5 pb-1.5 font-medium text-caption text-muted-foreground">
+						管理员工具
+					</p>
+					<Button
+						variant="ghost"
+						size="lg"
+						aria-pressed={inspectorEnabled}
+						onClick={() => {
+							menu.dismiss();
+							toggleInspector();
+						}}
+						className={cn(
+							"w-full justify-start",
+							inspectorEnabled &&
+								"bg-sidebar-accent text-sidebar-accent-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+						)}
+					>
+						<ScanEyeIcon aria-hidden="true" />
+						<span className="min-w-0 flex-1 truncate text-left">主题分析</span>
+						{inspectorEnabled && (
+							<Badge variant="success" className="shrink-0 text-caption">
+								已开启
+							</Badge>
+						)}
+					</Button>
+				</div>
 			</ScrollArea>
 		),
 	};

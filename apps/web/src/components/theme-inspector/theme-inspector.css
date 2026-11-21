@@ -1,0 +1,262 @@
+/**
+ * @file 主题分析工具的覆盖层高亮框、测距标尺、右下角悬浮球与不占空间浮窗样式。
+ * 创建时间：2026-11-21
+ * 修改时间：2026-11-21
+ * 版本作用：随 ThemeInspector 按需加载，参考 Naive UI 右下角悬浮球形态，严格遵守共享语义令牌与 check-ui-styles 约束。
+ * 被调用：components/theme-inspector/theme-inspector.tsx。
+ * 调用：共享 CSS 语义变量。
+ * 功能：绘制悬停/锁定框、边距色带、对齐虚线、距离胶囊、右下角悬浮球与可拖动/调宽浮层面板。
+ * 预期结果：悬浮球与浮窗均采用 fixed 定位零挤占页面布局；收起为悬浮球时完全不干扰页面交互。
+ */
+
+.theme-inspector-overlay {
+	position: fixed;
+	inset: 0;
+	z-index: var(--z-floating);
+	pointer-events: none;
+	overflow: hidden;
+}
+
+.theme-inspector-hover-box {
+	position: fixed;
+	border: 1.5px dashed var(--info);
+	background: color-mix(in oklab, var(--info) 8%, transparent);
+	pointer-events: none;
+}
+
+.theme-inspector-locked-box {
+	position: fixed;
+	border: 2px solid var(--primary);
+	box-shadow: 0 0 0 1px color-mix(in oklab, var(--background) 85%, transparent);
+	pointer-events: none;
+}
+
+.theme-inspector-margin-band {
+	position: fixed;
+	background: color-mix(in oklab, var(--warning) 18%, transparent);
+	pointer-events: none;
+}
+
+.theme-inspector-padding-band {
+	position: fixed;
+	background: color-mix(in oklab, var(--success) 18%, transparent);
+	pointer-events: none;
+}
+
+.theme-inspector-guide-line {
+	position: fixed;
+	pointer-events: none;
+}
+
+.theme-inspector-guide-line[data-axis="vertical"] {
+	border-left: 1px dashed color-mix(in oklab, var(--info) 55%, transparent);
+}
+
+.theme-inspector-guide-line[data-axis="horizontal"] {
+	border-top: 1px dashed color-mix(in oklab, var(--info) 55%, transparent);
+}
+
+.theme-inspector-measure-line {
+	position: fixed;
+	pointer-events: none;
+	background: var(--destructive);
+}
+
+.theme-inspector-measure-pill {
+	position: fixed;
+	transform: translate(-50%, -50%);
+	border-radius: 9999px;
+	background: var(--destructive);
+	color: var(--destructive-solid-foreground);
+	padding-inline: 0.375rem;
+	padding-block: 0.0625rem;
+	white-space: nowrap;
+	pointer-events: none;
+	box-shadow: var(--shadow-xs);
+}
+
+.theme-inspector-hover-badge {
+	position: fixed;
+	z-index: 1;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.375rem;
+	max-width: 24rem;
+	border-radius: var(--radius-md);
+	background: var(--invert);
+	color: var(--invert-foreground);
+	padding-inline: 0.5rem;
+	padding-block: 0.25rem;
+	box-shadow: var(--shadow-md);
+	pointer-events: none;
+	white-space: nowrap;
+}
+
+/* 右下角悬浮球（参考 Naive UI Theme Editor FAB） */
+.theme-inspector-fab-wrap {
+	position: fixed;
+	right: 1.25rem;
+	bottom: 1.25rem;
+	z-index: calc(var(--z-floating) + 5);
+	display: flex;
+	align-items: center;
+	gap: 0.375rem;
+}
+
+.theme-inspector-fab {
+	position: relative;
+	display: inline-flex;
+	width: 2.75rem;
+	height: 2.75rem;
+	align-items: center;
+	justify-content: center;
+	border-radius: 9999px;
+	border: var(--ui-border-width) solid var(--border);
+	background: var(--card);
+	color: var(--card-foreground);
+	box-shadow: var(--shadow-lg);
+	transition:
+		transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1),
+		box-shadow 150ms ease;
+}
+
+.theme-inspector-fab:hover {
+	transform: translateY(-1px);
+	box-shadow: var(--shadow-xl);
+}
+
+.theme-inspector-fab[data-active="true"] {
+	border-color: var(--primary);
+	background: var(--primary);
+	color: var(--primary-foreground);
+}
+
+.theme-inspector-fab-badge {
+	position: absolute;
+	top: -0.25rem;
+	right: -0.25rem;
+	display: inline-flex;
+	min-width: 1.125rem;
+	height: 1.125rem;
+	align-items: center;
+	justify-content: center;
+	border-radius: 9999px;
+	background: var(--destructive);
+	color: var(--destructive-solid-foreground);
+	padding-inline: 0.25rem;
+	box-shadow: 0 0 0 2px var(--background);
+}
+
+/* 不占页面布局空间的悬浮分析面板（支持拖拽移动与左缘调宽） */
+.theme-inspector-panel {
+	position: fixed;
+	right: 1.25rem;
+	bottom: 4.75rem;
+	z-index: calc(var(--z-floating) + 4);
+	display: flex;
+	height: min(44rem, calc(100dvh - 6rem));
+	max-width: calc(100vw - 2rem);
+	flex-direction: column;
+	overflow: hidden;
+	border: var(--ui-border-width) solid var(--ui-line-color, var(--border));
+	border-radius: var(--radius-xl);
+	background: var(--card);
+	color: var(--card-foreground);
+	box-shadow: var(--shadow-2xl);
+}
+
+.theme-inspector-resize-handle {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: -2px;
+	width: 6px;
+	cursor: col-resize;
+	z-index: 2;
+}
+
+.theme-inspector-resize-handle::after {
+	content: "";
+	position: absolute;
+	top: 0.5rem;
+	bottom: 0.5rem;
+	left: 2px;
+	width: 2px;
+	border-radius: 9999px;
+	background: transparent;
+	transition: background-color 150ms ease;
+}
+
+.theme-inspector-resize-handle:hover::after,
+.theme-inspector-resize-handle[data-resizing="true"]::after {
+	background: var(--primary);
+}
+
+.theme-inspector-swatch-dot {
+	forced-color-adjust: none;
+}
+
+/* 锁定悬停显现的操作按钮时，保持其所属操作容器可见，防止鼠标移入分析面板或滚动面板后元素隐藏、坐标归零 */
+[data-menu-row]:has([data-theme-inspector-locked="true"]) .menu-row-actions,
+.menu-row-actions:has([data-theme-inspector-locked="true"]),
+.menu-row-actions[data-theme-inspector-locked="true"] {
+	display: flex;
+}
+
+[data-theme-inspector-reveal-display="flex"] {
+	display: flex;
+}
+
+[data-theme-inspector-reveal-display="inline-flex"] {
+	display: inline-flex;
+}
+
+[data-theme-inspector-reveal-display="block"] {
+	display: block;
+}
+
+[data-theme-inspector-reveal-display="grid"] {
+	display: grid;
+}
+
+[data-theme-inspector-reveal-visible="true"] {
+	opacity: 1;
+	visibility: visible;
+	pointer-events: auto;
+}
+
+@media (width < 40rem) {
+	.theme-inspector-panel {
+		right: 0.5rem;
+		left: 0.5rem;
+		bottom: 4.5rem;
+		width: auto;
+		max-width: none;
+		height: min(36rem, calc(100dvh - 5.5rem));
+	}
+}
+
+@media (forced-colors: active) {
+	.theme-inspector-hover-box {
+		border-color: Highlight;
+		background: transparent;
+	}
+	.theme-inspector-locked-box {
+		border-color: Highlight;
+		box-shadow: none;
+	}
+	.theme-inspector-hover-badge,
+	.theme-inspector-measure-pill,
+	.theme-inspector-fab {
+		border: 1px solid CanvasText;
+		background: Canvas;
+		color: CanvasText;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.theme-inspector-fab,
+	.theme-inspector-resize-handle::after {
+		transition: none;
+	}
+}

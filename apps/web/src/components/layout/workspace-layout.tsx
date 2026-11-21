@@ -13,6 +13,7 @@ import { TooltipProvider } from "@leonwillow-electron/ui/components/tooltip";
 import { getRouteApi } from "@tanstack/react-router";
 import { type ReactNode, useMemo } from "react";
 import AppSidebar from "@/components/layout/app-sidebar";
+import ThemeInspectorHost from "@/components/theme-inspector/theme-inspector-host";
 import { workspaceMenuIds } from "@/lib/workspace-menu-state";
 import { useThemeStore } from "@/stores/theme-store";
 import "@/styles/workspace.css";
@@ -67,6 +68,7 @@ export default function WorkspaceLayout({ children }: { children: ReactNode }) {
 									>
 										{children}
 									</WorkspacePanels>
+									{user.role === "admin" && <ThemeInspectorHost />}
 								</div>
 							</CalculatorNavigationProvider>
 						</InquiryNavigationProvider>

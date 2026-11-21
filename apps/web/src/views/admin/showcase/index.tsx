@@ -30,6 +30,7 @@ import { TooltipIconButton } from "@leonwillow-electron/ui/components/tooltip-ic
 import {
 	MoonIcon,
 	PaletteIcon,
+	ScanEyeIcon,
 	SlidersHorizontalIcon,
 	SunIcon,
 	SwatchBookIcon,
@@ -42,6 +43,7 @@ import {
 } from "@/components/layout/workspace-header";
 import { type ThemePresetKey, themePresets } from "@/configs/theme-presets";
 import { toggleThemeTransition } from "@/lib/theme-transition";
+import { useThemeInspectorStore } from "@/stores/theme-inspector-store";
 import { useThemeStore } from "@/stores/theme-store";
 import type { Settings } from "@/types/theme";
 import ColorTokensSection from "./color-tokens-section";
@@ -68,6 +70,10 @@ export default function ShowcaseView() {
 	const previewing = previewMode !== null;
 	const updateSettings = useThemeStore((state) => state.updateSettings);
 	const setThemeEditorOpen = useThemeStore((state) => state.setThemeEditorOpen);
+	const inspectorEnabled = useThemeInspectorStore((state) => state.enabled);
+	const toggleInspector = useThemeInspectorStore(
+		(state) => state.toggleEnabled,
+	);
 
 	const isDark = (previewMode ?? forcedTheme ?? resolvedTheme) === "dark";
 	const activeCustomThemes = preferences.customThemes.filter(
@@ -156,6 +162,19 @@ export default function ShowcaseView() {
 							<MoonIcon aria-hidden="true" />
 						)}
 					</TooltipIconButton>
+
+					<Button
+						type="button"
+						size="sm"
+						variant={inspectorEnabled ? "default" : "outline"}
+						aria-pressed={inspectorEnabled}
+						onClick={toggleInspector}
+					>
+						<ScanEyeIcon aria-hidden="true" />
+						<span className="hidden sm:inline">
+							{inspectorEnabled ? "关闭主题分析" : "主题分析"}
+						</span>
+					</Button>
 
 					<Button
 						ref={editorTriggerRef}

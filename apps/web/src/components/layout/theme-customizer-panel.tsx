@@ -1,12 +1,12 @@
 /**
  * @file 常用外观设置弹层的按需加载面板内容。
  * 创建时间：2026-11-18
- * 修改时间：2026-11-20
+ * 修改时间：2026-11-21
  * 版本作用：将重型色盘、字体选择器与预设列表从工作台首屏拆出，打开或预热时再加载。
  * 被调用：components/layout/theme-customizer.tsx。
- * 调用：ui 基础组件、next-themes、sonner、ThemeLineSettings、ThemePresetSelect、主题过渡、主题 Store 与字体配置。
- * 功能：组合预设、精选字体、明暗、圆角、线条、缩放、菜单外观及带撤销提示的重置控件。
- * 预期结果：保持原面板全部无障碍语义、明暗渐变过渡、即时预览持久化与编辑器跳转行为。
+ * 调用：ui 基础组件、next-themes、sonner、ThemeLineSettings、ThemePresetSelect、主题过渡、主题 Store、主题分析开关 Store 与字体配置。
+ * 功能：组合预设、精选字体、明暗、圆角、线条、缩放、菜单外观与重置控件，并为管理员提供主题分析悬浮球开关。
+ * 预期结果：保持原面板全部无障碍语义、明暗渐变过渡与即时预览持久化，普通成员不展示管理员分析开关。
  */
 import { Button } from "@leonwillow-electron/ui/components/button";
 import { Label } from "@leonwillow-electron/ui/components/label";
@@ -29,10 +29,12 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@leonwillow-electron/ui/components/tooltip";
+import { getRouteApi } from "@tanstack/react-router";
 import {
 	BanIcon,
 	CircleQuestionMarkIcon,
 	RefreshCcwIcon,
+	ScanEyeIcon,
 	SettingsIcon,
 } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -47,6 +49,7 @@ import {
 } from "@/configs/fonts";
 import { initialSettings } from "@/configs/theme-settings";
 import { resolveThemeMode, runThemeTransition } from "@/lib/theme-transition";
+import { useThemeInspectorStore } from "@/stores/theme-inspector-store";
 import { useThemeStore } from "@/stores/theme-store";
 import type { Mode, Radius, Scale, SidebarMode } from "@/types/theme";
 
@@ -90,6 +93,14 @@ export default function ThemeCustomizerPanel({
 }) {
 	const settings = useThemeStore((state) => state.preferences.settings);
 	const updateSettings = useThemeStore((state) => state.updateSettings);
+	const role = getRouteApi("/_workspace").useRouteContext({
+		select: ({ user }) => user.role,
+	});
+	const isAdmin = role === "admin";
+	const inspectorEnabled = useThemeInspectorStore((state) => state.enabled);
+	const toggleInspectorEnabled = useThemeInspectorStore(
+		(state) => state.toggleEnabled,
+	);
 	const { forcedTheme, setTheme, systemTheme } = useTheme();
 	const visibleFonts: FontKey[] = CURATED_FONTS.includes(settings.font)
 		? [...CURATED_FONTS]
@@ -406,6 +417,23 @@ export default function ThemeCustomizerPanel({
 					))}
 				</RadioGroup>
 			</div>
+
+			{isAdmin && (
+				<div className="flex items-center justify-between gap-2 border-t px-3 pt-3">
+					<span className="font-medium text-xs leading-none">
+						主题分析悬浮球
+					</span>
+					<Button
+						size="sm"
+						variant={inspectorEnabled ? "default" : "outline"}
+						aria-pressed={inspectorEnabled}
+						onClick={toggleInspectorEnabled}
+					>
+						<ScanEyeIcon data-icon="inline-start" aria-hidden="true" />
+						{inspectorEnabled ? "已开启" : "开启"}
+					</Button>
+				</div>
+			)}
 		</PopoverContent>
 	);
 }

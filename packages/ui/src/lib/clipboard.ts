@@ -6,8 +6,9 @@
  * 预期结果：复制后恢复原焦点和选区，两套路径均失败时抛错，不误报成功。
  */
 export async function copyText(text: string, doc: Document = document) {
-	const clipboard = doc.defaultView?.navigator.clipboard;
-	if (clipboard?.writeText) {
+	const win = doc.defaultView;
+	const clipboard = win?.navigator.clipboard;
+	if (win?.isSecureContext && clipboard?.writeText) {
 		try {
 			await clipboard.writeText(text);
 			return;
@@ -15,7 +16,7 @@ export async function copyText(text: string, doc: Document = document) {
 			// Electron 权限拒绝或浏览器未授权异步剪贴板时回退到同步复制路径。
 		}
 	}
-	// HTTP 局域网没有异步 Clipboard API；此兼容分支须由点击/键盘事件直接调用。
+	// HTTP 局域网或异步权限受限场景的同步复制兼容路径；须由点击/键盘事件直接触发。
 	const active = doc.activeElement as HTMLElement | null;
 	const selection = doc.getSelection();
 	const ranges = selection
@@ -31,7 +32,6 @@ export async function copyText(text: string, doc: Document = document) {
 	const direction = input?.selectionDirection;
 	const field = doc.createElement("textarea");
 	field.value = text;
-	field.readOnly = true;
 	field.tabIndex = -1;
 	field.className = "sr-only";
 	field.setAttribute("aria-label", "复制内容");
@@ -48,6 +48,7 @@ export async function copyText(text: string, doc: Document = document) {
 	try {
 		field.focus({ preventScroll: true });
 		field.select();
+		field.setSelectionRange(0, text.length);
 		if (!doc.execCommand("copy")) throw Error("浏览器未允许复制，请手动复制");
 	} finally {
 		field.remove();
