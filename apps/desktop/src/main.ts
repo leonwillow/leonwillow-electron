@@ -1,9 +1,9 @@
 /**
  * @file Electron 主进程与服务器配置的生命周期。
- * 创建时间：2026-11-10；修改时间：2026-11-20。
+ * 创建时间：2026-11-10；修改时间：2026-11-21。
  * 版本作用：加载已打包的共用 Web 前端，不在客户端运行数据库或业务服务。
  * 被调用：桌面 start/打包入口；调用：Electron、连接存储和协议代理。
- * 预期结果：登录页可配置服务器，切换服务器隔离会话，默认地址由构建注入。
+ * 预期结果：登录页可配置服务器，切换服务器隔离会话，生产环境禁用 DevTools 与默认外链菜单。
  */
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -19,6 +19,8 @@ import {
 	dialog,
 	type IpcMainInvokeEvent,
 	ipcMain,
+	Menu,
+	type MenuItemConstructorOptions,
 	nativeTheme,
 	protocol,
 	session,
@@ -62,7 +64,69 @@ function assertSender(event: IpcMainInvokeEvent, loginOnly = false) {
 		throw new Error("此页面不能访问服务器设置。");
 }
 
+/** 替换 Electron 默认应用菜单：移除生产 DevTools 快捷键与 Help 外链，macOS 保留基本编辑快捷键。 */
+function configureApplicationMenu() {
+	if (process.platform !== "darwin") {
+		Menu.setApplicationMenu(null);
+		return;
+	}
+	const template: MenuItemConstructorOptions[] = [
+		{
+			label: app.name,
+			submenu: [
+				{ role: "about" },
+				{ type: "separator" },
+				{ role: "services" },
+				{ type: "separator" },
+				{ role: "hide" },
+				{ role: "hideOthers" },
+				{ role: "unhide" },
+				{ type: "separator" },
+				{ role: "quit" },
+			],
+		},
+		{
+			label: "编辑",
+			submenu: [
+				{ role: "undo" },
+				{ role: "redo" },
+				{ type: "separator" },
+				{ role: "cut" },
+				{ role: "copy" },
+				{ role: "paste" },
+				{ role: "pasteAndMatchStyle" },
+				{ role: "delete" },
+				{ role: "selectAll" },
+			],
+		},
+		...(!app.isPackaged
+			? [
+					{
+						label: "视图",
+						submenu: [
+							{ role: "reload" },
+							{ role: "forceReload" },
+							{ role: "toggleDevTools" },
+						] as MenuItemConstructorOptions[],
+					},
+				]
+			: []),
+		{
+			label: "窗口",
+			submenu: [
+				{ role: "minimize" },
+				{ role: "zoom" },
+				{ type: "separator" },
+				{ role: "front" },
+				{ role: "close" },
+			],
+		},
+	];
+	Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
+
 async function start() {
+	configureApplicationMenu();
 	const config: unknown = JSON.parse(
 		await readFile(join(applicationRoot, "dist/config.json"), "utf8"),
 	);
@@ -180,8 +244,14 @@ async function start() {
 				sandbox: true,
 				webSecurity: true,
 				webviewTag: false,
+				devTools: !app.isPackaged,
 			},
 		});
+		if (app.isPackaged) {
+			window.webContents.on("devtools-opened", () =>
+				window?.webContents.closeDevTools(),
+			);
+		}
 		// 仅记录生命周期错误码，不写页面参数、接口正文或登录凭据。
 		window.webContents.on(
 			"did-fail-load",

@@ -1,12 +1,13 @@
 /**
  * @file 本机平台的 Electron 应用打包入口。
- * 创建时间：2026-11-10；修改时间：2026-11-10。
- * 被调用：desktop package；调用：@electron/packager、Node fs。
- * 功能：只把已经构建的桌面入口、前端和公开配置装入应用。
- * 预期结果：产物位于 dist/release；无后端代码、环境密钥、数据库或开发依赖。
+ * 创建时间：2026-11-10；修改时间：2026-11-21。
+ * 被调用：desktop package；调用：@electron/packager、@electron/fuses、Node fs。
+ * 功能：只把已经构建的桌面入口、前端和公开配置装入应用，并对产物启用 Electron Fuses 加固。
+ * 预期结果：产物位于 dist/release；禁用 RunAsNode 与调试检查参数，仅从 asar 加载应用，无后端代码与密钥。
  */
 import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { FuseV1Options, FuseVersion, flipFuses } from "@electron/fuses";
 import { packager } from "@electron/packager";
 
 const root = import.meta.dir;
@@ -47,4 +48,23 @@ const outputs = await packager({
 	overwrite: true,
 	prune: false,
 });
+for (const outputDir of outputs) {
+	const executablePath =
+		platform === "darwin"
+			? join(outputDir, "AIDesk.app")
+			: platform === "win32"
+				? join(outputDir, "AIDesk.exe")
+				: join(outputDir, "AIDesk");
+	await flipFuses(executablePath, {
+		version: FuseVersion.V1,
+		resetAdHocDarwinSignature: platform === "darwin",
+		[FuseV1Options.RunAsNode]: false,
+		[FuseV1Options.EnableCookieEncryption]: true,
+		[FuseV1Options.EnableNodeOptionsEnvironmentVariable]: false,
+		[FuseV1Options.EnableNodeCliInspectArguments]: false,
+		[FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: platform !== "linux",
+		[FuseV1Options.OnlyLoadAppFromAsar]: true,
+		[FuseV1Options.GrantFileProtocolExtraPrivileges]: false,
+	});
+}
 console.info(outputs.join("\n"));
