@@ -32,7 +32,6 @@ import {
 import { getRouteApi } from "@tanstack/react-router";
 import {
 	BanIcon,
-	CircleQuestionMarkIcon,
 	RefreshCcwIcon,
 	ScanEyeIcon,
 	SettingsIcon,
@@ -171,13 +170,35 @@ export default function ThemeCustomizerPanel({
 			align="end"
 			sideOffset={14}
 			scrollable
-			className="max-h-(--available-height) w-72 text-sm"
+			className="max-h-(--available-height) w-80 text-sm"
 			scrollContentClassName="gap-5 px-0 py-3"
 		>
 			<div className="flex flex-col gap-1 px-3">
-				<div className="flex items-center justify-between">
-					<h3 className="font-medium text-lg">主题设置</h3>
-					<div className="flex items-center gap-2">
+				<div className="flex items-center justify-between gap-2">
+					<h3 className="shrink-0 font-medium text-lg">主题设置</h3>
+					<div className="flex items-center gap-1">
+						{isAdmin && (
+							<Tooltip>
+								<TooltipTrigger
+									render={
+										<Button
+											size="sm"
+											variant={inspectorEnabled ? "secondary" : "ghost"}
+											aria-pressed={inspectorEnabled}
+											onClick={toggleInspectorEnabled}
+										/>
+									}
+								>
+									<ScanEyeIcon data-icon="inline-start" aria-hidden="true" />
+									主题分析
+								</TooltipTrigger>
+								<TooltipContent>
+									{inspectorEnabled
+										? "关闭主题分析悬浮球"
+										: "开启主题分析悬浮球"}
+								</TooltipContent>
+							</Tooltip>
+						)}
 						<Button
 							size="sm"
 							variant="ghost"
@@ -187,29 +208,6 @@ export default function ThemeCustomizerPanel({
 							<SettingsIcon data-icon="inline-start" />
 							设置
 						</Button>
-						<Tooltip>
-							<TooltipTrigger
-								render={
-									<Button
-										size="icon-sm"
-										variant="ghost"
-										aria-label="主题帮助"
-									/>
-								}
-							>
-								<CircleQuestionMarkIcon />
-							</TooltipTrigger>
-							<TooltipContent
-								side="bottom"
-								className="max-w-62 leading-relaxed"
-							>
-								<p>
-									按 D
-									键快速切换明暗模式；点击「设置」进入完整主题编辑器，支持自定义调色及导入导出
-									CSS 变量。
-								</p>
-							</TooltipContent>
-						</Tooltip>
 
 						<Tooltip>
 							<TooltipTrigger
@@ -417,23 +415,6 @@ export default function ThemeCustomizerPanel({
 					))}
 				</RadioGroup>
 			</div>
-
-			{isAdmin && (
-				<div className="flex items-center justify-between gap-2 border-t px-3 pt-3">
-					<span className="font-medium text-xs leading-none">
-						主题分析悬浮球
-					</span>
-					<Button
-						size="sm"
-						variant={inspectorEnabled ? "default" : "outline"}
-						aria-pressed={inspectorEnabled}
-						onClick={toggleInspectorEnabled}
-					>
-						<ScanEyeIcon data-icon="inline-start" aria-hidden="true" />
-						{inspectorEnabled ? "已开启" : "开启"}
-					</Button>
-				</div>
-			)}
 		</PopoverContent>
 	);
 }

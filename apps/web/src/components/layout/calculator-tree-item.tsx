@@ -63,7 +63,7 @@ export default function CalculatorTreeItem({
 	busy: boolean;
 	onRename: (kind: CalculatorKind, row: CalculatorSummary) => void;
 	onArchive: (kind: CalculatorKind, row: CalculatorSummary) => void;
-	onCreate: (kind: CalculatorKind) => void;
+	onCreate?: (kind: CalculatorKind) => void;
 }) {
 	const node = item.getItemData();
 	const row = node.row;
@@ -133,7 +133,7 @@ export default function CalculatorTreeItem({
 						</Action>
 					</span>
 				)}
-				{node.type === "group" && (
+				{node.type === "group" && onCreate && (
 					<span className="menu-row-actions">
 						<Action
 							label={`新建${node.name}方案`}

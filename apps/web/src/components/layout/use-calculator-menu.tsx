@@ -26,7 +26,7 @@ import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
 import { TooltipIconButton } from "@leonwillow-electron/ui/components/tooltip-icon-button";
 import { Tree } from "@leonwillow-electron/ui/components/tree";
 import { useLocation, useNavigate, useSearch } from "@tanstack/react-router";
-import { ArchiveIcon, RotateCwIcon } from "lucide-react";
+import { ArchiveIcon, ArrowLeftIcon, RotateCwIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -205,13 +205,18 @@ export function useCalculatorMenu(): WorkspaceMenuContent {
 	return {
 		label: "计算器菜单",
 		title: directory.archived ? "已归档方案" : "计算器",
-		toolbar: (
+		toolbar: directory.archived ? (
+			<TooltipIconButton
+				label="返回方案列表"
+				onClick={() => directory.setArchived(false)}
+			>
+				<ArrowLeftIcon />
+			</TooltipIconButton>
+		) : (
 			<>
 				<TooltipIconButton
-					label={directory.archived ? "查看未归档方案" : "查看归档方案"}
-					variant={directory.archived ? "warning" : "ghost"}
-					aria-pressed={directory.archived}
-					onClick={() => directory.setArchived(!directory.archived)}
+					label="查看归档方案"
+					onClick={() => directory.setArchived(true)}
 				>
 					<ArchiveIcon />
 				</TooltipIconButton>
@@ -261,7 +266,7 @@ export function useCalculatorMenu(): WorkspaceMenuContent {
 										item={item}
 										selected={selected}
 										busy={busy}
-										onCreate={create}
+										onCreate={directory.archived ? undefined : create}
 										onRename={rename}
 										onArchive={(kind, row) =>
 											void mutate(kind, row, { archived: !row.archived })

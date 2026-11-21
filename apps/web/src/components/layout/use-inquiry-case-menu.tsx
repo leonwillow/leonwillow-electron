@@ -13,6 +13,7 @@ import { Tree } from "@leonwillow-electron/ui/components/tree";
 import { useNavigate, useRouter } from "@tanstack/react-router";
 import {
 	ArchiveIcon,
+	ArrowLeftIcon,
 	FilePlus2Icon,
 	FolderPlusIcon,
 	UsersIcon,
@@ -152,7 +153,17 @@ export function useInquiryCaseMenu(): WorkspaceMenuContent {
 	return {
 		label: "笔录案件菜单",
 		title: archived ? "已归档笔录" : "笔录",
-		toolbar: (
+		toolbar: archived ? (
+			<TooltipIconButton
+				label="返回笔录列表"
+				onClick={() => {
+					setArchived(false);
+					setSearch("");
+				}}
+			>
+				<ArrowLeftIcon />
+			</TooltipIconButton>
+		) : (
 			<>
 				<TooltipIconButton
 					label="新建独立笔录"
@@ -171,10 +182,9 @@ export function useInquiryCaseMenu(): WorkspaceMenuContent {
 					<FolderPlusIcon />
 				</TooltipIconButton>
 				<TooltipIconButton
-					label={archived ? "返回笔录案件" : "查看归档笔录"}
-					aria-pressed={archived}
+					label="查看归档笔录"
 					onClick={() => {
-						setArchived(!archived);
+						setArchived(true);
 						setSearch("");
 					}}
 				>
