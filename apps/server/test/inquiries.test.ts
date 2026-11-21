@@ -1,6 +1,6 @@
 /**
  * @file 笔录保存规则、Word 文本转义和完整导出的领域测试。
- * 创建时间：2026-11-04；修改时间：2026-11-05。
+ * 创建时间：2026-11-04；修改时间：2026-11-21。
  * 版本作用：验证输入边界和可编辑输出，无数据库或认证依赖。
  * 被调用：Bun test；调用：笔录校验、导出器、XML 解析器。
  * 预期结果：笔录可渐进保存，非法内容被拒绝，长问答不在导出中截断。
@@ -119,4 +119,23 @@ test("缺少时分的笔录保留已选日期，Word 仅对未填写部分留空
 		new PizZip(createInquiryDocx(draft)).file("word/document.xml")?.asText(),
 	).toContain("2026年11月05日　时　分 至 　年　月　日　时　分");
 	expect(() => validateInquiry(draft)).not.toThrow();
+});
+
+test("纯日期与混合日期倒置被拒绝，空询问人仍输出询问（调查）人栏", () => {
+	const invertedDate = inquiryFixture();
+	invertedDate.content.inquiryStartAt = "2026-11-06";
+	invertedDate.content.inquiryEndAt = "2026-11-05";
+	expect(() => validateInquiry(invertedDate)).toThrow("结束时间");
+
+	const invertedMixed = inquiryFixture();
+	invertedMixed.content.inquiryStartAt = "2026-11-06T09:00";
+	invertedMixed.content.inquiryEndAt = "2026-11-05";
+	expect(() => validateInquiry(invertedMixed)).toThrow("结束时间");
+
+	const noInquirers = inquiryFixture();
+	noInquirers.content.inquirers = [];
+	const main = new PizZip(createInquiryDocx(noInquirers))
+		.file("word/document.xml")
+		?.asText();
+	expect(main).toContain("询问（调查）人：");
 });

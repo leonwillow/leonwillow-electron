@@ -1,7 +1,7 @@
 /**
  * @file 服务监听器与连接池的关闭协调。
  * 创建时间：2026-10-04（本次新建）
- * 修改时间：2026-10-04
+ * 修改时间：2026-11-21
  * 版本作用：进程入口持有资源，应用工厂保持无进程副作用。
  * 被调用：index.ts、生命周期测试；调用：注入的 stop/close。
  * 功能：先排空请求，再关闭池；超时强制停止；重复调用共用结果。
@@ -32,11 +32,24 @@ export function createShutdown(
 		});
 		const deadline = new Promise<never>((_, reject) => {
 			timer = setTimeout(() => {
-				void Promise.resolve()
-					.then(() => resources.stop(true))
-					.catch(() => {});
-				void closePool().catch(() => {});
-				reject(new Error("服务关闭超时，已请求强制停止。"));
+				void (async () => {
+					void Promise.resolve()
+						.then(() => resources.stop(true))
+						.catch(() => {});
+					const graceMs = Math.min(timeoutMs, 2_000);
+					let graceTimer: ReturnType<typeof setTimeout> | undefined;
+					try {
+						await Promise.race([
+							closePool().catch(() => {}),
+							new Promise<void>((resolve) => {
+								graceTimer = setTimeout(resolve, graceMs);
+							}),
+						]);
+					} finally {
+						if (graceTimer !== undefined) clearTimeout(graceTimer);
+					}
+					reject(new Error("服务关闭超时，已请求强制停止。"));
+				})();
 			}, timeoutMs);
 		});
 		closing = Promise.race([graceful, deadline]).finally(() =>

@@ -1,7 +1,7 @@
 /**
  * @file 可停靠、可折叠的画布悬停速览。
  * 创建时间：2026-10-07
- * 修改时间：2026-11-19
+ * 修改时间：2026-11-21
  * 版本作用：独立于 G6 绘制生命周期，仅消费已加载数据；鼠标交互不重绘图谱。
  * 被调用：GraphCanvas 通过 ref.show 转交图元进入事件。
  * 功能：按帧合并目标、缓存本地摘要、点击切换展开与折叠、独立保存布局。
@@ -67,6 +67,10 @@ export default function GraphHoverPreview({
 	ready: boolean;
 	error: string;
 }) {
+	const { layout, save, error: storageError } = usePreviewLayout(userId);
+	const open = !layout.collapsed;
+	const openRef = useRef(open);
+	openRef.current = open;
 	const index = useMemo(() => createGraphPreviewIndex(data), [data]);
 	const [selection, setSelection] = useState<{
 		index: typeof index;
@@ -78,12 +82,13 @@ export default function GraphHoverPreview({
 		ref,
 		() => ({
 			show(target) {
+				if (!openRef.current) return;
 				pending.current = target;
 				if (frame.current) return;
 				frame.current = requestAnimationFrame(() => {
 					frame.current = 0;
 					const next = pending.current;
-					if (next)
+					if (next && openRef.current)
 						setSelection((previous) =>
 							previous?.index === index &&
 							previous.target.kind === next.kind &&
@@ -107,12 +112,12 @@ export default function GraphHoverPreview({
 		[index],
 	);
 	const preview =
-		ready && selection?.index === index ? index.get(selection.target) : null;
-	const { layout, save, error: storageError } = usePreviewLayout(userId);
+		open && ready && selection?.index === index
+			? index.get(selection.target)
+			: null;
 	const expandButton = useRef<HTMLButtonElement>(null);
 	const collapseButton = useRef<HTMLButtonElement>(null);
 	const restoreFocus = useRef(false);
-	const open = !layout.collapsed;
 	const [y, x] = layout.position.split("-");
 	const changeOpen = (next: boolean) => {
 		restoreFocus.current = true;

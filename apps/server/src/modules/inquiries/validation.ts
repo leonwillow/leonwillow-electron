@@ -1,6 +1,6 @@
 /**
  * @file 笔录统一保存流程的内容一致性校验。
- * 创建时间：2026-11-04；修改时间：2026-11-05。
+ * 创建时间：2026-11-04；修改时间：2026-11-21。
  * 版本作用：允许逐步填写，校验已提供的时间、唯一标识和记录人。
  * 被调用：inquiries 服务、领域测试；调用：输入契约、AccessError。
  * 预期结果：未填写字段可以保存，非法内容和时间倒置返回中文 400。
@@ -36,10 +36,14 @@ export function validateInquiry(document: InquiryDocument) {
 	};
 	if (!validTime(c.inquiryStartAt) || !validTime(c.inquiryEndAt))
 		fail("请填写有效的询问时间。");
-	if (
-		c.inquiryStartAt.length === 16 &&
-		c.inquiryEndAt.length === 16 &&
-		c.inquiryEndAt.replace(" ", "T") <= c.inquiryStartAt.replace(" ", "T")
-	)
-		fail("结束时间必须晚于开始时间。");
+	if (c.inquiryStartAt && c.inquiryEndAt) {
+		if (c.inquiryStartAt.length === 16 && c.inquiryEndAt.length === 16) {
+			if (
+				c.inquiryEndAt.replace(" ", "T") <= c.inquiryStartAt.replace(" ", "T")
+			)
+				fail("结束时间必须晚于开始时间。");
+		} else if (c.inquiryEndAt.slice(0, 10) < c.inquiryStartAt.slice(0, 10)) {
+			fail("结束时间不能早于开始时间。");
+		}
+	}
 }

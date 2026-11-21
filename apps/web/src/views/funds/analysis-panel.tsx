@@ -145,7 +145,21 @@ export default function AnalysisPanel({ caseId }: { caseId: string }) {
 			}),
 		);
 	}, [full.nodes, nodeMode, presentation.entries, view.hiddenKeys]);
-	const hiddenNodes = full.nodes.filter((node) => appearances[node.id]?.hidden);
+	const hiddenNodes = useMemo(
+		() => full.nodes.filter((node) => appearances[node.id]?.hidden),
+		[full.nodes, appearances],
+	);
+	const fullAdjacency = useMemo(() => {
+		const map = new Map<string, FundsTransaction[]>();
+		for (const edge of full.edges) {
+			for (const id of new Set([edge.from, edge.to])) {
+				const list = map.get(id);
+				if (list) list.push(edge);
+				else map.set(id, [edge]);
+			}
+		}
+		return map;
+	}, [full.edges]);
 	const source = useMemo(
 		() =>
 			traced
@@ -195,7 +209,10 @@ export default function AnalysisPanel({ caseId }: { caseId: string }) {
 		: raw.edges;
 	const showingFlows = edgeMode === "flow" && !flow;
 	const total = showingFlows ? graph.edges.length : detailEdges.length;
-	const lookup = new Map(full.nodes.map((n) => [n.id, n]));
+	const lookup = useMemo(
+		() => new Map(full.nodes.map((n) => [n.id, n])),
+		[full.nodes],
+	);
 	const clearTransient = () => {
 		traceRequest.current += 1;
 		setTracing(false);
@@ -376,6 +393,7 @@ export default function AnalysisPanel({ caseId }: { caseId: string }) {
 		<div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden xl:flex-row">
 			<AccountDirectory
 				full={full}
+				adjacentEdges={fullAdjacency}
 				mode={nodeMode}
 				appearances={appearances}
 				account={account}
@@ -409,6 +427,7 @@ export default function AnalysisPanel({ caseId }: { caseId: string }) {
 							nodeMode: nextMode,
 							account: "",
 							counterparty: "",
+							direction: "both",
 							traced: null,
 						})
 					}
@@ -601,6 +620,7 @@ export default function AnalysisPanel({ caseId }: { caseId: string }) {
 					caseId={caseId}
 					mode={nodeMode}
 					full={full}
+					adjacentEdges={fullAdjacency}
 					presentation={
 						inspector.kind === "node" ? appearances[inspector.id] : undefined
 					}

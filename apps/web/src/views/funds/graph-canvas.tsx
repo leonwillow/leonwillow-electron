@@ -173,7 +173,14 @@ export default function GraphCanvas({
 		setError("");
 		// 同一批数据也可能切换历史帧；把帧号写入容器用于诊断当前绘制版本。
 		container.dataset.viewKey = String(getViewKey());
-		const preventMenu = (event: MouseEvent) => event.preventDefault();
+		const preventMenu = (event: MouseEvent) => {
+			if (
+				event.target instanceof HTMLElement &&
+				event.target.closest("input,textarea,[contenteditable=true]")
+			)
+				return;
+			event.preventDefault();
+		};
 		container.addEventListener("contextmenu", preventMenu);
 		let disposed = false;
 		let drawRevision = 0;
@@ -549,21 +556,33 @@ export default function GraphCanvas({
 					ready={ready}
 					error={error}
 				/>
-				{backgroundPreferences.error && (
-					<p
-						role="alert"
-						className="absolute top-3 left-3 max-w-[calc(100%-1.5rem)] rounded-md bg-background p-2 text-destructive-foreground text-xs"
-					>
-						{backgroundPreferences.error}
-					</p>
-				)}
-				{toolbarPreferences.error && (
-					<p
-						role="alert"
-						className="absolute top-3 left-3 max-w-[calc(100%-1.5rem)] rounded-md bg-background p-2 text-destructive-foreground text-xs"
-					>
-						{toolbarPreferences.error}
-					</p>
+				{(backgroundPreferences.error || toolbarPreferences.error || error) && (
+					<div className="absolute top-3 left-3 flex max-w-[calc(100%-1.5rem)] flex-col gap-2">
+						{backgroundPreferences.error && (
+							<p
+								role="alert"
+								className="rounded-md bg-background p-2 text-destructive-foreground text-xs"
+							>
+								{backgroundPreferences.error}
+							</p>
+						)}
+						{toolbarPreferences.error && (
+							<p
+								role="alert"
+								className="rounded-md bg-background p-2 text-destructive-foreground text-xs"
+							>
+								{toolbarPreferences.error}
+							</p>
+						)}
+						{error && (
+							<p
+								role="alert"
+								className="rounded-md bg-background p-2 text-destructive-foreground text-xs"
+							>
+								{error}
+							</p>
+						)}
+					</div>
 				)}
 				{!ready && !error && data.nodes.length > 0 && (
 					<div
@@ -587,14 +606,6 @@ export default function GraphCanvas({
 					>
 						没有符合条件的节点或连线，可调整筛选或返回上一步。
 					</div>
-				)}
-				{error && (
-					<p
-						role="alert"
-						className="absolute top-4 left-4 bg-background p-2 text-destructive-foreground text-xs"
-					>
-						{error}
-					</p>
 				)}
 			</div>
 		</GraphToolbarContext>

@@ -374,6 +374,18 @@ export async function createRecord(
 			.from(documentRecord)
 			.where(eq(documentRecord.id, input.requestId));
 		if (existing) {
+			if (
+				existing.deletedAt ||
+				existing.ownerId !== access.user.id ||
+				existing.typeId !== input.typeId ||
+				existing.year !== input.year ||
+				existing.subject !== input.subject.trim()
+			)
+				throw new AccessError(
+					409,
+					"REQUEST_ALREADY_USED",
+					"这次提交标识已使用，请刷新后重新提交。",
+				);
 			const original = await templateMetaFor(
 				existing.typeId,
 				existing.templateVersion,
@@ -386,14 +398,7 @@ export async function createRecord(
 				Object.keys(values).every(
 					(key) => existing.values[key] === values[key],
 				);
-			if (
-				existing.deletedAt ||
-				existing.ownerId !== access.user.id ||
-				existing.typeId !== input.typeId ||
-				existing.year !== input.year ||
-				existing.subject !== input.subject.trim() ||
-				!sameValues
-			)
+			if (!sameValues)
 				throw new AccessError(
 					409,
 					"REQUEST_ALREADY_USED",
@@ -427,19 +432,35 @@ export async function createRecord(
 				target: [documentSequence.typeId, documentSequence.year],
 				set: { lastNumber: sequence },
 			});
-		await tx.insert(documentRecord).values({
-			id: input.requestId,
-			typeId: type.id,
-			templateVersion: template.version,
-			typeName: type.name,
-			year: input.year,
-			sequence,
-			documentNumber,
-			subject: input.subject.trim(),
-			values,
-			ownerId: access.user.id,
-			ownerName: access.user.name,
-		});
+		try {
+			await tx.insert(documentRecord).values({
+				id: input.requestId,
+				typeId: type.id,
+				templateVersion: template.version,
+				typeName: type.name,
+				year: input.year,
+				sequence,
+				documentNumber,
+				subject: input.subject.trim(),
+				values,
+				ownerId: access.user.id,
+				ownerName: access.user.name,
+			});
+		} catch (error) {
+			const cause =
+				error instanceof Error && "cause" in error ? error.cause : error;
+			const code =
+				cause && typeof cause === "object" && "code" in cause
+					? String(cause.code)
+					: "";
+			if (code === "23505")
+				throw new AccessError(
+					409,
+					"REQUEST_ALREADY_USED",
+					"这次提交标识已使用，请刷新后重新提交。",
+				);
+			throw error;
+		}
 		await tx.insert(documentRevision).values({
 			recordId: input.requestId,
 			revision: 1,

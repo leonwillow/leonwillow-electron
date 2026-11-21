@@ -114,7 +114,7 @@ export const accessPlugin = new Elysia({ name: "Access.Plugin" })
 			);
 		}
 	})
-	.onError(({ code, error, set }) => {
+	.onError(({ code, error, request, set }) => {
 		const root = unwrapError(error);
 		if (root instanceof ServerResourcesUnavailableError)
 			return status(503, {
@@ -144,13 +144,24 @@ export const accessPlugin = new Elysia({ name: "Access.Plugin" })
 				code: "INVALID_JSON",
 				message: "请求 JSON 格式无效。",
 			});
+		let pathname = "";
+		try {
+			pathname = new URL(request.url).pathname;
+		} catch {
+			pathname = "";
+		}
 		console.error("受保护接口请求失败：", {
 			requestId: set.headers["x-request-id"],
+			method: request.method,
+			path: pathname,
 			code,
 			name: error instanceof Error ? error.name : typeof error,
+			...(process.env.NODE_ENV !== "production" && error instanceof Error
+				? { stack: error.stack }
+				: {}),
 		});
 		return status(500, {
-			code: "ACCESS_FAILED",
+			code: "INTERNAL_ERROR",
 			message: "服务暂时不可用，请稍后重试。",
 		});
 	})

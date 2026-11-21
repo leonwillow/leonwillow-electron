@@ -55,6 +55,13 @@ test("健康检查允许 Web renderer 跨域访问", async () => {
 	expect(response.headers.get("x-content-type-options")).toBe("nosniff");
 	expect(response.headers.get("x-frame-options")).toBe("DENY");
 	expect(response.headers.get("referrer-policy")).toBe("no-referrer");
+	const missing = await createApp().handle(
+		new Request("http://localhost/api/not-found"),
+	);
+	expect(missing.status).toBe(404);
+	expect(missing.headers.get("x-content-type-options")).toBe("nosniff");
+	expect(missing.headers.get("x-frame-options")).toBe("DENY");
+	expect(missing.headers.get("referrer-policy")).toBe("no-referrer");
 });
 
 test("缺少认证配置时返回 503，认证和权限插件不影响后续公共路由", async () => {

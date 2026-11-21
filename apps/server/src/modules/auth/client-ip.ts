@@ -1,7 +1,7 @@
 /**
  * @file 认证限流的客户端地址信任边界。
  * 创建时间：2026-10-04（本次新建）
- * 修改时间：2026-10-05
+ * 修改时间：2026-11-21
  * 版本作用：区分直连地址与部署方明确授权的反向代理。
  * 被调用：进程入口、认证 HTTP 适配器；调用：node:net 的 IP 校验。
  * 功能：仅受信直接对端可提供单个 X-Real-IP，不解析任意转发链。
@@ -10,10 +10,21 @@
 import { isIP } from "node:net";
 
 function normalizeIp(value: string) {
-	if (!isIP(value)) return undefined;
-	return value.startsWith("::ffff:") && isIP(value.slice(7)) === 4
-		? value.slice(7)
-		: value.toLowerCase();
+	const version = isIP(value);
+	if (!version) return undefined;
+	const lower = value.toLowerCase();
+	if (lower.startsWith("::ffff:") && isIP(lower.slice(7)) === 4)
+		return lower.slice(7);
+	if (version === 6) {
+		try {
+			const canonical = new URL(`http://[${lower}]`).hostname;
+			if (canonical.startsWith("[") && canonical.endsWith("]"))
+				return canonical.slice(1, -1);
+		} catch {
+			// 回退为小写原值。
+		}
+	}
+	return lower;
 }
 
 /** 解析逗号分隔的直接代理 IP；空配置不信任代理，非法地址/CIDR 在启动时抛错。 */

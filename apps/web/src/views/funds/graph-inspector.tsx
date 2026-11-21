@@ -1,14 +1,14 @@
 /**
  * @file 节点与连线共用的非模态详情侧栏。
  * 创建时间：2026-10-07
- * 修改时间：2026-10-07
+ * 修改时间：2026-11-21
  * 版本作用：选中对象变化只替换内容，保留同一个 Sheet 和关闭控件。
  * 被调用：AnalysisPanel；调用：NodeInspector、EdgeInspector、共享 Sheet。
  * 功能：统一详情容器、节点标记入口和连线来源核对；内容切换轻微淡入。
  * 预期结果：连续选择不会重新播放侧栏入场；对象相关编辑、分页和请求隔离。
  */
 import { Sheet, SheetContent } from "@leonwillow-electron/ui/components/sheet";
-import type { FundsAccount } from "@/lib/funds";
+import type { FundsAccount, FundsTransaction } from "@/lib/funds";
 import EdgeInspector from "./edge-inspector";
 import type { AnalysisEdge, NodeMode, RawGraph } from "./model/analysis";
 import type { NodeMark, NodePresentation } from "./model/graph-presentation";
@@ -27,6 +27,7 @@ export default function GraphInspector({
 	caseId,
 	mode,
 	full,
+	adjacentEdges,
 	presentation,
 	onClose,
 	onTabChange,
@@ -40,6 +41,7 @@ export default function GraphInspector({
 	caseId: string;
 	mode: NodeMode;
 	full: RawGraph;
+	adjacentEdges?: ReadonlyMap<string, readonly FundsTransaction[]>;
 	presentation?: NodePresentation;
 	onClose: () => void;
 	onTabChange: (tab: "details" | "mark") => void;
@@ -78,6 +80,7 @@ export default function GraphInspector({
 							node={selection.node}
 							mode={mode}
 							full={full}
+							adjacentEdges={adjacentEdges}
 							presentation={presentation}
 							tab={selection.tab}
 							onTabChange={onTabChange}

@@ -30,7 +30,13 @@ import {
 	formatFunds,
 } from "@/lib/funds";
 import FlowTable from "./flow-table";
+import { GraphToolbarContext } from "./graph-toolbar-context";
 import type { AnalysisEdge } from "./model/analysis";
+
+const TRANSACTIONS_TOOLBAR_CONTEXT = {
+	side: "bottom" as const,
+	onPopupChange: () => {},
+};
 
 export default function TransactionsPanel({
 	frameId,
@@ -111,12 +117,14 @@ export default function TransactionsPanel({
 							清空选择
 						</Button>
 					)}
-					<fieldset
-						className="ml-auto flex shrink-0 items-center gap-1"
-						aria-label="银行流水筛选工具"
-					>
-						{filterToolbar}
-					</fieldset>
+					<GraphToolbarContext value={TRANSACTIONS_TOOLBAR_CONTEXT}>
+						<fieldset
+							className="ml-auto flex shrink-0 items-center gap-1"
+							aria-label="银行流水筛选工具"
+						>
+							{filterToolbar}
+						</fieldset>
+					</GraphToolbarContext>
 				</div>
 				{flow && (
 					<p className="text-sm">
@@ -160,7 +168,7 @@ export default function TransactionsPanel({
 								<TableRow key={t.id}>
 									<TableCell>
 										<Checkbox
-											aria-label={`选择 ${t.timestamp.slice(0, 19)} ${formatFunds(t.amountMinor)} 交易`}
+											aria-label={`选择 ${t.timestamp.slice(0, 19)} ${formatFunds(t.amountMinor, t.currency)} 交易`}
 											checked={selected.some((item) => item.id === t.id)}
 											onCheckedChange={(checked) =>
 												onSelectionChange(

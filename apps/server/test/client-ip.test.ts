@@ -1,6 +1,6 @@
 /**
  * @file 认证代理地址边界回归。
- * 创建时间：2026-10-04（本次新建）；修改时间：2026-10-04。
+ * 创建时间：2026-10-04（本次新建）；修改时间：2026-11-21。
  * 版本作用：发布前验证直连与代理限流输入；被调用：test:unit。
  * 调用：client-ip；功能：覆盖伪造头、代理头及非法配置。
  * 预期结果：只有明确受信的直接对端能提供客户端地址。
@@ -46,4 +46,26 @@ test("受信代理区分客户端，拒绝多值和无效地址", () => {
 		).toBe("127.0.0.1");
 	}
 	expect(() => parseTrustedProxyIps("0.0.0.0/0")).toThrow();
+});
+
+test("规范化大写 IPv4 映射前缀与非压缩 IPv6 地址", () => {
+	const proxies = parseTrustedProxyIps("127.0.0.1,0:0:0:0:0:0:0:1");
+	expect(
+		getClientIp(
+			new Request("http://localhost", {
+				headers: { "x-real-ip": "198.51.100.7" },
+			}),
+			"::FFFF:127.0.0.1",
+			proxies,
+		),
+	).toBe("198.51.100.7");
+	expect(
+		getClientIp(
+			new Request("http://localhost", {
+				headers: { "x-real-ip": "0:0:0:0:0:0:0:1" },
+			}),
+			"0:0:0:0:0:0:0:1",
+			proxies,
+		),
+	).toBe("::1");
 });

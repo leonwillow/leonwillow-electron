@@ -1,7 +1,7 @@
 /**
  * @file 统一详情侧栏中的节点详情与标记内容。
  * 创建时间：2026-10-06
- * 修改时间：2026-11-05
+ * 修改时间：2026-11-21
  * 版本作用：查看节点不改变当前分析范围，显式下钻才更新画布。
  * 被调用：GraphInspector；调用：Sheet 标题、CopyText、标记编辑器、整案统计。
  * 功能：显示账户归属、数据覆盖、整案收付与内部划转；支持标记与隐藏。
@@ -18,7 +18,12 @@ import {
 } from "@leonwillow-electron/ui/components/sheet";
 import { ArrowDownToLineIcon, EyeOffIcon, PaintbrushIcon } from "lucide-react";
 import { useMemo, useState } from "react";
-import { accountName, type FundsAccount, formatFunds } from "@/lib/funds";
+import {
+	accountName,
+	type FundsAccount,
+	type FundsTransaction,
+	formatFunds,
+} from "@/lib/funds";
 import type { NodeMode, RawGraph } from "./model/analysis";
 import {
 	type NodeMark,
@@ -50,6 +55,7 @@ export default function NodeInspector({
 	node,
 	mode,
 	full,
+	adjacentEdges,
 	presentation,
 	tab,
 	onTabChange,
@@ -61,6 +67,7 @@ export default function NodeInspector({
 	node: FundsAccount;
 	mode: NodeMode;
 	full: RawGraph;
+	adjacentEdges?: ReadonlyMap<string, readonly FundsTransaction[]>;
 	presentation?: NodePresentation;
 	tab: "details" | "mark";
 	onTabChange: (tab: "details" | "mark") => void;
@@ -70,7 +77,14 @@ export default function NodeInspector({
 	onReset: () => void;
 }) {
 	const name = accountName(node);
-	const summary = useMemo(() => summarizeNode(full, node.id), [full, node.id]);
+	const summary = useMemo(
+		() =>
+			summarizeNode(
+				{ edges: adjacentEdges?.get(node.id) ?? full.edges },
+				node.id,
+			),
+		[adjacentEdges, full.edges, node.id],
+	);
 	const [defaults] = useState(() => initialMark(node));
 	return (
 		<>

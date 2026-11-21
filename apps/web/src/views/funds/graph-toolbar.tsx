@@ -1,7 +1,7 @@
 /**
  * @file 图谱菜单栏、节点筛选和连线筛选。
  * 创建时间：2026-10-06
- * 修改时间：2026-11-20
+ * 修改时间：2026-11-21
  * 版本作用：复用原模板 FilterSelect 与共享 Popover，草稿提交后才改变视图。
  * 被调用：analysis-panel；调用：共享 UI、图谱筛选校验。
  * 预期结果：以紧凑图标扩展 G6 悬浮工具栏，悬停有中文提示，筛选草稿按需展开。
@@ -144,7 +144,7 @@ export default function GraphToolbar({
 						>
 							<Icon />
 						</TooltipTrigger>
-						<TooltipContent>{tip}</TooltipContent>
+						<TooltipContent side={side}>{tip}</TooltipContent>
 					</Tooltip>
 				))}
 			</fieldset>
@@ -173,7 +173,9 @@ export default function GraphToolbar({
 					>
 						<CircleDotIcon />
 					</TooltipTrigger>
-					<TooltipContent>节点筛选{nodeActive && "（已启用）"}</TooltipContent>
+					<TooltipContent side={side}>
+						节点筛选{nodeActive && "（已启用）"}
+					</TooltipContent>
 				</Tooltip>
 				<PopoverContent
 					side={side}
@@ -286,7 +288,9 @@ export default function GraphToolbar({
 					>
 						<ListFilterIcon />
 					</TooltipTrigger>
-					<TooltipContent>连线筛选{edgeActive && "（已启用）"}</TooltipContent>
+					<TooltipContent side={side}>
+						连线筛选{edgeActive && "（已启用）"}
+					</TooltipContent>
 				</Tooltip>
 				<PopoverContent
 					side={side}
@@ -482,7 +486,9 @@ export default function GraphToolbar({
 					>
 						<RotateCcwIcon />
 					</TooltipTrigger>
-					<TooltipContent>清空图谱筛选，保留下钻节点</TooltipContent>
+					<TooltipContent side={side}>
+						清空图谱筛选，保留下钻节点
+					</TooltipContent>
 				</Tooltip>
 			)}
 		</>

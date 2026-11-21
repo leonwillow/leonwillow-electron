@@ -1,7 +1,7 @@
 /**
  * @file 当前案件账户/主体目录、搜索、筛选与虚拟滚动。
  * 创建时间：2026-10-07
- * 修改时间：2026-11-19
+ * 修改时间：2026-11-21
  * 版本作用：完整目录可浏览，DOM 只保留可见条目与键盘焦点条目。
  * 被调用：AnalysisPanel；调用：TanStack Virtual、AccountDirectoryRow、共享 SearchInput、目录筛选。
  * 功能：宽屏以共享菜单宽度固定目录和分隔线；列表独立滚动，键盘翻阅全部账户。
@@ -17,7 +17,7 @@ import { ScrollArea } from "@leonwillow-electron/ui/components/scroll-area";
 import { SearchInput } from "@leonwillow-electron/ui/components/search-input";
 import { defaultRangeExtractor, useVirtualizer } from "@tanstack/react-virtual";
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { FundsAccount } from "@/lib/funds";
+import type { FundsAccount, FundsTransaction } from "@/lib/funds";
 import AccountDirectoryFilters from "./account-directory-filters";
 import AccountDirectoryRow, { AccountPreview } from "./account-directory-row";
 import {
@@ -36,6 +36,7 @@ import type { NodeMenuTarget } from "./node-action-menu";
 type DirectoryActions = {
 	mode: NodeMode;
 	full: RawGraph;
+	adjacentEdges?: ReadonlyMap<string, readonly FundsTransaction[]>;
 	appearances: GraphPresentation;
 	account: string;
 	onInspect: (id: string) => void;
@@ -212,6 +213,7 @@ function DirectoryList({
 									node={payload}
 									mode={actions.mode}
 									full={actions.full}
+									adjacentEdges={actions.adjacentEdges}
 									presentation={actions.appearances[payload.id]}
 								/>
 							)}
@@ -239,12 +241,16 @@ export default function AccountDirectory({
 		[all, term, filters, actions.appearances],
 	);
 	// 同一集合保持滚动位置；搜索、模式及筛选结果变化时重置虚拟窗口。
-	const listKey = JSON.stringify([
-		actions.mode,
-		term,
-		filters,
-		entries.map((item) => item.id),
-	]);
+	const listKey = useMemo(
+		() =>
+			JSON.stringify([
+				actions.mode,
+				term,
+				filters,
+				entries.map((item) => item.id),
+			]),
+		[actions.mode, term, filters, entries],
+	);
 	return (
 		// 菜单贴齐页头和工作区边界；内边距负责留白，只有列表参与收缩和滚动。
 		<aside

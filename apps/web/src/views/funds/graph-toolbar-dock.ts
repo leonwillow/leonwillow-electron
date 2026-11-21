@@ -1,7 +1,7 @@
 /**
  * @file G6 原生工具栏的停靠与连续折叠动画。
  * 创建时间：2026-10-07
- * 修改时间：2026-10-08
+ * 修改时间：2026-11-21
  * 版本作用：同一个工具栏、同一个折叠控件；几何变化不重建或重排图谱。
  * 被调用：graph-toolbar-adapter；调用：位置规则、ResizeObserver、CSS 过渡。
  * 功能：缓存几何尺寸，同步实际展开与动画状态，协调控件反馈和提示时机。
@@ -179,7 +179,7 @@ export function attachToolbarDock(
 		});
 		if (folding) {
 			peeking = false;
-			suppressHover = true;
+			suppressHover = pointerInside;
 			const active = document.activeElement;
 			if (active instanceof HTMLElement && body.contains(active)) {
 				if (keyboardInteraction || active.matches(":focus-visible"))
@@ -227,7 +227,7 @@ export function attachToolbarDock(
 			keyboardInteraction = true;
 			if (event.key === "Escape" && layout.collapsed && !held) {
 				peeking = false;
-				suppressHover = true;
+				suppressHover = pointerInside;
 				toggleSlot.querySelector("button")?.focus({ preventScroll: true });
 				paint();
 			}

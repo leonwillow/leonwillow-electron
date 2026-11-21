@@ -1,7 +1,7 @@
 /**
  * @file 资金账户/主体目录与悬停速览。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-07
+ * 修改时间：2026-11-21
  * 版本作用：列表保持两行，悬停预览已加载数据，点击查看完整详情。
  * 被调用：AccountDirectory；调用：共享 HoverCard、CopyText、NodeStatusTags、summarizeNode。
  * 功能：名称与笔数单行显示；预览按需计算本案收付、对手与交易区间。
@@ -14,7 +14,12 @@ import {
 } from "@leonwillow-electron/ui/components/hover-card";
 import { Separator } from "@leonwillow-electron/ui/components/separator";
 import { type ComponentProps, useMemo } from "react";
-import { accountName, type FundsAccount, formatFunds } from "@/lib/funds";
+import {
+	accountName,
+	type FundsAccount,
+	type FundsTransaction,
+	formatFunds,
+} from "@/lib/funds";
 import type { NodeMode, RawGraph } from "./model/analysis";
 import {
 	type NodePresentation,
@@ -26,6 +31,7 @@ type PreviewProps = {
 	node: FundsAccount;
 	mode: NodeMode;
 	full: RawGraph;
+	adjacentEdges?: ReadonlyMap<string, readonly FundsTransaction[]>;
 	presentation?: NodePresentation;
 };
 
@@ -34,9 +40,17 @@ export function AccountPreview({
 	node,
 	mode,
 	full,
+	adjacentEdges,
 	presentation,
 }: PreviewProps) {
-	const summary = useMemo(() => summarizeNode(full, node.id), [full, node.id]);
+	const summary = useMemo(
+		() =>
+			summarizeNode(
+				{ edges: adjacentEdges?.get(node.id) ?? full.edges },
+				node.id,
+			),
+		[adjacentEdges, full.edges, node.id],
+	);
 	return (
 		<div className="flex flex-col gap-3">
 			<div className="flex flex-col gap-1">

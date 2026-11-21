@@ -97,9 +97,11 @@ export function createInquiryDocx(draft: InquiryDocument) {
 			`${dateText(c.inquiryStartAt)} 至 ${dateText(c.inquiryEndAt)}`,
 		),
 		full("地　点：", c.inquiryLocation),
-		...c.inquirers.map((r, i) =>
-			full(i === 0 ? "询问（调查）人：" : "　　　　　　　　", person(r)),
-		),
+		...(c.inquirers.length
+			? c.inquirers.map((r, i) =>
+					full(i === 0 ? "询问（调查）人：" : "　　　　　　　　", person(r)),
+				)
+			: [full("询问（调查）人：", "")]),
 		full("记录人：", recorder ? person(recorder) : ""),
 		metadataRow([
 			{ label: "被询问（调查）人：", value: c.subjectName, width: 5500 },

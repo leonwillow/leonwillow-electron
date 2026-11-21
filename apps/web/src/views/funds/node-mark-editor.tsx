@@ -1,7 +1,7 @@
 /**
  * @file 节点特殊标记编辑器与几何预览。
  * 创建时间：2026-10-06
- * 修改时间：2026-11-19
+ * 修改时间：2026-11-21
  * 版本作用：复用主题编辑器的色盘、滑块和共享表单控件。
  * 被调用：node-inspector；调用：图谱标记规则与共享 UI。
  * 功能：编辑节点形状、尺寸、填色、边框及相关资金连线。
@@ -220,7 +220,14 @@ export default function NodeMarkEditor({
 							["in", "仅资金流入"],
 							["none", "仅标记节点"],
 						]}
-						onChange={(v) => change("edgeScope", v as NodeMark["edgeScope"])}
+						onChange={(v) => {
+							const scope = v as NodeMark["edgeScope"];
+							change("edgeScope", scope);
+							if (scope === "none")
+								setInvalid((old) =>
+									old.edgeColor ? { ...old, edgeColor: false } : old,
+								);
+						}}
 					/>
 					{draft.edgeScope !== "none" && (
 						<>

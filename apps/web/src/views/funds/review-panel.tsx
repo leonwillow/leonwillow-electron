@@ -1,7 +1,7 @@
 /**
  * @file 归并候选、清洗问题与主体归属核对面板。
  * 创建时间：2026-10-06
- * 修改时间：2026-11-19
+ * 修改时间：2026-11-21
  * 版本作用：不确定配对由人员决定，原值可追溯。
  * 被调用：funds 工作台；调用：Eden 和证据弹窗。
  * 预期结果：决定带版本提交，过期提示刷新，不静默覆盖新增证据。
@@ -53,12 +53,11 @@ export default function ReviewPanel({
 	const [target, setTarget] = useState<EvidenceTarget | null>(null);
 	const [busy, setBusy] = useState("");
 	const [error, setError] = useState("");
-	const resource = useAsyncResource(
-		useCallback(
-			() => getFundsReview(record.id, offset, kind),
-			[record.id, offset, kind],
-		),
+	const loadReview = useCallback(
+		() => getFundsReview(record.id, offset, kind),
+		[record.id, offset, kind],
 	);
+	const resource = useAsyncResource(mode === "subjects" ? null : loadReview);
 	const decide = async (id: string, action: "merge" | "separate") => {
 		setBusy(id);
 		setError("");

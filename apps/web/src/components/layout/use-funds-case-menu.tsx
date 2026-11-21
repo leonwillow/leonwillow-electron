@@ -1,7 +1,7 @@
 /**
  * @file 资金案件菜单的内容、操作及弹窗。
  * 创建时间：2026-10-06
- * 修改时间：2026-11-19
+ * 修改时间：2026-11-21
  * 版本作用：为统一菜单框组织案件菜单，保留置顶、归档、排序及标记删除。
  * 被调用：WorkspaceSecondaryMenu；调用：useFundsNavigation、Eden、共享 UI、FundsCaseRow。
  * 功能：即时关键词搜索、创建、置顶、拖放排序、独立归档视图和删除确认。
@@ -169,12 +169,10 @@ export function useFundsCaseMenu(): WorkspaceMenuContent {
 			(archived || source.pinned === record.pinned)
 		);
 	};
-	const position = (event: DragEvent): "before" | "after" =>
-		event.clientY <
-		event.currentTarget.getBoundingClientRect().top +
-			event.currentTarget.getBoundingClientRect().height / 2
-			? "before"
-			: "after";
+	const position = (event: DragEvent): "before" | "after" => {
+		const rect = event.currentTarget.getBoundingClientRect();
+		return event.clientY < rect.top + rect.height / 2 ? "before" : "after";
+	};
 	return {
 		label: "案件菜单",
 		title: archived ? "已归档" : "案件",
@@ -279,11 +277,13 @@ export function useFundsCaseMenu(): WorkspaceMenuContent {
 												if (allowedTarget(r)) {
 													e.preventDefault();
 													e.dataTransfer.dropEffect = "move";
-													setDropTarget({
-														id: r.id,
-														placement: position(e),
-													});
-												} else setDropTarget(null);
+													const placement = position(e);
+													setDropTarget((prev) =>
+														prev?.id === r.id && prev.placement === placement
+															? prev
+															: { id: r.id, placement },
+													);
+												} else setDropTarget((prev) => (prev ? null : prev));
 											}}
 											onDrop={(r, e) => {
 												if (allowedTarget(r)) {

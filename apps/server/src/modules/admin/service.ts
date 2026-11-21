@@ -1,14 +1,18 @@
 /**
  * @file 人员账号与功能授权的事务服务。
  * 创建时间：2026-10-04
- * 修改时间：2026-10-06
+ * 修改时间：2026-11-21
  * 版本作用：管理员操作闭环；共享锁串行化权限变更。
  * 被调用：admin 路由。
  * 调用：server-resources、Better Auth 事务实例、Drizzle、认证与授权表。
  * 功能：创建人员、更新身份/授权、停用、重置密码并写审计。
  * 预期结果：账号与审计原子提交，撤销会话，保留至少一名有效管理员。
  */
-import { isModuleId, modules } from "@leonwillow-electron/access";
+import {
+	isModuleId,
+	type ModuleId,
+	modules,
+} from "@leonwillow-electron/access";
 import { authInTransaction } from "@leonwillow-electron/auth";
 import type { DatabaseTransaction } from "@leonwillow-electron/db";
 import {
@@ -162,14 +166,15 @@ export async function listUsers() {
 			.from(userModuleAccess)
 			.where(isNull(userModuleAccess.deletedAt)),
 	]);
+	const grantsByUser = new Map<string, ModuleId[]>();
+	for (const grant of grants) {
+		if (!isModuleId(grant.moduleId)) continue;
+		const list = grantsByUser.get(grant.userId);
+		if (list) list.push(grant.moduleId);
+		else grantsByUser.set(grant.userId, [grant.moduleId]);
+	}
 	return people.map((person) => ({
-		...snapshot(
-			person,
-			grants
-				.filter((grant) => grant.userId === person.id)
-				.map((grant) => grant.moduleId)
-				.filter(isModuleId),
-		),
+		...snapshot(person, grantsByUser.get(person.id) ?? []),
 		id: person.id,
 		createdAt: person.createdAt.toISOString(),
 	}));

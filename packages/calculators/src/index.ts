@@ -349,7 +349,12 @@ export function normalizeAdjustments(
 	const out: Adjustments = {};
 	for (const [month, value] of Object.entries(source)) {
 		if (!known.has(month)) throw Error(`${month} 的调整缺少对应历史数据`);
-		out[month] = normalizeAdjustment(value, expected);
+		Object.defineProperty(out, month, {
+			value: normalizeAdjustment(value, expected),
+			enumerable: true,
+			writable: true,
+			configurable: true,
+		});
 	}
 	return out;
 }
@@ -450,7 +455,9 @@ export function calculate(
 			carryDelta: null,
 		};
 		rows.push(row);
-		const adjustment = normalizeAdjustment(adjustments[h.id] ?? {});
+		const adjustment = normalizeAdjustment(
+			Object.hasOwn(adjustments, h.id) ? adjustments[h.id] : {},
+		);
 		for (const key of adjustmentFields) {
 			try {
 				const amount = cents(adjustment[key], true);

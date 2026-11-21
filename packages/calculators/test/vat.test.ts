@@ -510,3 +510,26 @@ test("同属期不能同时存在应纳与留抵，空行不掩盖已有历史�
 		["70.00", "0.00"],
 	]);
 });
+
+test("原型链同名行 ID 不污染调整映射且不会在计算时报错", () => {
+	const [first, second] = history();
+	if (!first || !second) throw Error("缺少测试月份");
+	const specialRows: HistoryRow[] = [
+		{ ...first, id: "toString" },
+		{ ...second, id: "__proto__" },
+	];
+	const rawAdjustments: Record<string, { outputIncrease: string }> = {};
+	Object.defineProperty(rawAdjustments, "__proto__", {
+		value: { outputIncrease: "10" },
+		enumerable: true,
+		configurable: true,
+		writable: true,
+	});
+	const normalized = normalizeAdjustments(rawAdjustments, specialRows);
+	expect(Object.hasOwn(normalized, "__proto__")).toBe(true);
+	expect(Object.hasOwn(normalized, "toString")).toBe(false);
+	const result = calculate(specialRows, normalized);
+	expect(result.allReady).toBe(true);
+	expect(result.rows[0]?.dx).toBe(0);
+	expect(result.rows[1]?.dx).toBe(1000);
+});
