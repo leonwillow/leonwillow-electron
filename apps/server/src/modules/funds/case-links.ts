@@ -131,6 +131,12 @@ export async function includeCaseAccount(
 				auxiliaryCount: 0,
 				feedbackCount: 0,
 			};
+			if (copy.observations.some((o) => o.currency !== "CNY"))
+				throw new AccessError(
+					400,
+					"UNSUPPORTED_CURRENCY",
+					"当前仅支持人民币（CNY）流水，来源案件包含历史外币记录，无法纳入。",
+				);
 			const csv = csvDocument(standardHeaders, standardRows(copy));
 			copy.size = Buffer.byteLength(csv);
 			copies.push(copy);

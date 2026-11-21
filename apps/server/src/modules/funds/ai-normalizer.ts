@@ -1,14 +1,20 @@
 /**
  * @file 原始银行表的 AI 字段识别、确定性转换和标准文件校验。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-07
- * 版本作用：AI 输出受限映射，不执行模型代码；程序逐行保留金额、编号和来源。
+ * 修改时间：2026-11-21
+ * 版本作用：AI 输出受限映射，不执行模型代码；程序逐行保留金额、编号和来源，仅支持人民币。
  * 被调用：funds worker 与标准化测试；调用：Responses API、SheetJS、正式解析器。
- * 预期结果：生成 13 列 CSV 和可核对报告；模型失败不伪装为已完成。
+ * 预期结果：生成 13 列 CSV 和可核对报告；正确区分 Excel 序列日期与整型日期时间，不引入前导单引号污染。
  */
 import { read, SSF, utils } from "xlsx";
 import { csvDocument, standardHeaders, standardRows } from "./export";
-import { digest, moneyMinor, parseStatement } from "./parser";
+import {
+	digest,
+	isCnyCurrency,
+	moneyMinor,
+	parseMappedRows,
+	parseStatement,
+} from "./parser";
 import type { ParsedSource, SourceRow } from "./types";
 
 export type AiConfig = { baseUrl: string; apiKey: string; model: string };
@@ -47,11 +53,15 @@ export type NormalizationReport = {
 	amountTotals: { incomingMinor: string; outgoingMinor: string };
 	warnings: string[];
 };
+type NumericDateCell = {
+	value: number;
+	formattedDate: boolean;
+};
 type Grid = {
 	name: string;
 	cells: string[][];
 	unsafe: Set<string>;
-	dateCells: Map<string, number>;
+	dateCells: Map<string, NumericDateCell>;
 	offset: number;
 };
 export const NORMALIZATION_PROMPT_VERSION = "2026-10-07.1";
@@ -159,6 +169,7 @@ function readGrids(name: string, bytes: Uint8Array) {
 		raw: true,
 		nodim: true,
 		cellText: true,
+		cellNF: true,
 	});
 	const grids = book.SheetNames.map((name): Grid => {
 		const sheet = book.Sheets[name];
@@ -167,7 +178,7 @@ function readGrids(name: string, bytes: Uint8Array) {
 		if (range.e.r > 100_000 || range.e.c > 250)
 			throw new Error("工作表超过 100,000 行或 250 列。");
 		const unsafe = new Set<string>();
-		const dateCells = new Map<string, number>();
+		const dateCells = new Map<string, NumericDateCell>();
 		const raw = utils.sheet_to_json<unknown[]>(sheet, {
 			header: 1,
 			raw: true,
@@ -176,10 +187,29 @@ function readGrids(name: string, bytes: Uint8Array) {
 		});
 		const cells = raw.map((row, r) =>
 			row.map((value, c) => {
+				const cell =
+					encoding === "Excel"
+						? sheet[utils.encode_cell({ r: r + range.s.r, c: c + range.s.c })]
+						: undefined;
+				if (cell?.t === "n" && typeof cell.v === "number") {
+					if (!Number.isSafeInteger(cell.v) && Math.abs(cell.v) >= 1e15)
+						unsafe.add(`${r}:${c}`);
+					const formattedDate =
+						typeof cell.z === "string" && SSF.is_date(cell.z);
+					dateCells.set(`${r}:${c}`, {
+						value: cell.v,
+						formattedDate,
+					});
+					return formattedDate
+						? utils
+								.format_cell(cell)
+								.replace(/^\uFEFF/, "")
+								.trim()
+						: String(cell.v).trim();
+				}
 				if (typeof value === "number") {
 					if (!Number.isSafeInteger(value) && Math.abs(value) >= 1e15)
 						unsafe.add(`${r}:${c}`);
-					dateCells.set(`${r}:${c}`, value);
 				}
 				return String(value ?? "")
 					.replace(/^\uFEFF/, "")
@@ -334,6 +364,24 @@ const formatExcelDate = (n: number, onlyTime: boolean) => {
 		: `${v.y}-${pad(v.m)}-${pad(v.d)}${n % 1 ? ` ${time}` : ""}`;
 };
 
+/** 仅对带 Excel 日期/时间数字格式或合理序列范围的数值按序列号转换，避免把 YYYYMMDD/HHMMSS 误转成 00:00:00。 */
+function formatExcelDateCell(
+	info: NumericDateCell | undefined,
+	rawText: string,
+	onlyTime: boolean,
+) {
+	if (!info) return rawText;
+	if (info.formattedDate) return formatExcelDate(info.value, onlyTime);
+	if (onlyTime) {
+		return info.value > 0 && info.value < 1
+			? formatExcelDate(info.value, true)
+			: rawText;
+	}
+	return info.value >= 25569 && info.value < 73051
+		? formatExcelDate(info.value, false)
+		: rawText;
+}
+
 /** 应用映射后走正式解析器；每个输入数据行必须归入标准、待核、反馈或开户资料。 */
 export function applyMappings(
 	name: string,
@@ -363,6 +411,24 @@ export function applyMappings(
 		const grid = grids.find((g) => g.name === plan.sheet);
 		if (!grid) continue;
 		const header = grid.cells[plan.headerRow - grid.offset - 1] ?? [];
+		const feedbackResultColumn = header.indexOf("查询反馈结果");
+		const mappedColumns = new Set<number>();
+		if (plan.kind === "transactions") {
+			for (const field of plan.fields) {
+				for (const col of field.columns) mappedColumns.add(col);
+			}
+			for (const col of [
+				plan.dateColumn,
+				plan.currencyColumn,
+				plan.statusColumn,
+				plan.feedbackColumn,
+				plan.outgoingColumn,
+				plan.incomingColumn,
+				feedbackResultColumn,
+			]) {
+				if (col >= 0) mappedColumns.add(col);
+			}
+		}
 		for (let r = plan.headerRow - grid.offset; r < grid.cells.length; r++) {
 			const cells = grid.cells[r] ?? [];
 			if (!cells.some(Boolean)) continue;
@@ -389,6 +455,17 @@ export function applyMappings(
 				});
 				continue;
 			}
+			if (![...mappedColumns].some((col) => Boolean(cells[col]))) {
+				source.issues.push({
+					id: digest(`${source.id}:${plan.sheet}:${origin.row}:quarantine`),
+					sourceId: source.id,
+					sheet: plan.sheet,
+					row: origin.row,
+					kind: "quarantine",
+					message: "该行仅在未映射列包含内容，已保留原文待核。",
+				});
+				continue;
+			}
 			const get = (field: string) => {
 				const map = plan.fields.find((f) => f.field === field);
 				if (!map) return "";
@@ -401,8 +478,9 @@ export function applyMappings(
 						)
 							return "1e+99";
 						if (field === "交易时间" && grid.dateCells.has(`${r}:${c}`))
-							return formatExcelDate(
-								grid.dateCells.get(`${r}:${c}`) ?? 0,
+							return formatExcelDateCell(
+								grid.dateCells.get(`${r}:${c}`),
+								value,
 								plan.dateColumn >= 0,
 							);
 						return value;
@@ -417,11 +495,12 @@ export function applyMappings(
 			const row = standardHeaders.map(get);
 			let time = row[5] ?? "";
 			if (plan.dateColumn >= 0) {
-				const numeric = grid.dateCells.get(`${r}:${plan.dateColumn}`);
-				const date =
-					numeric === undefined
-						? (cells[plan.dateColumn] ?? "")
-						: formatExcelDate(numeric, false).slice(0, 10);
+				const rawDate = cells[plan.dateColumn] ?? "";
+				const date = formatExcelDateCell(
+					grid.dateCells.get(`${r}:${plan.dateColumn}`),
+					rawDate,
+					false,
+				).slice(0, 10);
 				if (/^\d{6}$/.test(time))
 					time = time.replace(/^(\d{2})(\d{2})(\d{2})$/, "$1:$2:$3");
 				row[5] = `${date} ${time}`.trim();
@@ -440,17 +519,14 @@ export function applyMappings(
 			row[7] = amountInYuan(row[7] ?? "", plan.amountScale) ?? "";
 			const currency =
 				plan.currencyColumn < 0 ? "CNY" : (cells[plan.currencyColumn] ?? "");
-			if (
-				currency &&
-				!["人民币", "人民币元", "RMB", "CNY", "156", "01"].includes(currency)
-			) {
+			if (currency && !isCnyCurrency(currency)) {
 				source.issues.push({
 					id: digest(`${source.id}:${plan.sheet}:${origin.row}:quarantine`),
 					sourceId: source.id,
 					sheet: plan.sheet,
 					row: origin.row,
 					kind: "quarantine",
-					message: `原币种为 ${currency}，不能转换为人民币模板。`,
+					message: `当前仅支持人民币（CNY）流水，发现不支持币种：${currency}，请剔除或折算为人民币后再导入。`,
 				});
 				continue;
 			}
@@ -460,27 +536,22 @@ export function applyMappings(
 				cells[plan.statusColumn] ?? "",
 				cells[plan.feedbackColumn] ?? "",
 				// 查询结果是反馈分类的原始依据，不是交易成功状态，也不进入用户模板。
-				cells[header.indexOf("查询反馈结果")] ?? "",
+				feedbackResultColumn >= 0 ? (cells[feedbackResultColumn] ?? "") : "",
 			]);
 			origins.push(origin);
 			directionErrors.push(directionError);
 		}
 	}
 	if (converted.length) {
-		const parsed = parseStatement(
-			"mapped.csv",
-			new TextEncoder().encode(
-				csvDocument(
-					[
-						...standardHeaders,
-						"币种",
-						"交易是否成功",
-						"查询反馈结果原因",
-						"查询反馈结果",
-					],
-					converted,
-				),
-			),
+		const parsed = parseMappedRows(
+			[
+				...standardHeaders,
+				"币种",
+				"交易是否成功",
+				"查询反馈结果原因",
+				"查询反馈结果",
+			],
+			converted,
 		);
 		for (const observation of parsed.observations) {
 			const origin = origins[observation.row - 2];

@@ -1,14 +1,14 @@
 /**
  * @file 银行 Excel/CSV 原文读取与字段规范化。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-07
- * 版本作用：按表头识别混合文件，拒绝无把握的数据转换。
- * 被调用：导入服务、离线整案导入和解析测试；调用：SheetJS。
- * 功能：识别编码、修复错误表范围、保留原始单元格和问题行。
- * 预期结果：查询反馈不生成交易；账号不数值化，金额不浮点相加。
+ * 修改时间：2026-11-21
+ * 版本作用：按表头识别混合文件，仅接受人民币流水，拒绝无把握的数据转换。
+ * 被调用：导入服务、AI 标准化、离线整案导入和解析测试；调用：SheetJS。
+ * 功能：识别编码、校正非 A1 工作表坐标与单元格日期格式、保留原始单元格和问题行。
+ * 预期结果：查询反馈不生成交易；非人民币逐行待核；账号不数值化，金额不浮点相加。
  */
 import { createHash } from "node:crypto";
-import { read, utils } from "xlsx";
+import { read, SSF, utils } from "xlsx";
 import type { ParsedSource, SourceRow } from "./types";
 
 export const digest = (value: string | Uint8Array) =>
@@ -67,7 +67,11 @@ function accountNumber(value: string) {
 
 /** 只接收完整日历日期和秒级时间；缺失时间不擅自补零。 */
 export function bankTimestamp(date: string, time: string): string | null {
-	let text = date ? `${date} ${time}` : time;
+	const normalizedTime =
+		date && /^\d{6}$/.test(time)
+			? time.replace(/^(\d{2})(\d{2})(\d{2})$/, "$1:$2:$3")
+			: time;
+	let text = date ? `${date} ${normalizedTime}` : normalizedTime;
 	text = text.replaceAll("/", "-").replace("T", " ");
 	if (/^\d{14}$/.test(text))
 		text = text.replace(
@@ -110,6 +114,185 @@ function csvText(bytes: Uint8Array) {
 	throw new Error("无法识别文本编码，请另存为 UTF-8 CSV 后重试。");
 }
 
+const CNY_TOKENS = new Set(["人民币", "人民币元", "RMB", "CNY", "156", "01"]);
+
+/** 判断文本是否为允许的人民币币种表示（支持大小写 CNY/RMB）。 */
+export function isCnyCurrency(value: string) {
+	const normalized = value.trim().toUpperCase();
+	return CNY_TOKENS.has(normalized);
+}
+
+type TransactionRowContext = {
+	sha256: string;
+	sheetName: string;
+	excelRow: number;
+	directionColumns: number;
+	usesYuanTemplate: boolean;
+	unsafeAccountCell: boolean;
+	issue: (row: SourceRow, kind: string, message: string) => void;
+};
+
+/** 校核单条交易行并归入观测、银行反馈或待核问题；外币统一隔离待核。 */
+function evaluateTransactionRow(
+	source: ParsedSource,
+	row: SourceRow,
+	context: TransactionRowContext,
+) {
+	const {
+		sha256,
+		sheetName,
+		excelRow,
+		directionColumns,
+		usesYuanTemplate,
+		unsafeAccountCell,
+		issue,
+	} = context;
+	const feedback = clean(row.fields.查询反馈结果原因);
+	if (
+		(/无.*明细|无记录|不存在|失败|未查到|无此|无账户|无账/.test(feedback) ||
+			clean(row.fields.查询反馈结果) === "失败") &&
+		(!get(row, "time") ||
+			moneyMinor(get(row, "amount")) === null ||
+			moneyMinor(get(row, "amount")) === "0")
+	) {
+		source.feedbackCount++;
+		issue(row, "feedback", feedback || "银行查询失败");
+		return;
+	}
+	try {
+		if (directionColumns !== 1)
+			throw new Error(
+				directionColumns === 0
+					? "缺少出入方向列，请使用新模板填写出或入；原始银行文件请使用 AI 标准化"
+					: "出入方向列重复，无法确定本方资金方向",
+			);
+		const amountMinor = moneyMinor(get(row, "amount"));
+		if (!amountMinor || amountMinor === "0")
+			throw new Error("金额缺失、为零或不是可确认的非负两位小数");
+		const ownerAccount = accountNumber(get(row, "ownerAccount"));
+		if (!ownerAccount) throw new Error("缺少本方账号");
+		if (unsafeAccountCell)
+			throw new Error("账号以超长数值存储，原始精度可能已丢失");
+		const otherAccount = accountNumber(
+			get(row, "otherAccount") || get(row, "otherCard"),
+		);
+		const directionValue = get(row, "direction");
+		const direction =
+			directionValue === "出" ? "out" : directionValue === "入" ? "in" : null;
+		if (!direction)
+			throw new Error(
+				`出入方向只允许“出”或“入”，当前值：${directionValue || "空"}`,
+			);
+		const timestamp = bankTimestamp(get(row, "date"), get(row, "time"));
+		if (!timestamp) throw new Error("交易日期或时间缺失/无效，需核对完整时间");
+		const rawCurrency = get(row, "currency") || (usesYuanTemplate ? "CNY" : "");
+		if (!rawCurrency) throw new Error("币种未识别：空");
+		if (!isCnyCurrency(rawCurrency))
+			throw new Error(
+				`当前仅支持人民币（CNY）流水，发现不支持币种：${rawCurrency}，请剔除或折算为人民币后再导入。`,
+			);
+		if (/失败|撤销/.test(clean(row.fields.交易是否成功)))
+			throw new Error("银行标记交易失败或撤销，暂不纳入资金流");
+		source.observations.push({
+			id: digest(`${sha256}:${sheetName}:${excelRow}`),
+			sourceId: sha256,
+			sheet: sheetName,
+			row: excelRow,
+			ownerAccount,
+			ownerName: get(row, "ownerName"),
+			otherAccount,
+			otherName: get(row, "otherName"),
+			direction,
+			amountMinor,
+			balanceMinor: moneyMinor(get(row, "balance")),
+			currency: "CNY",
+			timestamp,
+			bankReference: get(row, "reference"),
+			summary: get(row, "summary"),
+		});
+		if (!otherAccount)
+			issue(
+				row,
+				"unknown-counterparty",
+				"对方账号缺失：建立本交易专属待核节点，不与其他未知账户合并",
+			);
+	} catch (error) {
+		issue(
+			row,
+			"quarantine",
+			error instanceof Error ? error.message : "行解析失败",
+		);
+	}
+}
+
+/**
+ * 直接解析已由程序映射好的标准二维行，不经过带公式防注入转义的 CSV 二次序列化。
+ * @param headers 列名列表（需包含标准列及币种/状态/反馈列）。
+ * @param rows 每行与 headers 对齐的字符串单元格数组；不静默跳过空行以保持行数守恒。
+ * @returns 归类后的观测、待核/反馈问题与反馈条数（row 从 2 起算，对应 rows[row - 2]）。
+ */
+export function parseMappedRows(
+	headers: readonly string[],
+	rows: string[][],
+): Pick<ParsedSource, "observations" | "issues" | "feedbackCount"> {
+	const sha256 = digest(JSON.stringify([headers, rows]));
+	const source: ParsedSource = {
+		id: sha256,
+		name: "mapped",
+		sha256,
+		size: 0,
+		encoding: "utf-8",
+		rows: [],
+		observations: [],
+		issues: [],
+		feedbackCount: 0,
+		auxiliaryCount: 0,
+	};
+	const cleanHeaders = headers.map(clean);
+	const directionColumns = cleanHeaders.filter((header) =>
+		aliases.direction.includes(header as "出入方向"),
+	).length;
+	const usesYuanTemplate =
+		cleanHeaders.includes("本方账号") &&
+		cleanHeaders.includes("交易时间") &&
+		!cleanHeaders.some((header) =>
+			aliases.date.includes(header as "交易日期"),
+		) &&
+		!cleanHeaders.some((header) => aliases.currency.includes(header as "币种"));
+	const issue = (row: SourceRow, kind: string, message: string) =>
+		source.issues.push({
+			id: digest(`${sha256}:${row.sheet}:${row.row}:${kind}`),
+			sourceId: sha256,
+			sheet: row.sheet,
+			row: row.row,
+			kind,
+			message,
+		});
+	for (let i = 0; i < rows.length; i++) {
+		const cells = rows[i] ?? [];
+		const fields: Record<string, string> = {};
+		cleanHeaders.forEach((header, c) => {
+			fields[header || `未命名列${c + 1}`] = String(cells[c] ?? "");
+		});
+		const excelRow = i + 2;
+		const row: SourceRow = { sheet: "Sheet1", row: excelRow, fields };
+		evaluateTransactionRow(source, row, {
+			sha256,
+			sheetName: "Sheet1",
+			excelRow,
+			directionColumns,
+			usesYuanTemplate,
+			unsafeAccountCell: false,
+			issue,
+		});
+	}
+	return {
+		observations: source.observations,
+		issues: source.issues,
+		feedbackCount: source.feedbackCount,
+	};
+}
+
 /** 解析单个文件；格式/大小错误整文件拒绝，行级错误保留原文并隔离。 */
 export function parseStatement(name: string, bytes: Uint8Array): ParsedSource {
 	if (!/\.(xlsx|xls|csv|tsv)$/i.test(name))
@@ -123,6 +306,7 @@ export function parseStatement(name: string, bytes: Uint8Array): ParsedSource {
 		nodim: true,
 		cellText: true,
 		cellDates: false,
+		cellNF: true,
 	});
 	const sha256 = digest(bytes);
 	const source: ParsedSource = {
@@ -174,7 +358,7 @@ export function parseStatement(name: string, bytes: Uint8Array): ParsedSource {
 			if (rows.some((cells) => cells.some((cell) => clean(cell)))) {
 				const row = {
 					sheet: sheetName,
-					row: 1,
+					row: 1 + range.s.r,
 					fields: { 内容: JSON.stringify(rows.slice(0, 30)) },
 				};
 				source.rows.push(row);
@@ -210,117 +394,49 @@ export function parseStatement(name: string, bytes: Uint8Array): ParsedSource {
 				const isDateOrTime = [...aliases.date, ...aliases.time].some(
 					(name) => name === header,
 				);
-				const cell = sheet[utils.encode_cell({ r, c })];
+				const cell =
+					sheet[utils.encode_cell({ r: r + range.s.r, c: c + range.s.c })];
+				const isNumericCell = cell?.t === "n" && typeof cell.v === "number";
+				const isFormattedExcelDate =
+					isNumericCell && typeof cell.z === "string" && SSF.is_date(cell.z);
 				fields[header || `未命名列${c + 1}`] =
-					isDateOrTime && typeof value === "number" && cell
+					isDateOrTime && isFormattedExcelDate
 						? utils.format_cell(cell)
-						: String(value ?? "");
+						: isNumericCell
+							? String(cell.v)
+							: String(value ?? "");
 			});
-			const row: SourceRow = { sheet: sheetName, row: r + 1, fields };
+			const excelRow = r + 1 + range.s.r;
+			const row: SourceRow = { sheet: sheetName, row: excelRow, fields };
 			source.rows.push(row);
 			if (!isTransaction) {
 				source.auxiliaryCount++;
 				continue;
 			}
-			const feedback = clean(fields.查询反馈结果原因);
-			if (
-				(/无.*明细|无记录|不存在|失败|未查到|无此|无账户|无账/.test(feedback) ||
-					clean(fields.查询反馈结果) === "失败") &&
-				(!get(row, "time") ||
-					moneyMinor(get(row, "amount")) === null ||
-					moneyMinor(get(row, "amount")) === "0")
-			) {
-				source.feedbackCount++;
-				issue(row, "feedback", feedback || "银行查询失败");
-				continue;
-			}
-			try {
-				if (directionColumns !== 1)
-					throw new Error(
-						directionColumns === 0
-							? "缺少出入方向列，请使用新模板填写出或入；原始银行文件请使用 AI 标准化"
-							: "出入方向列重复，无法确定本方资金方向",
-					);
-				const amountMinor = moneyMinor(get(row, "amount"));
-				if (!amountMinor || amountMinor === "0")
-					throw new Error("金额缺失、为零或不是可确认的非负两位小数");
-				const ownerAccount = accountNumber(get(row, "ownerAccount"));
-				if (!ownerAccount) throw new Error("缺少本方账号");
-				for (const [c, header] of headers.entries()) {
-					if (
-						[
-							...aliases.ownerAccount,
-							...aliases.otherAccount,
-							...aliases.otherCard,
-						].includes(header as "账号") &&
-						typeof cells[c] === "number" &&
-						!Number.isSafeInteger(cells[c])
-					)
-						throw new Error("账号以超长数值存储，原始精度可能已丢失");
-				}
-				const otherAccount = accountNumber(
-					get(row, "otherAccount") || get(row, "otherCard"),
-				);
-				const directionValue = get(row, "direction");
-				const direction =
-					directionValue === "出"
-						? "out"
-						: directionValue === "入"
-							? "in"
-							: null;
-				if (!direction)
-					throw new Error(
-						`出入方向只允许“出”或“入”，当前值：${directionValue || "空"}`,
-					);
-				const timestamp = bankTimestamp(get(row, "date"), get(row, "time"));
-				if (!timestamp)
-					throw new Error("交易日期或时间缺失/无效，需核对完整时间");
-				const rawCurrency =
-					get(row, "currency") || (usesYuanTemplate ? "CNY" : "");
-				const currency = [
-					"人民币",
-					"人民币元",
-					"RMB",
-					"CNY",
-					"156",
-					"01",
-				].includes(rawCurrency)
-					? "CNY"
-					: rawCurrency.toUpperCase();
-				if (!/^[A-Z]{3}$/.test(currency))
-					throw new Error(`币种未识别：${rawCurrency || "空"}`);
-				if (/失败|撤销/.test(clean(fields.交易是否成功)))
-					throw new Error("银行标记交易失败或撤销，暂不纳入资金流");
-				source.observations.push({
-					id: digest(`${sha256}:${sheetName}:${r + 1}`),
-					sourceId: sha256,
-					sheet: sheetName,
-					row: r + 1,
-					ownerAccount,
-					ownerName: get(row, "ownerName"),
-					otherAccount,
-					otherName: get(row, "otherName"),
-					direction,
-					amountMinor,
-					balanceMinor: moneyMinor(get(row, "balance")),
-					currency,
-					timestamp,
-					bankReference: get(row, "reference"),
-					summary: get(row, "summary"),
-				});
-				if (!otherAccount)
-					issue(
-						row,
-						"unknown-counterparty",
-						"对方账号缺失：建立本交易专属待核节点，不与其他未知账户合并",
-					);
-			} catch (error) {
-				issue(
-					row,
-					"quarantine",
-					error instanceof Error ? error.message : "行解析失败",
-				);
-			}
+			const unsafeAccountCell = headers.some((header, c) => {
+				if (
+					![
+						...aliases.ownerAccount,
+						...aliases.otherAccount,
+						...aliases.otherCard,
+					].includes(header as "账号")
+				)
+					return false;
+				const cell =
+					sheet[utils.encode_cell({ r: r + range.s.r, c: c + range.s.c })];
+				const rawNum =
+					cell?.t === "n" && typeof cell.v === "number" ? cell.v : cells[c];
+				return typeof rawNum === "number" && !Number.isSafeInteger(rawNum);
+			});
+			evaluateTransactionRow(source, row, {
+				sha256,
+				sheetName,
+				excelRow,
+				directionColumns,
+				usesYuanTemplate,
+				unsafeAccountCell,
+				issue,
+			});
 		}
 	}
 	if (!recognized)

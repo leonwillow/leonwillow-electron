@@ -253,9 +253,16 @@ export async function downloadJobFile(
 			"标准文件尚未生成。",
 		);
 	const parsed = entry.file.parsed as ParsedSource;
-	// 历史任务仍保留原报告；下载按当前模板生成，旧借贷 CSV 不再流入标准入口。
-	if (format === "csv")
-		return csvDocument(standardHeaders, standardRows(parsed));
+	// 历史任务仍保留原报告；下载按当前模板生成，旧借贷 CSV 或历史外币资料均拒绝为 400。
+	if (format === "csv") {
+		try {
+			return csvDocument(standardHeaders, standardRows(parsed));
+		} catch (error) {
+			if (error instanceof RangeError)
+				throw new AccessError(400, "UNSUPPORTED_CURRENCY", error.message);
+			throw error;
+		}
+	}
 	return JSON.stringify(
 		{
 			file: entry.file.name,

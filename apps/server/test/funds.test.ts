@@ -1,10 +1,10 @@
 /**
  * @file 银行流水规范化与双边交易归并的回归测试。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-07
- * 版本作用：验证金额、证据守恒及常见脏数据，使用独立测试记录。
- * 被调用：Bun 单元测试/API 测试；调用：实际 parser/reconcile/export。
- * 预期结果：同号手续费保留，重复次数守恒，同额组自动配对，数量冲突暂缓入图。
+ * 修改时间：2026-11-21
+ * 版本作用：验证金额、仅人民币约束、非 A1 工作表、Excel 数值时间、证据守恒及常见脏数据。
+ * 被调用：Bun 单元测试/API 测试；调用：实际 parser/reconcile/export/ai-normalizer。
+ * 预期结果：同号手续费保留，外币逐行待核，非 A1 坐标与整型日期时间不失真，无前导单引号污染。
  */
 import { expect, test } from "bun:test";
 import { utils, write } from "xlsx";
@@ -442,9 +442,10 @@ test("13 列模板保留银行及完整备注，导出不混入来源字段和�
 	);
 	expect(standardRows(reread)).toEqual(exportedRows);
 	expect(reconcile([original, reread]).transactions).toHaveLength(1);
-	expect(() =>
-		standardRows(source("foreign.csv", [row({ 币种: "USD" })])),
-	).toThrow("仅支持人民币");
+	const legacyForeign = source("legacy-foreign.csv", [row()]);
+	if (legacyForeign.observations[0])
+		legacyForeign.observations[0].currency = "USD";
+	expect(() => standardRows(legacyForeign)).toThrow("仅支持人民币");
 });
 
 test("Excel 数值日期与时间按单元格格式解释，长账号保持文本", () => {
@@ -519,10 +520,11 @@ test("精简模板合并日期时间且按人民币元入库，支持 Excel 日�
 	expect(
 		source("missing-currency.csv", [row({ 币种: "" })]).observations,
 	).toHaveLength(0);
-	expect(
-		source("foreign-currency.csv", [row({ 币种: "USD" })]).observations[0]
-			?.currency,
-	).toBe("USD");
+	const foreign = source("foreign-currency.csv", [row({ 币种: "USD" })]);
+	expect(foreign.observations).toHaveLength(0);
+	expect(foreign.issues).toHaveLength(1);
+	expect(foreign.issues[0]?.kind).toBe("quarantine");
+	expect(foreign.issues[0]?.message).toContain("仅支持人民币");
 });
 
 test("主体按完整户名自动归组，遮蔽名和缺失账号不误合并", () => {
@@ -638,4 +640,226 @@ test("主体识别读取原始银行证照列，并用已规范化行位置关�
 	const group = result.subjects?.find((s) => s.accounts.includes("10001"));
 	expect(group?.accounts).toEqual(["10001", "10002"]);
 	expect(group?.identityStatus).toBe("documented");
+});
+
+test("非 A1 起始的 Excel 工作表按实际坐标读取日期格式并记录真实行号", () => {
+	const sheet = utils.sheet_add_aoa({}, [headers, row()], { origin: "C4" });
+	// C4..N4 为表头，C5..N5 为数据行：交易日期在 H5 (col index 5 + 2 = 7)，交易时间在 I5 (col index 6 + 2 = 8)
+	sheet.H5 = { t: "n", v: 44566, z: "yyyy-mm-dd" };
+	sheet.I5 = { t: "n", v: (14 * 3600 + 30 * 60 + 25) / 86400, z: "hh:mm:ss" };
+	const workbook = utils.book_new();
+	utils.book_append_sheet(workbook, sheet, "偏移流水");
+	const parsed = parseStatement(
+		"offset.xlsx",
+		write(workbook, { type: "buffer", bookType: "xlsx" }),
+	);
+	expect(parsed.observations).toHaveLength(1);
+	expect(parsed.observations[0]).toMatchObject({
+		row: 5,
+		timestamp: "2022-01-05T14:30:25+08:00",
+	});
+	expect(parsed.rows[0]?.row).toBe(5);
+});
+
+test("AI 标准化正确解析 Excel 整型 YYYYMMDD/HHMMSS 与 14 位时间戳，不篡改为 00:00:00", () => {
+	const sheet = utils.aoa_to_sheet([
+		[
+			"本方账号",
+			"本方户名",
+			"对方账号",
+			"对方户名",
+			"出入方向",
+			"交易日期",
+			"交易时间",
+			"交易金额",
+			"账户余额",
+			"交易流水号",
+			"摘要",
+			"查询银行",
+			"对方开户行",
+			"备注",
+		],
+		[
+			"6217003760151519352",
+			"测试甲",
+			"6214860238180505",
+			"测试乙",
+			"出",
+			20260315,
+			143025,
+			100,
+			500,
+			"ref-1",
+			"货款",
+			"建行",
+			"工行",
+			"",
+		],
+		[
+			"6217003760151519352",
+			"测试甲",
+			"6214860238180505",
+			"测试乙",
+			"入",
+			44566,
+			(14 * 3600 + 30 * 60 + 25) / 86400,
+			200,
+			700,
+			"ref-2",
+			"回款",
+			"建行",
+			"工行",
+			"",
+		],
+	]);
+	sheet.F3 = { t: "n", v: 44566, z: "yyyy-mm-dd" };
+	sheet.G3 = { t: "n", v: (14 * 3600 + 30 * 60 + 25) / 86400, z: "hh:mm:ss" };
+	const book = utils.book_new();
+	utils.book_append_sheet(book, sheet, "Sheet1");
+	const plan: SheetMapping = {
+		sheet: "Sheet1",
+		kind: "transactions",
+		headerRow: 1,
+		fields: [
+			{ field: "本方账号", columns: [0], constant: "", separator: "" },
+			{ field: "本方户名", columns: [1], constant: "", separator: "" },
+			{ field: "对方账号", columns: [2], constant: "", separator: "" },
+			{ field: "对方户名", columns: [3], constant: "", separator: "" },
+			{ field: "出入方向", columns: [4], constant: "", separator: "" },
+			{ field: "交易时间", columns: [6], constant: "", separator: "" },
+			{ field: "交易金额", columns: [7], constant: "", separator: "" },
+			{ field: "账户余额", columns: [8], constant: "", separator: "" },
+			{ field: "交易流水号", columns: [9], constant: "", separator: "" },
+			{ field: "摘要", columns: [10], constant: "", separator: "" },
+			{ field: "查询银行", columns: [11], constant: "", separator: "" },
+			{ field: "对方开户行", columns: [12], constant: "", separator: "" },
+			{ field: "备注", columns: [13], constant: "", separator: "" },
+		],
+		dateColumn: 5,
+		currencyColumn: -1,
+		statusColumn: -1,
+		feedbackColumn: -1,
+		outgoingColumn: -1,
+		incomingColumn: -1,
+		amountScale: 1,
+		directionValues: [],
+		explanation: "分列日期与时间",
+	};
+	const result = applyMappings(
+		"numeric-time.xlsx",
+		write(book, { type: "buffer", bookType: "xlsx" }),
+		{ sheets: [plan] },
+		"fixture",
+	);
+	expect(result.source.observations.map((o) => o.timestamp)).toEqual([
+		"2026-03-15T14:30:25+08:00",
+		"2022-01-05T14:30:25+08:00",
+	]);
+
+	// 14 位整型时间戳（不带日期格式）
+	const sheet14 = utils.aoa_to_sheet([
+		standardHeaders,
+		[
+			"6217003760151519352",
+			"测试甲",
+			"6214860238180505",
+			"测试乙",
+			"出",
+			20260315143025,
+			"88.00",
+			"100.00",
+			"ref-14",
+			"转账",
+			"",
+			"",
+			"",
+		],
+	]);
+	const book14 = utils.book_new();
+	utils.book_append_sheet(book14, sheet14, "Sheet1");
+	const plan14: SheetMapping = {
+		...plan,
+		fields: standardHeaders.map((field, col) => ({
+			field,
+			columns: [col],
+			constant: "",
+			separator: "",
+		})),
+		dateColumn: -1,
+	};
+	const result14 = applyMappings(
+		"compact-14.xlsx",
+		write(book14, { type: "buffer", bookType: "xlsx" }),
+		{ sheets: [plan14] },
+		"fixture",
+	);
+	expect(result14.source.observations[0]?.timestamp).toBe(
+		"2026-03-15T14:30:25+08:00",
+	);
+});
+
+test("AI 标准化不对户名/摘要/流水号注入前导单引号，且仅未映射列有值的页脚行不破坏行数守恒", () => {
+	const rawHeaders = [...standardHeaders, "打印人"];
+	const sheet = utils.aoa_to_sheet([
+		rawHeaders,
+		[
+			"6217003760151519352",
+			"+测试甲公司",
+			"6214860238180505",
+			"@测试乙商户",
+			"出",
+			"2026-03-15 14:30:25",
+			"100.00",
+			"500.00",
+			"-REF001",
+			"=代发工资",
+			"建行",
+			"工行",
+			"+加急备注",
+			"制表员",
+		],
+		["", "", "", "", "", "", "", "", "", "", "", "", "", "制表人：张三"],
+	]);
+	const book = utils.book_new();
+	utils.book_append_sheet(book, sheet, "Sheet1");
+	const plan: SheetMapping = {
+		sheet: "Sheet1",
+		kind: "transactions",
+		headerRow: 1,
+		fields: standardHeaders.map((field, col) => ({
+			field,
+			columns: [col],
+			constant: "",
+			separator: "",
+		})),
+		dateColumn: -1,
+		currencyColumn: -1,
+		statusColumn: -1,
+		feedbackColumn: -1,
+		outgoingColumn: -1,
+		incomingColumn: -1,
+		amountScale: 1,
+		directionValues: [],
+		explanation: "映射标准列，忽略打印人列",
+	};
+	const result = applyMappings(
+		"special-prefix-and-footer.xlsx",
+		write(book, { type: "buffer", bookType: "xlsx" }),
+		{ sheets: [plan] },
+		"fixture",
+	);
+	expect(result.report).toMatchObject({
+		rawRows: 2,
+		standardRows: 1,
+		quarantined: 1,
+		rowConservation: true,
+	});
+	expect(result.source.observations[0]).toMatchObject({
+		ownerName: "+测试甲公司",
+		otherName: "@测试乙商户",
+		bankReference: "-REF001",
+		summary: "=代发工资",
+		remarks: "+加急备注",
+	});
+	expect(result.source.issues[0]?.message).toContain("未映射列");
 });
