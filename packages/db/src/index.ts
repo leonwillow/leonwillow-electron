@@ -1,11 +1,11 @@
 /**
  * @file 数据库工作区的连接工厂出口。
  * 创建时间：2026-10-03（Git 首次收录）
- * 修改时间：2026-10-20
+ * 修改时间：2026-11-21
  * 版本作用：服务端数据基础层，随工作区维护。
  * 被调用：scripts/architecture.test.ts、packages/auth/src/index.ts、packages/auth/src/bootstrap.ts、apps/server/test/auth.test.ts、apps/server/src/index.ts。
  * 调用：drizzle-orm、pg、./relations。
- * 功能：创建 PostgreSQL Pool 和带关系定义的 Drizzle 客户端。
+ * 功能：创建 PostgreSQL Pool 和带关系定义的 Drizzle 客户端，并监听空闲连接错误避免未捕获异常退出。
  * 预期结果：调用方持有并关闭连接池，导入包不会读取环境。
  */
 import { drizzle } from "drizzle-orm/node-postgres";
@@ -23,6 +23,12 @@ export function createDatabase(connectionString: string) {
 		connectionString,
 		enableChannelBinding: true,
 		connectionTimeoutMillis: 10_000,
+	});
+	pool.on("error", (error) => {
+		console.error(
+			"[db] PostgreSQL 空闲连接异常:",
+			error instanceof Error ? error.message : String(error),
+		);
 	});
 	const db = drizzle({ client: pool, relations: authRelations });
 	return { db, pool };

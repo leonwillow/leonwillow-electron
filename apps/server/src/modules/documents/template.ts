@@ -1,10 +1,11 @@
 /**
  * @file DOCX 模板检查、字段发现与原格式填充。
- * 创建时间：2026-10-10；修改时间：2026-10-10。
- * 版本作用：仅支持普通文本占位符，保留 Word 排版并限制 ZIP 与外部内容。
- * 被调用：documents 服务、模板测试；调用：PizZip、Docxtemplater、InspectModule、XML DOM。
- * 功能与预期结果：跨 run 的字段也能识别；无效模板在取号前拒绝，不解释文书中的指令。
+ * 创建时间：2026-10-10；修改时间：2026-11-21。
+ * 版本作用：仅支持普通文本占位符，保留 Word 排版并限制 ZIP 实际解压体积与外部内容。
+ * 被调用：documents 服务、模板测试；调用：node:zlib、PizZip、Docxtemplater、InspectModule、XML DOM。
+ * 功能与预期结果：跨 run 的字段也能识别；无效模板、ZIP 炸弹与变体命名空间危险元素在取号前拒绝，不解释文书中的指令。
  */
+import { inflateRawSync } from "node:zlib";
 import type { DocumentField } from "@leonwillow-electron/db/schema";
 import { DOMParser } from "@xmldom/xmldom";
 import Docxtemplater from "docxtemplater";
@@ -12,15 +13,26 @@ import InspectModule from "docxtemplater/js/inspect-module.js";
 import PizZip from "pizzip";
 import { AccessError } from "../access/service";
 
+const MAX_ARCHIVE_BYTES = 5 * 1024 * 1024;
+const MAX_ENTRY_UNCOMPRESSED_BYTES = 10 * 1024 * 1024;
+const MAX_TOTAL_UNCOMPRESSED_BYTES = 30 * 1024 * 1024;
+const MAX_ENTRY_COUNT = 500;
+const ZIP64_COUNT_SENTINEL = 0xffff;
+const ZIP64_SIZE_SENTINEL = 0xffffffff;
+
 const systemFields = ["文书号", "年份", "序号", "文书名称"];
-const badTemplate = (message: string): never => {
+function badTemplate(message: string): never {
 	throw new AccessError(400, "INVALID_TEMPLATE", message);
-};
+}
 const validKey = /^[\p{L}_][\p{L}\p{N}_]{0,59}$/u;
 
-/** 在解压前读取 ZIP 目录的展开长度；拒绝 ZIP64、分卷和超过 30MB 的内容。 */
+/**
+ * 在交由 PizZip 展开前校核 ZIP 结构并对每个条目执行有上限的实际解压验证。
+ * @param bytes 待校验的 DOCX 原始字节数组。
+ * @returns 无返回值；发现结构异常、加密、ZIP64、声明失真或真实展开超限时抛出 400。
+ */
 function checkArchive(bytes: Uint8Array) {
-	if (!bytes.length || bytes.length > 5 * 1024 * 1024)
+	if (!bytes.length || bytes.length > MAX_ARCHIVE_BYTES)
 		badTemplate("请上传不超过 5MB 的 DOCX 模板。");
 	const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 	let end = bytes.length - 22;
@@ -32,31 +44,85 @@ function checkArchive(bytes: Uint8Array) {
 	if (end < 0 || view.getUint32(end, true) !== 0x06054b50)
 		badTemplate("文件不是有效的 DOCX 压缩包。");
 	const count = view.getUint16(end + 10, true);
+	const cdOffset = view.getUint32(end + 16, true);
 	if (
 		view.getUint16(end + 4, true) ||
 		view.getUint16(end + 6, true) ||
-		count > 500 ||
-		view.getUint16(end + 8, true) !== count
+		count === ZIP64_COUNT_SENTINEL ||
+		count > MAX_ENTRY_COUNT ||
+		view.getUint16(end + 8, true) !== count ||
+		cdOffset === ZIP64_SIZE_SENTINEL ||
+		cdOffset > end
 	)
 		badTemplate("模板压缩包结构不受支持。");
-	let pos = view.getUint32(end + 16, true);
+	let pos = cdOffset;
 	let total = 0;
 	for (let i = 0; i < count; i++) {
 		if (pos + 46 > end || view.getUint32(pos, true) !== 0x02014b50)
 			badTemplate("模板压缩目录无效。");
-		const size = view.getUint32(pos + 24, true);
-		total += size;
+		const flags = view.getUint16(pos + 8, true);
+		const method = view.getUint16(pos + 10, true);
+		const compressedSize = view.getUint32(pos + 20, true);
+		const declaredSize = view.getUint32(pos + 24, true);
+		const nameLength = view.getUint16(pos + 28, true);
+		const extraLength = view.getUint16(pos + 30, true);
+		const commentLength = view.getUint16(pos + 32, true);
+		const localHeaderOffset = view.getUint32(pos + 42, true);
 		if (
-			size > 10 * 1024 * 1024 ||
-			total > 30 * 1024 * 1024 ||
-			view.getUint16(pos + 8, true) & 1
+			flags & 1 ||
+			compressedSize === ZIP64_SIZE_SENTINEL ||
+			declaredSize === ZIP64_SIZE_SENTINEL ||
+			localHeaderOffset === ZIP64_SIZE_SENTINEL ||
+			declaredSize > MAX_ENTRY_UNCOMPRESSED_BYTES ||
+			total + declaredSize > MAX_TOTAL_UNCOMPRESSED_BYTES
 		)
 			badTemplate("模板展开内容过大或经过加密。");
-		pos +=
-			46 +
-			view.getUint16(pos + 28, true) +
-			view.getUint16(pos + 30, true) +
-			view.getUint16(pos + 32, true);
+		if (
+			localHeaderOffset + 30 > cdOffset ||
+			view.getUint32(localHeaderOffset, true) !== 0x04034b50
+		)
+			badTemplate("模板压缩目录无效。");
+		const localNameLength = view.getUint16(localHeaderOffset + 26, true);
+		const localExtraLength = view.getUint16(localHeaderOffset + 28, true);
+		const dataStart =
+			localHeaderOffset + 30 + localNameLength + localExtraLength;
+		if (dataStart > cdOffset || dataStart + compressedSize > cdOffset)
+			badTemplate("模板压缩目录无效。");
+		const remaining = Math.min(
+			MAX_ENTRY_UNCOMPRESSED_BYTES,
+			MAX_TOTAL_UNCOMPRESSED_BYTES - total,
+		);
+		let actualSize: number;
+		if (method === 0) {
+			if (compressedSize !== declaredSize || compressedSize > remaining)
+				badTemplate("模板展开内容过大或经过加密。");
+			actualSize = compressedSize;
+		} else if (method === 8) {
+			try {
+				const inflated = inflateRawSync(
+					bytes.subarray(dataStart, dataStart + compressedSize),
+					{ maxOutputLength: remaining },
+				);
+				actualSize = inflated.byteLength;
+			} catch (error) {
+				if (
+					error &&
+					typeof error === "object" &&
+					"code" in error &&
+					error.code === "ERR_BUFFER_TOO_LARGE"
+				)
+					badTemplate("模板展开内容过大或经过加密。");
+				badTemplate("模板压缩包内容损坏。");
+			}
+			if (actualSize !== declaredSize)
+				badTemplate("模板展开内容过大或经过加密。");
+		} else {
+			badTemplate("模板压缩包结构不受支持。");
+		}
+		total += actualSize;
+		if (total > MAX_TOTAL_UNCOMPRESSED_BYTES)
+			badTemplate("模板展开内容过大或经过加密。");
+		pos += 46 + nameLength + extraLength + commentLength;
 	}
 	if (pos !== end) badTemplate("模板目录长度不符合要求。");
 }
@@ -69,23 +135,28 @@ function parse(bytes: Uint8Array) {
 	for (const [name, entry] of Object.entries(zip.files)) {
 		if (/vbaProject|embeddings\/|activeX\//i.test(name))
 			badTemplate("模板不能包含宏或嵌入对象。");
-		if (entry.dir || !/\.(xml|rels)$/.test(name)) continue;
+		if (entry.dir || !/\.(xml|rels)$/i.test(name)) continue;
 		const xml = entry.asText();
 		if (/<!DOCTYPE|<!ENTITY/i.test(xml)) badTemplate("模板不能包含外部实体。");
 		const document = new DOMParser({
 			onError: () => badTemplate("模板 XML 结构无效。"),
 		}).parseFromString(xml, "text/xml");
-		if (document.getElementsByTagName("w:altChunk").length)
+		if (document.getElementsByTagNameNS("*", "altChunk").length)
 			badTemplate("请先在 Word 中转换嵌入的 HTML 内容。");
 		if (
-			document.getElementsByTagName("w:fldSimple").length ||
-			document.getElementsByTagName("w:instrText").length
+			document.getElementsByTagNameNS("*", "fldSimple").length ||
+			document.getElementsByTagNameNS("*", "instrText").length
 		)
 			badTemplate("首版模板请使用普通文本占位符，移除自动域后再导入。");
 		for (const rel of Array.from(
-			document.getElementsByTagName("Relationship"),
+			document.getElementsByTagNameNS("*", "Relationship"),
 		)) {
-			if (rel.getAttribute("TargetMode") === "External")
+			const hasExternalTarget = Array.from(rel.attributes).some(
+				(attr) =>
+					attr.localName === "TargetMode" &&
+					attr.value.trim().toLowerCase() === "external",
+			);
+			if (hasExternalTarget)
 				badTemplate("请移除模板中的外部链接或远程资源后再导入。");
 		}
 	}

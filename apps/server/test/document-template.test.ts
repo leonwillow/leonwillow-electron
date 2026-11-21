@@ -1,9 +1,9 @@
 /**
  * @file Word 模板字段、原格式填充和无效内容的单元测试。
- * 创建时间：2026-10-10；修改时间：2026-10-10。
- * 版本作用：验证 DOCX 跨 run 字段和原件结构，不依赖数据库。
+ * 创建时间：2026-10-10；修改时间：2026-11-21。
+ * 版本作用：验证 DOCX 跨 run 字段、原件结构与 ZIP 炸弹/XML 变体防护，不依赖数据库。
  * 被调用：test:server / test:api；调用：真实示例 DOCX、模板编解码、PizZip。
- * 预期结果：无效模板不能进入取号事务，填入内容被 XML 转义且原排版保留。
+ * 预期结果：无效模板、ZIP 炸弹与命名空间绕过不能进入取号事务，填入内容被 XML 转义且原排版保留。
  */
 import { expect, test } from "bun:test";
 import PizZip from "pizzip";
@@ -120,4 +120,83 @@ test("错误文件、缺少文号、表达式、循环、外链及宏均拒绝",
 	expect(() =>
 		inspectTemplate(zip.generate({ type: "uint8array" }), "a.docx"),
 	).toThrow();
+});
+
+test("拒绝伪造 Central Directory 尺寸的 ZIP 炸弹、大写扩展名与自定义命名空间前缀绕过", () => {
+	const bombZip = new PizZip(bytes);
+	bombZip.file("word/padding.txt", "A".repeat(11 * 1024 * 1024));
+	const bombBytes = bombZip.generate({
+		type: "uint8array",
+		compression: "DEFLATE",
+	});
+	// 篡改 Central Directory 中所有条目的声明未压缩大小为 16 字节，模拟伪造头部的 ZIP 炸弹
+	const forged = new Uint8Array(bombBytes);
+	const view = new DataView(forged.buffer);
+	let end = forged.length - 22;
+	while (end >= 0 && view.getUint32(end, true) !== 0x06054b50) end--;
+	const count = view.getUint16(end + 10, true);
+	let pos = view.getUint32(end + 16, true);
+	for (let i = 0; i < count; i++) {
+		const nameLength = view.getUint16(pos + 28, true);
+		const extraLength = view.getUint16(pos + 30, true);
+		const commentLength = view.getUint16(pos + 32, true);
+		if (view.getUint32(pos + 24, true) > 10 * 1024 * 1024) {
+			view.setUint32(pos + 24, 16, true);
+		}
+		pos += 46 + nameLength + extraLength + commentLength;
+	}
+	expect(() => inspectTemplate(forged, "bomb.docx")).toThrow("过大");
+
+	const upperExtZip = new PizZip(bytes);
+	upperExtZip.file(
+		"word/_rels/CUSTOM.RELS",
+		'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId99" Type="hyperlink" Target="https://evil.example" TargetMode="External"/></Relationships>',
+	);
+	expect(() =>
+		inspectTemplate(upperExtZip.generate({ type: "uint8array" }), "upper.docx"),
+	).toThrow("外部");
+
+	const prefixedRelZip = new PizZip(bytes);
+	prefixedRelZip.file(
+		"word/_rels/prefixed.rels",
+		'<r:Relationships xmlns:r="http://schemas.openxmlformats.org/package/2006/relationships"><r:Relationship Id="rId99" Type="hyperlink" Target="https://evil.example" TargetMode="external"/></r:Relationships>',
+	);
+	expect(() =>
+		inspectTemplate(
+			prefixedRelZip.generate({ type: "uint8array" }),
+			"prefixed-rel.docx",
+		),
+	).toThrow("外部");
+
+	const prefixedAltChunk = alter((xml) =>
+		xml.replace(
+			"<w:body>",
+			'<w:body xmlns:w1="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w1:altChunk/>',
+		),
+	);
+	expect(() => inspectTemplate(prefixedAltChunk, "altchunk.docx")).toThrow(
+		"HTML",
+	);
+
+	const prefixedFldSimple = alter((xml) =>
+		xml.replace(
+			"<w:body>",
+			'<w:body xmlns:w1="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w1:fldSimple w1:instr="HYPERLINK"/>',
+		),
+	);
+	expect(() => inspectTemplate(prefixedFldSimple, "fld.docx")).toThrow(
+		"自动域",
+	);
+
+	const upperXmlZip = new PizZip(bytes);
+	upperXmlZip.file(
+		"word/EXTRA.XML",
+		'<w1:root xmlns:w1="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w1:instrText>EQ</w1:instrText></w1:root>',
+	);
+	expect(() =>
+		inspectTemplate(
+			upperXmlZip.generate({ type: "uint8array" }),
+			"upper-xml.docx",
+		),
+	).toThrow("自动域");
 });
