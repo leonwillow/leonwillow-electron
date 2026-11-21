@@ -1,11 +1,11 @@
 /**
  * @file 询问笔录的实测分页、A4 预览和打印页面。
- * 创建时间：2026-11-04；修改时间：2026-11-19。
+ * 创建时间：2026-11-04；修改时间：2026-11-21。
  * 版本作用：沿用 haoji 的字形测量和二分拆段，所有文字通过 React/textContent 输出；向预览顶栏同步页数与分页状态。
  * 被调用：InquiryDocumentPreview、RecordEditor 打印 Portal；调用：文书共享 CSS、中文数字、浏览器字体与尺寸 API。
- * 预期结果：长问答跨页不断字、不丢文；预览点击定位字段，打印保持物理纸张尺寸。
+ * 预期结果：长问答跨页不断字、不丢文；memo 隔离输入重绘并按帧让出长段落二分测量，预览点击定位字段。
  */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import type { InquiryDocument } from "@/lib/inquiries";
 import { toChineseUpperNumber } from "./chinese-number";
 import { inquiryRelationshipName, relationships } from "./record-fields";
@@ -161,7 +161,86 @@ export type InquiryPreviewStatus = {
 	error: string;
 };
 
-export default function InquiryDocumentPages({
+const InquiryPageSheetList = memo(function InquiryPageSheetList({
+	pages,
+	preview,
+	scale,
+	enforcementUnitName,
+	inquiryCount,
+	focus,
+}: {
+	pages: Page[];
+	preview: boolean;
+	scale: number;
+	enforcementUnitName: string;
+	inquiryCount: number;
+	focus?: (id: string) => void;
+}) {
+	return (
+		<div
+			className="inquiry-document-stage"
+			style={preview ? { minWidth: INQUIRY_PAGE_WIDTH * scale } : undefined}
+		>
+			{pages.map((page, index) => (
+				<div
+					key={page.key}
+					className="inquiry-document-page-frame"
+					style={
+						preview
+							? { width: INQUIRY_PAGE_WIDTH * scale, height: HEIGHT * scale }
+							: undefined
+					}
+				>
+					<article
+						className="inquiry-document-page"
+						style={preview ? { transform: `scale(${scale})` } : undefined}
+						aria-label={`询问调查笔录第 ${index + 1} 页，共 ${pages.length} 页`}
+					>
+						<header
+							className={`inquiry-document-page-header inquiry-document-page-header--${index ? "continuation" : "first"}`}
+						>
+							{index === 0 && (
+								<div className="inquiry-document-authority">
+									{enforcementUnitName || "国家税务总局XXX税务局XXX稽查局"}
+								</div>
+							)}
+							<h1>{index ? "询问（调查）笔录续页" : "询问（调查）笔录"}</h1>
+							{index === 0 && (
+								<div className="inquiry-document-inquiry-count">
+									（第{toChineseUpperNumber(inquiryCount)}次）
+								</div>
+							)}
+							<div className="inquiry-document-page-count">
+								共{toChineseUpperNumber(pages.length)}页　第
+								{toChineseUpperNumber(index + 1)}页
+							</div>
+						</header>
+						<div className="inquiry-document-page-body">
+							{page.fragments.map((fragment) => (
+								<FragmentLine
+									key={fragment.key}
+									fragment={fragment}
+									focus={preview ? focus : undefined}
+								/>
+							))}
+						</div>
+						<footer className="inquiry-document-signature-footer">
+							<div>询问（调查）人签字：</div>
+							<div>记录人签字：</div>
+							<div>被询问（调查）人签字并押印：</div>
+							<div className="inquiry-document-signature-date">
+								<span>年　　月　　日</span>
+								<span>— {index + 1} —</span>
+							</div>
+						</footer>
+					</article>
+				</div>
+			))}
+		</div>
+	);
+});
+
+const InquiryDocumentPages = memo(function InquiryDocumentPages({
 	draft,
 	preview = true,
 	paused = false,
@@ -186,7 +265,10 @@ export default function InquiryDocumentPages({
 	const [pages, setPages] = useState<Page[]>([]);
 	const [paginating, setPaginating] = useState(true);
 	const [error, setError] = useState("");
-	const source = useMemo(() => fragments(draft.content), [draft.content]);
+	const source = useMemo(
+		() => (paused ? null : fragments(draft.content)),
+		[draft.content, paused],
+	);
 	const readyRef = useRef(onReady);
 	readyRef.current = onReady;
 	const errorRef = useRef(onError);
@@ -201,12 +283,13 @@ export default function InquiryDocumentPages({
 		});
 	}, [pages.length, paginating, error]);
 	useEffect(() => {
-		if (paused) return;
+		if (paused || !source) return;
 		let cancelled = false;
-		setPaginating(true);
-		setError("");
 		const timer = setTimeout(
 			() => {
+				if (cancelled) return;
+				setPaginating(true);
+				setError("");
 				void (async () => {
 					await document.fonts.load('14pt "Inquiry FangSong"');
 					await document.fonts.ready;
@@ -248,6 +331,14 @@ export default function InquiryDocumentPages({
 						all.push(current);
 						container.replaceChildren();
 					};
+					let lastYield = performance.now();
+					const maybeYield = async () => {
+						if (performance.now() - lastYield < 12) return;
+						await new Promise<void>((resolve) =>
+							requestAnimationFrame(() => resolve()),
+						);
+						lastYield = performance.now();
+					};
 					for (let index = 0; index < source.length; index++) {
 						const original = source[index];
 						if (!original || cancelled) return;
@@ -258,6 +349,7 @@ export default function InquiryDocumentPages({
 						if (!remaining.length) remaining = [""];
 						let part = 0;
 						while (remaining.length) {
+							if (cancelled) return;
 							const candidate = {
 								...original,
 								key: `${original.key}-${part}`,
@@ -280,6 +372,8 @@ export default function InquiryDocumentPages({
 									max = mid;
 									low = mid + 1;
 								} else high = mid - 1;
+								await maybeYield();
+								if (cancelled) return;
 							}
 							probeP.remove();
 							if (!max) {
@@ -292,11 +386,11 @@ export default function InquiryDocumentPages({
 							remaining = remaining.slice(max);
 							part++;
 							nextPage();
+							await maybeYield();
+							if (cancelled) return;
 						}
-						if (index % 8 === 0)
-							await new Promise<void>((resolve) =>
-								requestAnimationFrame(() => resolve()),
-							);
+						await maybeYield();
+						if (cancelled) return;
 					}
 					if (cancelled) return;
 					container.replaceChildren();
@@ -337,66 +431,14 @@ export default function InquiryDocumentPages({
 				</p>
 			)}
 			{!preview && error && <p role="alert">{error}</p>}
-			<div
-				className="inquiry-document-stage"
-				style={preview ? { minWidth: INQUIRY_PAGE_WIDTH * scale } : undefined}
-			>
-				{pages.map((page, index) => (
-					<div
-						key={page.key}
-						className="inquiry-document-page-frame"
-						style={
-							preview
-								? { width: INQUIRY_PAGE_WIDTH * scale, height: HEIGHT * scale }
-								: undefined
-						}
-					>
-						<article
-							className="inquiry-document-page"
-							style={preview ? { transform: `scale(${scale})` } : undefined}
-							aria-label={`询问调查笔录第 ${index + 1} 页，共 ${pages.length} 页`}
-						>
-							<header
-								className={`inquiry-document-page-header inquiry-document-page-header--${index ? "continuation" : "first"}`}
-							>
-								{index === 0 && (
-									<div className="inquiry-document-authority">
-										{c.enforcementUnitName || "国家税务总局XXX税务局XXX稽查局"}
-									</div>
-								)}
-								<h1>{index ? "询问（调查）笔录续页" : "询问（调查）笔录"}</h1>
-								{index === 0 && (
-									<div className="inquiry-document-inquiry-count">
-										（第{toChineseUpperNumber(c.inquiryCount)}次）
-									</div>
-								)}
-								<div className="inquiry-document-page-count">
-									共{toChineseUpperNumber(pages.length)}页　第
-									{toChineseUpperNumber(index + 1)}页
-								</div>
-							</header>
-							<div className="inquiry-document-page-body">
-								{page.fragments.map((fragment) => (
-									<FragmentLine
-										key={fragment.key}
-										fragment={fragment}
-										focus={preview ? focus : undefined}
-									/>
-								))}
-							</div>
-							<footer className="inquiry-document-signature-footer">
-								<div>询问（调查）人签字：</div>
-								<div>记录人签字：</div>
-								<div>被询问（调查）人签字并押印：</div>
-								<div className="inquiry-document-signature-date">
-									<span>年　　月　　日</span>
-									<span>— {index + 1} —</span>
-								</div>
-							</footer>
-						</article>
-					</div>
-				))}
-			</div>
+			<InquiryPageSheetList
+				pages={pages}
+				preview={preview}
+				scale={scale}
+				enforcementUnitName={c.enforcementUnitName}
+				inquiryCount={c.inquiryCount}
+				focus={focus}
+			/>
 			<article
 				className="inquiry-document-page inquiry-document-measurement"
 				aria-hidden="true"
@@ -405,4 +447,6 @@ export default function InquiryDocumentPages({
 			</article>
 		</div>
 	);
-}
+});
+
+export default InquiryDocumentPages;

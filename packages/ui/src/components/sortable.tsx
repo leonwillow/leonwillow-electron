@@ -1,6 +1,6 @@
 /**
  * @file ReUI Sortable 共享拖拽排序组件。
- * 创建时间：2026-11-04；修改时间：2026-11-08。
+ * 创建时间：2026-11-04；修改时间：2026-11-21。
  * 版本作用：保留 ReUI 官方鼠标、触摸、键盘传感器、排序策略及拖动/落位动画。
  * 被调用：笔录问答编辑、Lattice Grid；调用：Base UI、dnd-kit、React Portal 与共享 cn。
  * 功能：按稳定 ID 排序，提供独立拖动手柄、拖动预览和排序提交接口。
@@ -52,6 +52,7 @@ import {
 	useCallback,
 	useContext,
 	useMemo,
+	useRef,
 	useState,
 	useSyncExternalStore,
 } from "react";
@@ -197,41 +198,56 @@ function Sortable<T>({
 		[onDragStart],
 	);
 
-	const handleDragEnd = useCallback(
-		(event: DragEndEvent) => {
-			const { active, over } = event;
-			setActiveId(null);
-			onDragEnd?.(event);
+	const latestRef = useRef({
+		value,
+		getItemValue,
+		onValueChange,
+		onMove,
+		onDragEnd,
+		onValueCommit,
+	});
+	latestRef.current = {
+		value,
+		getItemValue,
+		onValueChange,
+		onMove,
+		onDragEnd,
+		onValueCommit,
+	};
 
-			if (!over) return;
+	const handleDragEnd = useCallback((event: DragEndEvent) => {
+		const { active, over } = event;
+		setActiveId(null);
+		const latest = latestRef.current;
+		latest.onDragEnd?.(event);
 
-			// Handle item reordering
-			const activeIndex = value.findIndex(
-				(item: T) => getItemValue(item) === active.id,
-			);
-			const overIndex = value.findIndex(
-				(item: T) => getItemValue(item) === over.id,
-			);
+		if (!over) return;
 
-			if (activeIndex === -1 || overIndex === -1) return;
+		// Handle item reordering
+		const activeIndex = latest.value.findIndex(
+			(item: T) => latest.getItemValue(item) === active.id,
+		);
+		const overIndex = latest.value.findIndex(
+			(item: T) => latest.getItemValue(item) === over.id,
+		);
 
-			if (activeIndex !== overIndex) {
-				if (onMove) {
-					onMove({ event, activeIndex, overIndex });
-				} else {
-					const newValue = arrayMove(value, activeIndex, overIndex);
-					onValueChange(newValue);
-					onValueCommit?.(newValue, {
-						event,
-						activeIndex,
-						overIndex,
-						previousValue: value,
-					});
-				}
+		if (activeIndex === -1 || overIndex === -1) return;
+
+		if (activeIndex !== overIndex) {
+			if (latest.onMove) {
+				latest.onMove({ event, activeIndex, overIndex });
+			} else {
+				const newValue = arrayMove(latest.value, activeIndex, overIndex);
+				latest.onValueChange(newValue);
+				latest.onValueCommit?.(newValue, {
+					event,
+					activeIndex,
+					overIndex,
+					previousValue: latest.value,
+				});
 			}
-		},
-		[value, getItemValue, onValueChange, onMove, onDragEnd, onValueCommit],
-	);
+		}
+	}, []);
 
 	const handleDragCancel = useCallback(
 		(event: DragCancelEvent) => {
@@ -241,8 +257,17 @@ function Sortable<T>({
 		[onDragCancel],
 	);
 
+	// 当项 ID 序列未变化时保持引用稳定，避免列表项内容编辑击穿子组件 memo。
+	const prevItemIdsRef = useRef<string[]>([]);
 	const itemIds = useMemo(() => {
 		const ids = value.map(getItemValue);
+		const prev = prevItemIdsRef.current;
+		if (
+			prev.length === ids.length &&
+			prev.every((id, index) => id === ids[index])
+		) {
+			return prev;
+		}
 		if ((import.meta as ImportMeta & { env: { DEV: boolean } }).env.DEV) {
 			const seen = new Set<string>();
 			for (const id of ids) {
@@ -255,6 +280,7 @@ function Sortable<T>({
 				seen.add(id);
 			}
 		}
+		prevItemIdsRef.current = ids;
 		return ids;
 	}, [value, getItemValue]);
 
@@ -270,21 +296,26 @@ function Sortable<T>({
 		children,
 	};
 
-	// Find the active child for the overlay
+	// Find the active child for the overlay (supports both direct SortableItem value and memo-wrapped keyed rows)
 	const overlayContent = useMemo(() => {
 		if (!activeId) return null;
+		const activeKey = String(activeId);
 		let result: ReactNode = null;
 		Children.forEach(children, (child) => {
 			if (
-				isValidElement<{ value?: UniqueIdentifier; className?: string }>(
-					child,
-				) &&
-				child.props.value === activeId
+				!result &&
+				isValidElement<{ value?: UniqueIdentifier; className?: string }>(child)
 			) {
-				result = cloneElement(child, {
-					...child.props,
-					className: cn(child.props.className, "z-50"),
-				});
+				const normalizedKey = child.key?.replace(/^\.\$/, "");
+				if (child.props.value === activeId || normalizedKey === activeKey) {
+					result =
+						"className" in child.props
+							? cloneElement(child, {
+									...child.props,
+									className: cn(child.props.className, "z-50"),
+								})
+							: child;
+				}
 			}
 		});
 		return result;
@@ -387,14 +418,16 @@ function SortableItem({
 				children: props.children,
 			};
 
+	const itemContextValue = useMemo(
+		() =>
+			isOverlay
+				? { listeners: undefined, isDragging: true, disabled: false }
+				: { listeners, isDragging: isSortableDragging, disabled },
+		[isOverlay, listeners, isSortableDragging, disabled],
+	);
+
 	return (
-		<SortableItemContext.Provider
-			value={
-				isOverlay
-					? { listeners: undefined, isDragging: true, disabled: false }
-					: { listeners, isDragging: isSortableDragging, disabled }
-			}
-		>
+		<SortableItemContext.Provider value={itemContextValue}>
 			{useRender({
 				defaultTagName: "div",
 				render,

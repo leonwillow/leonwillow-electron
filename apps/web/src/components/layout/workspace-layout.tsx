@@ -11,7 +11,7 @@
 import { canAccessModule } from "@leonwillow-electron/access";
 import { TooltipProvider } from "@leonwillow-electron/ui/components/tooltip";
 import { getRouteApi } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { type ReactNode, useMemo } from "react";
 import AppSidebar from "@/components/layout/app-sidebar";
 import { workspaceMenuIds } from "@/lib/workspace-menu-state";
 import { useThemeStore } from "@/stores/theme-store";
@@ -29,10 +29,14 @@ export default function WorkspaceLayout({ children }: { children: ReactNode }) {
 		(state) => state.preferences.settings.sidebarMode,
 	);
 	const { user, moduleIds } = getRouteApi("/_workspace").useRouteContext();
-	const enabledMenus = workspaceMenuIds.filter((id) =>
-		id === "admin"
-			? user.role === "admin"
-			: canAccessModule({ role: user.role, moduleIds }, id),
+	const enabledMenus = useMemo(
+		() =>
+			workspaceMenuIds.filter((id) =>
+				id === "admin"
+					? user.role === "admin"
+					: canAccessModule({ role: user.role, moduleIds }, id),
+			),
+		[user.role, moduleIds],
 	);
 	return (
 		<TooltipProvider>

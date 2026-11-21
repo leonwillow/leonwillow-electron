@@ -1,13 +1,14 @@
 /**
  * @file 工作台权限与人员管理的 Eden 客户端。
  * 创建时间：2026-10-04
- * 修改时间：2026-11-18
+ * 修改时间：2026-11-21
  * 版本作用：前端只依赖服务端类型契约。
  * 被调用：工作台路由、认证客户端、人员管理视图。
- * 调用：api.ts。
- * 功能：读取实时授权（合并并发与瞬时重定向重复请求）、人员与记录，提交创建、编辑和重置操作。
- * 预期结果：不存储密码或令牌，业务失败保留后端中文信息，登录及根路由重定向不重复请求同一份权限。
+ * 调用：api.ts、access-cache.ts。
+ * 功能：读取实时授权（带请求代际合并与强制核验）、人员与记录，提交创建、编辑和重置操作。
+ * 预期结果：不存储密码或令牌，清缓存立即作废在途旧响应，登录及根路由重定向不重复请求同一份权限。
  */
+import { createAccessCache } from "./access-cache";
 import { api } from "./api";
 
 class AccessRequestError extends Error {}
@@ -39,18 +40,8 @@ export const accessErrorMessage = (error: unknown) =>
 
 type AccessPayload = Awaited<ReturnType<typeof fetchAccess>>;
 
-// 仅合并同一导航/重定向周期内的重复查询，跨操作和焦点恢复仍实时读取服务端授权。
+// 仅合并同一导航/重定向周期内的重复查询，清缓存与强制核验会递增代际作废在途旧响应。
 const ACCESS_HANDOFF_TTL_MS = 1000;
-let inFlightAccess: Promise<AccessPayload> | null = null;
-let recentAccess: {
-	value: NonNullable<AccessPayload>;
-	expiresAt: number;
-} | null = null;
-
-export function clearAccessCache() {
-	inFlightAccess = null;
-	recentAccess = null;
-}
 
 async function fetchAccess() {
 	const result = await api.api.access.get();
@@ -58,29 +49,32 @@ async function fetchAccess() {
 	return unwrap(result);
 }
 
+const accessCache = createAccessCache(fetchAccess, ACCESS_HANDOFF_TTL_MS);
+
+export function clearAccessCache() {
+	accessCache.clear();
+}
+
 /** 仅 401 返回 null；网络或服务故障抛出，让路由显示可重试错误。 */
-export async function getAccess(): Promise<AccessPayload> {
-	if (recentAccess && Date.now() < recentAccess.expiresAt) {
-		return recentAccess.value;
-	}
-	if (inFlightAccess) return inFlightAccess;
-	const request = fetchAccess()
-		.then((value) => {
-			if (value) {
-				recentAccess = {
-					value,
-					expiresAt: Date.now() + ACCESS_HANDOFF_TTL_MS,
-				};
-			} else {
-				recentAccess = null;
-			}
-			return value;
-		})
-		.finally(() => {
-			if (inFlightAccess === request) inFlightAccess = null;
-		});
-	inFlightAccess = request;
-	return request;
+export function getAccess(options?: {
+	force?: boolean;
+}): Promise<AccessPayload> {
+	return accessCache.get(options);
+}
+
+/** 比较两次权限快照的身份与模块授权是否一致，避免切回窗口无变化时触发路由重建。 */
+export function sameAccessSnapshot(
+	a: NonNullable<AccessPayload>,
+	b: NonNullable<AccessPayload>,
+) {
+	return (
+		a.user.id === b.user.id &&
+		a.user.role === b.user.role &&
+		a.user.name === b.user.name &&
+		a.user.username === b.user.username &&
+		a.moduleIds.length === b.moduleIds.length &&
+		a.moduleIds.every((id, index) => id === b.moduleIds[index])
+	);
 }
 
 export async function getAdminData() {

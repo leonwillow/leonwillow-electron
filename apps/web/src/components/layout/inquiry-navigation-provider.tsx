@@ -1,6 +1,6 @@
 /**
  * @file 笔录案件二级菜单的导航上下文。
- * 创建时间：2026-11-04；修改时间：2026-11-05。
+ * 创建时间：2026-11-04；修改时间：2026-11-21。
  * 版本作用：持有目录查询、案件资源及展开集合，菜单框的固定、展开及焦点由工作台统一提供。
  * 被调用：WorkspaceLayout、笔录视图和菜单内容。
  * 调用：WorkspaceNavigationProvider、笔录资源 Hook；预期结果：保存/归档后目录及时刷新。
@@ -12,6 +12,7 @@ import {
 	useCallback,
 	useContext,
 	useEffect,
+	useMemo,
 	useState,
 } from "react";
 import { useAsyncResource } from "@/hooks/use-async-resource";
@@ -89,21 +90,32 @@ export function InquiryNavigationProvider({
 	useEffect(() => {
 		if (inquiryCaseId) setCaseExpanded(inquiryCaseId, true);
 	}, [inquiryCaseId, setCaseExpanded]);
+	const value = useMemo(
+		() => ({
+			...menu,
+			cases,
+			query,
+			archived,
+			setQuery,
+			setArchived,
+			resetFilters,
+			expandedCases,
+			setCaseExpanded,
+			setExpandedCases,
+		}),
+		[
+			menu,
+			cases,
+			query,
+			archived,
+			resetFilters,
+			expandedCases,
+			setCaseExpanded,
+			setExpandedCases,
+		],
+	);
 	return (
-		<Context
-			value={{
-				...menu,
-				cases,
-				query,
-				archived,
-				setQuery,
-				setArchived,
-				resetFilters,
-				expandedCases,
-				setCaseExpanded,
-				setExpandedCases,
-			}}
-		>
+		<Context value={value}>
 			<InquiryEditorActionsProvider>{children}</InquiryEditorActionsProvider>
 		</Context>
 	);

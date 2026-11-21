@@ -1,6 +1,6 @@
 /**
  * @file 笔录案件文件夹菜单的内容、操作及弹窗。
- * 创建时间：2026-11-04；修改时间：2026-11-19。
+ * 创建时间：2026-11-04；修改时间：2026-11-21。
  * 版本作用：为统一菜单框提供独立笔录、可折叠案件目录及常用询问人入口。
  * 被调用：WorkspaceSecondaryMenu；调用：笔录资源上下文、Eden、共享控件。
  * 预期结果：点击文件夹展开/折叠，点击叶子笔录打开编辑；行操作不再另占一行。
@@ -64,6 +64,7 @@ export function useInquiryCaseMenu(): WorkspaceMenuContent {
 	const lock = useRef(false);
 	const rows = menu.cases.data ?? EMPTY_INQUIRY_CASES;
 	const { tree } = useInquiryTree(rows, {
+		active: menu.visible,
 		onOpenRecord: (caseId, recordId) => {
 			if (lock.current) return;
 			void navigate({
@@ -75,7 +76,7 @@ export function useInquiryCaseMenu(): WorkspaceMenuContent {
 		query: search.trim(),
 	});
 
-	/** 当前编辑笔录先完成保存；失败时中止归档，成功后才离开编辑器。 */
+	/** 当前编辑笔录先完成保存；失败时中止归档，归档后先释放编辑锁再离开编辑器避免误触发离开拦截。 */
 	const mutate = async (row: InquiryCase) => {
 		if (lock.current || creation.busy) return;
 		lock.current = true;
@@ -88,6 +89,7 @@ export function useInquiryCaseMenu(): WorkspaceMenuContent {
 				return;
 			}
 			await updateInquiryCase(row, { archived: !row.archived });
+			editorActions.finishMutation();
 			const currentSearch = router.state.location.search;
 			if (row.id === currentSearch.inquiryCaseId)
 				await navigate({ to: "/inquiries", search: {} });
@@ -122,6 +124,7 @@ export function useInquiryCaseMenu(): WorkspaceMenuContent {
 				patch,
 			);
 			editorActions.acceptMutation(updated);
+			editorActions.finishMutation();
 			if (
 				"archived" in patch &&
 				router.state.location.search.recordId === record.id

@@ -185,7 +185,15 @@ export function useInquiryEditor(record: InquiryRecord, readOnly: boolean) {
 					return null;
 				} finally {
 					pending.current = null;
-					if (live.current) setSaving(false);
+					if (live.current) {
+						setSaving(false);
+						if (
+							!blocked.current &&
+							current.current.rev !== savedRevRef.current &&
+							current.current.rev !== failedRevRef.current
+						)
+							scheduleAutoSave();
+					}
 				}
 			})();
 			pending.current = request;
@@ -208,10 +216,11 @@ export function useInquiryEditor(record: InquiryRecord, readOnly: boolean) {
 	);
 	persistRef.current = persist;
 
+	const presentRev = history.present.rev;
 	useEffect(() => {
-		if (dirty) scheduleAutoSave();
+		if (presentRev !== savedRev) scheduleAutoSave();
 		else clearAutoSaveTimer();
-	}, [dirty, scheduleAutoSave, clearAutoSaveTimer]);
+	}, [presentRev, savedRev, scheduleAutoSave, clearAutoSaveTimer]);
 
 	const actionsRef = useRef({
 		prepare: async (): Promise<{ id: string; revision: number } | null> => null,

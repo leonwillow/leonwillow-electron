@@ -7,7 +7,14 @@
  */
 import { createHoverCardHandle } from "@leonwillow-electron/ui/components/hover-card";
 import { useLocation } from "@tanstack/react-router";
-import { useEffect, useReducer, useRef, useState } from "react";
+import {
+	useCallback,
+	useEffect,
+	useMemo,
+	useReducer,
+	useRef,
+	useState,
+} from "react";
 import {
 	initialWorkspaceMenuState,
 	readWorkspaceMenuPinned,
@@ -55,13 +62,16 @@ export function useWorkspaceMenu({
 	const inquiriesTrigger = useRef<HTMLButtonElement>(null);
 	const calculatorsTrigger = useRef<HTMLButtonElement>(null);
 	const adminTrigger = useRef<HTMLButtonElement>(null);
-	const triggerRefs = {
-		funds: fundsTrigger,
-		documents: documentsTrigger,
-		inquiries: inquiriesTrigger,
-		calculators: calculatorsTrigger,
-		admin: adminTrigger,
-	};
+	const triggerRefs = useMemo(
+		() => ({
+			funds: fundsTrigger,
+			documents: documentsTrigger,
+			inquiries: inquiriesTrigger,
+			calculators: calculatorsTrigger,
+			admin: adminTrigger,
+		}),
+		[],
+	);
 	const navigationRef = useRef<HTMLElement>(null);
 	const panelRef = useRef<HTMLElement>(null);
 	const dragging = useRef(false);
@@ -75,36 +85,63 @@ export function useWorkspaceMenu({
 			: null;
 	const docked = !!activeMenu && state.pinned && wide;
 	const visible = !!activeMenu && (docked || state.open);
-	const show = (menuId: WorkspaceMenuId | null = activeMenu) => {
-		if (!menuId || !enabledMenus.includes(menuId)) return;
-		dispatch({ type: "show", menuId });
+	const latestRef = useRef({
+		enabledMenus,
+		activeMenu,
+		docked,
+		pinned: state.pinned,
+		userId,
+	});
+	latestRef.current = {
+		enabledMenus,
+		activeMenu,
+		docked,
+		pinned: state.pinned,
+		userId,
 	};
-	const dismiss = () => dispatch({ type: "dismiss" });
+	const show = useCallback(
+		(menuId: WorkspaceMenuId | null = latestRef.current.activeMenu) => {
+			if (!menuId || !latestRef.current.enabledMenus.includes(menuId)) return;
+			dispatch({ type: "show", menuId });
+		},
+		[],
+	);
+	const dismiss = useCallback(() => dispatch({ type: "dismiss" }), []);
 	// 仅供案件拖放结束收尾；常规悬停路径和延迟关闭交由 HoverCard。
-	const scheduleClose = () => {
+	const scheduleClose = useCallback(() => {
 		if (
-			!docked &&
+			!latestRef.current.docked &&
 			!dragging.current &&
 			!panelRef.current?.matches(":hover") &&
 			!navigationRef.current?.matches(":hover")
 		)
 			dismiss();
-	};
-	const focusPanel = (menuId: WorkspaceMenuId) => {
-		show(menuId);
-		if (focusFrame.current !== null) cancelAnimationFrame(focusFrame.current);
-		focusFrame.current = requestAnimationFrame(() => {
-			focusFrame.current = null;
-			panelRef.current
-				?.querySelector<HTMLElement>("input, [data-menu-row] button")
-				?.focus();
-		});
-	};
-	const togglePinned = () => {
-		const pinned = !state.pinned;
+	}, [dismiss]);
+	const focusPanel = useCallback(
+		(menuId: WorkspaceMenuId) => {
+			show(menuId);
+			if (focusFrame.current !== null) cancelAnimationFrame(focusFrame.current);
+			focusFrame.current = requestAnimationFrame(() => {
+				focusFrame.current = null;
+				panelRef.current
+					?.querySelector<HTMLElement>("input, [data-menu-row] button")
+					?.focus();
+			});
+		},
+		[show],
+	);
+	const togglePinned = useCallback(() => {
+		const pinned = !latestRef.current.pinned;
 		dispatch({ type: "pin", pinned });
-		writeWorkspaceMenuPinned(userId, pinned);
-	};
+		writeWorkspaceMenuPinned(latestRef.current.userId, pinned);
+	}, []);
+	const preview = useCallback((menuId: WorkspaceMenuId | null) => {
+		if (menuId && !latestRef.current.enabledMenus.includes(menuId)) return;
+		dispatch({ type: "preview", menuId });
+	}, []);
+	const setDragging = useCallback((value: boolean) => {
+		dragging.current = value;
+	}, []);
 	useEffect(() => {
 		dispatch({ type: "route", menuId: routeMenu });
 	}, [routeMenu]);
@@ -135,30 +172,46 @@ export function useWorkspaceMenu({
 		[],
 	);
 
-	return {
-		...menuWidth,
-		hoverHandle,
-		dragging,
-		activeMenu,
-		visible,
-		pinned: state.pinned,
-		docked,
-		triggerRefs,
-		navigationRef,
-		panelRef,
-		show,
-		preview: (menuId: WorkspaceMenuId | null) => {
-			if (menuId && !enabledMenus.includes(menuId)) return;
-			dispatch({ type: "preview", menuId });
-		},
-		scheduleClose,
-		dismiss,
-		focusPanel,
-		togglePinned,
-		setDragging: (value: boolean) => {
-			dragging.current = value;
-		},
-	};
+	const { widthRem, setWidthRem } = menuWidth;
+	return useMemo(
+		() => ({
+			widthRem,
+			setWidthRem,
+			hoverHandle,
+			dragging,
+			activeMenu,
+			visible,
+			pinned: state.pinned,
+			docked,
+			triggerRefs,
+			navigationRef,
+			panelRef,
+			show,
+			preview,
+			scheduleClose,
+			dismiss,
+			focusPanel,
+			togglePinned,
+			setDragging,
+		}),
+		[
+			widthRem,
+			setWidthRem,
+			hoverHandle,
+			activeMenu,
+			visible,
+			state.pinned,
+			docked,
+			triggerRefs,
+			show,
+			preview,
+			scheduleClose,
+			dismiss,
+			focusPanel,
+			togglePinned,
+			setDragging,
+		],
+	);
 }
 
 export type WorkspaceMenuNavigation = ReturnType<typeof useWorkspaceMenu>;

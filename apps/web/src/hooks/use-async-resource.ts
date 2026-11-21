@@ -8,7 +8,7 @@
  * 功能：支持 null 暂停加载、切换 loader 立即隐藏过期结果、同查询刷新可选保留旧数据，以及卸载后丢弃迟到响应。
  * 预期结果：迟到请求绝不污染新案件或新筛选条件的数据视图。
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiErrorMessage } from "@/lib/api";
 
 export type UseAsyncResourceOptions = {
@@ -80,10 +80,12 @@ export function useAsyncResource<T>(
 		};
 	}, [loader, reload]);
 
-	return {
-		...(state.loader === loader
-			? { data: state.data, loading: state.loading, error: state.error }
-			: { data: null, loading: !!loader, error: "" }),
-		reload,
-	};
+	const matches = state.loader === loader;
+	const data = matches ? state.data : null;
+	const loading = matches ? state.loading : !!loader;
+	const error = matches ? state.error : "";
+	return useMemo(
+		() => ({ data, loading, error, reload }),
+		[data, loading, error, reload],
+	);
 }

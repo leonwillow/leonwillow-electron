@@ -1,6 +1,6 @@
 /**
  * @file 文书类型菜单的导航上下文和共享目录/模板状态。
- * 创建时间：2026-10-13；修改时间：2026-11-18。
+ * 创建时间：2026-10-13；修改时间：2026-11-21。
  * 版本作用：按需激活并统一持有文书目录（catalog）与模板定义（types），消除路由 loader 与二级菜单的重复请求。
  * 被调用：WorkspaceLayout、文书菜单内容与 DocumentsView。
  * 调用：WorkspaceNavigationProvider、Eden；预期结果：悬停或进入文书页仅请求一次，旧响应不覆盖刷新后的目录。
@@ -11,6 +11,7 @@ import {
 	useCallback,
 	useContext,
 	useEffect,
+	useMemo,
 	useRef,
 	useState,
 } from "react";
@@ -87,22 +88,37 @@ export function DocumentNavigationProvider({
 		[],
 	);
 
+	const dismiss = menu.dismiss;
+	const selectType = useCallback(() => {
+		setSelection((value) => value + 1);
+		dismiss();
+	}, [dismiss]);
+
+	const value = useMemo(
+		() => ({
+			...menu,
+			catalog,
+			types,
+			loading,
+			error,
+			selection,
+			refreshCatalog,
+			selectType,
+		}),
+		[
+			menu,
+			catalog,
+			types,
+			loading,
+			error,
+			selection,
+			refreshCatalog,
+			selectType,
+		],
+	);
+
 	return (
-		<DocumentNavigationContext
-			value={{
-				...menu,
-				catalog,
-				types,
-				loading,
-				error,
-				selection,
-				refreshCatalog,
-				selectType: () => {
-					setSelection((value) => value + 1);
-					menu.dismiss();
-				},
-			}}
-		>
+		<DocumentNavigationContext value={value}>
 			{children}
 		</DocumentNavigationContext>
 	);

@@ -48,6 +48,7 @@ type FolderPage = {
 	error?: string;
 };
 type InquiryTreeOptions = {
+	active?: boolean;
 	onOpenRecord: (caseId: string, recordId: string) => void;
 	query?: string;
 };
@@ -97,7 +98,7 @@ function activateFocusedItem(
  */
 export function useInquiryTree(
 	rows: InquiryCase[],
-	{ onOpenRecord, query = "" }: InquiryTreeOptions,
+	{ active = true, onOpenRecord, query = "" }: InquiryTreeOptions,
 ) {
 	const { expandedCases, setExpandedCases, archived } = useInquiryNavigation();
 	const search = useSearch({ strict: false });
@@ -367,6 +368,10 @@ export function useInquiryTree(
 		},
 	});
 	useEffect(() => {
+		if (!active) {
+			treeHadFocus.current = false;
+			return;
+		}
 		const trackFocus = (event: FocusEvent) => {
 			treeHadFocus.current =
 				event.target instanceof Node &&
@@ -390,7 +395,7 @@ export function useInquiryTree(
 			document.removeEventListener("pointerdown", trackPointer, true);
 			window.removeEventListener("blur", clearFocus);
 		};
-	}, [tree]);
+	}, [tree, active]);
 	useEffect(() => {
 		tree.rebuildTree();
 		const focusedId = tree.getState().focusedItem;

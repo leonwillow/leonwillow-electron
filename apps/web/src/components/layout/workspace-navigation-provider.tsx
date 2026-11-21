@@ -1,6 +1,6 @@
 /**
  * @file 工作台单个二级菜单框的导航上下文。
- * 创建时间：2026-11-04；修改时间：2026-11-05。
+ * 创建时间：2026-11-04；修改时间：2026-11-21。
  * 版本作用：在布局中唯一创建菜单状态，模块适配只绑定内容 ID，不创建独立状态。
  * 被调用：WorkspaceLayout、AppSidebar、业务导航与 WorkspaceSecondaryMenu。
  * 调用：useWorkspaceMenu；预期结果：任意模块固定/取消固定后，整个菜单框同步生效。
@@ -10,8 +10,10 @@ import { useLocation } from "@tanstack/react-router";
 import {
 	createContext,
 	type ReactNode,
+	useCallback,
 	useContext,
 	useEffect,
+	useMemo,
 	useState,
 } from "react";
 import {
@@ -100,16 +102,75 @@ export function useWorkspaceNavigation() {
 	return context;
 }
 
-/** 只绑定模块的打开/聚焦入口；固定偏好、DOM 引用、关闭行为仍来自同一个上下文。 */
+/** 只绑定模块的打开/聚焦入口；隔离无关模块的 activeMenu 变化，避免悬停侧栏引发全页重渲染。 */
 export function useWorkspaceMenuSection(menuId: WorkspaceMenuId) {
-	const navigation = useWorkspaceNavigation();
-	return {
-		...navigation,
-		visible: navigation.visible && navigation.activeMenu === menuId,
-		docked: navigation.docked && navigation.activeMenu === menuId,
-		show: () => navigation.show(menuId),
-		focusPanel: () => navigation.focusPanel(menuId),
-	};
+	const {
+		widthRem,
+		setWidthRem,
+		hoverHandle,
+		dragging,
+		activeMenu,
+		visible: navVisible,
+		pinned,
+		docked: navDocked,
+		triggerRefs,
+		navigationRef,
+		panelRef,
+		show: navShow,
+		preview,
+		scheduleClose,
+		dismiss,
+		focusPanel: navFocusPanel,
+		togglePinned,
+		setDragging,
+	} = useWorkspaceNavigation();
+	const visible = navVisible && activeMenu === menuId;
+	const docked = navDocked && activeMenu === menuId;
+	const show = useCallback(() => navShow(menuId), [navShow, menuId]);
+	const focusPanel = useCallback(
+		() => navFocusPanel(menuId),
+		[navFocusPanel, menuId],
+	);
+	return useMemo(
+		() => ({
+			widthRem,
+			setWidthRem,
+			hoverHandle,
+			dragging,
+			visible,
+			pinned,
+			docked,
+			triggerRefs,
+			navigationRef,
+			panelRef,
+			show,
+			preview,
+			scheduleClose,
+			dismiss,
+			focusPanel,
+			togglePinned,
+			setDragging,
+		}),
+		[
+			widthRem,
+			setWidthRem,
+			hoverHandle,
+			dragging,
+			visible,
+			pinned,
+			docked,
+			triggerRefs,
+			navigationRef,
+			panelRef,
+			show,
+			preview,
+			scheduleClose,
+			dismiss,
+			focusPanel,
+			togglePinned,
+			setDragging,
+		],
+	);
 }
 
 function menuRouteMatches(menuId: WorkspaceMenuId, pathname: string) {
