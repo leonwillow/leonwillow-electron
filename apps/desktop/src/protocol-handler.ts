@@ -1,6 +1,6 @@
 /**
  * @file 桌面静态资源与受控 API 转发。
- * 创建时间：2026-11-10；修改时间：2026-11-20。
+ * 创建时间：2026-11-10；修改时间：2026-11-21。
  * 版本作用：本地前端与远端 API 分离，Cookie 只存于各服务器独立的 Chromium 会话。
  * 被调用：main；调用：Node fs/path、请求边界函数和主进程注入的网络会话。
  * 预期结果：不加载远程页面代码，不泄露服务器 Cookie；切换服务器可中止旧请求。
@@ -69,14 +69,13 @@ export function createProtocolHandler(options: {
 				};
 				controller.signal.addEventListener("abort", finish, { once: true });
 				try {
+					const hasBody = !["GET", "HEAD"].includes(request.method);
 					const response = await target.fetch(
 						`${target.url}${url.pathname}${url.search}`,
 						{
 							method: request.method,
 							headers: upstreamHeaders(request.headers),
-							body: ["GET", "HEAD"].includes(request.method)
-								? undefined
-								: await request.arrayBuffer(),
+							body: hasBody ? request.body : undefined,
 							credentials: "include",
 							redirect: "error",
 							signal: AbortSignal.any([controller.signal, request.signal]),
@@ -103,7 +102,7 @@ export function createProtocolHandler(options: {
 								async cancel(reason) {
 									controller.abort();
 									finish();
-									await reader.cancel(reason);
+									await reader.cancel(reason).catch(() => {});
 								},
 							})
 						: null;

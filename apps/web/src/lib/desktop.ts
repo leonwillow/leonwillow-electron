@@ -1,6 +1,6 @@
 /**
  * @file 登录视图访问桌面连接设置的窄接口。
- * 创建时间：2026-11-10；修改时间：2026-11-10。
+ * 创建时间：2026-11-10；修改时间：2026-11-21。
  * 版本作用：在同一 CSR 中区分普通网页与 Electron preload 提供的能力。
  * 被调用：登录服务器设置；调用：desktop-bridge 的纯类型契约。
  * 预期结果：Web 不展示桌面设置，React 不引入 Electron/Node 或持有认证凭据。
@@ -18,7 +18,7 @@ export function getDesktopBridge(): DesktopBridge | undefined {
 	return typeof window === "undefined" ? undefined : window.aideskDesktop;
 }
 
-/** IPC 仅允许登录页保存；直接重载当前文档，清理旧路由资源与表单。 */
+/** IPC 仅允许登录页保存；切换服务器后回到根路径以自动恢复目标服务器会话或回退登录页。 */
 export function restartDesktopLogin() {
-	window.location.reload();
+	window.location.replace("/");
 }

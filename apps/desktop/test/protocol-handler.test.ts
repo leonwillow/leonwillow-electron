@@ -130,3 +130,44 @@ test("服务器切换中止尚未完成的旧网络请求", async () => {
 	expect(observed?.aborted).toBe(true);
 	expect((await request).status).toBe(502);
 });
+
+test("POST 上传透传 ReadableStream 而不是整包缓冲，已报错响应流取消不抛出未捕获拒绝", async () => {
+	let receivedBody: RequestInit["body"];
+	const handler = createProtocolHandler({
+		rendererRoot: "/tmp",
+		getTarget: () => ({
+			url: "http://localhost:3000",
+			fetch: async (_url, options) => {
+				receivedBody = options.body;
+				return new Response(
+					new ReadableStream<Uint8Array>({
+						start(controller) {
+							controller.enqueue(new Uint8Array([1, 2]));
+							options.signal?.addEventListener(
+								"abort",
+								() => controller.error(new Error("upstream aborted")),
+								{ once: true },
+							);
+						},
+					}),
+				);
+			},
+		}),
+	});
+	const upload = apiRequest("/api/funds/import", {
+		method: "POST",
+		body: new ReadableStream<Uint8Array>({
+			start(controller) {
+				controller.enqueue(new Uint8Array([9, 8, 7]));
+				controller.close();
+			},
+		}),
+	});
+	const response = await handler.handle(upload);
+	expect(receivedBody instanceof ReadableStream).toBe(true);
+	const reader = response.body?.getReader();
+	expect((await reader?.read())?.value).toEqual(new Uint8Array([1, 2]));
+	handler.cancel();
+	// 对已经因中止报错的流执行 cancel 必须安全完成，不得抛 AbortError 拒绝。
+	await expect(reader?.cancel()).resolves.toBeUndefined();
+});

@@ -1,36 +1,31 @@
 /**
  * @file Electron原生网络回归的Bun启动器。
- * 创建时间：2026-11-10；修改时间：2026-11-10。
- * 被调用：test:electron；功能：打包无UI测试入口并等待Electron完成真实Cookie网络验证。
+ * 创建时间：2026-11-10；修改时间：2026-11-21。
+ * 被调用：test:electron；功能：在临时目录打包无UI测试入口并等待Electron完成真实Cookie网络验证，不污染 dist/。
  */
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import electron from "electron";
 
-await mkdir(join(import.meta.dir, "dist"), { recursive: true });
-const result = await Bun.build({
-	entrypoints: [join(import.meta.dir, "test/electron-network.fixture.ts")],
-	outdir: join(import.meta.dir, "dist"),
-	naming: "verify-network.cjs",
-	target: "node",
-	format: "cjs",
-	external: ["electron"],
-});
-if (!result.success)
-	throw new AggregateError(result.logs, "Electron网络测试构建失败");
 const directory = await mkdtemp(join(tmpdir(), "aidesk-electron-network-"));
 try {
+	const result = await Bun.build({
+		entrypoints: [join(import.meta.dir, "test/electron-network.fixture.ts")],
+		outdir: directory,
+		naming: "verify-network.cjs",
+		target: "node",
+		format: "cjs",
+		external: ["electron"],
+	});
+	if (!result.success)
+		throw new AggregateError(result.logs, "Electron网络测试构建失败");
+	const entry = join(directory, "verify-network.cjs");
 	for (const phase of ["save", "restore"]) {
-		const child = Bun.spawn(
-			[
-				String(electron),
-				join(import.meta.dir, "dist/verify-network.cjs"),
-				directory,
-				phase,
-			],
-			{ stdout: "inherit", stderr: "inherit" },
-		);
+		const child = Bun.spawn([String(electron), entry, directory, phase], {
+			stdout: "inherit",
+			stderr: "inherit",
+		});
 		let timedOut = false;
 		const timeout = setTimeout(() => {
 			timedOut = true;

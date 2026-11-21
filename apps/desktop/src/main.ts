@@ -36,6 +36,7 @@ import {
 	networkPartition,
 } from "./request-policy";
 import { sessionRequest } from "./session-request";
+import { readBoundedJson } from "./session-request-core";
 
 protocol.registerSchemesAsPrivileged([
 	{
@@ -206,11 +207,15 @@ async function start() {
 					{
 						headers: { origin: DESKTOP_ORIGIN, accept: "application/json" },
 						credentials: "omit",
+						cache: "no-store",
 						redirect: "error",
 						signal: AbortSignal.timeout(8_000),
 					},
 				);
-				const body = await response.json();
+				const body = (await readBoundedJson(response, 64 * 1024)) as {
+					status?: unknown;
+					service?: unknown;
+				} | null;
 				return response.ok &&
 					body?.status === "ok" &&
 					body?.service === "leonwillow-electron"
@@ -252,18 +257,67 @@ async function start() {
 				window?.webContents.closeDevTools(),
 			);
 		}
+		let shown = false;
+		let recovering = false;
+		const recoverOrQuit = async (title: string, detail: string) => {
+			if (recovering) return;
+			recovering = true;
+			handler.cancel();
+			const parent =
+				window && !window.isDestroyed() && window.isVisible()
+					? window
+					: undefined;
+			const options = {
+				type: "error" as const,
+				title,
+				message: title,
+				detail,
+				buttons: ["重新加载", "退出应用"],
+				defaultId: 0,
+				cancelId: 1,
+			};
+			const { response } = parent
+				? await dialog.showMessageBox(parent, options)
+				: await dialog.showMessageBox(options);
+			if (response === 0) {
+				recovering = false;
+				if (!window || window.isDestroyed()) {
+					createWindow();
+					return;
+				}
+				void window.loadURL(`${DESKTOP_ORIGIN}/`).catch(() => {
+					void recoverOrQuit(
+						"页面无法加载",
+						"本地应用页面仍无法打开，请检查安装包完整性或重新启动应用。",
+					);
+				});
+				return;
+			}
+			app.quit();
+		};
 		// 仅记录生命周期错误码，不写页面参数、接口正文或登录凭据。
 		window.webContents.on(
 			"did-fail-load",
 			(_event, code, _description, _url, mainFrame) => {
-				if (mainFrame && code !== -3)
+				if (mainFrame && code !== -3) {
 					console.error(`[desktop] 页面加载失败，错误码 ${code}。`);
+					void recoverOrQuit(
+						"页面加载失败",
+						`本地应用页面加载失败（错误码 ${code}），您可以重新加载或退出应用。`,
+					);
+				}
 			},
 		);
 		window.webContents.on("render-process-gone", (_event, details) => {
 			console.error(
 				`[desktop] 页面进程退出：${details.reason} (${details.exitCode})。`,
 			);
+			if (details.reason !== "clean-exit") {
+				void recoverOrQuit(
+					"页面意外退出",
+					"应用页面进程已异常终止，您可以重新加载界面或退出应用。",
+				);
+			}
 		});
 		window.webContents.setWindowOpenHandler(({ url }) => {
 			if (isAllowedExternalUrl(url)) {
@@ -287,13 +341,23 @@ async function start() {
 		window.webContents.on("will-attach-webview", (event) =>
 			event.preventDefault(),
 		);
-		window.on("ready-to-show", () => window?.show());
+		window.on("ready-to-show", () => {
+			shown = true;
+			window?.show();
+		});
 		window.on("closed", () => {
 			handler.cancel();
 			window = null;
 		});
-		void window.loadURL(`${DESKTOP_ORIGIN}/login`).catch(() => {
-			console.error("[desktop] 登录页面未能加载。");
+		// 启动先进入根路径以恢复“记住我”持久化会话，未登录时由前端路由自动跳转登录页。
+		void window.loadURL(`${DESKTOP_ORIGIN}/`).catch(() => {
+			console.error("[desktop] 应用首屏未能加载。");
+			if (!shown) {
+				void recoverOrQuit(
+					"应用无法打开界面",
+					"首屏资源未能加载，您可以重试加载或退出应用。",
+				);
+			}
 		});
 	};
 	createWindow();

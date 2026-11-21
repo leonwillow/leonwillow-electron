@@ -59,7 +59,12 @@
 		"desktop#build": {
 			"dependsOn": ["web#build"],
 			"inputs": ["$TURBO_DEFAULT$", "../web/.env*"],
-			"outputs": ["dist/**"]
+			"outputs": [
+				"dist/main.cjs",
+				"dist/preload.cjs",
+				"dist/config.json",
+				"dist/renderer/**"
+			]
 		}
 	},
 	"globalEnv": [
