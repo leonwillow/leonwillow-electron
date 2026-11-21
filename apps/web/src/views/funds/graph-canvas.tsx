@@ -1,11 +1,11 @@
 /**
  * @file Neo4j 查询结果的 G6 画布。
  * 创建时间：2026-10-06
- * 修改时间：2026-10-09
+ * 修改时间：2026-11-21
  * 版本作用：绘制逐笔或有向汇总结果，平行边保持独立可展开 ID。
  * 被调用：analysis-panel；调用：按需加载的 G6、共享主题令牌。
  * 功能：节点交互与个人标记；G6 Toolbar 悬浮工具栏提供缩放并承载分析操作。
- * 预期结果：主题更新保留镜头与位置，分批绘制不锁住页面，切换视图取消旧任务。
+ * 预期结果：主题与局部隐藏更新原位复用图实例与镜头，缩放仅在跨越细节阈值时节流刷新。
  */
 import type { Graph, IKeyboardEvent, IPointerEvent } from "@antv/g6";
 import {
@@ -59,6 +59,7 @@ export default function GraphCanvas({
 	toolbar,
 	initialCanvas,
 	viewKey,
+	sceneKey = viewKey,
 	data,
 	nodeMode,
 	onDetails,
@@ -72,6 +73,7 @@ export default function GraphCanvas({
 	toolbar?: ReactNode;
 	initialCanvas?: CanvasSnapshot;
 	viewKey: number;
+	sceneKey?: number;
 	data: AnalysisGraph;
 	nodeMode: NodeMode;
 	onDetails: (id: string) => void;
@@ -147,9 +149,14 @@ export default function GraphCanvas({
 	const drillEvent = useEffectEvent(onDrill);
 	const menuEvent = useEffectEvent(onNodeMenu);
 	const getPresentation = useEffectEvent(() => presentation);
+	const getInitialCanvas = useEffectEvent(() => initialCanvas);
+	const getViewKey = useEffectEvent(() => viewKey);
 	const paintRef = useRef<
 		((entries: Record<string, NodePresentation>) => void) | null
 	>(null);
+	useEffect(() => {
+		if (host.current) host.current.dataset.viewKey = String(viewKey);
+	}, [viewKey]);
 	// biome-ignore lint/correctness/useExhaustiveDependencies: 背景色通过容器 CSS 供 renderer 读取，变化时只刷新样式，不重建画布。
 	useEffect(() => {
 		paintRef.current?.(presentation);
@@ -159,18 +166,20 @@ export default function GraphCanvas({
 		backgroundPreferences.background.customColor,
 	]);
 	const transactionEvent = useEffectEvent(onTransaction);
+	// biome-ignore lint/correctness/useExhaustiveDependencies: sceneKey 标识需要重建画布的历史帧；隐藏/恢复节点复用同一 sceneKey 原位更新。
 	useEffect(() => {
 		const container = host.current;
 		if (!container) return;
 		setError("");
 		// 同一批数据也可能切换历史帧；把帧号写入容器用于诊断当前绘制版本。
-		container.dataset.viewKey = String(viewKey);
+		container.dataset.viewKey = String(getViewKey());
 		const preventMenu = (event: MouseEvent) => event.preventDefault();
 		container.addEventListener("contextmenu", preventMenu);
 		let disposed = false;
 		let drawRevision = 0;
 		const lifetime = new AbortController();
 		let themeFrame = 0;
+		let transformFrame = 0;
 		let progressTime = 0;
 		setProgress({ nodes: 0, edges: 0 });
 		let clickTimer: ReturnType<typeof setTimeout> | undefined;
@@ -346,7 +355,7 @@ export default function GraphCanvas({
 				container,
 				data,
 				presentation: getPresentation(),
-				snapshot: initialCanvas,
+				snapshot: getInitialCanvas(),
 				signal: lifetime.signal,
 				onProgress: (value) => {
 					if (disposed) return;
@@ -361,8 +370,28 @@ export default function GraphCanvas({
 				onError: () => setError("样式更新失败，请刷新画布后重试。"),
 			});
 			paintRef.current = renderer.update;
+			const readZoomDetail = () => {
+				const zoom = graph.getZoom();
+				return {
+					labels: data.nodes.length < 200 || zoom >= 0.15,
+					arrows: data.edges.length < 500 || zoom >= 0.12,
+				};
+			};
+			let zoomDetail = readZoomDetail();
 			graph.on("aftertransform", () => {
-				if (readyRef.current) renderer?.update(getPresentation());
+				if (!readyRef.current) return;
+				const nextDetail = readZoomDetail();
+				if (
+					nextDetail.labels === zoomDetail.labels &&
+					nextDetail.arrows === zoomDetail.arrows
+				)
+					return;
+				zoomDetail = nextDetail;
+				cancelAnimationFrame(transformFrame);
+				transformFrame = requestAnimationFrame(() => {
+					if (!disposed && readyRef.current)
+						renderer?.update(getPresentation());
+				});
 			});
 			resize = new ResizeObserver(() => {
 				// 隐藏的页签仍保留实例，不能把零尺寸写进 G6 镜头。
@@ -375,6 +404,7 @@ export default function GraphCanvas({
 			resize.observe(container);
 			const loaded = await renderer.load();
 			if (!loaded || disposed || revision !== drawRevision) return;
+			zoomDetail = readZoomDetail();
 			readyRef.current = true;
 			toolbarController?.setStatus("ready");
 			setReady(true);
@@ -383,6 +413,7 @@ export default function GraphCanvas({
 		const redraw = () => {
 			cancelClick();
 			cancelAnimationFrame(menuFrame);
+			cancelAnimationFrame(transformFrame);
 			paintRef.current = null;
 			const revision = ++drawRevision;
 			resize?.disconnect();
@@ -413,6 +444,7 @@ export default function GraphCanvas({
 			disposed = true;
 			lifetime.abort();
 			cancelAnimationFrame(themeFrame);
+			cancelAnimationFrame(transformFrame);
 			container.removeEventListener("contextmenu", preventMenu);
 			cancelClick();
 			cancelAnimationFrame(menuFrame);
@@ -424,7 +456,7 @@ export default function GraphCanvas({
 			graphRef.current?.destroy();
 			graphRef.current = null;
 		};
-	}, [data, initialCanvas, viewKey, toolbarSlot, toolbarHintId, toggleSlot]);
+	}, [data, sceneKey, toolbarSlot, toolbarHintId, toggleSlot]);
 	useEffect(() => {
 		if (!ready) return;
 		toolbarFocus.current?.focus({ preventScroll: true });

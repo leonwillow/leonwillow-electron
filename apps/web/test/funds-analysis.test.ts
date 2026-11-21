@@ -445,11 +445,17 @@ test("历史恢复分析条件、隐藏节点与画布；返回后新操作清�
 	};
 	const first = createViewHistory(initial);
 	const second = pushView(first, { ...initial, account: "赵佳" }, canvas);
+	expect(second.frames[second.index]?.sceneKey).not.toBe(
+		first.frames[0]?.sceneKey,
+	);
 	const third = pushView(
 		second,
 		{ ...initial, account: "赵佳", hidden: ["对手"] },
 		{ ...canvas, zoom: 3 },
 		canvas,
+	);
+	expect(third.frames[third.index]?.sceneKey).toBe(
+		second.frames[second.index]?.sceneKey,
 	);
 	const back = moveView(third, -1);
 	expect(back.frames[back.index]?.state.hidden).toEqual([]);
@@ -458,6 +464,9 @@ test("历史恢复分析条件、隐藏节点与画布；返回后新操作清�
 	expect(forward.frames[forward.index]?.state.hidden).toEqual(["对手"]);
 	expect(forward.frames[forward.index]?.canvas).toEqual(canvas);
 	const branch = pushView(back, { ...initial, query: "其他" });
+	expect(branch.frames[branch.index]?.sceneKey).not.toBe(
+		back.frames[back.index]?.sceneKey,
+	);
 	expect(moveView(branch, 1)).toBe(branch);
 	expect(branch.frames).toHaveLength(3);
 	expect(branch.frames.at(-1)?.state.query).toBe("其他");

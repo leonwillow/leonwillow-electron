@@ -1,10 +1,10 @@
 /**
  * @file 案件原始流水上传与后台处理记录。
  * 创建时间：2026-10-06
- * 修改时间：2026-11-19
+ * 修改时间：2026-11-21
  * 版本作用：AI 标准化是默认入口，已有模板可直接提交；结果可下载和核验。
  * 被调用：资金调查文件页签；调用：共享 UI、Eden 案件任务接口。
- * 预期结果：离开页面不停止任务，轮询不会把另一案件的结果带入当前页面。
+ * 预期结果：离开页面不停止后台任务，仅在可见且有未完成任务时轮询，迟到响应不会覆盖上传或重试结果。
  */
 
 import { Badge } from "@leonwillow-electron/ui/components/badge";
@@ -59,11 +59,13 @@ type Job = Awaited<ReturnType<typeof getFundsJobs>>[number];
 
 export default function PipelinePanel({
 	caseId,
+	active = true,
 	revision,
 	graphRevision,
 	onChanged,
 }: {
 	caseId: string;
+	active?: boolean;
 	revision: number;
 	graphRevision: number;
 	onChanged: () => Promise<void>;
@@ -72,56 +74,109 @@ export default function PipelinePanel({
 	const [files, setFiles] = useState<File[]>([]);
 	const [jobs, setJobs] = useState<Job[] | null>(null);
 	const [busy, setBusy] = useState(false);
-	const [error, setError] = useState("");
+	const [actionError, setActionError] = useState("");
+	const [pollError, setPollError] = useState("");
 	const [message, setMessage] = useState("");
 	const [inputVersion, setInputVersion] = useState(0);
+	const error = actionError || pollError;
 	const expandedJobId =
 		jobs?.find((job) => job.status !== "completed")?.id ??
 		jobs?.find((job) => job.mode !== "sync")?.id ??
 		jobs?.[0]?.id;
 	const changed = useRef(onChanged);
 	const versions = useRef({ revision, graphRevision });
+	const jobsRef = useRef<Job[] | null>(null);
+	const requestGenRef = useRef(0);
+	const schedulePollRef = useRef<((delayMs: number) => void) | null>(null);
 	useEffect(() => {
 		changed.current = onChanged;
 		versions.current = { revision, graphRevision };
 	}, [onChanged, revision, graphRevision]);
 	const reload = useCallback(() => getFundsJobs(caseId), [caseId]);
+	const applyJobs = useCallback(async (next: Job[]) => {
+		jobsRef.current = next;
+		setJobs(next);
+		setPollError("");
+		const completed = next.find(
+			(j) =>
+				j.result &&
+				(j.result.revision > versions.current.revision ||
+					j.result.graphRevision > versions.current.graphRevision),
+		);
+		if (completed?.result) {
+			versions.current = {
+				revision: completed.result.revision,
+				graphRevision: completed.result.graphRevision,
+			};
+			await changed.current();
+		}
+	}, []);
 	useEffect(() => {
-		let active = true;
-		let timeout: ReturnType<typeof setTimeout>;
+		if (!active) {
+			schedulePollRef.current = null;
+			return;
+		}
+		let mounted = true;
+		let timeout: ReturnType<typeof setTimeout> | undefined;
+		const clearTimer = () => {
+			if (timeout !== undefined) {
+				clearTimeout(timeout);
+				timeout = undefined;
+			}
+		};
+		const shouldContinue = (list: Job[] | null) =>
+			!list ||
+			list.some(
+				(job) => job.status !== "completed" && job.status !== "failed",
+			) ||
+			versions.current.revision !== versions.current.graphRevision;
+		const schedule = (delayMs: number) => {
+			clearTimer();
+			if (!mounted || document.hidden) return;
+			timeout = setTimeout(() => {
+				timeout = undefined;
+				void poll();
+			}, delayMs);
+		};
 		const poll = async () => {
+			clearTimer();
+			if (!mounted || document.hidden) return;
+			const gen = ++requestGenRef.current;
 			try {
 				const next = await reload();
-				if (!active) return;
-				setJobs(next);
-				const completed = next.find(
-					(j) =>
-						j.result &&
-						(j.result.revision > versions.current.revision ||
-							j.result.graphRevision > versions.current.graphRevision),
-				);
-				if (completed?.result) {
-					versions.current = {
-						revision: completed.result.revision,
-						graphRevision: completed.result.graphRevision,
-					};
-					await changed.current();
-				}
+				if (!mounted || gen !== requestGenRef.current) return;
+				await applyJobs(next);
+				if (mounted && !document.hidden && shouldContinue(next)) schedule(2500);
 			} catch (e) {
-				if (active) setError(fundsError(e));
+				if (!mounted || gen !== requestGenRef.current) return;
+				setPollError(fundsError(e));
+				if (mounted && !document.hidden && shouldContinue(jobsRef.current))
+					schedule(5000);
 			}
-			if (active) timeout = setTimeout(() => void poll(), 2500);
 		};
-		void poll();
+		schedulePollRef.current = schedule;
+		const onVisibilityChange = () => {
+			if (document.hidden) clearTimer();
+			else void poll();
+		};
+		document.addEventListener("visibilitychange", onVisibilityChange);
+		if (!document.hidden) void poll();
 		return () => {
-			active = false;
-			clearTimeout(timeout);
+			mounted = false;
+			requestGenRef.current += 1;
+			schedulePollRef.current = null;
+			clearTimer();
+			document.removeEventListener("visibilitychange", onVisibilityChange);
 		};
-	}, [reload]);
+	}, [reload, active, applyJobs]);
+	useEffect(() => {
+		if (active && revision !== graphRevision) schedulePollRef.current?.(0);
+	}, [active, revision, graphRevision]);
 	const upload = async () => {
 		setBusy(true);
-		setError("");
+		setActionError("");
 		setMessage("");
+		requestGenRef.current += 1;
 		try {
 			const result =
 				mode === "ai"
@@ -130,9 +185,12 @@ export default function PipelinePanel({
 			setMessage(result.message);
 			setFiles([]);
 			setInputVersion((v) => v + 1);
-			setJobs(await reload());
+			const gen = ++requestGenRef.current;
+			const next = await reload();
+			if (gen === requestGenRef.current) await applyJobs(next);
+			schedulePollRef.current?.(2500);
 		} catch (e) {
-			setError(fundsError(e));
+			setActionError(fundsError(e));
 		} finally {
 			setBusy(false);
 		}
@@ -142,6 +200,7 @@ export default function PipelinePanel({
 		file: Job["files"][number],
 		format: "csv" | "report" | "original",
 	) => {
+		setActionError("");
 		try {
 			await downloadFundsStandardFile(
 				caseId,
@@ -151,17 +210,21 @@ export default function PipelinePanel({
 				format,
 			);
 		} catch (e) {
-			setError(fundsError(e));
+			setActionError(fundsError(e));
 		}
 	};
 	const retry = async (id: string) => {
 		setBusy(true);
-		setError("");
+		setActionError("");
+		requestGenRef.current += 1;
 		try {
 			await retryFundsJob(caseId, id);
-			setJobs(await reload());
+			const gen = ++requestGenRef.current;
+			const next = await reload();
+			if (gen === requestGenRef.current) await applyJobs(next);
+			schedulePollRef.current?.(2500);
 		} catch (e) {
-			setError(fundsError(e));
+			setActionError(fundsError(e));
 		} finally {
 			setBusy(false);
 		}

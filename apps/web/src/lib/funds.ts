@@ -165,13 +165,7 @@ export type FundsCase = Awaited<ReturnType<typeof getFundsCase>>;
 export type FundsGraph = Awaited<ReturnType<typeof getFundsGraph>>;
 export type FundsAccount = FundsGraph["nodes"][number];
 export type FundsTransaction = FundsGraph["edges"][number];
-export { formatFunds } from "./funds-money";
-export const accountName = (account?: FundsAccount) =>
-	(account?.identityStatus === "manual"
-		? account.names[0]
-		: account?.ownNames.join(" / ")) ||
-	account?.names[0] ||
-	"户名待核";
+export { accountName, formatFunds } from "./funds-money";
 
 /** Eden 将 octet-stream 解析为 ArrayBuffer，保留原始 CSV 编码及 Excel 字节。 */
 function saveOriginalDownload(data: unknown, name: string) {

@@ -1,13 +1,13 @@
 /**
  * @file G6 图元分批绘制与原位样式更新。
  * 创建时间：2026-10-07
- * 修改时间：2026-11-20
+ * 修改时间：2026-11-21
  * 版本作用：布局坐标只在进入视图时计算，主题和标记不触发布局或自动缩放。
  * 被调用：graph-canvas；调用：G6 draw/addData、共享主题令牌、分批调度与画面提交器。
- * 预期结果：完整绘制全部节点/边，加载过程可取消，主题连续切换以最新样式为准。
+ * 预期结果：完整绘制全部节点/边，加载过程可取消，主题与局部标记增量更新且无微任务锁死。
  */
 import type { EdgeData, Graph, NodeData } from "@antv/g6";
-import { accountName, formatFunds } from "@/lib/funds";
+import { accountName, formatFunds } from "@/lib/funds-money";
 import type { GraphPaintController } from "./graph-paint-controller";
 import type { AnalysisGraph } from "./model/analysis";
 import { canvasGraphPalette } from "./model/canvas-background";
@@ -16,11 +16,22 @@ import { fundsEdgeStyles, fundsNodePositions } from "./model/graph-layout";
 import {
 	type GraphPresentation,
 	lineDash,
+	type NodePresentation,
 	relatedEdgeMark,
 } from "./model/graph-presentation";
 import type { CanvasSnapshot } from "./model/view-history";
 
 export type GraphProgress = { nodes: number; edges: number };
+
+function sameNodePresentation(a?: NodePresentation, b?: NodePresentation) {
+	if (a === b) return true;
+	return (
+		Boolean(a?.hidden) === Boolean(b?.hidden) &&
+		Boolean(a?.marked) === Boolean(b?.marked) &&
+		(a?.updatedAt ?? 0) === (b?.updatedAt ?? 0) &&
+		a?.mark === b?.mark
+	);
+}
 
 function readTheme(container: HTMLElement, graph: Graph, data: AnalysisGraph) {
 	const style = getComputedStyle(container);
@@ -124,18 +135,23 @@ export function createGraphRenderer({
 	paintController: GraphPaintController;
 }) {
 	let theme = readTheme(container, graph, data);
+	let themeKey = JSON.stringify(theme);
 	let entries = presentation;
 	let version = 0;
 	let applied = 0;
 	let loaded = false;
 	let painting: Promise<void> | undefined;
 	let paintAbort = new AbortController();
+	let dirtyAll = false;
+	const dirtyNodes = new Set<string>();
 	const nodesPainted = new Map<string, string>();
 	const edgesPainted = new Map<string, string>();
 	const active = () => !signal.aborted && !graph.destroyed;
 	let nodeStyleOnly = false;
 	const nodeGeometry = new Map<string, string>();
 	const pendingEdges = new Set<string>();
+	const nodeById = new Map(data.nodes.map((node) => [node.id, node]));
+	const edgeById = new Map(data.edges.map((edge) => [edge.id, edge]));
 	const adjacent = new Map<string, Set<string>>();
 	for (const edge of data.edges) {
 		for (const id of [edge.from, edge.to]) {
@@ -154,77 +170,112 @@ export function createGraphRenderer({
 
 	const flush = () => {
 		if (painting) return painting;
-		painting = (async () => {
-			while (active() && applied !== version) {
-				const current = version;
-				const paintTheme = theme;
-				const paintEntries = entries;
-				paintAbort = new AbortController();
-				const paintSignal = AbortSignal.any([signal, paintAbort.signal]);
-				const nodes = data.nodes
-					.map((node) => nodePatch(node, paintEntries, paintTheme))
-					.filter(
-						(patch) => nodesPainted.get(patch.id) !== JSON.stringify(patch),
-					);
-				await drawInBatches(
-					nodes,
-					async (batch) => {
-						nodeStyleOnly = true;
-						for (const patch of batch) {
-							if (nodeGeometry.get(patch.id) !== geometryKey(patch)) {
-								for (const id of adjacent.get(patch.id) ?? [])
-									pendingEdges.add(id);
+		let settled = false;
+		const run = (async () => {
+			let finished = false;
+			try {
+				while (active() && applied !== version) {
+					const current = version;
+					const paintTheme = theme;
+					const paintEntries = entries;
+					const fullScan = dirtyAll;
+					paintAbort = new AbortController();
+					const paintSignal = AbortSignal.any([signal, paintAbort.signal]);
+					const candidateNodes = fullScan
+						? data.nodes
+						: [...dirtyNodes].flatMap((id) => {
+								const node = nodeById.get(id);
+								return node ? [node] : [];
+							});
+					const nodes: { patch: NodeData; key: string }[] = [];
+					for (const node of candidateNodes) {
+						const patch = nodePatch(node, paintEntries, paintTheme);
+						const key = JSON.stringify(patch);
+						if (nodesPainted.get(patch.id) !== key) nodes.push({ patch, key });
+					}
+					await drawInBatches(
+						nodes,
+						async (batch) => {
+							nodeStyleOnly = true;
+							const patches = batch.map((item) => item.patch);
+							for (const patch of patches) {
+								if (nodeGeometry.get(patch.id) !== geometryKey(patch)) {
+									for (const id of adjacent.get(patch.id) ?? [])
+										pendingEdges.add(id);
+								}
 							}
-						}
-						try {
-							graph.updateNodeData(batch);
-							await graph.draw();
-							for (const patch of batch)
-								nodeGeometry.set(patch.id, geometryKey(patch));
-						} finally {
-							nodeStyleOnly = false;
-						}
-						for (const patch of batch)
-							nodesPainted.set(patch.id, JSON.stringify(patch));
-					},
-					paintSignal,
-				);
-				// 尺寸/形状变化涉及的连线也按批更新；取消重绘后仍保留待更新 ID。
-				const edges = data.edges
-					.map((edge) => edgePatch(edge, paintEntries, paintTheme))
-					.filter(
-						(patch) =>
-							pendingEdges.has(patch.id) ||
-							edgesPainted.get(patch.id) !== JSON.stringify(patch),
+							try {
+								graph.updateNodeData(patches);
+								await graph.draw();
+								for (const patch of patches)
+									nodeGeometry.set(patch.id, geometryKey(patch));
+							} finally {
+								nodeStyleOnly = false;
+							}
+							for (const item of batch)
+								nodesPainted.set(item.patch.id, item.key);
+						},
+						paintSignal,
 					);
-				await drawInBatches(
-					edges,
-					async (batch) => {
-						graph.updateEdgeData(batch);
-						await graph.draw();
-						for (const patch of batch) {
-							edgesPainted.set(patch.id, JSON.stringify(patch));
-							pendingEdges.delete(patch.id);
+					// 尺寸/形状变化涉及的连线也按批更新；取消重绘后仍保留待更新 ID。
+					let candidateEdges: AnalysisGraph["edges"];
+					if (fullScan) {
+						candidateEdges = data.edges;
+					} else {
+						const edgeIds = new Set<string>(pendingEdges);
+						for (const nodeId of dirtyNodes) {
+							for (const edgeId of adjacent.get(nodeId) ?? [])
+								edgeIds.add(edgeId);
 						}
-					},
-					paintSignal,
-				);
-				if (!paintSignal.aborted) applied = current;
-			}
-		})()
-			.then(
-				() => {
-					paintController.finish();
-				},
-				(error: unknown) => {
-					paintController.cancel();
-					throw error;
-				},
-			)
-			.finally(() => {
+						candidateEdges = [...edgeIds].flatMap((id) => {
+							const edge = edgeById.get(id);
+							return edge ? [edge] : [];
+						});
+					}
+					const edges: { patch: EdgeData & { id: string }; key: string }[] = [];
+					for (const edge of candidateEdges) {
+						const patch = edgePatch(edge, paintEntries, paintTheme);
+						const key = JSON.stringify(patch);
+						if (
+							pendingEdges.has(patch.id) ||
+							edgesPainted.get(patch.id) !== key
+						)
+							edges.push({ patch, key });
+					}
+					await drawInBatches(
+						edges,
+						async (batch) => {
+							graph.updateEdgeData(batch.map((item) => item.patch));
+							await graph.draw();
+							for (const item of batch) {
+								edgesPainted.set(item.patch.id, item.key);
+								pendingEdges.delete(item.patch.id);
+							}
+						},
+						paintSignal,
+					);
+					if (!paintSignal.aborted) {
+						applied = current;
+						if (version === current) {
+							dirtyAll = false;
+							dirtyNodes.clear();
+						}
+					}
+				}
+				finished = active() && applied === version;
+			} catch (error: unknown) {
+				settled = true;
 				painting = undefined;
-			});
-		return painting;
+				paintController.cancel();
+				throw error;
+			}
+			settled = true;
+			painting = undefined;
+			if (finished) paintController.finish();
+			else paintController.cancel();
+		})();
+		if (!settled) painting = run;
+		return run;
 	};
 
 	return {
@@ -235,15 +286,25 @@ export function createGraphRenderer({
 		update(next: GraphPresentation) {
 			if (!active()) return;
 			const nextTheme = readTheme(container, graph, data);
-			if (
-				entries === next &&
-				JSON.stringify(theme) === JSON.stringify(nextTheme)
-			)
-				return;
+			const nextThemeKey = JSON.stringify(nextTheme);
+			const themeChanged = nextThemeKey !== themeKey;
+			const changedNodes: string[] = [];
+			if (entries !== next) {
+				for (const node of data.nodes) {
+					if (!sameNodePresentation(entries[node.id], next[node.id]))
+						changedNodes.push(node.id);
+				}
+			}
+			if (!themeChanged && changedNodes.length === 0) return;
+			if (themeChanged) {
+				dirtyAll = true;
+			} else {
+				for (const id of changedNodes) dirtyNodes.add(id);
+			}
 			// 仅配色变更可保留旧画面；字体、尺寸、可见性与缩放细节立即走正常绘制。
 			if (
 				loaded &&
-				entries === next &&
+				changedNodes.length === 0 &&
 				theme.unit === nextTheme.unit &&
 				theme.font === nextTheme.font &&
 				theme.labels === nextTheme.labels &&
@@ -255,6 +316,7 @@ export function createGraphRenderer({
 			}
 			entries = next;
 			theme = nextTheme;
+			themeKey = nextThemeKey;
 			version += 1;
 			paintAbort.abort();
 			if (loaded)
@@ -264,7 +326,6 @@ export function createGraphRenderer({
 		},
 		async load() {
 			let initialTheme = theme;
-			const initialEntries = entries;
 			const unit = initialTheme.unit;
 			// 分批绘制途中可能切到流水页签；沿用初始化时的有效尺寸。
 			const [width, height] = graph.getSize();
@@ -301,6 +362,9 @@ export function createGraphRenderer({
 			if (!active()) return false;
 			initialTheme = readTheme(container, graph, data);
 			theme = initialTheme;
+			themeKey = JSON.stringify(initialTheme);
+			const initialEntries = entries;
+			const loadVersion = version;
 			const nodesDone = await drawInBatches(
 				data.nodes,
 				async (batch) => {
@@ -355,7 +419,13 @@ export function createGraphRenderer({
 			);
 			if (!edgesDone) return false;
 			loaded = true;
-			await flush();
+			if (version === loadVersion) {
+				applied = loadVersion;
+				dirtyAll = false;
+				dirtyNodes.clear();
+			} else {
+				await flush();
+			}
 			if (!active()) return false;
 			// 新视图仅在完整绘制后适配一次；历史视图完全沿用保存的镜头。
 			if (!snapshot && data.nodes.length) await graph.fitView(undefined, false);

@@ -509,6 +509,7 @@ export default function AnalysisPanel({ caseId }: { caseId: string }) {
 							<GraphCanvas
 								userId={user.id}
 								viewKey={history.frame.id}
+								sceneKey={history.frame.sceneKey}
 								ref={history.canvas}
 								initialCanvas={history.frame.canvas}
 								toolbar={display === "graph" ? filterToolbar : undefined}

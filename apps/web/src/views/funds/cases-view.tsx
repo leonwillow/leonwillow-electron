@@ -1,7 +1,7 @@
 /**
  * @file 案件管理、流水导入与清洗核对页面。
  * 创建时间：2026-10-06
- * 修改时间：2026-11-20
+ * 修改时间：2026-11-21
  * 版本作用：将资料准备从资金分析中分离，保留既有导入与核对组件。
  * 被调用：funds_.cases 路由；调用：共享 UI、Eden、流水与核对面板。
  * 功能：案件选择/创建、文件导入/下载、处理进度、清洗与跨案资料管理。
@@ -55,6 +55,7 @@ function CaseWorkspace({
 }) {
 	const details = useAsyncResource(
 		useCallback(() => getFundsCase(caseId), [caseId]),
+		{ keepPreviousOnReload: true },
 	);
 	const [reviewMode, setReviewMode] = useState<
 		"issues" | "candidates" | "subjects"
@@ -65,11 +66,11 @@ function CaseWorkspace({
 	const [error, setError] = useState("");
 	const summary = useAsyncResource(
 		useCallback(() => getFundsSummary(caseId), [caseId]),
+		{ keepPreviousOnReload: true },
 	);
-	const refresh = async () => {
-		await details.reload();
-		await summary.reload();
-	};
+	const refresh = useCallback(async () => {
+		await Promise.all([details.reload(), summary.reload()]);
+	}, [details.reload, summary.reload]);
 	const sync = async () => {
 		setBusy(true);
 		setError("");
@@ -97,7 +98,7 @@ function CaseWorkspace({
 			setError(fundsError(e));
 		}
 	};
-	if (details.loading)
+	if (details.loading && !details.data)
 		return (
 			<p className="p-6 text-muted-foreground text-sm" role="status">
 				正在读取完整案件…
@@ -144,9 +145,9 @@ function CaseWorkspace({
 						{busy ? "正在提交处理请求…" : message}
 					</p>
 				)}
-				{error && (
+				{(error || details.error) && (
 					<p role="alert" className="text-destructive-foreground text-sm">
-						{error}
+						{error || details.error}
 					</p>
 				)}
 				{record.revision !== record.graphRevision && (
@@ -210,6 +211,7 @@ function CaseWorkspace({
 					<TabsContent value="sources" className="space-y-6 pt-4" keepMounted>
 						<PipelinePanel
 							caseId={caseId}
+							active={tab === "sources"}
 							revision={record.revision}
 							graphRevision={record.graphRevision}
 							onChanged={refresh}

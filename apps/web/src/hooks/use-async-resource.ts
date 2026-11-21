@@ -1,7 +1,7 @@
 /**
  * @file 通用异步资源的请求代际管理、按需暂停与手动重试 Hook。
  * 创建时间：2026-11-18
- * 修改时间：2026-11-18
+ * 修改时间：2026-11-21
  * 版本作用：收敛资金、笔录与工作台二级目录中的重复异步加载状态机。
  * 被调用：apps/web/src/components/layout/*、apps/web/src/views/{funds,inquiries}/*。
  * 调用：react、@/lib/api。
@@ -60,12 +60,15 @@ export function useAsyncResource<T>(
 			}
 		} catch (error) {
 			if (request === generation.current) {
-				setState({
+				setState((current) => ({
 					loader: activeLoader,
-					data: null,
+					data:
+						keepPreviousRef.current && current.loader === activeLoader
+							? current.data
+							: null,
 					error: apiErrorMessage(error, fallbackRef.current),
 					loading: false,
-				});
+				}));
 			}
 		}
 	}, []);
